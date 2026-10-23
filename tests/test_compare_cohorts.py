@@ -41,7 +41,7 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(cohorts.summarize(self.data)[0]["quality_evidence"], "unknown")
 
     def test_invalid_or_missing_cost_is_rejected(self):
-        for value in ["NaN", "Infinity", "-0.01", 4]:
+        for value in ["NaN", "Infinity", "-0.01", "not-a-number", 4]:
             with self.subTest(value=value):
                 data = copy.deepcopy(self.data)
                 data["policies"][0]["tasks"][0]["costs"]["inference"] = value

@@ -4,7 +4,7 @@
 Spec: knowledge/operations/quality-and-evaluation.md
 """
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import json
 from math import ceil
 from pathlib import Path
@@ -37,7 +37,10 @@ def summarize(data):
             for value in task["costs"].values():
                 if not isinstance(value, str):
                     raise ValueError("Money values must be decimal strings")
-                amount = Decimal(value)
+                try:
+                    amount = Decimal(value)
+                except InvalidOperation as error:
+                    raise ValueError("Cost must be a decimal string") from error
                 if not amount.is_finite() or amount < 0:
                     raise ValueError("Cost must be finite and nonnegative")
                 total += amount
