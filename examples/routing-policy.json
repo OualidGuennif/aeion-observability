@@ -1,0 +1,70 @@
+{
+  "schema_version": "aeion.observability.policy/v0-draft",
+  "example_only": true,
+  "policy_id": "example-shadow-v0",
+  "mode": "shadow",
+  "application_enabled": false,
+  "adaptive_learning_enabled": false,
+  "exploration_fraction": "0",
+  "profiles": [
+    {
+      "id": "example-baseline",
+      "role": "baseline",
+      "auth_mode": "provider_api",
+      "protocol": "chat_completions",
+      "model": "EXAMPLE_MODEL_BASELINE",
+      "qualification_state": "synthetic_only",
+      "live_eligible": false
+    },
+    {
+      "id": "example-low-cost",
+      "role": "candidate",
+      "auth_mode": "provider_api",
+      "protocol": "chat_completions",
+      "model": "EXAMPLE_MODEL_CHEAP",
+      "qualification_state": "synthetic_only",
+      "live_eligible": false
+    },
+    {
+      "id": "example-recovery",
+      "role": "recovery",
+      "auth_mode": "provider_api",
+      "protocol": "chat_completions",
+      "model": "EXAMPLE_MODEL_STRONG",
+      "qualification_state": "synthetic_only",
+      "live_eligible": false
+    },
+    {
+      "id": "example-subscription",
+      "role": "separate_cli_baseline",
+      "auth_mode": "claude_subscription",
+      "protocol": "native_cli",
+      "model": "REPLACE_WITH_SUPPORTED_CLI_MODEL",
+      "qualification_state": "synthetic_only",
+      "live_eligible": false
+    }
+  ],
+  "selection_unit": "whole_task",
+  "baseline_profile_id": "example-baseline",
+  "required_eligibility": [
+    "operator_allowlist",
+    "privacy_and_location",
+    "harness_protocol_model_qualification",
+    "context_and_tool_state",
+    "mandatory_evidence_available",
+    "bounded_price_and_exposure",
+    "deadline_admission"
+  ],
+  "quality_gate": {
+    "minimum_autonomous_acceptance": null,
+    "non_inferiority_margin": null,
+    "minimum_effect": null,
+    "promotion_state": "not_configured"
+  },
+  "switching": {
+    "enabled": false,
+    "maximum_checkpoint_escalations": 0
+  },
+  "missing_required_evidence": "refuse_application",
+  "fallback_on_controller_failure": "only_if_preapproved_and_required_controls_hold"
+}

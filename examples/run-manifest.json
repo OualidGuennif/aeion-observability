@@ -1,0 +1,59 @@
+{
+  "schema_version": "aeion.observability.run/v0-draft",
+  "example_only": true,
+  "mode": "observe",
+  "environment": "evaluation",
+  "task_id": "synthetic-task-01",
+  "run_id": "synthetic-run-01",
+  "harness_session_id": null,
+  "parent_run_id": null,
+  "task_family": "bounded_bugfix",
+  "acceptance_stage": "verified_patch_ready_for_review",
+  "cohort_id": "synthetic-fixture",
+  "source": {
+    "revision": "1111111111111111111111111111111111111111",
+    "dirty": false,
+    "synthetic_digest": true
+  },
+  "harness": {
+    "name": "example-harness",
+    "version": "0.0-fixture"
+  },
+  "runtime": {
+    "name": "example-sandbox",
+    "image_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "ops_policy_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "controller_policy_id": "example-shadow-v0",
+  "active_profile_id": "example-baseline",
+  "selection_source": "existing_fixed_baseline",
+  "auth_mode": "provider_api",
+  "credential_reference": "EXAMPLE_ONLY/provider-credential",
+  "limits": {
+    "deadline_seconds": 300,
+    "maximum_attempts_per_call": 2,
+    "maximum_inflight_requests": 2,
+    "budget": {
+      "amount": "0.50",
+      "currency": "USD",
+      "basis": "synthetic_provider_charge",
+      "strict_enforcement": "not_implemented"
+    }
+  },
+  "capture": {
+    "content": "disabled",
+    "hidden_reasoning": "disabled",
+    "diagnostic_trace_sampling": "1.0",
+    "complete_task_outcome_accounting_required": true
+  },
+  "acceptance": {
+    "check_ids": [
+      "acceptance-test",
+      "scope-review"
+    ],
+    "corrective_interventions_allowed": 0,
+    "intervention_coverage_required": "complete",
+    "maturity_rule": "synthetic_immediate_after_all_checks"
+  },
+  "artifact_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}

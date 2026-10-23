@@ -1,0 +1,319 @@
+{
+  "example_only": true,
+  "purpose": "Arithmetic illustration, not a benchmark or statistical comparison",
+  "currency": "USD",
+  "accounting_basis": "synthetic_complete_all_in_cost_excluding_human_wage",
+  "p95_method": "nearest_rank",
+  "policies": [
+    {
+      "policy_id": "cheap",
+      "tasks": [
+        {
+          "task_id": "synthetic-01",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 80,
+          "wall_seconds": 300,
+          "costs": {
+            "inference": "4.00",
+            "sandbox": "2.00",
+            "evaluation": "1.00",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-02",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 80,
+          "wall_seconds": 320,
+          "costs": {
+            "inference": "4.00",
+            "sandbox": "2.00",
+            "evaluation": "1.00",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-03",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 80,
+          "wall_seconds": 360,
+          "costs": {
+            "inference": "4.00",
+            "sandbox": "2.00",
+            "evaluation": "1.00",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-04",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 80,
+          "wall_seconds": 420,
+          "costs": {
+            "inference": "4.00",
+            "sandbox": "2.00",
+            "evaluation": "1.00",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-05",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 80,
+          "wall_seconds": 480,
+          "costs": {
+            "inference": "4.00",
+            "sandbox": "2.00",
+            "evaluation": "1.00",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-06",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 80,
+          "wall_seconds": 600,
+          "costs": {
+            "inference": "4.00",
+            "sandbox": "2.00",
+            "evaluation": "1.00",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-07",
+          "outcome": "assisted",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 8,
+          "request_count": 80,
+          "wall_seconds": 720,
+          "costs": {
+            "inference": "4.00",
+            "sandbox": "2.00",
+            "evaluation": "1.00",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-08",
+          "outcome": "assisted",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 12,
+          "request_count": 80,
+          "wall_seconds": 900,
+          "costs": {
+            "inference": "4.00",
+            "sandbox": "2.00",
+            "evaluation": "1.00",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-09",
+          "outcome": "failed",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 80,
+          "wall_seconds": 1200,
+          "costs": {
+            "inference": "4.00",
+            "sandbox": "2.00",
+            "evaluation": "1.00",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-10",
+          "outcome": "failed",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 80,
+          "wall_seconds": 1800,
+          "costs": {
+            "inference": "4.00",
+            "sandbox": "2.00",
+            "evaluation": "1.00",
+            "observability": "0.20"
+          }
+        }
+      ]
+    },
+    {
+      "policy_id": "balanced",
+      "tasks": [
+        {
+          "task_id": "synthetic-01",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 40,
+          "wall_seconds": 240,
+          "costs": {
+            "inference": "6.00",
+            "sandbox": "1.20",
+            "evaluation": "0.80",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-02",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 40,
+          "wall_seconds": 260,
+          "costs": {
+            "inference": "6.00",
+            "sandbox": "1.20",
+            "evaluation": "0.80",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-03",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 40,
+          "wall_seconds": 280,
+          "costs": {
+            "inference": "6.00",
+            "sandbox": "1.20",
+            "evaluation": "0.80",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-04",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 40,
+          "wall_seconds": 300,
+          "costs": {
+            "inference": "6.00",
+            "sandbox": "1.20",
+            "evaluation": "0.80",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-05",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 40,
+          "wall_seconds": 320,
+          "costs": {
+            "inference": "6.00",
+            "sandbox": "1.20",
+            "evaluation": "0.80",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-06",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 40,
+          "wall_seconds": 340,
+          "costs": {
+            "inference": "6.00",
+            "sandbox": "1.20",
+            "evaluation": "0.80",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-07",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 40,
+          "wall_seconds": 360,
+          "costs": {
+            "inference": "6.00",
+            "sandbox": "1.20",
+            "evaluation": "0.80",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-08",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 40,
+          "wall_seconds": 420,
+          "costs": {
+            "inference": "6.00",
+            "sandbox": "1.20",
+            "evaluation": "0.80",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-09",
+          "outcome": "autonomous",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 40,
+          "wall_seconds": 480,
+          "costs": {
+            "inference": "6.00",
+            "sandbox": "1.20",
+            "evaluation": "0.80",
+            "observability": "0.20"
+          }
+        },
+        {
+          "task_id": "synthetic-10",
+          "outcome": "failed",
+          "maturity": "mature",
+          "intervention_coverage": "complete",
+          "corrective_minutes": 0,
+          "request_count": 40,
+          "wall_seconds": 600,
+          "costs": {
+            "inference": "6.00",
+            "sandbox": "1.20",
+            "evaluation": "0.80",
+            "observability": "0.20"
+          }
+        }
+      ]
+    }
+  ]
+}

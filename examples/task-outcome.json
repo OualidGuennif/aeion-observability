@@ -1,0 +1,38 @@
+{
+  "schema_version": "aeion.observability.outcome/v0-draft",
+  "example_only": true,
+  "task_id": "synthetic-task-01",
+  "run_ids": [
+    "synthetic-run-01"
+  ],
+  "version": 1,
+  "supersedes": null,
+  "artifact_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "acceptance_stage": "verified_patch_ready_for_review",
+  "check_ids": [
+    "acceptance-test",
+    "scope-review"
+  ],
+  "checks_integrity_verified": true,
+  "boundary_integrity_verified": true,
+  "verified_acceptance": true,
+  "corrective_interventions": 0,
+  "intervention_coverage": "complete",
+  "maturity": "mature",
+  "delayed_regression": false,
+  "verified_autonomous_success": true,
+  "cost": {
+    "known_amount": "0.05",
+    "currency": "USD",
+    "basis": "synthetic_provider_charge",
+    "estimated_amount": "0.00",
+    "unresolved_charge_count": 0,
+    "included_charge_ids": [
+      "charge-01",
+      "charge-02"
+    ],
+    "scope": "inference_only_not_all_in_task_cost",
+    "all_in_task_cost_complete": false
+  },
+  "note": "All acceptance, identity and integrity assertions are fictional test data, not executed checks."
+}

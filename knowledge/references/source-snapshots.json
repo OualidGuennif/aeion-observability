@@ -1,0 +1,537 @@
+{
+  "schema_version": "aeion.research.sources/v0-draft",
+  "checked_on": "2026-10-23",
+  "content_vendored": false,
+  "scope": "Successful read-only source retrievals; selected sections read as described in sources.md. Hashes identify retrieved bytes, not an independent trust attestation.",
+  "otel_genai_commit": "9ffc7e00c639be7712e544e3e54331e885dccf84",
+  "sources": [
+    {
+      "id": "anthropic-effort",
+      "url": "https://platform.claude.com/docs/en/build-with-claude/effort.md",
+      "resolved_url": "https://platform.claude.com/docs/en/build-with-claude/effort.md",
+      "bytes": 43003,
+      "sha256": "725fe89abb7e466aa4b60edb72ff4fc951f5d6be3a0d1b2f70b0ca7e0e3aecdc",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "anthropic-evals",
+      "url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents",
+      "resolved_url": "https://www.anthropic.com/research/demystifying-evals-for-ai-agents",
+      "bytes": 357243,
+      "sha256": "af767e4a56afbb4f3630bb7365fa3da8ea5e61070ce3dec58385008d37dfa986",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "anthropic-infra",
+      "url": "https://www.anthropic.com/research/infrastructure-noise",
+      "resolved_url": "https://www.anthropic.com/research/infrastructure-noise",
+      "bytes": 203152,
+      "sha256": "12ff6288bd7cdb6f8b62b5b94d8bccb07632fb69430eb5bf8c053c8fd5b328bb",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "claude-model",
+      "url": "https://code.claude.com/docs/en/model-config.md",
+      "resolved_url": "https://code.claude.com/docs/en/model-config.md",
+      "bytes": 121317,
+      "sha256": "2b625d2fa6a17edbaf4c2aa4c4697aaabbe3d17d4d867451110835cf87155c3a",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "claude-monitoring",
+      "url": "https://code.claude.com/docs/en/monitoring-usage.md",
+      "resolved_url": "https://code.claude.com/docs/en/monitoring-usage.md",
+      "bytes": 166596,
+      "sha256": "0e42ac27160f846a34ab3af5356692a9f20eb2ece99d02db48681065f7373164",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "claude-sdk",
+      "url": "https://code.claude.com/docs/en/agent-sdk/python.md",
+      "resolved_url": "https://code.claude.com/docs/en/agent-sdk/python.md",
+      "bytes": 161462,
+      "sha256": "c097b9afd14beefe02e61e69ebb0e26cb87076b1c68507f3ca161164b012078d",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "di-anthropic",
+      "url": "https://docs.deepinfra.com/integrations/anthropic.md",
+      "resolved_url": "https://docs.deepinfra.com/integrations/anthropic.md",
+      "bytes": 10930,
+      "sha256": "7a2942975b593c61d20378c7716711b3ef925b3a0226e645f75bdea0a4e2fcc5",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "di-cache",
+      "url": "https://docs.deepinfra.com/chat/prompt-caching.md",
+      "resolved_url": "https://docs.deepinfra.com/chat/prompt-caching.md",
+      "bytes": 6391,
+      "sha256": "65ba78793c468526d5f3886369b72d3fe2498764e99b8cd1ee082dcfaa42cbe0",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "di-cache-retention",
+      "url": "https://docs.deepinfra.com/chat/prompt-cache-retention.md",
+      "resolved_url": "https://docs.deepinfra.com/chat/prompt-cache-retention.md",
+      "bytes": 8010,
+      "sha256": "1006663d478f23c131ae2f9b8b18fedf764ff797f34dfeb79c564033e059a90d",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "di-chat",
+      "url": "https://docs.deepinfra.com/chat/overview.md",
+      "resolved_url": "https://docs.deepinfra.com/chat/overview.md",
+      "bytes": 13590,
+      "sha256": "71f174c7157201edf3c2f704350780f05d31c56607d37a13b92f2e61a79c128d",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "di-chat-api",
+      "url": "https://docs.deepinfra.com/api-reference/chat-completions/openai-chat-completions.md",
+      "resolved_url": "https://docs.deepinfra.com/api-reference/chat-completions/openai-chat-completions.md",
+      "bytes": 33126,
+      "sha256": "d97d838a22499a8eb2dc13cfd46e6b6970f69267e2aac897185bd6060bc20405",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "di-privacy",
+      "url": "https://docs.deepinfra.com/account/data-privacy.md",
+      "resolved_url": "https://docs.deepinfra.com/account/data-privacy.md",
+      "bytes": 2910,
+      "sha256": "0361e115c01065779e0e69b1a96b20dcd9bfea8613b148720fc675f002b09ae5",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "di-rate",
+      "url": "https://docs.deepinfra.com/account/rate-limits.md",
+      "resolved_url": "https://docs.deepinfra.com/account/rate-limits.md",
+      "bytes": 1965,
+      "sha256": "74ce39bcc7cd4debc03938310e771321d27a7db3486017a5f6888a2e2d2523da",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "di-reasoning",
+      "url": "https://docs.deepinfra.com/chat/reasoning.md",
+      "resolved_url": "https://docs.deepinfra.com/chat/reasoning.md",
+      "bytes": 6245,
+      "sha256": "0f84b7fdf7b846944468d52b352d75d63129acdcd769994261b4b0a1b7af7260",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "di-streaming",
+      "url": "https://docs.deepinfra.com/chat/streaming.md",
+      "resolved_url": "https://docs.deepinfra.com/chat/streaming.md",
+      "bytes": 2876,
+      "sha256": "b6ff28fe045b2d94890bd9c18e7e36b4bdaf0e80a1fc55c7004b2d3ab3e8059a",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "di-structured",
+      "url": "https://docs.deepinfra.com/chat/structured-outputs.md",
+      "resolved_url": "https://docs.deepinfra.com/chat/structured-outputs.md",
+      "bytes": 5636,
+      "sha256": "ba4e2465d5c024fc7d7dca26d7b09c85a9a0a6137599ec56f758b407b18d5a30",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "di-tools",
+      "url": "https://docs.deepinfra.com/chat/tool-calling.md",
+      "resolved_url": "https://docs.deepinfra.com/chat/tool-calling.md",
+      "bytes": 7334,
+      "sha256": "27c99dc8827b45cf7dba54be98889c1cc26bce4a3fc6b1a516277363aa868566",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "factory-efficiency",
+      "url": "https://raw.githubusercontent.com/OualidGuennif/aeion-factory/main/efficiency/CRAFTED.md",
+      "resolved_url": "https://raw.githubusercontent.com/OualidGuennif/aeion-factory/main/efficiency/CRAFTED.md",
+      "bytes": 1732,
+      "sha256": "f2071a377f3af68c18eaca7a3b4bf8c684f5efcdf3403674a05d0c1924baf1e1",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "langfuse-license",
+      "url": "https://raw.githubusercontent.com/langfuse/langfuse/main/LICENSE",
+      "resolved_url": "https://raw.githubusercontent.com/langfuse/langfuse/main/LICENSE",
+      "bytes": 1612,
+      "sha256": "fd09d42b5b16606ad2042cc1edf3a82da1c47743709f170c959c74758af229d6",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "lf-best",
+      "url": "https://langfuse.com/docs/observability/best-practices.md",
+      "resolved_url": "https://langfuse.com/docs/observability/best-practices.md",
+      "bytes": 17908,
+      "sha256": "1723a68481ed421337b8dd94800f9b79f36383963fd78f335078351a32642395",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "lf-claude",
+      "url": "https://langfuse.com/integrations/developer-tools/claude-code.md",
+      "resolved_url": "https://langfuse.com/integrations/developer-tools/claude-code.md",
+      "bytes": 42725,
+      "sha256": "1c53795f33e6c8f7aeef7503d7348fd5620981b8d64b41df08803629032a1b68",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "lf-evals",
+      "url": "https://langfuse.com/docs/evaluation/overview.md",
+      "resolved_url": "https://langfuse.com/docs/evaluation/overview.md",
+      "bytes": 8807,
+      "sha256": "e1e45c7449f7c617ad434c83988322a9bf8941892bda1cd37784578145228532",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "lf-halo",
+      "url": "https://langfuse.com/docs/halo.md",
+      "resolved_url": "https://langfuse.com/docs/halo.md",
+      "bytes": 7054,
+      "sha256": "28a05befd6fc22a2193455c422c576c3e397dbb537caec4c226ab8c9e61c109f",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "lf-migration",
+      "url": "https://langfuse.com/faq/all/deprecated-api-migration.md",
+      "resolved_url": "https://langfuse.com/faq/all/deprecated-api-migration.md",
+      "bytes": 74765,
+      "sha256": "750ff3c3bb9ee3888475d172b7a571091d9d71e22b3107f774bf0bf6d20ad96e",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "lf-otel",
+      "url": "https://langfuse.com/integrations/native/opentelemetry.md",
+      "resolved_url": "https://langfuse.com/integrations/native/opentelemetry.md",
+      "bytes": 41368,
+      "sha256": "3c59b5d616f8e0e1ea3bb321a9c3b4843039533fd6d0fc911e3fdc400e465c00",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "lf-selfhost",
+      "url": "https://langfuse.com/self-hosting.md",
+      "resolved_url": "https://langfuse.com/self-hosting.md",
+      "bytes": 12419,
+      "sha256": "ff3a62e78f65b43b3dfa8c7ba48add60b3584158810cd67fee71c6e43ae72a79",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "litellm-license",
+      "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/LICENSE",
+      "resolved_url": "https://raw.githubusercontent.com/BerriAI/litellm/main/LICENSE",
+      "bytes": 1419,
+      "sha256": "b170d6bf8e8835dd357e011681db028f4d51e2fb0ea892058f56e01fb39b8273",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "litellm-routing",
+      "url": "https://docs.litellm.ai/docs/routing",
+      "resolved_url": "https://docs.litellm.ai/docs/routing",
+      "bytes": 639606,
+      "sha256": "114e9511f33981dd4f3fe32ef993db38d2edf8de5742599ca5de1952b2711d0d",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "mlflow-license",
+      "url": "https://raw.githubusercontent.com/mlflow/mlflow/master/LICENSE.txt",
+      "resolved_url": "https://raw.githubusercontent.com/mlflow/mlflow/master/LICENSE.txt",
+      "bytes": 11382,
+      "sha256": "6395355de6f391afff35996a30fb41b189b4991a4cb54993ace35ab69a0bfa28",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "mlflow-tracing",
+      "url": "https://mlflow.org/docs/latest/genai/tracing/",
+      "resolved_url": "https://mlflow.org/docs/latest/genai/tracing/",
+      "bytes": 48955,
+      "sha256": "88705ca2b90911498138e92441d4699d513a2964c049a53fe9e1786b53e368d0",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "modal-otel",
+      "url": "https://modal.com/docs/guide/otel-integration",
+      "resolved_url": "https://modal.com/docs/guide/otel-integration",
+      "bytes": 59567,
+      "sha256": "3dcad14e2ea7928ccd03944fb9ada1d3c2037da0d3bd5d45e964a9676ab0001d",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "newrelic-ai",
+      "url": "https://docs.newrelic.com/docs/ai-monitoring/intro-to-ai-monitoring/",
+      "resolved_url": "https://docs.newrelic.com/docs/ai-monitoring/intro-to-ai-monitoring/",
+      "bytes": 340130,
+      "sha256": "1ee40b1490a74ee74a4a0d7d992d112b69bf2a25f8fe32ff93a143f0f22af97a",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "newrelic-otlp",
+      "url": "https://docs.newrelic.com/docs/opentelemetry/best-practices/opentelemetry-otlp/",
+      "resolved_url": "https://docs.newrelic.com/docs/opentelemetry/best-practices/opentelemetry-otlp/",
+      "bytes": 389645,
+      "sha256": "6df8e0c4b56aeba78ede9b528bb77a7866269da486e5bc3cd8bee72610e890a2",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "online-full",
+      "url": "https://arxiv.org/html/2506.17670v1",
+      "resolved_url": "https://arxiv.org/html/2506.17670v1",
+      "bytes": 522554,
+      "sha256": "68d24c6cd5b2cd4403e840ddc50c856e5cde29127faa0dacefdeabc69d43fdb1",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "openai-evals",
+      "url": "https://developers.openai.com/api/docs/guides/agent-evals.md",
+      "resolved_url": "https://developers.openai.com/api/docs/guides/agent-evals.md",
+      "bytes": 2874,
+      "sha256": "55804edbdfb1df0df3eca148783b7c832f2e4ff00e0718ca385b10489792e887",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "openinference-readme",
+      "url": "https://raw.githubusercontent.com/Arize-ai/openinference/main/README.md",
+      "resolved_url": "https://raw.githubusercontent.com/Arize-ai/openinference/main/README.md",
+      "bytes": 43985,
+      "sha256": "eaa36896ee462eac891ccae17adce069f1fda0fa4342eafedf329347c52ec2bf",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "openlit-readme",
+      "url": "https://raw.githubusercontent.com/openlit/openlit/main/README.md",
+      "resolved_url": "https://raw.githubusercontent.com/openlit/openlit/main/README.md",
+      "bytes": 38916,
+      "sha256": "34e04f626984f71df76b1d1fbc91d7b0bfab2834238a3bbb1a3212c917520fa0",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "or-broadcast",
+      "url": "https://openrouter.ai/docs/guides/features/broadcast.md",
+      "resolved_url": "https://openrouter.ai/docs/guides/features/broadcast.md",
+      "bytes": 49733,
+      "sha256": "c8b841a05c3c24127712a27d0650d0802a6b59a4374240e82e70bb370fa55981",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "or-caps",
+      "url": "https://openrouter.ai/docs/guides/best-practices/capping-shared-agent-keys.md",
+      "resolved_url": "https://openrouter.ai/docs/guides/best-practices/capping-shared-agent-keys.md",
+      "bytes": 8569,
+      "sha256": "63357b19556fb7d641ba5711a4fa848f68286921d12f0daa562297f5a73d1d7d",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "or-claude",
+      "url": "https://openrouter.ai/docs/cookbook/coding-agents/claude-code-integration.md",
+      "resolved_url": "https://openrouter.ai/docs/cookbook/coding-agents/claude-code-integration.md",
+      "bytes": 21360,
+      "sha256": "1dca17c1fd2d0f42b7bb25ccb7afb0eb6f895e05d26de48581340b4c9b00a46e",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "or-dynamic",
+      "url": "https://openrouter.ai/docs/agent-sdk/call-model/dynamic-parameters.md",
+      "resolved_url": "https://openrouter.ai/docs/agent-sdk/call-model/dynamic-parameters.md",
+      "bytes": 7436,
+      "sha256": "5955d1e8350015fa2ee80cb83d8480139d77bd74f4dd798f427972ec32785f2a",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "or-endpoints",
+      "url": "https://openrouter.ai/docs/api/api-reference/endpoints/list-all-endpoints-for-a-model.md",
+      "resolved_url": "https://openrouter.ai/docs/api/api-reference/endpoints/list-all-endpoints-for-a-model.md",
+      "bytes": 51152,
+      "sha256": "8f4c65df093f0c057c71f4cc4b8fe569afff55ce1e035fac2ccd6e884e079263",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "or-generation",
+      "url": "https://openrouter.ai/docs/api/api-reference/generations/get-request-&-usage-metadata-for-a-generation.md",
+      "resolved_url": "https://openrouter.ai/docs/api/api-reference/generations/get-request-&-usage-metadata-for-a-generation.md",
+      "bytes": 39463,
+      "sha256": "27209a62c257eb06d2e2f108a3db5e09af21d334953f36f4e608e13feed10b37",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "or-models",
+      "url": "https://openrouter.ai/docs/api/api-reference/models/get-models.md",
+      "resolved_url": "https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties.md",
+      "bytes": 51055,
+      "sha256": "7de17a1bc6183565ea53c8874935b5fd2b346408eccd5fd7c1e0a77411dce7dc",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "or-params",
+      "url": "https://openrouter.ai/docs/api/reference/parameters.md",
+      "resolved_url": "https://openrouter.ai/docs/api_reference/parameters.md",
+      "bytes": 10246,
+      "sha256": "61d7e436b9c97a76d779f42e76de770a7ecdac45660325e3b252aa2965d406e4",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "or-reasoning",
+      "url": "https://openrouter.ai/docs/guides/best-practices/reasoning-tokens.md",
+      "resolved_url": "https://openrouter.ai/docs/guides/best-practices/reasoning-tokens.md",
+      "bytes": 30177,
+      "sha256": "03e6ef85e97b292d3895ffb3b0d80acd6576c36b16cedae809c05726747546c6",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "or-routing",
+      "url": "https://openrouter.ai/docs/guides/routing/provider-selection.md",
+      "resolved_url": "https://openrouter.ai/docs/guides/routing/provider-selection.md",
+      "bytes": 64508,
+      "sha256": "1c529b059a6ead9f736e248366e38728ef6d49a3adbda146c332071638a5606b",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "or-usage",
+      "url": "https://openrouter.ai/docs/cookbook/administration/usage-accounting.md",
+      "resolved_url": "https://openrouter.ai/docs/cookbook/administration/usage-accounting.md",
+      "bytes": 3743,
+      "sha256": "f4db0506c0f50bc8214040bc33c9decfa843dd89ace61585ba6fb9077ecedb2f",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "or-zdr",
+      "url": "https://openrouter.ai/docs/guides/features/zdr.md",
+      "resolved_url": "https://openrouter.ai/docs/guides/features/zdr.md",
+      "bytes": 10972,
+      "sha256": "0733197cc2e0d70ffa354ccb9ec26f7037c7128caf6acea8b0d2f897c8b73fb3",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "oracle-full",
+      "url": "https://arxiv.org/html/2607.22465v4",
+      "resolved_url": "https://arxiv.org/html/2607.22465v4",
+      "bytes": 344041,
+      "sha256": "e32a5dbd5debbc5ea4fc61da040093e640c544907a251c68d165970da27aa0e6",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "otel-agent",
+      "url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/9ffc7e00c639be7712e544e3e54331e885dccf84/docs/gen-ai/gen-ai-agent-spans.md",
+      "resolved_url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/9ffc7e00c639be7712e544e3e54331e885dccf84/docs/gen-ai/gen-ai-agent-spans.md",
+      "bytes": 147983,
+      "sha256": "3b643ca21097d2889a87e714e01e8729b4729f636ff1df14a1cabaf2e0f93615",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "otel-client",
+      "url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/9ffc7e00c639be7712e544e3e54331e885dccf84/docs/gen-ai/client-inference.md",
+      "resolved_url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/9ffc7e00c639be7712e544e3e54331e885dccf84/docs/gen-ai/client-inference.md",
+      "bytes": 116525,
+      "sha256": "54b9be9caf98e2847c4464e95c705ea2e6549f70dbe4756e98f7cf4c3b568748",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "otel-genai-readme",
+      "url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/main/docs/gen-ai/README.md",
+      "resolved_url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/main/docs/gen-ai/README.md",
+      "bytes": 1617,
+      "sha256": "e78dca1c37b3dfafcf555f1ba2678a3b967c50687b04940ef725840faaa9f53d",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "otel-inference",
+      "url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/9ffc7e00c639be7712e544e3e54331e885dccf84/docs/gen-ai/gen-ai-spans.md",
+      "resolved_url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/9ffc7e00c639be7712e544e3e54331e885dccf84/docs/gen-ai/gen-ai-spans.md",
+      "bytes": 84270,
+      "sha256": "df6f7bb1911dfe35d286c84971d8227a8f0e765cb3ad3be1532441371c17b69e",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "otel-metrics",
+      "url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/9ffc7e00c639be7712e544e3e54331e885dccf84/docs/gen-ai/gen-ai-metrics.md",
+      "resolved_url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/9ffc7e00c639be7712e544e3e54331e885dccf84/docs/gen-ai/gen-ai-metrics.md",
+      "bytes": 64991,
+      "sha256": "bf2359b880618efece9c8f5e1f76e3b3782fe8d8ecc22fb1df2bac3b549d7194",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "otel-resilience",
+      "url": "https://opentelemetry.io/docs/collector/resiliency/index.md",
+      "resolved_url": "https://opentelemetry.io/docs/collector/resiliency/index.md",
+      "bytes": 10223,
+      "sha256": "eca32deca38e379af4c5151a6cf3b623f4bdc06b4f33ca8ecb940ec76dccd68d",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "otel-security",
+      "url": "https://opentelemetry.io/docs/security/config-best-practices/index.md",
+      "resolved_url": "https://opentelemetry.io/docs/security/config-best-practices/index.md",
+      "bytes": 11676,
+      "sha256": "c033741c0f8d5bf9e707cc932bfdecebe165dc3a69bb8b18f16af10ca9c79c7f",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "otel-token-metrics",
+      "url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/9ffc7e00c639be7712e544e3e54331e885dccf84/docs/gen-ai/gen-ai-token-metrics.md",
+      "resolved_url": "https://raw.githubusercontent.com/open-telemetry/semantic-conventions-genai/9ffc7e00c639be7712e544e3e54331e885dccf84/docs/gen-ai/gen-ai-token-metrics.md",
+      "bytes": 88198,
+      "sha256": "41fa914568fb6aae9e264d818d2670b7b22eba39b5cd9d08983576d40f073149",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "phoenix-license",
+      "url": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/LICENSE",
+      "resolved_url": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/LICENSE",
+      "bytes": 3794,
+      "sha256": "1c5916f5112e30e92f291002bb02cf4f4851c9d1dbdf3360f9f745b7de2d775f",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "phoenix-readme",
+      "url": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/README.md",
+      "resolved_url": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/README.md",
+      "bytes": 60204,
+      "sha256": "f43f0a3f3e4481a74d38a3436c70cb5a3d22180ca69e5489e83abc58fb317b79",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "routellm-full",
+      "url": "https://arxiv.org/html/2406.18665v4",
+      "resolved_url": "https://arxiv.org/html/2406.18665v4",
+      "bytes": 235142,
+      "sha256": "3fcbb1be989ba32c75493c4b0cd49eb6f137504081456c071b942e2f14b63b5c",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "semantic-license",
+      "url": "https://raw.githubusercontent.com/vllm-project/semantic-router/main/LICENSE",
+      "resolved_url": "https://raw.githubusercontent.com/vllm-project/semantic-router/main/LICENSE",
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "semantic-pipeline",
+      "url": "https://vllm-sr.ai/docs/overview/signal-driven-decisions/",
+      "resolved_url": "https://vllm-sr.ai/docs/overview/signal-driven-decisions/",
+      "bytes": 53849,
+      "sha256": "635381aa94117221b39ca5de1e40154eadf1428a107fc2041055b95d38a9b47c",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "semantic-router",
+      "url": "https://vllm-sr.ai/docs/overview/semantic-router-overview/",
+      "resolved_url": "https://vllm-sr.ai/docs/overview/semantic-router-overview/",
+      "bytes": 55241,
+      "sha256": "ee24bde1df83a9f2a96095161fe18efd382b43e3ac0eaf9a6f9a77403c63f431",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "swe-router",
+      "url": "https://arxiv.org/abs/2607.00053",
+      "resolved_url": "https://arxiv.org/abs/2607.00053",
+      "bytes": 42516,
+      "sha256": "5a06edc897aee14a680e4f78a30dca6c84e20e18249ed18ccce66db23434b58e",
+      "checked": "2026-10-23"
+    },
+    {
+      "id": "wise-full",
+      "url": "https://arxiv.org/html/2607.23765v1",
+      "resolved_url": "https://arxiv.org/html/2607.23765v1",
+      "bytes": 570701,
+      "sha256": "294672509871531f2672456e076e6c692af294e5a1ab9f29bb3ae1e2942f606d",
+      "checked": "2026-10-23"
+    }
+  ]
+}

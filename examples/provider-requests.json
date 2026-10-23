@@ -1,0 +1,103 @@
+{
+  "example_only": true,
+  "status": "illustrative_fragments_not_live_presets",
+  "note": "Replace model/provider placeholders and qualify every capability; no credential values are present. These are Chat Completions payloads, not Claude CLI Messages payloads.",
+  "requests": [
+    {
+      "id": "openrouter-example",
+      "method": "POST",
+      "url": "https://openrouter.ai/api/v1/chat/completions",
+      "credential_reference": "EXAMPLE_ONLY/openrouter-key",
+      "requires": [
+        "qualified model, provider, reasoning and tool compatibility",
+        "approved endpoint privacy policy",
+        "price and exposure reservation"
+      ],
+      "body": {
+        "model": "REPLACE_WITH_QUALIFIED_OPENROUTER_MODEL",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Synthetic capability fixture."
+          }
+        ],
+        "stream": true,
+        "max_tokens": 4096,
+        "reasoning": {
+          "effort": "medium",
+          "exclude": true
+        },
+        "provider": {
+          "only": [
+            "REPLACE_WITH_QUALIFIED_PROVIDER_SLUG"
+          ],
+          "allow_fallbacks": false,
+          "require_parameters": true
+        }
+      },
+      "optional_separately_qualified_variants": [
+        {
+          "body_patch": {
+            "provider": {
+              "sort": "latency"
+            }
+          },
+          "note": "Merge into the provider object without replacing hard eligibility constraints."
+        },
+        {
+          "body_patch": {
+            "provider": {
+              "zdr": true
+            }
+          },
+          "note": "Merge only for an approved ZDR-capable tuple; no privacy downgrade."
+        }
+      ]
+    },
+    {
+      "id": "deepinfra-example",
+      "method": "POST",
+      "url": "https://api.deepinfra.com/v1/openai/chat/completions",
+      "credential_reference": "EXAMPLE_ONLY/deepinfra-key",
+      "requires": [
+        "qualified model supports effort and fail_fast",
+        "actual context/output ceilings checked",
+        "price and exposure reservation"
+      ],
+      "body": {
+        "model": "REPLACE_WITH_QUALIFIED_DEEPINFRA_MODEL",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Synthetic capability fixture."
+          }
+        ],
+        "stream": true,
+        "max_tokens": 4096,
+        "reasoning_effort": "medium",
+        "fail_fast": true
+      },
+      "optional_separately_qualified_variants": [
+        {
+          "body_patch": {
+            "service_tier": "priority"
+          }
+        },
+        {
+          "body_patch": {
+            "service_tier": "flex"
+          }
+        },
+        {
+          "body_patch": {
+            "prompt_cache_key": "OPAQUE_SCOPED_EXAMPLE_KEY",
+            "prompt_cache_options": {
+              "mode": "explicit",
+              "ttl": "5m"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
