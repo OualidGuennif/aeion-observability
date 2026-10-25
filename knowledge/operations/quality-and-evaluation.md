@@ -72,6 +72,11 @@ Include router rejections, failures, restarts, deadline misses and abandoned wor
 admitted and started counts separately. Exclude prohibited/out-of-scope tasks only using the
 same pre-assignment rule for every treatment, never because one profile struggled.
 
+The bundled paired-cohort demonstration requires the same task-ID set for every policy;
+task order may differ. Missing maturity or intervention-coverage fields yield unknown quality,
+not a verified autonomous-success count. This example rule does not require identical task
+identities across treatment groups in every real randomized experiment.
+
 For task `i`, define:
 
 ```text

@@ -16,13 +16,19 @@ def summarize(data):
         raise ValueError("This demonstration accepts only the synthetic USD fixture format")
     rows = []
     policy_ids = set()
+    cohort_ids = None
     for policy in data["policies"]:
         if policy["policy_id"] in policy_ids:
             raise ValueError("Duplicated policy identity")
         policy_ids.add(policy["policy_id"])
         tasks = policy["tasks"]
-        if not tasks or len({t["task_id"] for t in tasks}) != len(tasks):
+        task_ids = {t["task_id"] for t in tasks}
+        if not tasks or len(task_ids) != len(tasks):
             raise ValueError("Empty cohort or duplicated task identity")
+        if cohort_ids is None:
+            cohort_ids = task_ids
+        elif task_ids != cohort_ids:
+            raise ValueError("Compared policies must contain the same task identities")
         total = Decimal(0)
         for task in tasks:
             if task["outcome"] not in {"autonomous", "assisted", "failed", "unknown"}:
@@ -44,7 +50,7 @@ def summarize(data):
                 if not amount.is_finite() or amount < 0:
                     raise ValueError("Cost must be finite and nonnegative")
                 total += amount
-        quality_known = all(t["maturity"] == "mature" and t["intervention_coverage"] == "complete"
+        quality_known = all(t.get("maturity") == "mature" and t.get("intervention_coverage") == "complete"
                             and t["outcome"] != "unknown" for t in tasks)
         successes = sum(t["outcome"] == "autonomous" for t in tasks) if quality_known else None
         durations = sorted(t["wall_seconds"] for t in tasks)

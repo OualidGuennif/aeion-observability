@@ -27,6 +27,7 @@ Standalone checks from this checkout:
 
 ```sh
 python3 examples/compare_cohorts.py
+python3 examples/validate_fixtures.py
 python3 -m unittest discover -s tests -v
 ```
 
