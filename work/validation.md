@@ -71,7 +71,8 @@ provider compatibility or autonomous task success. Hosted CI has not run for thi
 
 This subsequent owner-approved pilot adds real local backends and bounded paid Go inference.
 The research-only statements above describe earlier work, not this pilot. Implementation is
-on `task/langfuse-opencode-demo`; no publication or production deployment is claimed.
+on `task/langfuse-opencode-demo`. Subsequent PR/main publication was authorized in chat;
+these local checks do not establish a hosted CI outcome or production deployment.
 
 | Check | Verified result |
 | --- | --- |
@@ -112,4 +113,4 @@ isolation, general task quality and billing reconciliation are not qualified her
 Approximate idle memory observed with Docker stats: supervisor 111 MiB, Hindsight 849 MiB,
 Langfuse web 877 MiB/worker 464 MiB and ClickHouse 960 MiB. This local eleven-service stack is
 intentionally heavier than the supervisor itself. Existing sibling containers were preserved.
-Hosted CI has not run for this local branch; its new Docker job uses fake inference only.
+Hosted CI runs separately through the release PR; its Docker job uses fake inference only.
