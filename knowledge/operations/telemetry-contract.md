@@ -23,6 +23,8 @@ fixtures, not captures of a user's sessions.
 `python3 examples/validate_fixtures.py` checks the five bundled JSON files and the session
 JSONL example. It rejects duplicate object keys and non-finite numbers, verifies synthetic-only
 observe/shadow guards, and checks policy/profile, task/run, artifact/check and charge links.
+Session events must agree with the manifest's evaluation environment and fixed actual profile;
+shadow decisions cannot claim application, and `routing.applied` events are rejected.
 Identical deliveries with the same producer/boot/event identity count once; conflicting
 duplicates fail. Each demonstrated inference attempt has one complete USD charge after
 reconciliation, and their sum must match the outcome's inference-only amount.

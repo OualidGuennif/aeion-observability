@@ -107,6 +107,20 @@ def validate(fixtures, events):
             raise ValueError("Conflicting duplicate event")
         unique[key] = event
         data = event["data"]
+        # Event claims must preserve the fixed baseline and disabled shadow actuation.
+        if event["event_type"] == "run.started" and (
+                data["environment"] != manifest["environment"]
+                or data["active_profile_id"] != manifest["active_profile_id"]):
+            raise ValueError("Run event contradicts the observe manifest")
+        if event["event_type"] == "routing.decided" and (
+                data["mode"] != policy["mode"] or data["applied"] is not False
+                or data["actual_profile_id"] != manifest["active_profile_id"]):
+            raise ValueError("Routing event contradicts disabled shadow controls")
+        if (event["event_type"] == "inference.started"
+                and data["profile_id"] != manifest["active_profile_id"]):
+            raise ValueError("Inference event changed the fixed baseline profile")
+        if event["event_type"] == "routing.applied":
+            raise ValueError("Routing application is disabled in these fixtures")
         if (("artifact_digest" in data or event["event_type"] in {
                 "artifact.exported", "validation.completed", "run.ended", "task.outcome_recorded"})
                 and data.get("artifact_digest") != outcome["artifact_digest"]):

@@ -55,13 +55,14 @@ No runtime qualification scenario, provider call or backend deployment was perfo
 | --- | --- |
 | `python3 examples/compare_cohorts.py` | Original USD 72/82, 6/9 successes and p95 1800/600 unchanged |
 | `python3 examples/validate_fixtures.py` | PASS: 5 JSON files, 13 deliveries, 12 unique events, 2 charges, USD 0.05 |
-| `python3 -m unittest discover -s tests -v` | 31 tests passed |
+| `python3 -m unittest discover -s tests -v` | 33 tests passed |
 | Factory knowledge and doc-links gates | PASS; includes documentation coverage for changed files |
 | YAML, relative Markdown links and whitespace | PASS; CI triggers/permissions and original data fixtures unchanged |
 | Python 3.9 grammar parse | PASS; not a runtime test on Python 3.9 |
 
 The regressions cover mismatched/reordered cohorts, absent quality fields, duplicate JSON keys,
 non-finite numeric results, synthetic observe/shadow guards, cross-file evidence links,
-identical/conflicting redelivery and charge completeness/arithmetic. The new CI step runs the
+event claims that contradict shadow controls, identical/conflicting redelivery and charge
+completeness/arithmetic. The new CI step runs the
 same offline validator. These checks do not establish production privacy, durability, billing,
 provider compatibility or autonomous task success. Hosted CI has not run for this local change.

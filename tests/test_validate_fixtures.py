@@ -84,6 +84,28 @@ class FixtureTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Duplicate profile"):
             fixtures.validate(self.data, self.events)
 
+    def test_events_cannot_override_observe_and_shadow_controls(self):
+        cases = (("run.started", "environment", "production"),
+                 ("run.started", "active_profile_id", "example-low-cost"),
+                 ("routing.decided", "mode", "canary"),
+                 ("routing.decided", "applied", True),
+                 ("routing.decided", "applied", 0),
+                 ("routing.decided", "actual_profile_id", "example-low-cost"),
+                 ("inference.started", "profile_id", "example-low-cost"))
+        for event_type, field, value in cases:
+            with self.subTest(event_type=event_type, field=field, value=value):
+                events = copy.deepcopy(self.events)
+                event = next(event for event in events if event["event_type"] == event_type)
+                event["data"][field] = value
+                with self.assertRaises(ValueError):
+                    fixtures.validate(self.data, events)
+
+    def test_routing_application_event_is_rejected(self):
+        event = next(event for event in self.events if event["event_type"] == "routing.decided")
+        event["event_type"] = "routing.applied"
+        with self.assertRaisesRegex(ValueError, "Routing application is disabled"):
+            fixtures.validate(self.data, self.events)
+
     def test_outcome_task_run_and_artifact_must_match(self):
         for field, value in (("task_id", "other-task"), ("run_ids", ["other-run"]),
                              ("artifact_digest", "other-artifact"), ("acceptance_stage", "other-stage")):
