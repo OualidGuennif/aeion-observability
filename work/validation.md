@@ -66,3 +66,51 @@ event claims that contradict shadow controls, identical/conflicting redelivery a
 completeness/arithmetic. The new CI step runs the
 same offline validator. These checks do not establish production privacy, durability, billing,
 provider compatibility or autonomous task success. Hosted CI has not run for this local change.
+
+## Authorized Docker agent atelier — 2026-10-25
+
+This subsequent owner-approved pilot adds real local backends and bounded paid Go inference.
+The research-only statements above describe earlier work, not this pilot. Implementation is
+on `task/langfuse-opencode-demo`. Subsequent PR/main publication was authorized in chat;
+these local checks do not establish a hosted CI outcome or production deployment.
+
+| Check | Verified result |
+| --- | --- |
+| Existing offline tests and fixture CLIs | 33 tests pass; original cohort arithmetic and 5-file fixture accounting unchanged |
+| Demo Python checks in its built Docker image | 14/14 pass, including both official tokenizer templates, exact 300k reservation boundary and concurrent refusal during a held checkpoint |
+| Node hook/gate checks | 7/7 pass, including cache accounting, missing/stale Markdown acknowledgement, single build admission ticket and 4,096 output cap |
+| Real OpenCode 1.19.4 CLI, local fake inference only | PASS: four local requests, two distinct sessions, partial artifact preserved, durable MD loaded into successor prompt, MD-before-close ordering, retired runtimes removed and 12/12 Deno checks |
+| Docker stack | All eleven services running; configured health checks pass and all five cockpit integration probes return connected |
+| Deno/Hono target API | Correct EUR 3.25 quote; malformed/invalid inputs return 400, >4 KB body returns 413 |
+| Real Go tasks | GLM 5.3 Flash and DeepSeek V4.1 Flash each pass the protected 12-check task under method `go-build-v2-counted` |
+| Langfuse backend reads | Actual generation observations, native cost estimates, empty input/output fields, matching boolean scores and joined Deno HTTP service span verified |
+| Memories | claude-mem save/readback and Hindsight retain/semantic recall verified; retain reports zero LLM tokens |
+| Human-assistance correction | Replay attestation is idempotent, preserves correctness, removes autonomous success and updates the same Langfuse score IDs and Hindsight document |
+| Logs | Sequenced fsynced local audit and Collector OTLP log readback; canonical bodies, trace/span/run identity, gate/MD/retirement and intervention events verified |
+| UI | Actual browser checks: sober AEion illustration/palette, connected services, replay, 250k gauge, MD/log links, real/synthetic filters, model map, memory recall and Deno quote interaction |
+| Documentation / whitespace | Factory knowledge and doc-links gates plus `git diff --check` pass |
+
+Comparable native Go estimates (not invoices or subscription-credit reconciliation):
+
+| Model | Run | Generations | Protected checks | Native estimate USD | Task elapsed |
+| --- | --- | --- | --- | --- | --- |
+| DeepSeek V4.1 Flash | `4555981949004d1c843ba4b22e26f4b5` | 3 | 12/12 | 0.000994308 | 23.9 s |
+| GLM 5.3 Flash | `361bd3bc40cb4ad1a9fa4662b8c0d42e` | 5 | 12/12 | 0.00284815 | 35.7 s |
+
+One observation per comparable profile on one tiny task cannot establish a general model
+winner. Earlier protocol-qualification success/failure remain visible as an unversioned
+cohort; the initial provider rejection retains unresolved usage instead of a zero-cost claim.
+
+The 250k transition is tested without buying a 250k-token inference. The credential-owning
+relay counts the full request independently, reserves output plus 20k framing and refuses
+unknown/over-budget proposals before upstream dispatch. Waiting for the MD cannot admit a
+further provider call. Tokenizer/template parity and framing remain explicit provider
+qualification assumptions; no guarantee about undisclosed provider internals is inferred.
+Native >300k or >20k count drift disables live admission pending requalification. Backend
+outages do not remove the local audit; complete crash-proof/exactly-once export, hostile-code
+isolation, general task quality and billing reconciliation are not qualified here.
+
+Approximate idle memory observed with Docker stats: supervisor 111 MiB, Hindsight 849 MiB,
+Langfuse web 877 MiB/worker 464 MiB and ClickHouse 960 MiB. This local eleven-service stack is
+intentionally heavier than the supervisor itself. Existing sibling containers were preserved.
+Hosted CI runs separately through the release PR; its Docker job uses fake inference only.
