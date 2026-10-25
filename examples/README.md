@@ -4,11 +4,18 @@ Try the bundled calculation with Python 3.9+ and no provider account:
 
 ```sh
 python3 examples/compare_cohorts.py
+python3 examples/validate_fixtures.py
 ```
 
 This prints fictional cohort results. The tool includes failed/assisted costs, preserves unknown
 quality, and returns an undefined ratio when no autonomous task succeeds. It never controls a
 session or proves a model is better. See the regression checks under `tests/`.
+
+The fixture validator rejects duplicate JSON object keys, non-finite numbers and inconsistent
+policy, task/run, artifact/check or charge references. It preserves the example's disabled
+observe/shadow controls and deduplicates identical deliveries by producer/boot/event identity;
+conflicting duplicates fail. It only validates these bundled fictional scenarios, not arbitrary
+production events, provider compatibility, privacy enforcement or actual task success.
 
 Every record here is fictional, marked `example_only=true`, and uses proposed Æion contracts.
 There are no live credentials, captured prompts, production task IDs or executed provider results.
@@ -52,6 +59,11 @@ The two policies process the same ten synthetic task identities in separate imag
 All costs/outcomes are declared complete for this arithmetic fixture. Human wage costs are
 excluded; corrective minutes are reported separately. Request counts include fictional retries.
 The p95 uses the nearest-rank definition, not interpolation.
+
+The calculation rejects policies with missing, extra or replaced task IDs; task order may
+differ. Absent maturity or intervention-coverage fields keep quality and the cost/success ratio
+unknown. This paired-example contract is not a requirement that all real randomized experiments
+assign identical task identities to every treatment group.
 
 | Measure | Cheap profile | Balanced profile |
 | --- | --- | --- |

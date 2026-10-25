@@ -1,4 +1,7 @@
-"""Protect the example's denominator and unknown-quality semantics."""
+"""Protect the example's denominator and unknown-quality semantics.
+
+Spec: knowledge/operations/quality-and-evaluation.md
+"""
 
 import copy
 import importlib.util
@@ -35,6 +38,38 @@ class ComparisonTests(unittest.TestCase):
         self.assertIsNone(row["verified_autonomous_successes"])
         self.assertIsNone(row["cost_per_autonomous_success_usd"])
         self.assertEqual(row["quality_evidence"], "unknown")
+
+    def test_absent_quality_fields_are_unknown(self):
+        for field in ("maturity", "intervention_coverage"):
+            with self.subTest(field=field):
+                data = copy.deepcopy(self.data)
+                del data["policies"][0]["tasks"][0][field]
+                row = cohorts.summarize(data)[0]
+                self.assertIsNone(row["verified_autonomous_successes"])
+                self.assertIsNone(row["cost_per_autonomous_success_usd"])
+                self.assertEqual(row["quality_evidence"], "unknown")
+
+    def test_different_task_populations_are_rejected(self):
+        for change in ("missing", "extra", "replaced", "disjoint"):
+            with self.subTest(change=change):
+                data = copy.deepcopy(self.data)
+                tasks = data["policies"][1]["tasks"]
+                if change == "missing":
+                    tasks.pop()
+                elif change == "extra":
+                    tasks.append({**tasks[0], "task_id": "extra-task"})
+                elif change == "replaced":
+                    tasks[0]["task_id"] = "other-task"
+                else:
+                    for task in tasks:
+                        task["task_id"] = "other-" + task["task_id"]
+                with self.assertRaisesRegex(ValueError, "same task identities"):
+                    cohorts.summarize(data)
+
+    def test_task_order_does_not_change_comparison(self):
+        expected = cohorts.summarize(self.data)
+        self.data["policies"][1]["tasks"].reverse()
+        self.assertEqual(cohorts.summarize(self.data), expected)
 
     def test_unmatured_outcome_is_unknown(self):
         self.data["policies"][0]["tasks"][0]["maturity"] = "pending"

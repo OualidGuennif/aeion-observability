@@ -16,7 +16,10 @@ sources:
 
 ## Current state
 
-Only the research, proposed contracts and synthetic examples in this folder exist. No collector,
+The research, proposed contracts and synthetic examples include an offline paired-cohort
+calculator and a fixture consistency gate (`python3 examples/validate_fixtures.py`). Their
+regressions protect the examples' arithmetic, synthetic guards and evidence links; they do
+not qualify any of the runtime scenarios below. No collector,
 database, provider adapter, router, telemetry plugin, paid benchmark or live control policy has
 been installed. Factory, CROA and OPS sibling files are left unchanged.
 

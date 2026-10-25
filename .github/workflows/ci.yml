@@ -18,18 +18,5 @@ jobs:
           persist-credentials: false
       - run: python3 examples/compare_cohorts.py
       - run: python3 -m unittest discover -s tests -v
-      - name: Parse bundled synthetic fixtures
-        run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          def reject(value):
-              raise ValueError('Nonfinite JSON number: ' + value)
-          for path in Path('examples').glob('*.json'):
-              json.loads(path.read_text(), parse_constant=reject)
-          for path in Path('examples').glob('*.jsonl'):
-              for line in path.read_text().splitlines():
-                  if line.strip():
-                      json.loads(line, parse_constant=reject)
-          print('PASS: JSON and JSONL syntax; no provider calls')
-          PY
+      - name: Validate bundled synthetic fixtures
+        run: python3 examples/validate_fixtures.py

@@ -7,6 +7,9 @@ sources:
   - id: upstream
     resource: ../references/sources.md
     title: "Pinned standards and official integration sources"
+  - id: fixtures
+    resource: ../../examples/validate_fixtures.py
+    title: "Offline synthetic-fixture consistency gate"
 ---
 
 # Session telemetry contract
@@ -14,6 +17,21 @@ sources:
 The `aeion.*` fields and `aeion.observability.*` versions below are proposed local contracts.
 They are not an existing OTel standard or implemented SDK. JSON examples are synthetic design
 fixtures, not captures of a user's sessions.
+
+## Offline fixture validation
+
+`python3 examples/validate_fixtures.py` checks the five bundled JSON files and the session
+JSONL example. It rejects duplicate object keys and non-finite numbers, verifies synthetic-only
+observe/shadow guards, and checks policy/profile, task/run, artifact/check and charge links.
+Session events must agree with the manifest's evaluation environment and fixed actual profile;
+shadow decisions cannot claim application, and `routing.applied` events are rejected.
+Identical deliveries with the same producer/boot/event identity count once; conflicting
+duplicates fail. Each demonstrated inference attempt has one complete USD charge after
+reconciliation, and their sum must match the outcome's inference-only amount.
+
+This is a consistency gate for these examples, not a production schema, privacy sanitizer,
+general charge reconciler or proof that any recorded assertion actually occurred. It neither
+calls a provider nor qualifies the runtime scenarios described below.
 
 ## 1. Identity and causal structure
 
