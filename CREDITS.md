@@ -24,6 +24,18 @@ as a measured Æion result.
   and Sekhon (confidence sequences). See the [papers and reading scope](knowledge/references/sources.md).
 - **Æion Factory and contributors** — the fixed development foundation, CRAFTED, specification
   structure and evidence-led workflow. [Repository](https://github.com/OualidGuennif/aeion-factory).
+- **OpenCode, Deno and Hono contributors** — the pinned build CLI, JavaScript runtime,
+  native OpenTelemetry support and small application API used by the local showcase.
+  [OpenCode Go](https://opencode.ai/docs/go/), [Deno](https://docs.deno.com/), [Hono](https://hono.dev/).
+- **Vectorize/Hindsight and thedotmack/claude-mem contributors** — local semantic session
+  memory and the explicit working-memory save/read API.
+  [Hindsight](https://github.com/vectorize-io/hindsight), [claude-mem](https://github.com/thedotmack/claude-mem).
+- **Z.ai and DeepSeek** — official tokenizer/chat-template files fetched at pinned revisions
+  and checked against [fingerprints](demo/tokenizers.json). Their license files are retained
+  in the Docker image. No coding-model weights are bundled.
+- **Manrope and Cormorant Garamond authors** — local font assets, with their OFL notices in
+  `demo/app/fonts/`. The showcase illustration was generated natively with GPT Image for Æion;
+  it is decorative artwork, not a measured architecture or runtime result.
 - **The CROA Project — Yasmine Durand, Darrin Smith and Sylvain Durand** — Constrained Reachability
   Orchestration Architecture, governance boundaries and durable evidence principles.
   [Website](https://www.croaframework.org/),

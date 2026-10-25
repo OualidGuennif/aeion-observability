@@ -1,6 +1,6 @@
 # Æion Observability
 
-This is a research and design workspace. Read [README](README.md) and the
+This is a research/design workspace with an opt-in local Docker demo. Read [README](README.md) and the
 [framework](knowledge/components/observability.md) before extending it.
 
 ## Working rules
@@ -29,6 +29,8 @@ Standalone checks from this checkout:
 python3 examples/compare_cohorts.py
 python3 examples/validate_fixtures.py
 python3 -m unittest discover -s tests -v
+node --test demo/tests/gate.test.mjs
+python3 -m unittest discover -s demo/tests -v
 ```
 
 Optional documentation checks in a workspace that also contains Factory:
@@ -40,3 +42,5 @@ Optional documentation checks in a workspace that also contains Factory:
 
 Validate JSON examples and their cross-references before reporting them as checked.
 Do not claim provider, runtime, privacy or controller qualification from document checks.
+The Docker pilot has separate CLI and backend checks in [demo/README.md](demo/README.md).
+Do not print its private environment file, raw CLI output or credentials.

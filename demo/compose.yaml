@@ -1,0 +1,232 @@
+name: aeion-observability-demo
+
+x-langfuse: &langfuse
+  DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?run python3 demo/setup.py}@postgres:5432/langfuse
+  NEXTAUTH_URL: http://localhost:3300
+  SALT: ${SALT:?}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?}
+  TELEMETRY_ENABLED: "false"
+  CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+  CLICKHOUSE_URL: http://clickhouse:8123
+  CLICKHOUSE_USER: langfuse
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?}
+  CLICKHOUSE_CLUSTER_ENABLED: "false"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_AUTH: ${REDIS_PASSWORD:?}
+  LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+  LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
+  LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_PASSWORD:?}
+  LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+  LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+  LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+  LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+  LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: minio
+  LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_PASSWORD:?}
+  LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
+  LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+  LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+  LANGFUSE_S3_BATCH_EXPORT_ENABLED: "false"
+
+x-dependencies: &dependencies
+  postgres: {condition: service_healthy}
+  clickhouse: {condition: service_healthy}
+  minio: {condition: service_healthy}
+  redis: {condition: service_healthy}
+
+x-logging: &bounded-logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "2"
+
+services:
+  langfuse-web:
+    logging: *bounded-logging
+    image: docker.langfuse.com/langfuse/langfuse:4.49.0@sha256:a9d1951e9e6cc1b5ad48bca3aefd31358a54fde4f84b9681f8ace2ff076c0c03
+    depends_on: *dependencies
+    ports: ["127.0.0.1:3300:3000"]
+    environment:
+      <<: *langfuse
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?}
+      HOSTNAME: 0.0.0.0
+      NODE_OPTIONS: --max-old-space-size=1536
+      LANGFUSE_INIT_ORG_ID: aeion-local
+      LANGFUSE_INIT_ORG_NAME: AEion Local Demo
+      LANGFUSE_INIT_PROJECT_ID: aeion-demo
+      LANGFUSE_INIT_PROJECT_NAME: Agent Handover Lab
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:?}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY:?}
+      LANGFUSE_INIT_USER_EMAIL: demo@aeion.local
+      LANGFUSE_INIT_USER_NAME: AEion Demo
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_PASSWORD:?}
+    mem_limit: 2000m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/public/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  langfuse-worker:
+    logging: *bounded-logging
+    image: docker.langfuse.com/langfuse/langfuse-worker:4.49.0@sha256:40df08a1d15ecfa9542f1fd3b481f6d1afa16404a512e1ff51bc85b72144cedd
+    depends_on: *dependencies
+    environment: *langfuse
+    mem_limit: 1000m
+
+  postgres:
+    logging: *bounded-logging
+    image: postgres:17-alpine@sha256:eee6c6e1b0894fa4fe0075eb054af9fd1cf39a35321c2d4110626cfe506411fb
+    environment: {POSTGRES_DB: langfuse, POSTGRES_USER: postgres, POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?}"}
+    volumes: ["postgres:/var/lib/postgresql/data"]
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d langfuse"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  clickhouse:
+    logging: *bounded-logging
+    image: clickhouse/clickhouse-server:25.12@sha256:8a790dd3468db22b1d4e7b18a176f378ff5ff6053b9c48dd4ea1fa71a24c5ba6
+    user: "101:101"
+    environment: {CLICKHOUSE_DB: default, CLICKHOUSE_USER: langfuse, CLICKHOUSE_PASSWORD: "${CLICKHOUSE_PASSWORD:?}"}
+    volumes: ["clickhouse:/var/lib/clickhouse", "clickhouse-logs:/var/log/clickhouse-server", "./clickhouse.xml:/etc/clickhouse-server/config.d/demo.xml:ro"]
+    mem_limit: 1600m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8123/ping"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  minio:
+    logging: *bounded-logging
+    image: cgr.dev/chainguard/minio@sha256:9dcc028b309030afa86fc1fc8d93907ae373ea3fb75277cca3fc77e4645932b7
+    entrypoint: sh
+    command: ["-c", "mkdir -p /data/langfuse && minio server --address ':9000' /data"]
+    environment: {MINIO_ROOT_USER: minio, MINIO_ROOT_PASSWORD: "${MINIO_PASSWORD:?}"}
+    volumes: ["minio:/data"]
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    logging: *bounded-logging
+    image: redis:7@sha256:c6eabf748fc7a61dbb5a705c78bcf3d6377b1127a97d0ce965c11c44ba46896f
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?}", "--maxmemory-policy", "noeviction"]
+    environment: {REDISCLI_AUTH: "${REDIS_PASSWORD:?}"}
+    volumes: ["redis:/data"]
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  otel-collector:
+    logging: *bounded-logging
+    image: otel/opentelemetry-collector-contrib:0.163.2@sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes: ["./otel-collector.yaml:/etc/otelcol/config.yaml:ro", "otel-logs:/var/lib/otel"]
+    user: "0:0"
+    environment: {LANGFUSE_AUTH: "${LANGFUSE_AUTH:?}"}
+    depends_on: {langfuse-web: {condition: service_healthy}}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+
+  demo:
+    logging: *bounded-logging
+    build: .
+    init: true
+    ports: ["127.0.0.1:8088:8080"]
+    environment:
+      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
+      DEMO_MODEL: opencode-go/glm-5.3-flash
+      DEMO_CONTEXT_LIMIT: ${DEMO_CONTEXT_LIMIT:-250000}
+      DEMO_CONTEXT_METRIC: ${DEMO_CONTEXT_METRIC:-active_context}
+      DEMO_MAX_COST_USD: "0.10"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
+      PLAYGROUND_URL: http://playground:8000
+      HINDSIGHT_URL: http://hindsight:8888
+      CLAUDE_MEM_URL: http://claude-mem:37777
+      LANGFUSE_AUTH: ${LANGFUSE_AUTH:?}
+    volumes: ["demo-data:/data", "demo-work:/work"]
+    tmpfs: ["/tmp:size=128m,mode=1777"]
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID, CHOWN, DAC_OVERRIDE, FOWNER, KILL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1000m
+    pids_limit: 192
+    depends_on: [otel-collector]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  playground:
+    logging: *bounded-logging
+    build: ./playground
+    ports: ["127.0.0.1:8090:8000"]
+    environment:
+      OTEL_DENO: "true"
+      OTEL_SERVICE_NAME: aeion-deno-playground
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_DENO_CONSOLE: ignore
+      OTEL_LOGS_EXPORTER: none
+      OTEL_METRICS_EXPORTER: none
+    volumes: ["demo-work:/work:ro"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    depends_on: [otel-collector]
+
+  hindsight:
+    logging: *bounded-logging
+    image: ghcr.io/vectorize-io/hindsight:1.1.0@sha256:50311d02b4d5d2b7c5242bd336edf8735df8374eaad496a92f49c83b37d2aa06
+    ports: ["127.0.0.1:8889:8888", "127.0.0.1:9999:9999"]
+    environment:
+      HINDSIGHT_API_LLM_PROVIDER: none
+      HINDSIGHT_API_LLM_MAX_CONCURRENT: "1"
+      HINDSIGHT_API_LLM_MAX_RETRIES: "0"
+      HINDSIGHT_API_LLM_TIMEOUT: "45"
+      HINDSIGHT_API_RETAIN_EXTRACTION_MODE: chunks
+      HINDSIGHT_API_ENABLE_AUTO_CONSOLIDATION: "false"
+    volumes: ["hindsight:/home/hindsight/.pg0"]
+    shm_size: 256m
+    mem_limit: 2000m
+
+  claude-mem:
+    logging: *bounded-logging
+    build: ./claude-mem
+    volumes: ["claude-mem:/data"]
+    environment:
+      CLAUDE_MEM_WORKER_HOST: 0.0.0.0
+      CLAUDE_MEM_CHROMA_ENABLED: "false"
+      CLAUDE_MEM_TELEMETRY: "0"
+      DO_NOT_TRACK: "1"
+    mem_limit: 512m
+    # No host port: the cockpit exposes only the bounded project memory read model.
+
+volumes:
+  postgres:
+  clickhouse:
+  clickhouse-logs:
+  minio:
+  redis:
+  demo-data:
+  demo-work:
+  hindsight:
+  claude-mem:
+  otel-logs:

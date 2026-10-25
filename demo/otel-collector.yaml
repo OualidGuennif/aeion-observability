@@ -1,0 +1,61 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 80
+    spike_limit_mib: 16
+  transform/privacy:
+    error_mode: propagate
+    trace_statements:
+      - context: resource
+        statements:
+          - keep_keys(attributes, ["service.name"])
+      - context: span
+        statements:
+          - keep_keys(attributes, ["aeion.run.id", "aeion.synthetic", "langfuse.session.id", "aeion.context.limit", "aeion.context.metric", "aeion.agent.number", "aeion.context.observed", "gen_ai.request.model", "gen_ai.usage.input_tokens", "gen_ai.usage.output_tokens", "aeion.check.passed", "aeion.artifact.changed", "aeion.failure.code", "aeion.status", "aeion.memory.backend", "aeion.app.probe_ms", "langfuse.observation.type", "gen_ai.operation.name", "gen_ai.provider.name", "http.request.method", "http.response.status_code", "http.route", "aeion.event.id", "aeion.event.sequence", "aeion.context.counted", "aeion.context.hard_limit", "aeion.context.basis", "aeion.handover.sha256", "aeion.context.reserve", "aeion.context.max_output", "aeion.context.tokenizer_revision", "aeion.process.pid", "aeion.http.status", "aeion.tool.name", "aeion.tool.status", "aeion.step.elapsed_ms", "aeion.human.interventions", "aeion.cost.estimated_usd", "langfuse.observation.cost_details", "langfuse.observation.metadata.run_id", "langfuse.observation.metadata.synthetic", "langfuse.observation.metadata.accounting_basis"])
+  batch:
+    timeout: 1s
+    send_batch_size: 64
+  transform/log_privacy:
+    error_mode: propagate
+    log_statements:
+      - context: resource
+        statements:
+          - keep_keys(attributes, ["service.name"])
+      - context: log
+        statements:
+          - set(body, "aeion.event")
+          - keep_keys(attributes, ["aeion.run.id", "aeion.synthetic", "aeion.event.id", "aeion.event.name", "aeion.event.sequence", "aeion.context.limit", "aeion.context.metric", "aeion.agent.number", "aeion.context.observed", "aeion.context.counted", "aeion.context.hard_limit", "aeion.context.basis", "aeion.handover.sha256", "aeion.context.reserve", "aeion.context.max_output", "aeion.context.tokenizer_revision", "gen_ai.request.model", "gen_ai.usage.input_tokens", "gen_ai.usage.output_tokens", "aeion.check.passed", "aeion.artifact.changed", "aeion.failure.code", "aeion.memory.backend", "aeion.process.pid", "aeion.http.status", "aeion.tool.name", "aeion.tool.status", "aeion.step.elapsed_ms", "aeion.human.interventions", "aeion.cost.estimated_usd", "langfuse.observation.cost_details", "langfuse.observation.metadata.run_id", "langfuse.observation.metadata.synthetic", "langfuse.observation.metadata.accounting_basis"])
+exporters:
+  file/logs:
+    path: /var/lib/otel/events.jsonl
+    rotation:
+      max_megabytes: 5
+      max_backups: 2
+  otlp_http/langfuse:
+    endpoint: http://langfuse-web:3000/api/public/otel
+    headers:
+      Authorization: Basic ${env:LANGFUSE_AUTH}
+      x-langfuse-ingestion-version: "4"
+    sending_queue:
+      queue_size: 100
+    retry_on_failure:
+      max_elapsed_time: 30s
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/privacy, batch]
+      exporters: [otlp_http/langfuse]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/log_privacy, batch]
+      exporters: [file/logs]

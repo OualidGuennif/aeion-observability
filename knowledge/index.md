@@ -1,6 +1,7 @@
 # Knowledge map
 
 - [Framework](components/observability.md)
+- [Docker demonstration](components/docker-demo.md)
 - [State of the art](references/state-of-the-art.md)
 - [Sources](references/sources.md)
 - [Provider capabilities](references/provider-capabilities.md)

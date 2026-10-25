@@ -16,12 +16,13 @@ sources:
 
 ## Current state
 
-The research, proposed contracts and synthetic examples include an offline paired-cohort
-calculator and a fixture consistency gate (`python3 examples/validate_fixtures.py`). Their
-regressions protect the examples' arithmetic, synthetic guards and evidence links; they do
-not qualify any of the runtime scenarios below. No collector,
-database, provider adapter, router, telemetry plugin, paid benchmark or live control policy has
-been installed. Factory, CROA and OPS sibling files are left unchanged.
+The research and offline paired-cohort/fixture guards remain available without services.
+An explicitly requested [local Docker pilot](../../demo/README.md) now implements a Deno/Hono
+workload, Python supervisor/cockpit, OpenCode Go build, OpenTelemetry, Langfuse, Hindsight and
+claude-mem. Its [separate specification](../components/docker-demo.md) defines the limited
+measurement boundary and context/handover controls. Local evidence is recorded in
+[validation](../../work/validation.md); it does not establish all scenarios below.
+Factory, CROA and OPS sibling files are unchanged.
 
 The following is a delivery plan, not a report of passing runtime qualification. Each phase
 has a specific exit gate; do not jump directly from dashboards to automatic model switching.

@@ -19,9 +19,18 @@ Observe complete coding-agent tasks, connect their execution to verified outcome
 that evidence to choose models, providers and inference settings. Optimize **cost, elapsed
 time, and correct completion without corrective human intervention** within fixed authority.
 
-This folder contains a sourced design and synthetic examples. It does not run a collector,
-intercept credentials, call a model, or change a live session. No provider combination has
-been qualified and no cost or quality improvement has been measured on Æion workloads.
+This folder contains a sourced design, offline examples and an opt-in [Docker demo](demo/README.md)
+with Langfuse, OpenTelemetry, Hindsight, claude-mem and OpenCode build agents. The offline examples need no service or
+key. The demo operates only on a synthetic task; no cost or quality improvement has been
+measured on representative Æion workloads.
+
+## Run the Docker demo
+
+See the [demo runbook](demo/README.md) for private local setup, ports and verification. It
+includes a deterministic checkpoint at **250,000 reported input-context tokens**, followed by
+a fresh agent session carrying a durable HANDOVER.md, files and check results. An independent
+relay counts requests before forwarding and reserves output/framing inside a 300k admission
+budget. Provider-count qualification assumptions and billing limits are explicit in the runbook.
 
 ## Try the offline example
 
@@ -72,6 +81,7 @@ links the primary documentation and papers behind it.
 | [Worked examples](examples/README.md) | Synthetic events, request fragments, policy and cost/quality arithmetic |
 | [Sources and credits](knowledge/references/sources.md) | Evidence register, research depth and attribution |
 | [Current work](work/current.md) | Current scope and next implementation decision |
+| [Docker demo specification](knowledge/components/docker-demo.md) | Langfuse/OTel/OpenCode pilot, context gate and evidence limits |
 
 ## What “real time” means here
 
@@ -119,8 +129,8 @@ tooling into a research folder. It proposes interfaces callable by Factory and c
 events; it does not modify those projects. [Original Æion material is MIT licensed](LICENSE).
 Upstream software, documentation and papers retain their own licenses; see [credits](CREDITS.md).
 
-This repository publishes the framework, research and offline examples. A live collector,
-provider adapter and routing controller remain subsequent implementation and qualification work.
+This repository publishes the framework, research, offline examples and a local Docker pilot.
+Production runtime qualification and a routing controller remain subsequent work.
 
 Document/link checks, source fingerprints, example calculations and consistency checks are
 recorded in the [research validation record](work/validation.md). Runtime qualification remains
