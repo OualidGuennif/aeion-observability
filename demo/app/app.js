@@ -5,6 +5,7 @@ const pretty = (n) => Number(n ?? 0).toLocaleString('en-US');
 const money = (n) => n == null ? '—' : '$' + Number(n).toFixed(5);
 const seconds = (n) => n == null ? '—' : (n / 1000).toFixed(1) + 's';
 const label = (name) => Object.values(catalog.profiles??{}).find(p=>p.model===name)?.name ?? (name==='synthetic-replay'?'Synthetic replay':name??'Unknown model');
+const checkTotal = (r) => r.check?.total ?? catalog.scenarios?.[r.task_id ?? 'pricing-js-v1']?.checks ?? '—';
 function el(tag, text = '', cls = '') { const e = document.createElement(tag); e.textContent = text; e.className = cls; return e; }
 function selected(r) { return r.synthetic === (evidence === 'synthetic') && r.profile_version===catalog.profile_version && (r.task_id??'pricing-js-v1')===$('scenario').value; }
 function setFilter(value) {
@@ -39,7 +40,7 @@ function render() {
   if(latest) {
     const detail=$('active-detail');
     detail.append(el('p', latest.synthetic ? 'A fresh agent. The same useful work.' : label(latest.model)+' · build', 'detail-heading'));
-    const info=el('div','','detail-meta');info.append(el('div',`${latest.agents} agent(s) · ${latest.check?.passed ?? '—'}/${latest.check?.total ?? 12} checks · ${latest.human_interventions ? 'human assisted' : 'no human intervention recorded'}`));
+    const info=el('div','','detail-meta');info.append(el('div',`${latest.agents} agent(s) · ${latest.check?.passed ?? '—'}/${checkTotal(latest)} checks · ${latest.human_interventions ? 'human assisted' : 'no human intervention recorded'}`));
     info.append(el('div',latest.events.some(e=>e.name==='agent.handover') ? 'Old runtime retired. Artifact preserved. New session created.' : 'Fixed task · protected verifier · bounded authority.'));
     info.append(el('code',`Trace ${latest.trace_id ?? 'pending'}`));detail.append(info);
     const statuses=el('div','','memory-status');statuses.append(el('span',latest.claude_mem_id ? `claude-mem · checkpoint #${latest.claude_mem_id} read back` : 'claude-mem · waiting'),el('span',`Hindsight · ${latest.memory?.status ?? 'waiting'}`));detail.append(statuses);
@@ -48,7 +49,7 @@ function render() {
     const card=el('article','','run'), head=el('div','','run-header');
     head.append(el('h3',run.synthetic ? '250k boundary · synthetic replay' : label(run.model)+' · '+(catalog.scenarios?.[run.task_id]?.name??run.task_id??'Cart totals')),el('span',run.status.replaceAll('_',' '),'tag'));card.append(head);
     const cost = run.synthetic ? 'synthetic · no model call' : run.usage_complete ? `${money(run.native_cost_usd)} native estimate` : 'cost unresolved';
-    card.append(el('div',`${run.agents} agent(s) · ${run.check?.passed ?? '—'}/${run.check?.total ?? 12} checks · ${cost} · ${run.human_interventions ? 'assisted' : 'no intervention recorded'}`,'run-meta'));
+    card.append(el('div',`${run.agents} agent(s) · ${run.check?.passed ?? '—'}/${checkTotal(run)} checks · ${cost} · ${run.human_interventions ? 'assisted' : 'no intervention recorded'}`,'run-meta'));
     const timeline=el('div','','timeline');
     const names={'agent.started':'Agent started','gen_ai.request':'Model response','gate.closed':'Gate closed','agent.handover':'Fresh session','artifact.checked':'Artifact checked','memory.checkpoint':'Checkpoint read back','app.verified':'Hono API verified','task.failed':'Task stopped','handover.prepared':'Handover MD ready','handover.acknowledged':'MD acknowledged','context.preflight':'Input counted','memory.retained':'Analysis retained','process.retired':'Process retired','session.wiped':'Context wiped','model.step.started':'Model step','tool.finished':'Tool finished'};
     for(const event of run.events) {let text=names[event.name]??event.name;if(event['aeion.context.observed']!==undefined)text+=' · '+pretty(event['aeion.context.observed']);timeline.append(el('span',text,'event'+(['agent.handover','gate.closed'].includes(event.name)?' handover':'')));}
@@ -57,7 +58,7 @@ function render() {
     const copy=el('button','Copy trace ID','text-button');copy.onclick=()=>navigator.clipboard?.writeText(run.trace_id ?? '').then(()=>{$('message').textContent='Trace ID copied.';});actions.append(copy);
     if(run.ended_ns && !run.human_interventions) {const assist=el('button','Declare human assistance','text-button');assist.disabled=busy;assist.onclick=async()=>{await post({mode:'intervention',run_id:run.id});};actions.append(assist);}
     const logs=el('a','Correlated logs ↗','text-button');logs.href=`/api/runs/${run.id}/logs`;logs.target='_blank';actions.append(logs);if(run.handover_md_sha256){const md=el('a','HANDOVER.md ↗','text-button');md.href=`/api/runs/${run.id}/handover`;md.target='_blank';actions.append(md);}card.append(actions);if(run.failure)card.append(el('p',run.failure,'fineprint'));$('runs').append(card);
-    if(run.claude_mem_id) {const item=el('div','','memory-item');item.append(el('strong',`Checkpoint #${run.claude_mem_id} · ${run.agents} agent(s)`),el('span',`${run.check?.passed ?? 0}/${run.check?.total ?? 12} checks · saved and retrieved`),el('code',`SHA-256 ${run.artifact_sha256 ?? 'pending'}`));$('checkpoints').append(item);}
+    if(run.claude_mem_id) {const item=el('div','','memory-item');item.append(el('strong',`Checkpoint #${run.claude_mem_id} · ${run.agents} agent(s)`),el('span',`${run.check?.passed ?? 0}/${checkTotal(run)} checks · saved and retrieved`),el('code',`SHA-256 ${run.artifact_sha256 ?? 'pending'}`));$('checkpoints').append(item);}
   }
   if(!runs.length)$('runs').append(el('p',evidence==='real' ? 'No real runs yet. Start a Go build to collect evidence.' : 'Replay the handover to populate this room.','empty'));
   if(!$('checkpoints').children.length)$('checkpoints').append(el('p','No checkpoints in this evidence group yet.','muted'));

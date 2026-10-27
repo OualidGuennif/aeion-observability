@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync, linkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { decision, measure } from "../gate-policy.mjs";
@@ -42,6 +42,20 @@ test("hook writes only a bounded decision and prevents subsequent dispatch", asy
     await assert.rejects(request([{info:{role:"assistant",id:"bad"}}]));
     assert.equal(JSON.parse(readFileSync(file)).reason,"USAGE_UNKNOWN");
   } finally {clearInterval(ack);rmSync(folder,{recursive:true});}
+});
+test("gate decisions replace the file atomically instead of rewriting it in place", async () => {
+  const folder=mkdtempSync(join(tmpdir(),"aeion-atomic-"));
+  const file=join(folder,"gate.json"), observer=join(folder,"observer.json");
+  process.env.AEION_GATE_FILE=file;process.env.AEION_CONTEXT_LIMIT="250000";process.env.AEION_CONTEXT_METRIC="active_context";
+  try {
+    // A hard link sees in-place truncation; a rename leaves the previous inode intact.
+    writeFileSync(observer,'{"previous":true}');linkSync(observer,file);
+    const hook=await ContextGate();
+    await assert.rejects(hook["experimental.chat.messages.transform"]({}, {messages:[{info:{role:"assistant",id:"bad"}}]}),/AEION_GATE_CLOSED/);
+    assert.equal(readFileSync(observer,"utf8"),'{"previous":true}');
+    assert.deepEqual(JSON.parse(readFileSync(file)),{action:"stop",reason:"USAGE_UNKNOWN"});
+    assert.equal(existsSync(file+".tmp"),false);
+  } finally {rmSync(folder,{recursive:true});}
 });
 test("output is capped to 4096 without raising a smaller model ceiling", async()=>{
   const hooks=await ContextGate();

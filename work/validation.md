@@ -265,3 +265,29 @@ Remaining, protocol-hashed and therefore requiring requalification: `check-scena
 `TypeError` cases as passed when the artifact cannot load (a syntax error reports 9/12), the hook
 writes its gate file non-atomically, the cost-stop default differs between hook and supervisor,
 and `runner.py` keeps dead constants.
+
+## Protocol review follow-ups — 2026-10-27
+
+This second batch changes `protocol_hash()` inputs, the qualified bundle and the agent image
+(`context-gate.mjs`, `fixtures/`, `runner.py`). Existing local sandbox/CLI qualifications
+therefore stop admitting live runs until bootstrap and CLI qualification are rerun.
+Acceptance decisions are unchanged: every contract still has cases that require a returned
+value, so an unloadable artifact failed before and fails now. Existing `openshell-go-v5`
+cohorts remain comparable; only the reported check counts of such failures change.
+
+- **Unloadable artifacts:** `check-scenario.js` called an undefined export, and the resulting
+  `TypeError` satisfied every case expecting one (a syntax error reported 9/12). The export
+  must now be a function before any case can pass. With Deno 2.5.6, syntax-error, non-function
+  and missing exports report 0/12; the four reference solutions still report 12/14/14/14.
+  `qualify_scenarios.py` now asserts zero passed cases for an unloadable module inside OpenShell.
+- **Atomic hook state:** the hook rewrote `gate.json` in place while the supervisor polled it;
+  an empty read failed the run as `RUN_FAILED` instead of a handover. All hook state files now
+  use write-then-rename. A hard-link regression test fails on the previous hook and passes now.
+- **One cost-stop default:** the hook budget defaulted to $0.10 and the supervisor stop to $0;
+  both now use the documented $0.10. Compose already set it, so the qualified stack is unchanged.
+- Removed unused `TASK`/`SOLUTION` constants, a no-op `try/except` and two unreferenced fixtures;
+  the cockpit shows each task's own check total; hosted CI now runs the Docker-free demo checks.
+
+Checks: offline suite 33 tests; demo host suite 26 tests (4 Docker-only skips); eight Node gate
+tests; fixture validator pass; `runner.py` imports with the pinned requirements. Not run here:
+image builds and the OpenShell/CLI qualifications (hosted CI runs both on Linux).

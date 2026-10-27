@@ -24,5 +24,9 @@ with tempfile.TemporaryDirectory(prefix='aeion-contracts-',dir='/work') as direc
             result[task_id]=check['passed']
             (workspace/'src/pricing.js').write_text('export function '+SCENARIOS[task_id]['export']+'(){return null;}')
             assert acceptance(workspace,sandbox,task_id)['failed'],task_id
-        print(json.dumps({'runtime':'openshell','passed_cases':result,'broken_artifacts_rejected':True}))
+            # An unloadable module must not pass the cases that expect a TypeError.
+            (workspace/'src/pricing.js').write_text('export function '+SCENARIOS[task_id]['export']+'( {')
+            unloadable=acceptance(workspace,sandbox,task_id)
+            assert unloadable['passed']==0 and len(unloadable['failed'])==unloadable['total'],task_id
+        print(json.dumps({'runtime':'openshell','passed_cases':result,'broken_artifacts_rejected':True,'unloadable_artifacts_pass_zero':True}))
     finally:sandbox.close()

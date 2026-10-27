@@ -8,7 +8,8 @@ const failed = [];
 for (const item of scenario.cases) {
   let success = false;
   const args = structuredClone(item.args), before = JSON.stringify(args);
-  try {
+  // An unloadable or missing export must not satisfy cases that expect a TypeError.
+  if (typeof fn === 'function') try {
     const value = fn(...args);
     success = !item.throws && JSON.stringify(value) === JSON.stringify(item.expected) && JSON.stringify(args) === before;
   } catch (error) { success = item.throws === 'TypeError' && error instanceof TypeError; }

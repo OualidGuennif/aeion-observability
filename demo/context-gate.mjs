@@ -3,6 +3,13 @@ import { writeFileSync, existsSync, readFileSync, renameSync } from "node:fs";
 
 import { decision } from "./gate-policy.mjs";
 
+// The supervisor polls these files; never expose a truncated or partially written document.
+function publish(path, value) {
+  const temporary = path + ".tmp";
+  writeFileSync(temporary, JSON.stringify(value), {mode:0o600});
+  renameSync(temporary, path);
+}
+
 export const ContextGate = async () => {
   let admitted = false;
   return {
@@ -35,9 +42,7 @@ export const ContextGate = async () => {
     }
     if (result.observed >= Math.max(1, result.limit - 20000)) {
       const checkpoint = {id: crypto.randomUUID(), observed: result.observed, metric: result.metric, limit: result.limit};
-      const temporary = process.env.AEION_CHECKPOINT_REQUEST + ".tmp";
-      writeFileSync(temporary, JSON.stringify(checkpoint), {mode:0o600});
-      renameSync(temporary, process.env.AEION_CHECKPOINT_REQUEST);
+      publish(process.env.AEION_CHECKPOINT_REQUEST, checkpoint);
       let acknowledged = false;
       const deadline = Date.now() + 20000;
       while (Date.now() < deadline) {
@@ -52,12 +57,12 @@ export const ContextGate = async () => {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
       if (!acknowledged) {
-        writeFileSync(process.env.AEION_GATE_FILE, JSON.stringify({action:"stop",reason:"HANDOVER_NOT_READY"}), {mode:0o600});
+        publish(process.env.AEION_GATE_FILE, {action:"stop",reason:"HANDOVER_NOT_READY"});
         throw new Error("AEION_GATE_CLOSED");
       }
     }
     if (result.action !== "continue") {
-      writeFileSync(process.env.AEION_GATE_FILE, JSON.stringify(result), { mode: 0o600 });
+      publish(process.env.AEION_GATE_FILE, result);
       // This hook precedes handle.process/provider dispatch in session/prompt.ts.
       throw new Error("AEION_GATE_CLOSED");
     }
