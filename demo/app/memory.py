@@ -1,16 +1,19 @@
 """Complementary memories. Canonical reports and deterministic policy remain authoritative."""
 import hashlib
 import json
-import os
 import urllib.request
 
+from settings import SERVICES
+
 HTTP = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+# An empty URL in the environment disables that memory backend.
+CLAUDE_MEM_URL, HINDSIGHT_URL = SERVICES["claude_mem"][0], SERVICES["hindsight"][0]
 
 
 def request(base, path, payload=None, timeout=8):
     headers = {"Content-Type": "application/json"}
     # claude-mem's local worker trusts an explicitly local Host; no admin routes are used.
-    if base == os.environ.get("CLAUDE_MEM_URL"):
+    if base == CLAUDE_MEM_URL:
         headers["Host"] = "localhost:37777"
     req = urllib.request.Request(base + path, data=None if payload is None else json.dumps(payload).encode(), headers=headers)
     with HTTP.open(req, timeout=timeout) as response:
@@ -42,13 +45,13 @@ def analysis(run):
 
 class Memory:
     def checkpoint(self, run, state):
-        base = os.environ.get("CLAUDE_MEM_URL")
+        base = CLAUDE_MEM_URL
         if not base:
             return state
         text = json.dumps(state, sort_keys=True)
         result = request(base, "/api/memory/save", {
             "text": text, "title": "AEion handover checkpoint", "project": "aeion-working-" + run["id"],
-            "metadata": {"sourceFingerprint": hashlib.sha256(text.encode()).hexdigest(), "platformSource": "opencode"},
+            "metadata": {"sourceFingerprint": hashlib.sha256(text.encode()).hexdigest(), "platformSource": "pi"},
         }, timeout=3)
         if result.get("success") is not True or type(result.get("id")) is not int:
             raise ValueError("CHECKPOINT_NOT_SAVED")
@@ -59,7 +62,7 @@ class Memory:
         return json.loads(stored["narrative"])
 
     def retain(self, run):
-        base = os.environ.get("HINDSIGHT_URL")
+        base = HINDSIGHT_URL
         if not base:
             return {"status": "disabled"}
         bank = "aeion-demo-synthetic" if run["synthetic"] else "aeion-demo-real"
@@ -75,7 +78,7 @@ class Memory:
                 "llm_usage": result.get("usage")}
 
     def retain_decisions(self, campaign):
-        base=os.environ.get("HINDSIGHT_URL")
+        base=HINDSIGHT_URL
         if not base: return {"status":"disabled"}
         content=json.dumps({"schema":"aeion.model-decision.v1","campaign_id":campaign["id"],
             "status":campaign["status"],"native_cost_estimate_usd":campaign["native_cost_estimate_usd"],
@@ -87,7 +90,7 @@ class Memory:
         return {"status":"retained","llm_usage":result.get("usage")}
 
     def recall(self, synthetic=False):
-        base = os.environ.get("HINDSIGHT_URL")
+        base = HINDSIGHT_URL
         if not base:
             return {"status": "disabled", "results": []}
         bank = "aeion-demo-synthetic" if synthetic else "aeion-demo-real"

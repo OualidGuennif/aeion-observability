@@ -4,6 +4,8 @@ import os
 import urllib.request
 import uuid
 
+from settings import LANGFUSE_URL
+
 
 def publish(run):
     auth = os.environ.get("LANGFUSE_AUTH")
@@ -20,7 +22,7 @@ def publish(run):
                    "dataType": "BOOLEAN", "environment": "default",
                    "comment": "Protected synthetic-task checks; descriptive pilot evidence only.",
                    "metadata": {"run_id": run["id"], "synthetic": run["synthetic"], "task": run.get("task_id", "pricing-js-v1")}}
-        request = urllib.request.Request("http://langfuse-web:3000/api/public/scores", data=json.dumps(payload).encode(),
+        request = urllib.request.Request(LANGFUSE_URL + "/api/public/scores", data=json.dumps(payload).encode(),
                                          headers={"Authorization": "Basic " + auth, "Content-Type": "application/json"})
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         with opener.open(request, timeout=5) as response:

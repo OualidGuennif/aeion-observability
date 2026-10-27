@@ -3,10 +3,13 @@ import argparse
 from decimal import Decimal
 import json
 from pathlib import Path
+import sys
 import time
 import urllib.parse
 import urllib.request
-from app.memory import analysis
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "app"))
+from memory import analysis
 
 
 def get(url, auth=None):

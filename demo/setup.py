@@ -43,7 +43,8 @@ def main():
         output.write("".join(f"{key}={value}\n" for key, value in values.items()))
     print("Private demo configuration created. OpenCode key configured:", bool(values["OPENCODE_API_KEY"]))
     print("Langfuse login: demo@aeion.local; password is LANGFUSE_PASSWORD in demo/.local/stack.env.")
-    print("Start: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml up -d --build")
+    print("Next: python3 demo/install.py && python3 demo/openshell/setup.py")
+    print("Then: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml up -d --build && python3 demo/run.py")
 
 
 if __name__ == "__main__":

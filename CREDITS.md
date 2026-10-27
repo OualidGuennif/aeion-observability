@@ -24,15 +24,20 @@ as a measured Æion result.
   and Sekhon (confidence sequences). See the [papers and reading scope](knowledge/references/sources.md).
 - **Æion Factory and contributors** — the fixed development foundation, CRAFTED, specification
   structure and evidence-led workflow. [Repository](https://github.com/OualidGuennif/aeion-factory).
-- **OpenCode, Deno and Hono contributors** — the pinned build CLI, JavaScript runtime,
+- **Flue (withastro) and Pi (earendil-works) contributors** — the pinned agent harness
+  (`@flue/runtime`/`@flue/cli` 2.3.0, Apache-2.0) and its model/agent core (`@earendil-works/pi-ai`
+  1.4.0, MIT) used by the local showcase. [Flue](https://github.com/withastro/flue),
+  [Pi](https://www.npmjs.com/package/@earendil-works/pi-ai).
+- **OpenCode, Deno and Hono contributors** — the Go inference service and its documentation
+  (the OpenCode CLI powered the earlier `openshell-go-v5` evidence), the JavaScript runtime,
   native OpenTelemetry support and small application API used by the local showcase.
   [OpenCode Go](https://opencode.ai/docs/go/), [Deno](https://docs.deno.com/), [Hono](https://hono.dev/).
 - **Vectorize/Hindsight and thedotmack/claude-mem contributors** — local semantic session
   memory and the explicit working-memory save/read API.
   [Hindsight](https://github.com/vectorize-io/hindsight), [claude-mem](https://github.com/thedotmack/claude-mem).
 - **Z.ai, DeepSeek and MiniMax** — official tokenizer/chat-template files fetched at pinned revisions
-  and checked against [fingerprints](demo/tokenizers.json). Their license files are retained
-  in the Docker image. No coding-model weights are bundled.
+  and checked against [fingerprints](demo/tokenizers.json). They are fetched with their license
+  files into the ignored `demo/tokenizers/` folder by `demo/install.py`. No coding-model weights are bundled.
 - **Manrope and Cormorant Garamond authors** — local font assets, with their OFL notices in
   `demo/app/fonts/`. The showcase illustration was generated natively with GPT Image for Æion;
   it is decorative artwork, not a measured architecture or runtime result.
@@ -54,6 +59,6 @@ Source fingerprints identify consulted material; full upstream pages are not rep
   version 0.1.5. [Release](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.5),
   [telemetry opt-out](https://docs.nvidia.com/openshell/v0.1.5/observability/telemetry/),
   [runtimes](https://docs.nvidia.com/openshell/v0.1.5/how-it-works/sandboxes/runtimes/).
-- **models.dev contributors** — the five-profile public OpenCode Go catalog subset bundled
-  in `demo/agent/models.json`, retrieved 2026-10-26 from [the catalog](https://models.dev/api.json).
-  This prevents agent-time model discovery. It is profile metadata, not an account entitlement check.
+- **models.dev contributors** — the public OpenCode Go catalog subset used by the earlier
+  OpenCode harness evidence, retrieved 2026-10-26 from [the catalog](https://models.dev/api.json).
+  The current profiles carry their own Go prices and limits; neither is an account entitlement check.

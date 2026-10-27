@@ -11,7 +11,7 @@ from selection import recommend
 
 def cohort(profile, cost='0.01', seconds=2, task='pricing-js-v1'):
     return [dict(id=f'{profile}-{i}', model=PROFILES[profile]['model'], task_id=task,
-                 synthetic=False, profile_version=PROFILE_VERSION, runtime='openshell',
+                 synthetic=False, profile_version=PROFILE_VERSION, runtime='flue-openshell',
                  metric='active_context', limit=250000, status='passed',
                  started_ns=1, ended_ns=1+int(seconds*1e9), agents=1,
                  human_interventions=0, native_cost_usd=cost, usage_complete=True, events=[])

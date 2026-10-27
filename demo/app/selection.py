@@ -8,7 +8,7 @@ def recommend(runs,task_id,objective='balanced'):
     if objective not in {'balanced','cost','speed'}:
         raise ValueError('INVALID_OBJECTIVE')
     comparable=[r for r in runs if r.get('task_id')==task_id and not r['synthetic']
-                and r.get('profile_version')==PROFILE_VERSION and r.get('runtime')=='openshell'
+                and r.get('profile_version')==PROFILE_VERSION and r.get('runtime')=='flue-openshell'
                 and r['limit']==250000 and r['metric']=='active_context']
     rows=summarize(comparable)
     eligible=[]
