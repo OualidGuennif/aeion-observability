@@ -23,7 +23,7 @@ def request(base, path, payload=None, timeout=8):
 def analysis(run):
     usages = [e for e in run["events"] if e["name"] == "gen_ai.request"]
     return {
-        "schema": "aeion.session-analysis.v1", "run_id": run["id"], "task": "pricing-js-v1",
+        "schema": "aeion.session-analysis.v1", "run_id": run["id"], "task": run.get("task_id", "pricing-js-v1"),
         "trace_id": run.get("trace_id"), "profile_version": run.get("profile_version", "unversioned"), "usage_complete": run.get("usage_complete", False),
         "synthetic": run["synthetic"], "model": run["model"] if not run["synthetic"] else "synthetic-replay",
         "status": run["status"], "agents": run["agents"],
@@ -35,7 +35,8 @@ def analysis(run):
         "duration_ms": round((run["ended_ns"] - run["started_ns"]) / 1000000, 2),
         "human_interventions": run.get("human_interventions", 0),
         "checks": run.get("check"), "artifact_sha256": run.get("artifact_sha256"),
-        "assessment": "Verified synthetic task only; insufficient evidence for a general model ranking.",
+        "assessment": "Protected task checks; descriptive evidence only, not a general model ranking.",
+        "selection": run.get("selection"), "runtime": run.get("runtime", "legacy"),
     }
 
 
@@ -66,12 +67,24 @@ class Memory:
         result = request(base, f"/v1/default/banks/{bank}/memories", {"async": False, "items": [{
             "content": content, "document_id": "run-" + run["id"],
             "context": "Local agent efficiency analysis; descriptive evidence, no control authority.",
-            "tags": ["pricing-js-v1", "synthetic" if run["synthetic"] else "real"],
+            "tags": [run.get("task_id", "pricing-js-v1"), "synthetic" if run["synthetic"] else "real"],
         }]}, timeout=45)
         if result.get("success") is not True or result.get("items_count") != 1 or result.get("async") is not False:
             raise ValueError("MEMORY_NOT_RETAINED")
         return {"status": "retained", "bank": bank, "document_id": "run-" + run["id"],
                 "llm_usage": result.get("usage")}
+
+    def retain_decisions(self, campaign):
+        base=os.environ.get("HINDSIGHT_URL")
+        if not base: return {"status":"disabled"}
+        content=json.dumps({"schema":"aeion.model-decision.v1","campaign_id":campaign["id"],
+            "status":campaign["status"],"native_cost_estimate_usd":campaign["native_cost_estimate_usd"],
+            "recommendations":campaign["recommendations"],"authority":"advisory; never overrides sandbox or context gates"},sort_keys=True)
+        result=request(base,"/v1/default/banks/aeion-demo-real/memories",{"async":False,"items":[{
+            "content":content,"document_id":"decision-"+campaign["id"],"tags":["model-selection","openshell"],
+            "context":"Measured task-specific cost, latency, correctness and recorded autonomy decision."}]},timeout=45)
+        if result.get("success") is not True: raise ValueError("MEMORY_NOT_RETAINED")
+        return {"status":"retained","llm_usage":result.get("usage")}
 
     def recall(self, synthetic=False):
         base = os.environ.get("HINDSIGHT_URL")

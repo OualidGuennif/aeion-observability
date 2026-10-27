@@ -1,8 +1,8 @@
 # Current work
 
-## Local agent observability and memory showcase
-- Owner decision: Add a Docker Langfuse/OTel demo, Deno JS/Hono target, Python cockpit, Go-backed OpenCode build agents, Hindsight and claude-mem; require Markdown before reset, 250k handover and independent 300k admission guard. Implementation and subsequent PR/main publication approved in chat, 2026-10-25.
-- State: Implemented on task/langfuse-opencode-demo; both paid Go profiles passed the protected 12-check task. Local checks, real Go tasks, backend reads, handover qualification and browser QA passed; publication through the PR workflow is authorized.
-- Next: Use demo/README.md for presentation and restart commands; hosted CI and publication state are available in the release PR.
-- Blocker: None for the local pilot. General model ranking, invoices and production runtime qualification remain outside the measured evidence.
-- Evidence: demo/README.md; knowledge/components/docker-demo.md; demo/tests/; demo/verify_backend.py; work/validation.md.
+## OpenShell isolation and task-specific model lab
+- Owner decision: Require OpenShell for every build/check execution, disable NVIDIA telemetry, broaden paid Go task/model comparisons, preserve MD-before-reset and 250k/300k gates, retain analyses/decisions in Hindsight, then publish through PR and merge main. Explicitly approved in chat, most recently 2026-10-27.
+- State: Implementation verified. The corrected five-model/four-task campaign completed 40 attempts: 36 accepted outcomes, four retained CLI failures, complete native usage and $0.368068181 in CLI estimates. Four-tool readbacks, a measured Auto build, the synthetic 250k replay and browser checks pass. Publication is tracked in [PR #4](https://github.com/OualidGuennif/aeion-observability/pull/4).
+- Next: Refresh dated sandbox/CLI qualifications before later live runs when expired. Requalify DeepSeek privacy after 2026-10-31 before using that profile again. Collect representative task evidence before applying these observations beyond the demo.
+- Blocker: None for the qualified local demo. General model superiority, invoices and hostile-code/production qualification remain outside this small lab's evidence.
+- Evidence: [validation and receipts](validation.md); [demo runbook](../demo/README.md); [component](../knowledge/components/docker-demo.md); demo/openshell/; demo/tests/.

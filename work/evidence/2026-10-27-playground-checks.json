@@ -1,0 +1,53 @@
+{
+  "schema": "aeion.playground-http-receipts.v1",
+  "recorded_at": "2026-10-27T10:42:47.767665+00:00",
+  "checks": [
+    {
+      "check": "quote",
+      "http_status": 200,
+      "matched_expected": true
+    },
+    {
+      "check": "pricing",
+      "http_status": 200,
+      "matched_expected": true
+    },
+    {
+      "check": "shipping",
+      "http_status": 200,
+      "matched_expected": true
+    },
+    {
+      "check": "discount",
+      "http_status": 200,
+      "matched_expected": true
+    },
+    {
+      "check": "cart",
+      "http_status": 200,
+      "matched_expected": true
+    },
+    {
+      "check": "invalid_arguments",
+      "http_status": 400,
+      "matched_expected": true
+    },
+    {
+      "check": "unknown_scenario",
+      "http_status": 404,
+      "matched_expected": true
+    },
+    {
+      "check": "oversized_body",
+      "http_status": 413,
+      "matched_expected": true
+    },
+    {
+      "check": "invalid_quote",
+      "http_status": 400,
+      "matched_expected": true
+    }
+  ],
+  "passed": 9,
+  "failed": 0
+}

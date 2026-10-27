@@ -1,4 +1,5 @@
 """Credential-owning local inference boundary. The agent never receives the Go key."""
+import os
 import hmac
 import json
 import secrets
@@ -12,7 +13,7 @@ from json_input import loads
 
 
 class ContextRelay:
-    def __init__(self, model, api_key, limit, checkpoint, event, *, upstream=None, counter=None):
+    def __init__(self, model, api_key, limit, checkpoint, event, *, upstream=None, counter=None, bind=None, public_url=None):
         self.model = model.split("/", 1)[1]
         self.key, self.limit, self.checkpoint, self.event = api_key, limit, checkpoint, event
         self.counter = counter or TokenBudget(self.model)
@@ -135,9 +136,9 @@ class ContextRelay:
                 finally:
                     relay.active.release()
 
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server = ThreadingHTTPServer(bind or (os.environ.get("DEMO_RELAY_BIND", "127.0.0.1"), int(os.environ.get("DEMO_RELAY_PORT", "0"))), Handler)
         self.server.daemon_threads = True
-        self.url = f"http://127.0.0.1:{self.server.server_port}/v1"
+        self.url = public_url or os.environ.get("DEMO_RELAY_URL") or f"http://127.0.0.1:{self.server.server_port}/v1"
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
 
     def start(self):

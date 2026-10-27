@@ -1,7 +1,7 @@
 ---
 type: Component
 title: "Local agent observability and memory showcase"
-description: "A Docker-only Deno/Hono target and Python cockpit with OpenCode build, local admission, Markdown handover and four complementary observation/memory tools."
+description: "An OpenShell-isolated coding agent, Docker Deno/Hono target and Python cockpit with OpenCode build, local admission, Markdown handover and four complementary observation/memory tools."
 status: draft
 sources:
   - id: framework
@@ -17,17 +17,21 @@ sources:
 ## Intent
 
 Make a small coding workflow observable, verifiable and resumable. The Python cockpit/supervisor
-runs OpenCode CLI build sessions against a synthetic Deno JavaScript pricing module. A Hono
-application serves the accepted artifact. All eleven services run in Docker; this is an
+runs OpenCode CLI build sessions inside mandatory NVIDIA OpenShell 0.1.5 sandboxes against four frozen Deno JavaScript contracts. A Hono
+application serves the accepted artifact. The eleven observation/application services use Docker; a private native mTLS gateway owns OpenShell sandboxes through its Docker compute driver; this is an
 explicitly authorized local pilot, not a production OPS boundary or general model benchmark.
 
 ## Data sources
 
 Native OpenCode 1.19.4 JSON events, independent Deno checks, artifact/Markdown SHA-256, supervisor
 process events, official pinned tokenizer/chat-template files and Deno native HTTP traces.
-Primary integration references, checked 2026-10-25:
+Primary integration references, checked 2026-10-27:
 
-- [OpenCode Go](https://opencode.ai/docs/go/), the pinned
+- [OpenShell telemetry](https://docs.nvidia.com/openshell/v0.1.5/observability/telemetry/),
+  [Python SDK](https://docs.nvidia.com/openshell/v0.1.5/sdk/python/) and
+  [sandbox runtimes](https://docs.nvidia.com/openshell/v0.1.5/how-it-works/sandboxes/runtimes/).
+
+- [OpenCode Go](https://opencode.ai/v2/docs/console/go/), the pinned
   [plugin interface](https://github.com/anomalyco/opencode/blob/v1.19.4/packages/plugin/src/index.ts),
   [pre-dispatch loop](https://github.com/anomalyco/opencode/blob/v1.19.4/packages/opencode/src/session/prompt.ts)
   and [CLI identity headers](https://github.com/anomalyco/opencode/blob/v1.19.4/packages/opencode/src/session/llm/request.ts).
@@ -45,7 +49,7 @@ file fingerprints. No remote model code is executed and no coding-model weights 
 
 ## Inputs
 
-A fixed `pricing-js-v1` contract, an authorized Go key reference, approved model/profile,
+One of four fixed versioned task contracts, an authorized Go key reference, approved model/profile,
 active-input checkpoint (250k default), 300k admission budget, 4,096 output limit, framing
 reserve, time/request/session limits and privacy policy. Free/Contributor models are excluded.
 No host repository, global agent configuration or Docker socket is mounted. The original
@@ -53,11 +57,11 @@ AEion dotenv is not mounted; only its explicitly authorized OpenCode key is copi
 
 ## Outputs
 
-- Verified JS artifact and live Hono quote API; twelve immutable Deno checks protect behavior.
+- Verified JS artifact and live Hono quote API; 12 or 14 immutable Deno checks per task protect behavior inside OpenShell.
 - OTel traces to Langfuse, including native usage/cost estimates and quality/autonomy scores.
 - Fsynced local metadata audit plus bounded OTLP/Docker logs, joined by run/trace/event identity.
 - Read-back claude-mem working checkpoints and Hindsight session-analysis memories in separate
-  real/synthetic banks. Neither memory service receives a coding-provider credential.
+  real/synthetic banks. Neither memory service receives a coding-provider credential. Hindsight also retains task-specific model-selection decisions and their run IDs as advisory snapshots.
 - Cockpit KPIs: all-attempt cost estimates, input/output tokens, median task time, verified
   autonomous completion, unknown exposure, human assistance and comparable profile versions.
 
@@ -72,14 +76,15 @@ AEion dotenv is not mounted; only its explicitly authorized OpenCode key is copi
 3. Native context >300k or discrepancy >20k fails the task and blocks live re-admission until
    requalification. Tokenizer parity/framing are explicit provider-qualification assumptions;
    do not claim knowledge of undisclosed provider internals or an invoice ceiling.
-4. Stop/reap the old process group, remove only its XDG runtime, verify the MD, and start a
+4. Close inference admission, delete/reap the old sandbox through OpenShell and wait for deletion, remove only its XDG runtime, verify the MD, and start a
    fresh session over preserved files/checks. No implicit compaction, opaque resume, generated
    summary, hidden title model, subagent or provider fallback is enabled.
-5. The separate agent UID may edit only `src/pricing.js`. Config, verifier, reports and MD stay
+5. OpenCode and generated-code verification execute only via the OpenShell SDK. Missing/expired security or CLI qualification blocks execution; no local/plain Docker fallback exists. The gateway propagates `OPENSHELL_TELEMETRY_ENABLED=false`, confirmed on the real supervisor. Immutable agent image IDs, UID 10001, Landlock, run-subpath mounts, network mode `none` and exact-binary/POST-only relay egress bound this local workload.
+6. The separate agent UID may edit only `src/pricing.js`. Config, verifier, reports and MD stay
    outside that writable scope. Artifact/check evidence, not completion text, determines success.
-6. Export no raw prompts/source/completions/reasoning/tool payloads/keys/arbitrary errors. OTel
+7. Export no raw prompts/source/completions/reasoning/tool payloads/keys/arbitrary errors. OTel
    reception and recalled memory have no authority over admission, permissions or acceptance.
-7. Include failed attempts and unresolved usage. No undefined denominator, absent feedback or
+8. Include failed attempts and unresolved usage. No undefined denominator, absent feedback or
    missing charge becomes a zero-cost autonomous success. Recorded human assistance revises
    autonomy and its native score; it does not erase the verified artifact.
 
@@ -89,8 +94,9 @@ AEion dotenv is not mounted; only its explicitly authorized OpenCode key is copi
 [request boundary](../../demo/app/relay.py), [token budget](../../demo/app/token_budget.py),
 [supervisor](../../demo/app/runner.py), [audit](../../demo/app/audit.py),
 [memory adapter](../../demo/app/memory.py), [score adapter](../../demo/app/scores.py) and
-[KPI calculation](../../demo/app/kpis.py) use ordinary validated state, never an LLM vote.
-Model behavior and upstream service performance remain stochastic. The [target](../../demo/playground/main.js)
+[KPI calculation](../../demo/app/kpis.py), [task-specific selection](../../demo/app/selection.py) and
+[required sandbox boundary](../../demo/app/sandbox.py) use ordinary validated state, never an LLM vote.
+Selection requires two complete autonomous successes per same-task, same-method, 250k active-context cohort. Cost/time objectives are explicit and normalized deterministically. Ineligible or absent evidence uses a labeled provisional default. Model behavior and upstream service performance remain stochastic. The [target](../../demo/playground/main.js)
 and [cockpit](../../demo/app/server.py) separate the observed workload from its controls.
 
 ## Acceptance checks

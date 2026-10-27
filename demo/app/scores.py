@@ -19,7 +19,7 @@ def publish(run):
         payload = {"id": score_id, "traceId": run["trace_id"], "name": name, "value": int(value),
                    "dataType": "BOOLEAN", "environment": "default",
                    "comment": "Protected synthetic-task checks; descriptive pilot evidence only.",
-                   "metadata": {"run_id": run["id"], "synthetic": run["synthetic"], "task": "pricing-js-v1"}}
+                   "metadata": {"run_id": run["id"], "synthetic": run["synthetic"], "task": run.get("task_id", "pricing-js-v1")}}
         request = urllib.request.Request("http://langfuse-web:3000/api/public/scores", data=json.dumps(payload).encode(),
                                          headers={"Authorization": "Basic " + auth, "Content-Type": "application/json"})
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))

@@ -18,5 +18,35 @@
       "chat_template.jinja": "d959d804d5101b79a49b6ff1bf3c54cd5affa9a5a78c503d925f3090040b31c3",
       "LICENSE": "f2c6c602815669d292889e5be8c802f2ed950653b77999b1584e8e6aed25d040"
     }
+  },
+  "glm-full": {
+    "repo": "zai-org/GLM-5.3",
+    "revision": "ba32f8c19c8738e2c57c71798c601d477a7bf844",
+    "files": {
+      "tokenizer.json": "19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d",
+      "tokenizer_config.json": "98b1271574f41abf89427ae2dda030d94dc9478f0edc5a8bd240db213c6fd5fc",
+      "chat_template.jinja": "0e2b6268ac54f04d2bc1157e8cfb896cb66f25c0b5e319ea12e56014c3914f24",
+      "LICENSE": "96e1622099fc9d6b70c9760f007d99e66d7497eec636b63c60fe208401e9170c"
+    }
+  },
+  "glm52": {
+    "repo": "zai-org/GLM-5.2",
+    "revision": "cf457fa734ab149ffef225f80893eb38c6ff5cdc",
+    "files": {
+      "tokenizer.json": "19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d",
+      "tokenizer_config.json": "98b1271574f41abf89427ae2dda030d94dc9478f0edc5a8bd240db213c6fd5fc",
+      "chat_template.jinja": "172dc74a35e1752df75ecfb2b2cf9326d2852bb1379868ebeec9571654489679",
+      "LICENSE": "f4a18c6ae40b0a8e7d2b7667f52f6e1994e54a46430d2e172b73cb8c9b5eb0d7"
+    }
+  },
+  "minimax": {
+    "repo": "MiniMaxAI/MiniMax-M3.1-Flash",
+    "revision": "262ae6830934f3512211081b8a3f16425b93a239",
+    "files": {
+      "tokenizer.json": "bb1f1626cf01448f1e3b6036d0a061ffc66c91d9046aada14ea23a5441b5ad6e",
+      "tokenizer_config.json": "15caca9f74fbce9b86dc014e9324cbefa56703d81ccd6d56020faa1c41d2eae5",
+      "chat_template.jinja": "961e3f96b2c08d26555efdfeb3b384d5e81181bf0cfc04edbadc31c6e507b431",
+      "LICENSE": "8c4978e3e0fe0349ff929cc8450463cba3039c4c9fc144d8bd5382ab00df247a"
+    }
   }
 }

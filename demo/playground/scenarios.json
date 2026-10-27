@@ -1,0 +1,51 @@
+{
+  "pricing-js-v1": {
+    "name": "Cart totals",
+    "export": "totalCents",
+    "args": [
+      [
+        [
+          125,
+          2
+        ]
+      ],
+      75
+    ]
+  },
+  "shipping-js-v1": {
+    "name": "Shipping rules",
+    "export": "shippingCents",
+    "args": [
+      "FR",
+      501,
+      1000
+    ]
+  },
+  "discounts-js-v1": {
+    "name": "Exact discount arithmetic",
+    "export": "quoteCents",
+    "args": [
+      1000,
+      5000,
+      75
+    ]
+  },
+  "cart-js-v1": {
+    "name": "Normalize and merge a cart",
+    "export": "normalizeCart",
+    "args": [
+      [
+        {
+          "sku": "a",
+          "priceCents": 10,
+          "quantity": 2
+        },
+        {
+          "sku": "a",
+          "priceCents": 10,
+          "quantity": 3
+        }
+      ]
+    ]
+  }
+}

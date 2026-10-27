@@ -1,0 +1,104 @@
+{
+  "schema": "aeion.post-campaign-receipts.v1",
+  "recorded_at": "2026-10-27T10:54:57.719160+00:00",
+  "auto": {
+    "id": "e5d5cebbdc99458e9341debf71b23b64",
+    "status": "passed",
+    "synthetic": false,
+    "task_id": "shipping-js-v1",
+    "runtime": "openshell",
+    "model": "opencode-go/deepseek-v4.1-flash",
+    "agents": 1,
+    "check": {
+      "passed": 14,
+      "failed": [],
+      "total": 14
+    },
+    "native_cost_usd": "0.000901692",
+    "usage_complete": true,
+    "trace_id": "34356e197a04234d4da36497efe741f2",
+    "artifact_sha256": "396aa3e56c45e7558ef0bde1db6438788a76fc72034b6c3d669ecea222b5bd8e",
+    "handover_md_sha256": null,
+    "memory": {
+      "status": "retained",
+      "bank": "aeion-demo-real",
+      "document_id": "run-e5d5cebbdc99458e9341debf71b23b64",
+      "llm_usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "cached_tokens": 0,
+        "thoughts_tokens": 0
+      }
+    },
+    "selected_profile": "deepseek",
+    "selection_basis": "best_observed_for_task",
+    "evidence_run_ids": [
+      "6ee54938c06b4978a797b9eebcb6ac5e",
+      "03f1519b84e940ec80e7e0ade867f17f"
+    ]
+  },
+  "synthetic": {
+    "id": "13a0c0ae264b4f53ab2bc63b4529af6c",
+    "status": "passed",
+    "synthetic": true,
+    "task_id": "shipping-js-v1",
+    "runtime": "openshell",
+    "model": "opencode-go/deepseek-v4.1-flash",
+    "agents": 2,
+    "check": {
+      "passed": 14,
+      "failed": [],
+      "total": 14
+    },
+    "native_cost_usd": "0",
+    "usage_complete": true,
+    "trace_id": "504d125ef73fb96077184e17dab56ed5",
+    "artifact_sha256": "08bde761f0d283dc40ef86fecff9ef65ab4882d0d3fa7e6c4d08dae3190a9e74",
+    "handover_md_sha256": "db81f38dca4a36283c20f381416ede32c86e7bf2da72fde8b092ca2b369dc154",
+    "memory": {
+      "status": "retained",
+      "bank": "aeion-demo-synthetic",
+      "document_id": "run-13a0c0ae264b4f53ab2bc63b4529af6c",
+      "llm_usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "cached_tokens": 0,
+        "thoughts_tokens": 0
+      }
+    },
+    "md_before_gate_and_successor": true,
+    "md_hash_matches": true,
+    "retired_sandboxes": 2
+  },
+  "backend_receipts": [
+    {
+      "run_id": "e5d5cebbdc99458e9341debf71b23b64",
+      "trace_id": "34356e197a04234d4da36497efe741f2",
+      "observations": 24,
+      "generations": 3,
+      "content_fields_empty": true,
+      "claude_mem_checkpoint": 79,
+      "hindsight_recall_results": 4,
+      "native_cost_estimate_usd": "0.000901692",
+      "scores": "read_back_matching",
+      "deno_trace_join": true,
+      "hindsight_document": "read_back_matching"
+    },
+    {
+      "run_id": "13a0c0ae264b4f53ab2bc63b4529af6c",
+      "trace_id": "504d125ef73fb96077184e17dab56ed5",
+      "observations": 27,
+      "generations": 5,
+      "content_fields_empty": true,
+      "claude_mem_checkpoint": 81,
+      "hindsight_recall_results": 2,
+      "native_cost_estimate_usd": "0",
+      "scores": "read_back_matching",
+      "deno_trace_join": true,
+      "hindsight_document": "read_back_matching"
+    }
+  ],
+  "limits": "The Auto run is outside the frozen 40-run matrix. The 250k replay is synthetic and spends no model quota; real CLI dispatch/handover is qualified separately with fake inference."
+}

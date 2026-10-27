@@ -27,15 +27,25 @@ class Inference(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         requests.append(time.monotonic())
         number = len(requests)
-        if number > 4:
+        if number > 6:
             self.send_error(500)
             return
         call = None
         if number == 1:
+            call = {"index": 0, "id": "call_glob", "type": "function", "function": {
+                "name": "glob", "arguments": json.dumps({"pattern": "src/*.js"})}}
+        elif number == 2:
+            tool = next(m for m in reversed(body["messages"]) if m["role"] == "tool")
+            assert "src/pricing.js" in str(tool["content"]) and "Error" not in str(tool["content"]), "Glob must work offline"
+            call = {"index": 0, "id": "call_grep", "type": "function", "function": {
+                "name": "grep", "arguments": json.dumps({"pattern": "export function", "path": "src", "include": "*.js"})}}
+        elif number == 3:
+            tool = next(m for m in reversed(body["messages"]) if m["role"] == "tool")
+            assert "pricing.js" in str(tool["content"]) and "export function totalCents" in str(tool["content"]), "Grep must work offline"
             call = {"index": 0, "id": "call_read", "type": "function", "function": {
                 "name": "read", "arguments": json.dumps({"filePath": str(workspace / "src/pricing.js")})}}
-        elif number in (2, 3):
-            if number == 3:
+        elif number in (4, 5):
+            if number == 5:
                 assert (workspace / "src/pricing.js").read_text() == PARTIAL
                 assert (workspace / "HANDOVER.md").is_file(), "MD must precede the fresh session"
                 assert "## Independent verification" in (workspace / "HANDOVER.md").read_text()
@@ -43,9 +53,9 @@ class Inference(BaseHTTPRequestHandler):
                 assert 'Supervisor-loaded HANDOVER.md' in json.dumps(body["messages"])
                 assert '## Independent verification' in json.dumps(body["messages"])
             call = {"index": 0, "id": "call_write", "type": "function", "function": {
-                "name": "write", "arguments": json.dumps({"filePath": str(workspace / "src/pricing.js"), "content": PARTIAL if number == 2 else SOLUTION})}}
+                "name": "write", "arguments": json.dumps({"filePath": str(workspace / "src/pricing.js"), "content": PARTIAL if number == 4 else SOLUTION})}}
         delta = {"role": "assistant", "tool_calls": [call]} if call else {"role": "assistant", "content": "Done."}
-        count = 250000 if number == 2 else 4000
+        count = 250000 if number == 4 else 4000
         usage = {"prompt_tokens": count, "completion_tokens": 100, "total_tokens": count + 100}
         chunks = [
             {"choices": [{"index": 0, "delta": delta, "finish_reason": None}]},
@@ -108,14 +118,20 @@ if __name__ == "__main__":
             Runner(NoExport(), lambda _run: None, root).run(run)
         summary = {key: run.get(key) for key in ("status", "failure", "agents", "check", "changed")}
         summary.update(request_count=len(requests), fresh_sessions=len(set(run["sessions"])),
-                       runtimes_removed=not list((root / "fixture").glob("runtime-*")))
+                       runtimes_removed=not (root / "fixture/runtime").exists())
         print(json.dumps(summary))
         if run["status"] != "passed":
             print("Fixture supervisor exceptions:", failures[-8:])
         assert run["status"] == "passed", summary
-        assert len(requests) == 4 and run["agents"] == 2 and len(set(run["sessions"])) == 2, summary
+        assert len(requests) == 6 and run["agents"] == 2 and len(set(run["sessions"])) == 2, summary
         assert any(e["name"] == "gate.closed" and e["aeion.context.observed"] == 250000 for e in run["events"])
         names = [e["name"] for e in run["events"]]
         assert names.index("handover.prepared") < names.index("gate.closed") < names.index("agent.handover")
         assert summary["runtimes_removed"], summary
+        from sandbox import protocol_hash
+        marker = Path('/data/cli-qualification.json')
+        temporary = marker.with_suffix('.tmp')
+        temporary.write_text(json.dumps({'protocol_sha256':protocol_hash(), 'expires_ns':time.time_ns()+86400000000000}))
+        temporary.chmod(0o600)
+        temporary.replace(marker)
     server.shutdown()

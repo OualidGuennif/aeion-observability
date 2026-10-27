@@ -26,7 +26,7 @@ class Telemetry:
         parent = SpanContext(int(run["trace_id"], 16), int(run["root_span_id"], 16), False, TraceFlags(1))
         context = trace.set_span_in_context(NonRecordingSpan(parent))
         common = {
-            "aeion.run.id": run["id"], "aeion.synthetic": run["synthetic"],
+            "aeion.run.id": run["id"], "aeion.synthetic": run["synthetic"], "aeion.task.id": run.get("task_id","pricing-js-v1"), "aeion.runtime": run.get("runtime","legacy"),
             "langfuse.session.id": run["id"], "aeion.context.limit": run["limit"],
             "aeion.context.metric": run["metric"],
         }
@@ -74,7 +74,7 @@ class Telemetry:
 
     def begin(self, run):
         span = self.tracer.start_span("demo.task", attributes={
-            "aeion.run.id": run["id"], "aeion.synthetic": run["synthetic"],
+            "aeion.run.id": run["id"], "aeion.synthetic": run["synthetic"], "aeion.task.id": run.get("task_id","pricing-js-v1"), "aeion.runtime": run.get("runtime","legacy"),
             "langfuse.session.id": run["id"],
             "aeion.context.limit": run["limit"], "aeion.context.metric": run["metric"],
         })

@@ -30,7 +30,7 @@ as a measured Æion result.
 - **Vectorize/Hindsight and thedotmack/claude-mem contributors** — local semantic session
   memory and the explicit working-memory save/read API.
   [Hindsight](https://github.com/vectorize-io/hindsight), [claude-mem](https://github.com/thedotmack/claude-mem).
-- **Z.ai and DeepSeek** — official tokenizer/chat-template files fetched at pinned revisions
+- **Z.ai, DeepSeek and MiniMax** — official tokenizer/chat-template files fetched at pinned revisions
   and checked against [fingerprints](demo/tokenizers.json). Their license files are retained
   in the Docker image. No coding-model weights are bundled.
 - **Manrope and Cormorant Garamond authors** — local font assets, with their OFL notices in
@@ -49,3 +49,11 @@ as a measured Æion result.
 Original material authored for this folder is covered by [its MIT license](LICENSE). Linked
 documentation, software, papers, names and trademarks retain their respective rights/licenses.
 Source fingerprints identify consulted material; full upstream pages are not republished here.
+
+- **NVIDIA OpenShell contributors** — mandatory sandbox gateway, policy enforcement and SDK,
+  version 0.1.5. [Release](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.5),
+  [telemetry opt-out](https://docs.nvidia.com/openshell/v0.1.5/observability/telemetry/),
+  [runtimes](https://docs.nvidia.com/openshell/v0.1.5/how-it-works/sandboxes/runtimes/).
+- **models.dev contributors** — the five-profile public OpenCode Go catalog subset bundled
+  in `demo/agent/models.json`, retrieved 2026-10-26 from [the catalog](https://models.dev/api.json).
+  This prevents agent-time model discovery. It is profile metadata, not an account entitlement check.

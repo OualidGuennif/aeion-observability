@@ -1,0 +1,664 @@
+{
+  "pricing-js-v1": {
+    "name": "Cart totals",
+    "export": "totalCents",
+    "contract": "Implement export function totalCents(items, shippingCents=0). items is an array of exactly two-element [priceCents, quantity] arrays. Sum price*quantity plus shipping. All numeric arguments and the result must be nonnegative safe integers; reject invalid types, shapes, negative values, fractions, booleans and overflow with TypeError.",
+    "cases": [
+      {
+        "name": "empty",
+        "args": [
+          []
+        ],
+        "expected": 0
+      },
+      {
+        "name": "sum",
+        "args": [
+          [
+            [
+              125,
+              2
+            ],
+            [
+              50,
+              3
+            ]
+          ],
+          75
+        ],
+        "expected": 475
+      },
+      {
+        "name": "zero",
+        "args": [
+          [
+            [
+              0,
+              4
+            ],
+            [
+              100,
+              0
+            ]
+          ]
+        ],
+        "expected": 0
+      },
+      {
+        "name": "negative_price",
+        "args": [
+          [
+            [
+              -1,
+              1
+            ]
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "negative_quantity",
+        "args": [
+          [
+            [
+              10,
+              -1
+            ]
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "negative_shipping",
+        "args": [
+          [],
+          -1
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "boolean",
+        "args": [
+          [
+            [
+              true,
+              1
+            ]
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "float",
+        "args": [
+          [
+            [
+              1.5,
+              1
+            ]
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "bad_shape",
+        "args": [
+          [
+            [
+              1
+            ]
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "bad_shipping",
+        "args": [
+          [],
+          "10"
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "overflow",
+        "args": [
+          [
+            [
+              9007199254740991,
+              2
+            ]
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "items_type",
+        "args": [
+          {}
+        ],
+        "throws": "TypeError"
+      }
+    ],
+    "probe_args": [
+      [
+        [
+          125,
+          2
+        ]
+      ],
+      75
+    ],
+    "probe_result": 325
+  },
+  "shipping-js-v1": {
+    "name": "Shipping rules",
+    "export": "shippingCents",
+    "contract": "Implement export function shippingCents(country, weightGrams, subtotalCents). country must be FR, DE or ES (exact case). weightGrams is a positive safe integer and subtotalCents a nonnegative safe integer; reject all invalid values/types with TypeError. For FR shipping is free when subtotal>=5000; otherwise weight<=500 costs350, weight<=2500 costs550, heavier costs900. For DE/ES shipping is free at subtotal>=10000; otherwise weight<=1000 costs800, heavier costs1400. Validate all arguments before applying free shipping.",
+    "cases": [
+      {
+        "name": "fr_light",
+        "args": [
+          "FR",
+          500,
+          1000
+        ],
+        "expected": 350
+      },
+      {
+        "name": "fr_boundary",
+        "args": [
+          "FR",
+          501,
+          1000
+        ],
+        "expected": 550
+      },
+      {
+        "name": "fr_heavy",
+        "args": [
+          "FR",
+          2501,
+          1000
+        ],
+        "expected": 900
+      },
+      {
+        "name": "fr_free",
+        "args": [
+          "FR",
+          9999,
+          5000
+        ],
+        "expected": 0
+      },
+      {
+        "name": "eu_light",
+        "args": [
+          "DE",
+          1000,
+          1000
+        ],
+        "expected": 800
+      },
+      {
+        "name": "eu_heavy",
+        "args": [
+          "ES",
+          1001,
+          1000
+        ],
+        "expected": 1400
+      },
+      {
+        "name": "eu_free",
+        "args": [
+          "DE",
+          10000,
+          10000
+        ],
+        "expected": 0
+      },
+      {
+        "name": "unsupported",
+        "args": [
+          "US",
+          500,
+          1000
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "bad_case",
+        "args": [
+          "fr",
+          500,
+          1000
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "zero_weight",
+        "args": [
+          "FR",
+          0,
+          1000
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "negative",
+        "args": [
+          "FR",
+          1,
+          -1
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "float",
+        "args": [
+          "DE",
+          1.5,
+          1000
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "boolean",
+        "args": [
+          "FR",
+          true,
+          1000
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "unsafe",
+        "args": [
+          "FR",
+          9007199254740992,
+          1000
+        ],
+        "throws": "TypeError"
+      }
+    ],
+    "probe_args": [
+      "FR",
+      501,
+      1000
+    ],
+    "probe_result": 550
+  },
+  "discounts-js-v1": {
+    "name": "Exact discount arithmetic",
+    "export": "quoteCents",
+    "contract": "Implement export function quoteCents(subtotalCents, discountBps=0, shippingCents=0). All arguments must be nonnegative safe integers; discountBps must be <=10000. Discount is floor(subtotalCents*discountBps/10000). Return subtotalCents-discount+shippingCents as a safe integer. Preserve exact arithmetic even when the intermediate product exceeds MAX_SAFE_INTEGER (use BigInt or safe integer decomposition); reject invalid arguments or final overflow with TypeError.",
+    "cases": [
+      {
+        "name": "none",
+        "args": [
+          1000
+        ],
+        "expected": 1000
+      },
+      {
+        "name": "half",
+        "args": [
+          1000,
+          5000,
+          75
+        ],
+        "expected": 575
+      },
+      {
+        "name": "round_down",
+        "args": [
+          999,
+          3333
+        ],
+        "expected": 667
+      },
+      {
+        "name": "free",
+        "args": [
+          1000,
+          10000,
+          50
+        ],
+        "expected": 50
+      },
+      {
+        "name": "zero",
+        "args": [
+          0,
+          9999,
+          0
+        ],
+        "expected": 0
+      },
+      {
+        "name": "maximum",
+        "args": [
+          9007199254740991,
+          10000,
+          0
+        ],
+        "expected": 0
+      },
+      {
+        "name": "safe_big",
+        "args": [
+          9007199254740991,
+          0,
+          0
+        ],
+        "expected": 9007199254740991
+      },
+      {
+        "name": "overflow",
+        "args": [
+          9007199254740991,
+          0,
+          1
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "negative",
+        "args": [
+          -1,
+          0,
+          0
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "over_bps",
+        "args": [
+          1000,
+          10001,
+          0
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "float",
+        "args": [
+          1.5,
+          0,
+          0
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "boolean",
+        "args": [
+          true,
+          0,
+          0
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "string",
+        "args": [
+          1000,
+          "10",
+          0
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "bad_shipping",
+        "args": [
+          0,
+          0,
+          -1
+        ],
+        "throws": "TypeError"
+      }
+    ],
+    "probe_args": [
+      1000,
+      5000,
+      75
+    ],
+    "probe_result": 575
+  },
+  "cart-js-v1": {
+    "name": "Normalize and merge a cart",
+    "export": "normalizeCart",
+    "contract": "Implement export function normalizeCart(rows). rows must be an array of objects with sku, priceCents, quantity. sku must be a nonempty string with no leading/trailing whitespace; priceCents and quantity must be nonnegative safe integers. Reject invalid rows/types with TypeError. Merge matching sku by summing quantities; matching sku with different prices must throw TypeError. Reject merged quantity overflow. Return fresh objects {sku,priceCents,quantity}, sorted by sku using JavaScript string code-unit ordering. Do not mutate input rows or the input array.",
+    "cases": [
+      {
+        "name": "empty",
+        "args": [
+          []
+        ],
+        "expected": []
+      },
+      {
+        "name": "sort",
+        "args": [
+          [
+            {
+              "sku": "b",
+              "priceCents": 20,
+              "quantity": 1
+            },
+            {
+              "sku": "a",
+              "priceCents": 10,
+              "quantity": 2
+            }
+          ]
+        ],
+        "expected": [
+          {
+            "sku": "a",
+            "priceCents": 10,
+            "quantity": 2
+          },
+          {
+            "sku": "b",
+            "priceCents": 20,
+            "quantity": 1
+          }
+        ]
+      },
+      {
+        "name": "merge",
+        "args": [
+          [
+            {
+              "sku": "a",
+              "priceCents": 10,
+              "quantity": 2
+            },
+            {
+              "sku": "a",
+              "priceCents": 10,
+              "quantity": 3
+            }
+          ]
+        ],
+        "expected": [
+          {
+            "sku": "a",
+            "priceCents": 10,
+            "quantity": 5
+          }
+        ]
+      },
+      {
+        "name": "zero",
+        "args": [
+          [
+            {
+              "sku": "a",
+              "priceCents": 0,
+              "quantity": 0
+            }
+          ]
+        ],
+        "expected": [
+          {
+            "sku": "a",
+            "priceCents": 0,
+            "quantity": 0
+          }
+        ]
+      },
+      {
+        "name": "price_conflict",
+        "args": [
+          [
+            {
+              "sku": "a",
+              "priceCents": 10,
+              "quantity": 2
+            },
+            {
+              "sku": "a",
+              "priceCents": 20,
+              "quantity": 3
+            }
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "bad_sku",
+        "args": [
+          [
+            {
+              "sku": "",
+              "priceCents": 10,
+              "quantity": 1
+            }
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "spaces",
+        "args": [
+          [
+            {
+              "sku": " a",
+              "priceCents": 10,
+              "quantity": 1
+            }
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "negative",
+        "args": [
+          [
+            {
+              "sku": "a",
+              "priceCents": -1,
+              "quantity": 1
+            }
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "float",
+        "args": [
+          [
+            {
+              "sku": "a",
+              "priceCents": 1,
+              "quantity": 1.5
+            }
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "bool",
+        "args": [
+          [
+            {
+              "sku": "a",
+              "priceCents": true,
+              "quantity": 1
+            }
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "missing",
+        "args": [
+          [
+            {
+              "sku": "a",
+              "quantity": 1
+            }
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "null",
+        "args": [
+          [
+            null
+          ]
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "not_array",
+        "args": [
+          {}
+        ],
+        "throws": "TypeError"
+      },
+      {
+        "name": "overflow",
+        "args": [
+          [
+            {
+              "sku": "a",
+              "priceCents": 1,
+              "quantity": 9007199254740991
+            },
+            {
+              "sku": "a",
+              "priceCents": 1,
+              "quantity": 1
+            }
+          ]
+        ],
+        "throws": "TypeError"
+      }
+    ],
+    "probe_args": [
+      [
+        {
+          "sku": "a",
+          "priceCents": 10,
+          "quantity": 2
+        },
+        {
+          "sku": "a",
+          "priceCents": 10,
+          "quantity": 3
+        }
+      ]
+    ],
+    "probe_result": [
+      {
+        "sku": "a",
+        "priceCents": 10,
+        "quantity": 5
+      }
+    ]
+  }
+}

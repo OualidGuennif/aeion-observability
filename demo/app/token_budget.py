@@ -4,9 +4,10 @@ from pathlib import Path
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 from tokenizers import Tokenizer
 from json_input import loads
+from profiles import PROFILES
 
 ROOT = Path(__file__).resolve().parent.parent
-MODELS = {"glm-5.3-flash": "glm", "deepseek-v4.1-flash": "deepseek"}
+MODELS = {p["model"].split("/",1)[1]:p["tokenizer"] for p in PROFILES.values()}
 HARD_CONTEXT_LIMIT = 300000
 PROVIDER_RESERVE = 20000
 MAX_OUTPUT = 4096

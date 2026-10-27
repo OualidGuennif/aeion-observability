@@ -25,12 +25,13 @@ class RuntimeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             admit(100, 4097)
 
-    def test_both_official_templates_count_tool_roundtrip(self):
+    def test_all_official_templates_count_tool_roundtrip(self):
         body = {"messages": [{"role": "user", "content": "Implement a pricing function."},
                 {"role": "assistant", "content": "", "tool_calls": [{"id": "x", "type": "function", "function": {"name": "read", "arguments": '{"filePath":"src/pricing.js"}'}}]},
                 {"role": "tool", "tool_call_id": "x", "content": "export function totalCents() {}"}],
                 "tools": [{"type": "function", "function": {"name": "read", "parameters": {"type": "object"}}}]}
-        for model in ("glm-5.3-flash", "deepseek-v4.1-flash"):
+        from token_budget import MODELS
+        for model in MODELS:
             with self.subTest(model=model):
                 counter = TokenBudget(model)
                 count = counter.count(body)
@@ -49,13 +50,13 @@ class RuntimeTests(unittest.TestCase):
             ready.set()
             release.wait(timeout=3)
         relay = ContextRelay("fixture/mock", "not-sent", 250000, checkpoint, lambda *_a, **_k: None,
-                             upstream="http://127.0.0.1:1/never", counter=Counter())
+                             upstream="http://127.0.0.1:1/never", counter=Counter(), bind=("127.0.0.1",0))
         relay.start()
         payload = json.dumps({"model": "mock", "messages": [{"role": "user", "content": "small"}], "stream": True, "max_tokens": 4096}).encode()
         statuses = []
         def send(token):
             try:
-                req = urllib.request.Request(relay.url + "/chat/completions", data=payload,
+                req = urllib.request.Request(f"http://127.0.0.1:{relay.server.server_port}/v1/chat/completions", data=payload,
                     headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"})
                 urllib.request.urlopen(req, timeout=4)
             except urllib.error.HTTPError as error:

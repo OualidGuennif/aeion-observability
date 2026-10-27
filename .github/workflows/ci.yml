@@ -23,21 +23,27 @@ jobs:
 
   docker-demo:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
       - name: Generate disposable local configuration without a provider key
         run: python3 demo/setup.py
+      - name: Bootstrap pinned OpenShell with NVIDIA telemetry disabled
+        run: python3 demo/openshell/setup.py
       - name: Build pinned demo runtime
-        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml build demo
+        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml build demo playground
+      - name: Start trusted controller without provider credentials
+        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml up -d --no-deps demo
       - name: Verify native usage, KPIs, tokenizers and admission limits
-        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml run --rm --no-deps demo python3 -m unittest discover -s /opt/demo/tests -v
+        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml exec -T demo python3 -m unittest discover -s /opt/demo/tests -v
       - name: Verify pre-dispatch Markdown and context gates
-        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml run --rm --no-deps demo node --test /opt/demo/tests/gate.test.mjs
+        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml exec -T demo node --test /opt/demo/tests/gate.test.mjs
+      - name: Verify four protected task contracts inside OpenShell
+        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml exec -T demo python3 /opt/demo/tests/qualify_scenarios.py
       - name: Qualify the real build CLI using local fake inference only
-        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml run --rm --no-deps demo python3 /opt/demo/tests/qualify_cli.py
+        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml exec -T demo python3 /opt/demo/tests/qualify_cli.py
       - name: Remove disposable CI containers and data
         if: always()
         run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml down --volumes --remove-orphans

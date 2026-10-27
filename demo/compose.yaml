@@ -146,10 +146,19 @@ services:
     logging: *bounded-logging
     build: .
     init: true
-    ports: ["127.0.0.1:8088:8080"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: ["127.0.0.1:8088:8080", "${AEION_RELAY_PUBLISH_IP:-127.0.0.1}:8091:8091"]
     environment:
       OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
       DEMO_MODEL: opencode-go/glm-5.3-flash
+      OPENSHELL_TELEMETRY_ENABLED: "false"
+      OPENSHELL_ENDPOINT: host.docker.internal:17670
+      OPENSHELL_TLS_DIR: /gateway/tls
+      OPENSHELL_AGENT_IMAGE: ${OPENSHELL_AGENT_IMAGE:?run python3 demo/openshell/setup.py}
+      DEMO_WORK_VOLUME: aeion-openshell-work
+      DEMO_RELAY_BIND: 0.0.0.0
+      DEMO_RELAY_PORT: "8091"
+      DEMO_RELAY_URL: ${DEMO_RELAY_URL:-http://host.docker.internal:8091/v1}
       DEMO_CONTEXT_LIMIT: ${DEMO_CONTEXT_LIMIT:-250000}
       DEMO_CONTEXT_METRIC: ${DEMO_CONTEXT_METRIC:-active_context}
       DEMO_MAX_COST_USD: "0.10"
@@ -159,7 +168,12 @@ services:
       HINDSIGHT_URL: http://hindsight:8888
       CLAUDE_MEM_URL: http://claude-mem:37777
       LANGFUSE_AUTH: ${LANGFUSE_AUTH:?}
-    volumes: ["demo-data:/data", "demo-work:/work"]
+    volumes:
+      - demo-data:/data
+      - demo-work:/work
+      - ./.local/openshell/tls/ca.crt:/gateway/tls/ca.crt:ro
+      - ./.local/openshell/tls/client:/gateway/tls/client:ro
+      - ./.local/openshell/qualification:/gateway/qualification:ro
     tmpfs: ["/tmp:size=128m,mode=1777"]
     read_only: true
     cap_drop: [ALL]
@@ -197,12 +211,17 @@ services:
     image: ghcr.io/vectorize-io/hindsight:1.1.0@sha256:50311d02b4d5d2b7c5242bd336edf8735df8374eaad496a92f49c83b37d2aa06
     ports: ["127.0.0.1:8889:8888", "127.0.0.1:9999:9999"]
     environment:
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
       HINDSIGHT_API_LLM_PROVIDER: none
       HINDSIGHT_API_LLM_MAX_CONCURRENT: "1"
       HINDSIGHT_API_LLM_MAX_RETRIES: "0"
       HINDSIGHT_API_LLM_TIMEOUT: "45"
       HINDSIGHT_API_RETAIN_EXTRACTION_MODE: chunks
+      HINDSIGHT_API_RERANKER_PROVIDER: rrf
+      HINDSIGHT_API_ENABLE_RERANKING: "false"
       HINDSIGHT_API_ENABLE_AUTO_CONSOLIDATION: "false"
+    stop_grace_period: 40s
     volumes: ["hindsight:/home/hindsight/.pg0"]
     shm_size: 256m
     mem_limit: 2000m
@@ -227,6 +246,8 @@ volumes:
   redis:
   demo-data:
   demo-work:
+    external: true
+    name: aeion-openshell-work
   hindsight:
   claude-mem:
   otel-logs:

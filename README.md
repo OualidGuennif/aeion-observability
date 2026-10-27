@@ -20,8 +20,8 @@ that evidence to choose models, providers and inference settings. Optimize **cos
 time, and correct completion without corrective human intervention** within fixed authority.
 
 This folder contains a sourced design, offline examples and an opt-in [Docker demo](demo/README.md)
-with Langfuse, OpenTelemetry, Hindsight, claude-mem and OpenCode build agents. The offline examples need no service or
-key. The demo operates only on a synthetic task; no cost or quality improvement has been
+with Langfuse, OpenTelemetry, Hindsight, claude-mem and OpenCode build agents isolated in NVIDIA OpenShell. The offline examples need no service or
+key. The demo operates on four frozen synthetic task contracts; no cost or quality improvement has been
 measured on representative Æion workloads.
 
 ## Run the Docker demo
@@ -31,6 +31,12 @@ includes a deterministic checkpoint at **250,000 reported input-context tokens**
 a fresh agent session carrying a durable HANDOVER.md, files and check results. An independent
 relay counts requests before forwarding and reserves output/framing inside a 300k admission
 budget. Provider-count qualification assumptions and billing limits are explicit in the runbook.
+
+The [2026-10-27 qualification record](work/validation.md#openshell-migration-and-expanded-model-lab--2026-10-27)
+includes a corrected 40-attempt, five-model OpenShell matrix: 36 accepted outcomes, four
+retained CLI failures and $0.368068181 in native estimates. It also records four-tool
+readbacks, a measured Auto build and the synthetic 250k handover. These small synthetic
+contracts with real CLI calls do not establish general model superiority or invoice costs.
 
 ## Try the offline example
 
