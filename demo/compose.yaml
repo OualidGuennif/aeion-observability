@@ -218,7 +218,10 @@ services:
       HINDSIGHT_API_LLM_MAX_RETRIES: "0"
       HINDSIGHT_API_LLM_TIMEOUT: "45"
       HINDSIGHT_API_RETAIN_EXTRACTION_MODE: chunks
+      HINDSIGHT_API_RERANKER_PROVIDER: rrf
+      HINDSIGHT_API_ENABLE_RERANKING: "false"
       HINDSIGHT_API_ENABLE_AUTO_CONSOLIDATION: "false"
+    stop_grace_period: 40s
     volumes: ["hindsight:/home/hindsight/.pg0"]
     shm_size: 256m
     mem_limit: 2000m

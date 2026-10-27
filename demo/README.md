@@ -63,7 +63,10 @@ inference. Real provider runs and synthetic rows/banks are kept distinct.
   generation provider, cloud sync or Chroma is configured for this role.
 - **Hindsight 1.1.0** retains deterministic session analyses in separate real/synthetic banks.
   `chunks` extraction, local embeddings and disabled automatic consolidation avoid duplicate
-  LLM work. Its LLM provider is `none`; semantic recall works without further Go spending.
+  LLM work. Its LLM provider is `none`; semantic/keyword fusion uses RRF without an additional
+  neural reranker. This small metadata corpus does not justify that extra model's CPU and
+  startup cost. Semantic recall works without further Go spending. A 40-second shutdown grace
+  lets the embedded PostgreSQL complete its documented shutdown before Docker forces termination.
   Memory remains advisory and never rewrites gate policy, credentials or permissions.
 
 ## Model choice and cost accounting

@@ -6,6 +6,7 @@ from pathlib import Path
 import time
 import urllib.parse
 import urllib.request
+from app.memory import analysis
 
 
 def get(url, auth=None):
@@ -29,12 +30,14 @@ def main():
     query = urllib.parse.urlencode({"traceId": run["trace_id"], "fields": "basic,usage,model,io,metadata", "limit": 1000})
     data = get("http://127.0.0.1:3300/api/public/v2/observations?" + query, values["LANGFUSE_AUTH"])["data"]
     names = {r.get("name") for r in data}
-    required = {"demo.task", "gen_ai.request", "artifact.checked", "app.verified", "memory.checkpoint"}
+    required = {"demo.task"} | {e["name"] for e in run["events"] if e["name"] in {
+        "gen_ai.request", "artifact.checked", "app.verified", "memory.checkpoint", "task.failed"}}
     if not required <= names:
         raise SystemExit("Langfuse ingestion incomplete: missing " + ", ".join(sorted(required - names)))
     if any(row.get("input") not in (None, "") or row.get("output") not in (None, "") for row in data):
         raise SystemExit("Unexpected content field in Langfuse")
-    if not any(row.get("metadata", {}).get("resourceAttributes.service.name") == "aeion-deno-playground" for row in data):
+    deno_join = any(row.get("metadata", {}).get("resourceAttributes.service.name") == "aeion-deno-playground" for row in data)
+    if "app.verified" in required and not deno_join:
         raise SystemExit("Deno application span did not join the task trace")
     generations = [r for r in data if r.get("name") == "gen_ai.request"]
     native = [e for e in run["events"] if e["name"] == "gen_ai.request"]
@@ -48,8 +51,12 @@ def main():
     recall = get("http://127.0.0.1:8088/api/memory" + ("?synthetic=true" if run["synthetic"] else ""))
     if recall.get("status") != "ok" or not recall.get("results"):
         raise SystemExit("Hindsight recall has no evidence")
-    if not run.get("claude_mem_id") or run.get("memory", {}).get("status") != "retained":
+    if ("memory.checkpoint" in required and not run.get("claude_mem_id")) or run.get("memory", {}).get("status") != "retained":
         raise SystemExit("Memory persistence not acknowledged")
+    bank = "aeion-demo-synthetic" if run["synthetic"] else "aeion-demo-real"
+    document = get("http://127.0.0.1:8889/v1/default/banks/" + bank + "/documents/run-" + run["id"])
+    if json.loads(document.get("original_text", "null")) != analysis(run) or document.get("memory_unit_count", 0) < 1:
+        raise SystemExit("Hindsight document differs from the canonical analysis")
     score_ids = run.get("langfuse_scores", {}).get("ids", [])
     if len(score_ids) != 2:
         raise SystemExit("Langfuse scores not acknowledged")
@@ -65,7 +72,7 @@ def main():
               "generations": len(generations), "content_fields_empty": True,
               "claude_mem_checkpoint": run["claude_mem_id"], "hindsight_recall_results": len(recall["results"]),
               "native_cost_estimate_usd": run["native_cost_usd"], "scores": "read_back_matching",
-              "deno_trace_join": True}
+              "deno_trace_join": deno_join, "hindsight_document": "read_back_matching"}
     print(json.dumps(result, indent=2))
 
 

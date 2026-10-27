@@ -6,7 +6,7 @@ const money = (n) => n == null ? '—' : '$' + Number(n).toFixed(5);
 const seconds = (n) => n == null ? '—' : (n / 1000).toFixed(1) + 's';
 const label = (name) => Object.values(catalog.profiles??{}).find(p=>p.model===name)?.name ?? (name==='synthetic-replay'?'Synthetic replay':name??'Unknown model');
 function el(tag, text = '', cls = '') { const e = document.createElement(tag); e.textContent = text; e.className = cls; return e; }
-function selected(r) { return r.synthetic === (evidence === 'synthetic') && (r.task_id??'pricing-js-v1')===$('scenario').value; }
+function selected(r) { return r.synthetic === (evidence === 'synthetic') && r.profile_version===catalog.profile_version && (r.task_id??'pricing-js-v1')===$('scenario').value; }
 function setFilter(value) {
   evidence = value;
   $('recalled').replaceChildren(el('p','Recall analyses from the selected evidence bank.','muted'));
