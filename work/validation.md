@@ -328,9 +328,14 @@ host-backed volume and each sandbox mounts only its run subpath.
 - Bridge round trip through the real TypeScript adapter; observer canary test; provider
   configuration test; relay admission refusal before forwarding; host-native cockpit start.
 - Offline suite 33 tests; demo suite 32 tests (pinned venv, 4 tokenizer-file skips); Flue 5 tests.
+- Hosted CI on Linux ([run 40576060598](https://github.com/OualidGuennif/aeion-observability/actions/runs/40576060598),
+  commit `65bf79b`, real OpenShell 0.1.5): security qualification passed with agent UID 1001,
+  Landlock denial, read-only workspace, invisible host paths, network mode `none`, network denied,
+  NVIDIA telemetry off and the labeled work volume; demo suite 32 tests with the pinned tokenizer
+  files and no skips; `qualify_scenarios.py` 12/14/14/14 with broken and unloadable artifacts
+  failing; `qualify_flue.py` passed in `openshell` mode with 6 forwarded requests, 2 fresh
+  conversations, 12/12 and complete usage.
 
-Not verified here: OpenShell itself (no Docker daemon in this environment), the pinned tokenizer
-files (huggingface.co unreachable here), macOS ownership of the host-backed work volume, and any
-paid Go request.
-Hosted CI runs the OpenShell bootstrap, tokenizer tests and both qualifications on Linux. Earlier
-`openshell-go-v5` evidence stays historical and is excluded from Auto selection.
+Not verified: macOS ownership of the host-backed work volume and any paid Go request, including
+Go's acceptance of the forwarded Pi identity. Earlier `openshell-go-v5` evidence stays historical
+and is excluded from Auto selection.
