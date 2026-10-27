@@ -1,5 +1,4 @@
 """Explicit metadata spans only. No automatic instrumentation or exception capture."""
-import os
 import json
 import time
 import urllib.request
@@ -12,12 +11,14 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags, Status, StatusCode
 from opentelemetry.proto.collector.logs.v1.logs_service_pb2 import ExportLogsServiceRequest
 
+from settings import OTEL_LOGS, OTEL_TRACES
+
 
 class Telemetry:
     def __init__(self):
         self.provider = TracerProvider(resource=Resource.create({"service.name": "aeion-demo"}))
         self.provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(
-            endpoint=os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://otel-collector:4318/v1/traces"),
+            endpoint=OTEL_TRACES,
             timeout=5,
         )))
         self.tracer = self.provider.get_tracer("aeion.demo", "1")
@@ -65,7 +66,7 @@ class Telemetry:
                 field.double_value = value
             else:
                 field.string_value = str(value)
-        endpoint = os.environ.get("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", "http://otel-collector:4318/v1/logs")
+        endpoint = OTEL_LOGS
         try:
             req = urllib.request.Request(endpoint, data=request.SerializeToString(), headers={"Content-Type": "application/x-protobuf"})
             with urllib.request.urlopen(req, timeout=1) as response:

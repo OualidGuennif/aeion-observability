@@ -1,7 +1,7 @@
-// Protected task cases. Workload has no environment/network/subprocess permissions.
-const catalogue = JSON.parse(await Deno.readTextFile('/opt/demo/fixtures/scenarios.json'));
-const scenario = catalogue[Deno.args[1]];
-if (!scenario) throw new Error('unknown scenario');
+// Protected task cases arrive on stdin from the supervisor, so expected results never sit in
+// the agent's image or workspace. Workload has no environment/network/subprocess permissions.
+const scenario = JSON.parse(await new Response(Deno.stdin.readable).text());
+if (typeof scenario?.export !== 'string' || !Array.isArray(scenario.cases)) throw new Error('invalid scenario');
 let fn;
 try { fn = (await import(`file://${Deno.args[0]}`))[scenario.export]; } catch { /* report failure */ }
 const failed = [];

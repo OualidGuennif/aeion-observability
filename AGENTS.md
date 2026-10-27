@@ -29,7 +29,7 @@ Standalone checks from this checkout:
 python3 examples/compare_cohorts.py
 python3 examples/validate_fixtures.py
 python3 -m unittest discover -s tests -v
-node --test demo/tests/gate.test.mjs
+(cd demo/flue && npm ci && npm test)
 python3 -m unittest discover -s demo/tests -v
 ```
 
@@ -42,5 +42,5 @@ Optional documentation checks in a workspace that also contains Factory:
 
 Validate JSON examples and their cross-references before reporting them as checked.
 Do not claim provider, runtime, privacy or controller qualification from document checks.
-The Docker pilot has separate CLI and backend checks in [demo/README.md](demo/README.md).
-Do not print its private environment file, raw CLI output or credentials.
+The local pilot has separate harness and backend checks in [demo/README.md](demo/README.md).
+Do not print its private environment file, raw harness output or credentials.

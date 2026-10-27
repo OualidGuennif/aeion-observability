@@ -134,6 +134,8 @@ services:
     image: otel/opentelemetry-collector-contrib:0.163.2@sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes: ["./otel-collector.yaml:/etc/otelcol/config.yaml:ro", "otel-logs:/var/lib/otel"]
+    # The host-native controller exports here; loopback only.
+    ports: ["127.0.0.1:4318:4318", "127.0.0.1:13133:13133"]
     user: "0:0"
     environment: {LANGFUSE_AUTH: "${LANGFUSE_AUTH:?}"}
     depends_on: {langfuse-web: {condition: service_healthy}}
@@ -141,52 +143,6 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     mem_limit: 128m
-
-  demo:
-    logging: *bounded-logging
-    build: .
-    init: true
-    extra_hosts: ["host.docker.internal:host-gateway"]
-    ports: ["127.0.0.1:8088:8080", "${AEION_RELAY_PUBLISH_IP:-127.0.0.1}:8091:8091"]
-    environment:
-      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
-      DEMO_MODEL: opencode-go/glm-5.3-flash
-      OPENSHELL_TELEMETRY_ENABLED: "false"
-      OPENSHELL_ENDPOINT: host.docker.internal:17670
-      OPENSHELL_TLS_DIR: /gateway/tls
-      OPENSHELL_AGENT_IMAGE: ${OPENSHELL_AGENT_IMAGE:?run python3 demo/openshell/setup.py}
-      DEMO_WORK_VOLUME: aeion-openshell-work
-      DEMO_RELAY_BIND: 0.0.0.0
-      DEMO_RELAY_PORT: "8091"
-      DEMO_RELAY_URL: ${DEMO_RELAY_URL:-http://host.docker.internal:8091/v1}
-      DEMO_CONTEXT_LIMIT: ${DEMO_CONTEXT_LIMIT:-250000}
-      DEMO_CONTEXT_METRIC: ${DEMO_CONTEXT_METRIC:-active_context}
-      DEMO_MAX_COST_USD: "0.10"
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
-      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://otel-collector:4318/v1/logs
-      PLAYGROUND_URL: http://playground:8000
-      HINDSIGHT_URL: http://hindsight:8888
-      CLAUDE_MEM_URL: http://claude-mem:37777
-      LANGFUSE_AUTH: ${LANGFUSE_AUTH:?}
-    volumes:
-      - demo-data:/data
-      - demo-work:/work
-      - ./.local/openshell/tls/ca.crt:/gateway/tls/ca.crt:ro
-      - ./.local/openshell/tls/client:/gateway/tls/client:ro
-      - ./.local/openshell/qualification:/gateway/qualification:ro
-    tmpfs: ["/tmp:size=128m,mode=1777"]
-    read_only: true
-    cap_drop: [ALL]
-    cap_add: [SETUID, SETGID, CHOWN, DAC_OVERRIDE, FOWNER, KILL]
-    security_opt: [no-new-privileges:true]
-    mem_limit: 1000m
-    pids_limit: 192
-    depends_on: [otel-collector]
-    healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health', timeout=3)"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
 
   playground:
     logging: *bounded-logging
@@ -199,7 +155,8 @@ services:
       OTEL_DENO_CONSOLE: ignore
       OTEL_LOGS_EXPORTER: none
       OTEL_METRICS_EXPORTER: none
-    volumes: ["demo-work:/work:ro"]
+    # Only supervisor-published artifacts; never run workspaces or handover documents.
+    volumes: ["./.local/work/published:/work/published:ro"]
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
@@ -235,8 +192,9 @@ services:
       CLAUDE_MEM_CHROMA_ENABLED: "false"
       CLAUDE_MEM_TELEMETRY: "0"
       DO_NOT_TRACK: "1"
+    # Loopback only, for the host-native controller's explicit save/read calls.
+    ports: ["127.0.0.1:37777:37777"]
     mem_limit: 512m
-    # No host port: the cockpit exposes only the bounded project memory read model.
 
 volumes:
   postgres:
@@ -244,10 +202,6 @@ volumes:
   clickhouse-logs:
   minio:
   redis:
-  demo-data:
-  demo-work:
-    external: true
-    name: aeion-openshell-work
   hindsight:
   claude-mem:
   otel-logs:

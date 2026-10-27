@@ -69,10 +69,10 @@ def main():
         OPENSHELL_LOCAL_TLS_DIR=str(STATE/'tls'),XDG_DATA_HOME=str(STATE/'data'),
         XDG_STATE_HOME=str(STATE/'state'),XDG_CONFIG_HOME=str(STATE/'config'),
         OPENSHELL_DB_URL='sqlite:'+str(STATE/'gateway.db')+'?mode=rwc')
-    host='host.docker.internal';bind='127.0.0.1';publish='127.0.0.1'
+    host='host.docker.internal';bind='127.0.0.1'
     if platform.system()=='Linux':
         bridge=json.loads(subprocess.check_output(['docker','network','inspect','bridge']))[0]
-        bind=bridge['IPAM']['Config'][0]['Gateway'];ipaddress.ip_address(bind);host=bind;publish=bind
+        bind=bridge['IPAM']['Config'][0]['Gateway'];ipaddress.ip_address(bind);host=bind
     gateway=STATE/'bin/openshell-gateway'
     if not (STATE/'tls/ca.crt').exists():
         command([str(gateway),'generate-certs','--output-dir',str(STATE/'tls'),'--server-san','localhost',
@@ -91,6 +91,8 @@ sandbox_label = "aeion-observability"
 sandbox_runtime_image = "{SANDBOX_IMAGE}"
 supervisor_image = "{SUPERVISOR_IMAGE}"
 allow_driver_config = true
+# Run directories are host folders mounted one per sandbox; nothing else is mounted.
+enable_bind_mounts = true
 sandbox_pids_limit = 192
 '''
     config=STATE/'gateway.toml'
@@ -119,18 +121,37 @@ sandbox_pids_limit = 192
         time.sleep(2)
         if process.poll() is not None:raise SystemExit('OpenShell gateway failed; inspect its private local log')
     active.write_text(configuration_hash)
+    # Linux sandboxes run as the host user so bind-mounted files stay owned by it; Docker Desktop
+    # maps ownership itself, so macOS keeps a dedicated UID. Never root.
+    agent_uid=os.getuid() if platform.system()=='Linux' else 10001
+    if agent_uid==0:raise SystemExit('Run the bootstrap as an unprivileged user')
     if not args.skip_build:
-        command(['docker','build','-f',str(ROOT/'agent/Dockerfile'),'-t','aeion-openshell-agent:local',str(ROOT)])
+        command(['docker','build','--build-arg',f'AGENT_UID={agent_uid}','-f',str(ROOT/'agent/Dockerfile'),'-t','aeion-openshell-agent:local',str(ROOT)])
     image_id=subprocess.check_output(['docker','image','inspect','aeion-openshell-agent:local','--format','{{.Id}}']).decode().strip()
     if not image_id.startswith('sha256:'):raise SystemExit('Agent image must have an immutable ID')
-    command(['docker','volume','create','--label','openshell.ai/sandbox-attachable=true',
-        '--label','openshell.ai/sandbox-attachable-workspace=default','aeion-openshell-work'],stdout=subprocess.DEVNULL)
+    # OpenShell admits mounts by operator labels on a Docker volume, never a raw host path. This
+    # labeled volume is backed by the host work folder; sandboxes mount one run subpath each.
+    work=Path(os.environ.get('AEION_WORK_DIR',ROOT/'.local/work')).resolve()
+    work.mkdir(mode=0o700,parents=True,exist_ok=True);(work/'published').mkdir(mode=0o755,exist_ok=True)
+    volume='aeion-openshell-work'
+    labels={'openshell.ai/sandbox-attachable':'true','openshell.ai/sandbox-attachable-workspace':'default'}
+    existing=subprocess.run(['docker','volume','inspect',volume],capture_output=True)
+    if existing.returncode==0:
+        found=json.loads(existing.stdout)[0]
+        options=found.get('Options') or {}
+        if options.get('device')!=str(work) or options.get('o')!='bind' or (found.get('Labels') or {})!=labels:
+            raise SystemExit(f'Docker volume {volume} is not the labeled host-backed work volume; after retiring its sandboxes '
+                             f'and keeping any data you need, remove it with: docker volume rm {volume}')
+    else:
+        command(['docker','volume','create','--driver','local','--opt','type=none','--opt','o=bind','--opt',f'device={work}',
+                 *[a for k,v in labels.items() for a in ('--label',f'{k}={v}')],volume],stdout=subprocess.DEVNULL)
     # Only non-secret host routing settings; the original provider credentials stay private.
     stack=ROOT/'.local/stack.env'
     if stack.exists():
-        text=stack.read_text();lines=[l for l in text.splitlines() if not l.startswith(('DEMO_RELAY_URL=','AEION_RELAY_PUBLISH_IP=','OPENSHELL_AGENT_IMAGE='))]
-        stack.write_text('\n'.join(lines)+f'\nDEMO_RELAY_URL=http://{host}:8091/v1\nAEION_RELAY_PUBLISH_IP={publish}\nOPENSHELL_AGENT_IMAGE={image_id}\n');stack.chmod(0o600)
-    command([str(sdk/'bin/python'),str(ROOT/'openshell/qualify.py'),'--endpoint',bind+':17670','--state',str(STATE),'--image',image_id],env=env)
+        keys=('DEMO_RELAY_URL=','AEION_RELAY_PUBLISH_IP=','OPENSHELL_AGENT_IMAGE=','OPENSHELL_ENDPOINT=','AEION_AGENT_UID=','OPENSHELL_TELEMETRY_ENABLED=')
+        text=stack.read_text();lines=[l for l in text.splitlines() if not l.startswith(keys)]
+        stack.write_text('\n'.join(lines)+f'\nOPENSHELL_ENDPOINT={bind}:17670\nOPENSHELL_AGENT_IMAGE={image_id}\nAEION_AGENT_UID={agent_uid}\nOPENSHELL_TELEMETRY_ENABLED=false\n');stack.chmod(0o600)
+    command([str(sdk/'bin/python'),str(ROOT/'openshell/qualify.py'),'--endpoint',bind+':17670','--state',str(STATE),'--image',image_id,'--uid',str(agent_uid),'--work',str(work)],env=env)
     print('OpenShell ready; NVIDIA telemetry=false. Qualification expires after 24 hours; rerun setup to refresh.')
 
 

@@ -1,0 +1,16 @@
+{
+  "name": "aeion-flue-lab",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "1.4.0",
+    "@flue/cli": "2.3.0",
+    "@flue/runtime": "2.3.0"
+  }
+}

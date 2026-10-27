@@ -22,8 +22,6 @@ jobs:
         run: python3 examples/validate_fixtures.py
       - name: Run host-level demo checks (bootstrap helpers and Docker-free units)
         run: python3 -m unittest discover -s demo/tests -v
-      - name: Run hook gate checks on the host
-        run: node --test demo/tests/gate.test.mjs
 
   docker-demo:
     runs-on: ubuntu-latest
@@ -32,22 +30,24 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.21.0
       - name: Generate disposable local configuration without a provider key
         run: python3 demo/setup.py
+      - name: Install the host-native controller (venv, pinned tokenizers, locked Flue harness)
+        run: python3 demo/install.py
       - name: Bootstrap pinned OpenShell with NVIDIA telemetry disabled
         run: python3 demo/openshell/setup.py
-      - name: Build pinned demo runtime
-        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml build demo playground
-      - name: Start trusted controller without provider credentials
-        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml up -d --no-deps demo
-      - name: Verify native usage, KPIs, tokenizers and admission limits
-        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml exec -T demo python3 -m unittest discover -s /opt/demo/tests -v
-      - name: Verify pre-dispatch Markdown and context gates
-        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml exec -T demo node --test /opt/demo/tests/gate.test.mjs
+      - name: Verify usage, KPIs, tokenizers, admission barrier and sandbox bridge
+        run: demo/.local/venv/bin/python -m unittest discover -s demo/tests -v
+      - name: Verify the Flue observer, provider and sandbox adapter contracts
+        working-directory: demo/flue
+        run: npm test
       - name: Verify four protected task contracts inside OpenShell
-        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml exec -T demo python3 /opt/demo/tests/qualify_scenarios.py
-      - name: Qualify the real build CLI using local fake inference only
-        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml exec -T demo python3 /opt/demo/tests/qualify_cli.py
-      - name: Remove disposable CI containers and data
+        run: demo/.local/venv/bin/python demo/tests/qualify_scenarios.py
+      - name: Qualify the real Flue harness against OpenShell using local fake inference only
+        run: demo/.local/venv/bin/python demo/tests/qualify_flue.py
+      - name: Stop the private OpenShell gateway
         if: always()
-        run: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml down --volumes --remove-orphans
+        run: if [ -f demo/.local/openshell/gateway.pid ]; then kill "$(cat demo/.local/openshell/gateway.pid)" || true; fi

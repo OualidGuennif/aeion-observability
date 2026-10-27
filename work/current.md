@@ -1,15 +1,15 @@
 # Current work
 
-## OpenShell isolation and task-specific model lab
-- Owner decision: Require OpenShell for every build/check execution, disable NVIDIA telemetry, broaden paid Go task/model comparisons, preserve MD-before-reset and 250k/300k gates, retain analyses/decisions in Hindsight, then publish through PR and merge main. Explicitly approved in chat, most recently 2026-10-27.
-- State: Implementation verified. The corrected five-model/four-task campaign completed 40 attempts: 36 accepted outcomes, four retained CLI failures, complete native usage and $0.368068181 in CLI estimates. Four-tool readbacks, a measured Auto build, the synthetic 250k replay and browser checks pass. Published to `main` through [PR #4](https://github.com/OualidGuennif/aeion-observability/pull/4).
-- Next: Refresh dated sandbox/CLI qualifications before later live runs when expired. Requalify DeepSeek privacy after 2026-10-31 before using that profile again. Collect representative task evidence before applying these observations beyond the demo.
-- Blocker: None for the qualified local demo. General model superiority, invoices and hostile-code/production qualification remain outside this small lab's evidence.
-- Evidence: [validation and receipts](validation.md); [demo runbook](../demo/README.md); [component](../knowledge/components/docker-demo.md); demo/openshell/; demo/tests/.
+## Flue + Pi execution with OpenShell sandboxes
+- Owner decision: Replace the OpenCode CLI and the containerized controller with a Flue + Pi harness in three tiers (just-bash triage, restricted local assistant, isolated autonomous coding), keeping every gate, scenario, memory, telemetry and validation around them. Daytona was rejected after its open-source repository was archived; OpenShell is used through a Flue sandbox adapter instead. Harness² is deferred in favour of deterministic, bounded recovery. The controller runs natively on the host. Approved in chat, 2026-10-27.
+- State: First PR implements tier 3 and the host-native controller: pinned Flue 2.3.0/Pi 1.4.0, relay-only provider, metadata-only observer, OpenShell adapter and loopback bridge, pre-dispatch admission barrier, stdin-fed checks with a fresh-sandbox verdict, `flue-openshell-v1` method version. Hosted CI qualifies real OpenShell, the four contracts and the real Flue harness (fake inference) on Linux.
+- Next: Locally: `setup.py`, `install.py`, `openshell/setup.py`, Compose, `qualify_flue.py`, then one paid run before any comparison. Second PR adds tiers 1 and 2.
+- Blocker: No paid Flue run yet; Go acceptance of the forwarded Pi identity and macOS ownership of the host-backed work volume are verified only by those local steps.
+- Evidence: [validation record](validation.md#flue--pi-harness-with-openshell-sandboxes--2026-10-27); [demo runbook](../demo/README.md); [component](../knowledge/components/docker-demo.md).
 
-## Repository review follow-ups
-- Owner decision: Fix reviewed defects that leave the qualified protocol hash unchanged first; handle protocol-hashed fixes as a separate requalified change. Approved in chat, 2026-10-27.
-- State: First batch merged in [PR #5](https://github.com/OualidGuennif/aeion-observability/pull/5). Second batch implemented on a separate branch: unloadable artifacts fail every check, the hook publishes its state files atomically, one cost-stop default, dead harness code removed, per-task check totals in the cockpit and host-level demo checks in CI.
-- Next: Merge the second batch after hosted CI, then rerun `demo/openshell/setup.py`, rebuild the stack and rerun `qualify_cli.py` locally: the protocol hash and agent image change.
-- Blocker: Local live runs stay blocked until that requalification; hosted CI exercises the same OpenShell qualification on Linux.
-- Evidence: [first batch](validation.md#repository-review-follow-ups--2026-10-27); [second batch](validation.md#protocol-review-follow-ups--2026-10-27).
+## OpenShell isolation and task-specific model lab (historical method)
+- Owner decision: Require OpenShell for every build/check execution, disable NVIDIA telemetry, broaden paid Go task/model comparisons, preserve MD-before-reset and 250k/300k gates, retain analyses/decisions in Hindsight. Explicitly approved in chat, most recently 2026-10-27.
+- State: The OpenCode CLI campaign (`openshell-go-v5`) completed 40 attempts: 36 accepted outcomes, four retained CLI failures, complete native usage and $0.368068181 in CLI estimates. Published through [PR #4](https://github.com/OualidGuennif/aeion-observability/pull/4); review fixes merged in [PR #5](https://github.com/OualidGuennif/aeion-observability/pull/5) and [PR #6](https://github.com/OualidGuennif/aeion-observability/pull/6).
+- Next: None; superseded by the Flue harness. Its cohorts stay historical and never drive Auto selection.
+- Blocker: None.
+- Evidence: [validation and receipts](validation.md#openshell-migration-and-expanded-model-lab--2026-10-27).

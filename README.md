@@ -19,12 +19,13 @@ Observe complete coding-agent tasks, connect their execution to verified outcome
 that evidence to choose models, providers and inference settings. Optimize **cost, elapsed
 time, and correct completion without corrective human intervention** within fixed authority.
 
-This folder contains a sourced design, offline examples and an opt-in [Docker demo](demo/README.md)
-with Langfuse, OpenTelemetry, Hindsight, claude-mem and OpenCode build agents isolated in NVIDIA OpenShell. The offline examples need no service or
+This folder contains a sourced design, offline examples and an opt-in [local demo](demo/README.md)
+with Langfuse, OpenTelemetry, Hindsight, claude-mem and Flue + Pi coding agents whose tools run only in
+NVIDIA OpenShell, supervised by a host-native cockpit. The offline examples need no service or
 key. The demo operates on four frozen synthetic task contracts; no cost or quality improvement has been
 measured on representative Æion workloads.
 
-## Run the Docker demo
+## Run the local demo
 
 See the [demo runbook](demo/README.md) for private local setup, ports and verification. It
 includes a deterministic checkpoint at **250,000 reported input-context tokens**, followed by
@@ -37,6 +38,8 @@ includes a corrected 40-attempt, five-model OpenShell matrix: 36 accepted outcom
 retained CLI failures and $0.368068181 in native estimates. It also records four-tool
 readbacks, a measured Auto build and the synthetic 250k handover. These small synthetic
 contracts with real CLI calls do not establish general model superiority or invoice costs.
+That matrix used the earlier OpenCode CLI harness (`openshell-go-v5`); the current Flue + Pi
+harness (`flue-openshell-v1`) is qualified with fake inference only and has no paid campaign yet.
 
 ## Try the offline example
 
@@ -87,7 +90,7 @@ links the primary documentation and papers behind it.
 | [Worked examples](examples/README.md) | Synthetic events, request fragments, policy and cost/quality arithmetic |
 | [Sources and credits](knowledge/references/sources.md) | Evidence register, research depth and attribution |
 | [Current work](work/current.md) | Current scope and next implementation decision |
-| [Docker demo specification](knowledge/components/docker-demo.md) | Langfuse/OTel/OpenCode pilot, context gate and evidence limits |
+| [Docker demo specification](knowledge/components/docker-demo.md) | Langfuse/OTel, Flue + Pi in OpenShell, context gate and evidence limits |
 
 ## What “real time” means here
 

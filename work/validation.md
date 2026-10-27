@@ -291,3 +291,51 @@ cohorts remain comparable; only the reported check counts of such failures chang
 Checks: offline suite 33 tests; demo host suite 27 tests (4 Docker-only skips); eight Node gate
 tests; fixture validator pass; `runner.py` imports with the pinned requirements. Not run here:
 image builds and the OpenShell/CLI qualifications (hosted CI runs both on Linux).
+
+## Flue + Pi harness with OpenShell sandboxes — 2026-10-27
+
+The execution layer changed; gates, scenarios, memories, telemetry and KPIs did not. Facts that
+shaped it were checked against primary sources (pinned in the
+[component specification](../knowledge/components/docker-demo.md#data-sources)): Flue's harness is
+built on Pi, its `local()` sandbox has no isolation, its OpenTelemetry adapter exports content by
+default, `flue run` persists conversations unless a database is configured, and compaction is on
+by default. Daytona's open-source repository is archived ("no longer maintained", June 2026) and
+no Flue sandbox adapter offers a maintained local isolation runtime, so OpenShell is reached
+through a Flue adapter. Harness² is a Python research framework with unrestricted executor
+network access; it is not used.
+
+Measured on the wire with Flue 2.3.0/Pi 1.4.0 and a local fake server: Pi sends only
+system/user/assistant/tool roles, `max_tokens: 4096`, `stream_options.include_usage`, its own
+`User-Agent` and a stable `x-opencode-session` (the Go client requirements); a relay 409 is not
+retried and fails the submission without compaction; turn usage reports `input` excluding cache
+reads, so `input + cacheRead + cacheWrite` equals the provider prompt count.
+
+A design gap surfaced and was closed. Unlike OpenCode, the coding agent now has a shell, and the
+image previously held the protected expected results. Checks now receive cases on stdin, the image
+no longer contains them, and the final verdict runs in a fresh sandbox without agent processes.
+
+The first hosted run showed that OpenShell's default resource admission refuses raw host bind
+mounts ("no trusted label resolver"); only operator-labeled Docker volumes are admitted, and
+bind-backed ones also need `enable_bind_mounts`. The work folder is therefore one labeled
+host-backed volume and each sandbox mounts only its run subpath.
+
+- `qualify_flue.py --local-sandbox` (real Flue CLI, Pi, relay with admission barrier, bridge,
+  helper and Deno 2.5.6 checks; host stand-in for OpenShell): passed with 6 forwarded requests,
+  2 fresh conversations, MD before the refused request at a native 250k report, 12/12, complete
+  usage, no compaction, no persisted conversation store and no prompt text in events.
+- `qualify_scenarios.py --local-sandbox`: 12/14/14/14 reference cases; broken and unloadable
+  artifacts fail.
+- Bridge round trip through the real TypeScript adapter; observer canary test; provider
+  configuration test; relay admission refusal before forwarding; host-native cockpit start.
+- Offline suite 33 tests; demo suite 32 tests (pinned venv, 4 tokenizer-file skips); Flue 5 tests.
+- Hosted CI on Linux ([run 40576060598](https://github.com/OualidGuennif/aeion-observability/actions/runs/40576060598),
+  commit `65bf79b`, real OpenShell 0.1.5): security qualification passed with agent UID 1001,
+  Landlock denial, read-only workspace, invisible host paths, network mode `none`, network denied,
+  NVIDIA telemetry off and the labeled work volume; demo suite 32 tests with the pinned tokenizer
+  files and no skips; `qualify_scenarios.py` 12/14/14/14 with broken and unloadable artifacts
+  failing; `qualify_flue.py` passed in `openshell` mode with 6 forwarded requests, 2 fresh
+  conversations, 12/12 and complete usage.
+
+Not verified: macOS ownership of the host-backed work volume and any paid Go request, including
+Go's acceptance of the forwarded Pi identity. Earlier `openshell-go-v5` evidence stays historical
+and is excluded from Auto selection.

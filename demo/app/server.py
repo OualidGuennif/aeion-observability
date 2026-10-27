@@ -20,9 +20,10 @@ from profiles import PROFILES, PROFILE_VERSION, available
 from scenarios import SCENARIOS
 from selection import recommend
 from lifecycle import plan, recover
+from settings import DATA, SERVICES, WORK
 
-DATA = Path("/data")
-DATA.mkdir(mode=0o700, exist_ok=True)
+DATA.mkdir(mode=0o700, parents=True, exist_ok=True)
+WORK.mkdir(mode=0o700, parents=True, exist_ok=True)
 LOCK = threading.Lock()
 SAVE_LOCK = threading.Lock()
 CAMPAIGNS = DATA / "campaigns"
@@ -46,7 +47,7 @@ def new_run(mode,profile,task_id,objective="balanced",campaign_id=None):
         "events":[],"sessions":[],"agents":0,"human_interventions":0,"postprocessing":True,"usage_complete":True,
         "task_id":task_id,"profile_version":PROFILE_VERSION,"native_cost_usd":"0","model":PROFILES[key]["model"],
         "limit":int(os.environ.get("DEMO_CONTEXT_LIMIT","250000")),"metric":os.environ.get("DEMO_CONTEXT_METRIC","active_context"),
-        "runtime":"openshell","selection":decision,"campaign_id":campaign_id}
+        "runtime":"flue-openshell","selection":decision,"campaign_id":campaign_id}
 
 
 def save_campaign(value):
@@ -163,7 +164,7 @@ class Handler(BaseHTTPRequestHandler):
         artifact = re.fullmatch(r"/api/runs/([a-f0-9]{32})/(logs|handover)", self.path)
         if artifact:
             run_id, kind = artifact.groups()
-            path = DATA / (run_id + ".events.jsonl") if kind == "logs" else Path("/work") / run_id / "workspace/HANDOVER.md"
+            path = DATA / (run_id + ".events.jsonl") if kind == "logs" else WORK / run_id / "workspace/HANDOVER.md"
             if path.is_file() and not path.is_symlink() and path.stat().st_size <= 1100000:
                 self.respond(200, path.read_bytes(), "application/x-ndjson" if kind == "logs" else "text/markdown; charset=utf-8")
             else:
@@ -178,7 +179,7 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/catalog":
             self.respond(200,{"profiles":{k:{**p,"available":available(k)} for k,p in PROFILES.items()},
                 "scenarios":{k:{"name":v["name"],"checks":len(v["cases"])} for k,v in SCENARIOS.items()},
-                "runtime":"openshell","nvidia_telemetry":False,"profile_version":PROFILE_VERSION})
+                "runtime":"flue-openshell","nvidia_telemetry":False,"profile_version":PROFILE_VERSION})
         elif urlparse(self.path).path == "/api/recommendations":
             objective=parse_qs(urlparse(self.path).query).get("objective",["balanced"])[0]
             if objective not in {"balanced","cost","speed"}: self.respond(400,{"error":"invalid_objective"});return
@@ -191,13 +192,8 @@ class Handler(BaseHTTPRequestHandler):
                                "metric": os.environ.get("DEMO_CONTEXT_METRIC", "active_context")})
         elif self.path == "/api/integrations":
             from memory import request
-            targets = {"otel": ("http://otel-collector:13133", "/"),
-                       "langfuse": ("http://langfuse-web:3000", "/api/public/health"),
-                       "hindsight": ("http://hindsight:8888", "/health"),
-                       "claude_mem": ("http://claude-mem:37777", "/health"),
-                       "playground": ("http://playground:8000", "/health")}
             statuses = {}
-            for name, (base, path) in targets.items():
+            for name, (base, path) in SERVICES.items():
                 try:
                     request(base, path, timeout=2)
                     statuses[name] = "connected"
@@ -295,4 +291,5 @@ class Handler(BaseHTTPRequestHandler):
         self.respond(202, {"id": run["id"]})
 
 
-ThreadingHTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+# Host-native cockpit: loopback only; POST also checks Host/Origin against DNS rebinding.
+ThreadingHTTPServer(("127.0.0.1", int(os.environ.get("AEION_COCKPIT_PORT", "8088"))), Handler).serve_forever()

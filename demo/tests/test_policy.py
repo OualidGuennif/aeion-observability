@@ -16,7 +16,7 @@ class NativeUsageTests(unittest.TestCase):
             with self.subTest(raw=raw), self.assertRaises(ValueError):
                 loads(raw)
     def part(self):
-        return {"cost": 0.001, "tokens": {"input": 1000, "output": 100, "reasoning": 20, "cache": {"read": 249000, "write": 0}}}
+        return {"input": 1000, "cacheRead": 249000, "cacheWrite": 0, "output": 120, "cost": 0.001}
 
     def test_disjoint_cache_and_output(self):
         usage = policy.native_usage(self.part())
@@ -27,12 +27,14 @@ class NativeUsageTests(unittest.TestCase):
     def test_unknown_is_not_zero(self):
         for invalid in (None, True, -1, 1.2):
             part = self.part()
-            part["tokens"]["input"] = invalid
+            part["input"] = invalid
             with self.subTest(invalid=invalid), self.assertRaisesRegex(ValueError, "USAGE_UNKNOWN"):
                 policy.native_usage(part)
+        with self.assertRaisesRegex(ValueError, "USAGE_UNKNOWN"):
+            policy.native_usage(None)
 
     def test_invalid_cost_stops(self):
-        for invalid in ("NaN", "Infinity", -1, None):
+        for invalid in ("0.001", float("nan"), float("inf"), -1, None, True):
             part = self.part()
             part["cost"] = invalid
             with self.subTest(invalid=invalid), self.assertRaisesRegex(ValueError, "COST_UNKNOWN"):
@@ -40,7 +42,7 @@ class NativeUsageTests(unittest.TestCase):
 
     def test_missing_cache_is_unknown(self):
         part = self.part()
-        del part["tokens"]["cache"]
+        del part["cacheRead"]
         with self.assertRaisesRegex(ValueError, "USAGE_UNKNOWN"):
             policy.native_usage(part)
 
