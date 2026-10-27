@@ -60,7 +60,8 @@ inference. Real provider runs and synthetic rows/banks are kept distinct.
 - **claude-mem 15.2.0**, source pinned at `93c82aac6ce14e1cbda02dff9aa4c16e0edfce57`, stores
   working checkpoints through its explicit save/read API. A fingerprint deduplicates replay.
   This is an isolated local worker adapter, not a global plugin or transcript watcher; no
-  generation provider, cloud sync or Chroma is configured for this role.
+  generation provider, cloud sync or Chroma is configured for this role. The Bun base image is
+  digest-pinned; that commit has no root lockfile, so its semver-ranged packages resolve at build time.
 - **Hindsight 1.1.0** retains deterministic session analyses in separate real/synthetic banks.
   `chunks` extraction, local embeddings and disabled automatic consolidation avoid duplicate
   LLM work. Its LLM provider is `none`; semantic/keyword fusion uses RRF without an additional
@@ -83,14 +84,16 @@ Four versioned contracts cover cart totals (12 checks), shipping rules, exact di
 and cart normalization (14 checks each). They exercise validation, safe integers, boundaries,
 aggregation, sorting and input mutation. They remain small synthetic coding tasks.
 
-**Compare all tasks & models** runs 5 profiles × 4 tasks × 2 repetitions, sequentially with
-rotated model order. A $2 native-estimate monitor stops subsequent runs; a per-task $0.10
+**Compare all tasks & models** runs every available profile × 4 tasks × 2 repetitions (40 runs
+while all five profiles are qualified), sequentially with rotated model order. Expired profiles
+are neither run nor counted in the planned total. A $2 native-estimate monitor stops subsequent runs; a per-task $0.10
 monitor also applies. Unknown usage, context violations or sandbox failure stop the campaign.
 Unavailable/quota-restricted profiles are preserved as failures and skipped thereafter.
 
 Auto selection compares only real OpenShell evidence with the same task, method version and
 250k active-context gate. Eligibility requires at least two completed runs, 100% recorded
-autonomous success and complete positive cost/latency evidence. Cost and speed objectives select
+autonomous success and complete positive cost/latency evidence. A run interrupted by a controller
+restart keeps unknown usage, so its cohort stays ineligible; KPIs report it as `interrupted`. Cost and speed objectives select
 one dimension; balanced equally weights cost and time normalized to the best observed value.
 Ties use model ID. GLM Flash is explicitly provisional when no cohort qualifies. This selects
 the best **observed** candidate for a task, with run IDs, not a general quality winner or a
@@ -141,7 +144,9 @@ The public model catalog is bundled and config is read-only to prevent runtime n
 downloads. The image also preinstalls ripgrep: OpenCode's `glob` and `grep` use the system
 binary instead of attempting a blocked runtime download. CLI qualification exercises both
 search tools before the read/write and handover sequence. No host CLI, plain Docker agent
-execution or permissive fallback exists.
+execution or permissive fallback exists. After acceptance, the Hono playground imports the
+published artifact in its read-only Docker container; Deno permissions limit it to
+`/work/published` and the collector. That is not an OpenShell boundary.
 
 Security qualification expires in 24 hours. A separate real-CLI/fake-inference qualification
 binds the exact immutable agent image and gate/counter/protocol sources; live execution is

@@ -28,6 +28,15 @@ def command(args,**kwargs):
     return subprocess.run(args,check=True,**kwargs)
 
 
+def gateway_running(pid,gateway):
+    # Linux truncates `comm` to 15 characters; compare the launched executable path instead.
+    try:
+        line=subprocess.check_output(['ps','-p',str(pid),'-o','command='],stderr=subprocess.DEVNULL).decode().strip()
+    except subprocess.CalledProcessError:
+        return False
+    return line==str(gateway) or line.startswith(str(gateway)+' ')
+
+
 def install(name,arch,digest):
     directory=STATE/'downloads';directory.mkdir(parents=True,exist_ok=True)
     archive=directory/(name+'-'+arch+'.tar.gz')
@@ -93,10 +102,7 @@ sandbox_pids_limit = 192
     pid_file=STATE/'gateway.pid';running=False
     if pid_file.exists():
         pid=int(pid_file.read_text())
-        try:
-            comm=subprocess.check_output(['ps','-p',str(pid),'-o','comm=']).decode().strip()
-            running=Path(comm)==gateway
-        except subprocess.CalledProcessError:pass
+        running=gateway_running(pid,gateway)
         if running and changed:
             os.kill(pid,signal.SIGTERM)
             for _ in range(50):

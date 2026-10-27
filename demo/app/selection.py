@@ -14,7 +14,7 @@ def recommend(runs,task_id,objective='balanced'):
     eligible=[]
     for row in rows:
         key=next((k for k,p in PROFILES.items() if p['model']==row['model']),None)
-        if (key is None or not available(key) or row['offered']<2 or row['pending']
+        if (key is None or not available(key) or row['offered']<2 or row['pending'] or row['interrupted']
                 or row['autonomous']!=row['completed'] or not row['usage_complete']
                 or row['cost_per_autonomous_success_usd'] is None
                 or Decimal(row['cost_per_autonomous_success_usd'])<=0 or not row['median_ms']):

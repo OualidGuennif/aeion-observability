@@ -36,6 +36,14 @@ class EvidenceTests(unittest.TestCase):
         pending["usage_complete"] = False
         self.assertIsNone(summarize([run(), pending])[0]["cost_per_autonomous_success_usd"])
 
+    def test_interrupted_run_is_unresolved_not_pending(self):
+        stopped = run(status="interrupted")
+        del stopped["ended_ns"]
+        row = summarize([run(), stopped])[0]
+        self.assertEqual((row["interrupted"], row["pending"], row["completed"]), (1, 0, 1))
+        self.assertFalse(row["usage_complete"])
+        self.assertIsNone(row["cost_per_autonomous_success_usd"])
+
     def test_synthetic_and_gate_profiles_are_not_pooled(self):
         other = run()
         other["limit"] = 12000

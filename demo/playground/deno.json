@@ -1,4 +1,4 @@
 {
   "imports": {"hono": "npm:hono@4.10.2"},
-  "tasks": {"start": "deno run --frozen --allow-net=0.0.0.0:8000,otel-collector:4318 --allow-read=/work,/app/scenarios.json,/app/pages --allow-env=OTEL_DENO main.js"}
+  "tasks": {"start": "deno run --frozen --allow-net=0.0.0.0:8000,otel-collector:4318 --allow-read=/work/published,/app/scenarios.json,/app/pages --allow-env=OTEL_DENO main.js"}
 }
