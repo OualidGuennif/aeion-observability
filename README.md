@@ -32,6 +32,12 @@ a fresh agent session carrying a durable HANDOVER.md, files and check results. A
 relay counts requests before forwarding and reserves output/framing inside a 300k admission
 budget. Provider-count qualification assumptions and billing limits are explicit in the runbook.
 
+The [2026-10-27 qualification record](work/validation.md#openshell-migration-and-expanded-model-lab--2026-10-27)
+includes a corrected 40-attempt, five-model OpenShell matrix: 36 accepted outcomes, four
+retained CLI failures and $0.368068181 in native estimates. It also records four-tool
+readbacks, a measured Auto build and the synthetic 250k handover. These small synthetic
+contracts with real CLI calls do not establish general model superiority or invoice costs.
+
 ## Try the offline example
 
 Python 3.9+ and the standard library are sufficient:
