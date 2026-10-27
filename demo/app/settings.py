@@ -21,6 +21,8 @@ WORK = Path(os.environ.get("AEION_WORK_DIR", LOCAL / "work"))
 HARNESS = LOCAL / "harness"
 FLUE = DEMO / "flue"
 OPENSHELL_STATE = LOCAL / "openshell"
+# Operator-labeled Docker volume backed by WORK; OpenShell admits it by label, never a raw host path.
+WORK_VOLUME = "aeion-openshell-work"
 
 OTEL_TRACES = os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://127.0.0.1:4318/v1/traces")
 OTEL_LOGS = os.environ.get("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", "http://127.0.0.1:4318/v1/logs")

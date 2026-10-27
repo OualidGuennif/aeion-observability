@@ -20,7 +20,7 @@ else:
     from sandbox import Sandbox
 
 WORK.mkdir(mode=0o700,parents=True,exist_ok=True)
-with tempfile.TemporaryDirectory(prefix='aeion-contracts-',dir=WORK) as directory:
+with tempfile.TemporaryDirectory(prefix='.qualify-contracts-',dir=WORK) as directory:
     root=Path(directory)
     workspace=root/'workspace';workspace.mkdir(mode=0o755)
     (workspace/'src').mkdir(mode=0o755)

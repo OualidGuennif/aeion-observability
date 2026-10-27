@@ -314,6 +314,11 @@ A design gap surfaced and was closed. Unlike OpenCode, the coding agent now has 
 image previously held the protected expected results. Checks now receive cases on stdin, the image
 no longer contains them, and the final verdict runs in a fresh sandbox without agent processes.
 
+The first hosted run showed that OpenShell's default resource admission refuses raw host bind
+mounts ("no trusted label resolver"); only operator-labeled Docker volumes are admitted, and
+bind-backed ones also need `enable_bind_mounts`. The work folder is therefore one labeled
+host-backed volume and each sandbox mounts only its run subpath.
+
 - `qualify_flue.py --local-sandbox` (real Flue CLI, Pi, relay with admission barrier, bridge,
   helper and Deno 2.5.6 checks; host stand-in for OpenShell): passed with 6 forwarded requests,
   2 fresh conversations, MD before the refused request at a native 250k report, 12/12, complete
@@ -325,6 +330,7 @@ no longer contains them, and the final verdict runs in a fresh sandbox without a
 - Offline suite 33 tests; demo suite 32 tests (pinned venv, 4 tokenizer-file skips); Flue 5 tests.
 
 Not verified here: OpenShell itself (no Docker daemon in this environment), the pinned tokenizer
-files (huggingface.co unreachable here), macOS bind-mount ownership, and any paid Go request.
+files (huggingface.co unreachable here), macOS ownership of the host-backed work volume, and any
+paid Go request.
 Hosted CI runs the OpenShell bootstrap, tokenizer tests and both qualifications on Linux. Earlier
 `openshell-go-v5` evidence stays historical and is excluded from Auto selection.

@@ -3,7 +3,8 @@
 import { closeSync, openSync, writeSync } from 'node:fs';
 import { observe } from '@flue/runtime';
 
-const TOOLS = new Set(['read', 'write', 'edit', 'bash', 'grep', 'glob']);
+// `task` is always listed by Flue; with no declared subagent every delegation is refused.
+const TOOLS = new Set(['read', 'write', 'edit', 'bash', 'grep', 'glob', 'task']);
 const FINISH = new Set(['stop', 'toolUse', 'length', 'error', 'aborted']);
 const OUTCOMES = new Set(['completed', 'failed', 'aborted']);
 

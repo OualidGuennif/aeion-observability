@@ -67,7 +67,7 @@ fake inference. Real provider runs and synthetic rows/banks are kept distinct.
 | Cockpit, supervisor, relay | Host process, loopback only | Owns the Go key, counts and admits requests, writes MD/audit |
 | Flue + Pi harness (`demo/flue`) | Host child process, scrubbed environment | Holds only per-session relay and bridge tokens |
 | Sandbox bridge | Host loopback, per-session token | Forwards nine file/shell verbs as fixed argv commands into one sandbox |
-| OpenShell sandbox | Docker driver, Landlock, network `none` | Agent UID; reads the workspace, writes only `src/`; no egress at all |
+| OpenShell sandbox | Docker driver, Landlock, network `none` | Agent UID; one run subpath of the labeled work volume; writes only `src/`; no egress |
 
 The harness's model calls leave from the host through the relay, so sandboxes need no network.
 Flue's `local()` sandbox is deliberately unused for this case: its documentation states it has
@@ -167,7 +167,8 @@ The harness has only a session-local relay token; the real Go key stays in the s
 relay validates model/output limits, serializes requests, does not retry or follow redirects,
 and forwards only the client identity headers. Conversations live in an in-memory database and
 the harness's stdout/stderr (which carry model text) are discarded. Flue compaction is disabled
-and a compaction event fails the task. No subagents are declared.
+and a compaction event fails the task. No subagent is declared: Flue still lists its `task` tool,
+but every delegation is refused (verified) and the attempt is audited.
 
 The default active input measure is native uncached input + cache read + cache write. It is
 not cumulative spend. Both native reports and local preflight counts are logged with their
@@ -179,10 +180,14 @@ report can exceed 250k, but no subsequent request is admitted.
 
 ## OpenShell qualification and protected checks
 
-OpenShell qualification checks the configured agent UID, denied system writes, a read-only
-workspace with writable `src/`, an invisible unmounted host folder, denied outbound network,
+OpenShell admits mounts only by operator labels on a Docker volume, never a raw host path.
+Bootstrap therefore creates the labeled `aeion-openshell-work` volume backed by `demo/.local/work`
+(`enable_bind_mounts` allows that backing); each sandbox mounts only its run's subpath. An older
+plain volume with that name is refused with removal instructions rather than deleted. OpenShell
+qualification checks the configured agent UID, denied system writes, a read-only workspace with
+writable `src/`, an invisible sibling folder of the same volume, denied outbound network,
 workload network mode `none`, no Docker socket and propagated NVIDIA telemetry=false. On Linux
-the agent UID is the host user (never root), so bind-mounted run folders stay owned by it; macOS
+the agent UID is the host user (never root), so host-backed run folders stay owned by it; macOS
 keeps UID 10001 under Docker Desktop's ownership mapping. The image holds only the file helper,
 the check runner, Deno, Node, Python, ripgrep and git: no harness, model catalog or expected
 results. Check cases travel to Deno on stdin. The authoritative verdict runs in a **fresh sandbox**

@@ -24,6 +24,8 @@ def main():
     parser.add_argument('--state',type=Path,required=True)
     parser.add_argument('--image',default='aeion-openshell-agent:local')
     parser.add_argument('--uid',type=int,default=10001)
+    parser.add_argument('--work',type=Path,required=True)
+    parser.add_argument('--volume',default='aeion-openshell-work')
     args=parser.parse_args();root=args.state.resolve();tls=root/'tls'
     assert os.environ.get('OPENSHELL_TELEMETRY_ENABLED')=='false'
     client=SandboxClient(args.endpoint,tls=TlsConfig(ca_path=tls/'ca.crt',cert_path=tls/'client/tls.crt',key_path=tls/'client/tls.key'),timeout=120)
@@ -31,8 +33,8 @@ def main():
     out=folder/'security.json';out.unlink(missing_ok=True)
     assert client.health().version=='0.1.5' and args.uid>0
     name='ae-qualification';ref=None
-    # A run-shaped host folder: only `run/` is mounted; `outside/` must stay invisible.
-    probe_root=Path(tempfile.mkdtemp(prefix='bind-probe-',dir=folder));run=probe_root/'run'
+    # A run-shaped folder inside the work volume: only `run/` is mounted; `outside/` must stay invisible.
+    work=args.work.resolve();probe_root=Path(tempfile.mkdtemp(prefix='.bind-probe-',dir=work));run=probe_root/'run'
     (run/'workspace/src').mkdir(parents=True);(probe_root/'outside').mkdir();(probe_root/'outside/secret.txt').write_text('host-only')
     if args.uid!=os.getuid():
         run.chmod(0o711);(run/'workspace').chmod(0o755);(run/'workspace/src').chmod(0o777)
@@ -42,7 +44,8 @@ def main():
             landlock=pb.LandlockPolicy(compatibility='hard_requirement'),
             process=pb.ProcessPolicy(run_as_user=str(args.uid),run_as_group=str(args.uid)))
         spec=api.SandboxSpec(template=api.SandboxTemplate(image=args.image),policy=policy,command=['/bin/sleep','infinity'])
-        ParseDict({'docker':{'mounts':[{'type':'bind','source':str(run),'target':str(run),'read_only':False}]}},spec.template.driver_config)
+        ParseDict({'docker':{'mounts':[{'type':'volume','source':args.volume,'target':str(run),
+                   'subpath':str(run.relative_to(work)),'read_only':False}]}},spec.template.driver_config)
         ref=client.create(workspace='default',name=name,spec=spec)
         client.wait_ready(name,workspace='default',timeout_seconds=120)
         probe='''import os,json,socket,sys
@@ -80,7 +83,8 @@ print(json.dumps(checks))'''
         config=json.loads(subprocess.check_output([shutil.which('docker'),'inspect',workload],close_fds=False))[0]
         assert config['HostConfig']['NetworkMode']=='none'
         assert not any(m['Source'].endswith('docker.sock') for m in config['Mounts'])
-        evidence.update(version='0.1.5',telemetry_disabled=True,network_mode='none',sandbox_id=ref.id,agent_uid=args.uid,bind_mount=True,
+        evidence.update(version='0.1.5',telemetry_disabled=True,network_mode='none',sandbox_id=ref.id,agent_uid=args.uid,
+            work_volume=args.volume,work_dir=str(work),
             agent_image=args.image,ca_sha256=hashlib.sha256((tls/'ca.crt').read_bytes()).hexdigest(),
             qualified_ns=time.time_ns(),expires_ns=time.time_ns()+86400000000000)
     finally:

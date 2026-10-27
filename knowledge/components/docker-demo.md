@@ -47,7 +47,8 @@ HTTP traces. Primary integration references, checked 2026-10-27:
 - [OpenShell telemetry](https://docs.nvidia.com/openshell/v0.1.5/observability/telemetry/),
   [Python SDK](https://docs.nvidia.com/openshell/v0.1.5/sdk/python/),
   [sandbox runtimes](https://docs.nvidia.com/openshell/v0.1.5/how-it-works/sandboxes/runtimes/) and the
-  [Docker driver's bind mounts](https://github.com/NVIDIA/OpenShell/blob/bdb956f2cd65a635f1294fccf1d138d263bf650f/crates/openshell-driver-docker/src/lib.rs)
+  Docker driver [volume admission](https://github.com/NVIDIA/OpenShell/blob/bdb956f2cd65a635f1294fccf1d138d263bf650f/crates/openshell-core/src/resource_admission.rs)
+  (operator labels; raw host paths refused) and [host-backed volumes](https://github.com/NVIDIA/OpenShell/blob/bdb956f2cd65a635f1294fccf1d138d263bf650f/crates/openshell-driver-docker/src/lib.rs)
   (`enable_bind_mounts`).
 - [Langfuse OTLP](https://langfuse.com/integrations/native/opentelemetry) and the installed
   4.49.0 OpenAPI schema, including observations v2, native cost details and boolean scores.
@@ -102,10 +103,12 @@ key is copied privately, and only the supervisor holds it.
    adapter and the supervisor's loopback bridge (fixed argv commands). Flue's `local()` is not used
    for this case. Missing/expired security or harness qualification blocks execution; no host or
    plain-Docker fallback exists. The gateway propagates `OPENSHELL_TELEMETRY_ENABLED=false`.
-   Immutable agent image IDs, the qualified agent UID, Landlock, a bind mount of the run folder only
-   and network mode `none` with no egress rule bound this local workload. After acceptance, the Hono
-   playground imports the published artifact in its read-only Docker container; Deno permissions
-   limit it to `/work/published` and the collector. That is not an OpenShell boundary.
+   Immutable agent image IDs, the qualified agent UID, Landlock, one run subpath of the
+   operator-labeled host-backed work volume and network mode `none` with no egress rule bound this
+   local workload. Flue lists its `task` tool, but with no declared subagent every delegation is
+   refused. After acceptance, the Hono playground imports the published artifact in its read-only
+   Docker container; Deno permissions limit it to `/work/published` and the collector. That is not
+   an OpenShell boundary.
 6. The agent UID may write only the workspace `src/` directory. Config, verifier, reports and MD
    stay outside that writable scope, and expected check results never exist in the agent's image or
    workspace (they reach Deno on stdin). Artifact/check evidence, not completion text, determines success.

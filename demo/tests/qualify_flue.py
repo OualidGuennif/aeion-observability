@@ -21,7 +21,7 @@ sys.path.insert(0, str(TESTS))
 import runner
 from relay import ContextRelay
 from scenarios import SCENARIOS, SOLUTIONS
-from settings import DATA, FLUE, HARNESS
+from settings import DATA, FLUE, HARNESS, WORK
 
 requests = []
 workspace = None
@@ -110,7 +110,9 @@ def main():
     server = ThreadingHTTPServer(("127.0.0.1", 0), Inference)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     run_db = FLUE / "node_modules/.cache/flue/run.db"
-    with tempfile.TemporaryDirectory(prefix="aeion-flue-") as folder:
+    WORK.mkdir(mode=0o700, parents=True, exist_ok=True)
+    # Under WORK: sandboxes can only mount subpaths of the labeled work volume.
+    with tempfile.TemporaryDirectory(prefix=".qualify-flue-", dir=WORK) as folder:
         root = Path(folder)
         workspace = root / "fixture/workspace"
 

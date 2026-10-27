@@ -129,13 +129,29 @@ sandbox_pids_limit = 192
         command(['docker','build','--build-arg',f'AGENT_UID={agent_uid}','-f',str(ROOT/'agent/Dockerfile'),'-t','aeion-openshell-agent:local',str(ROOT)])
     image_id=subprocess.check_output(['docker','image','inspect','aeion-openshell-agent:local','--format','{{.Id}}']).decode().strip()
     if not image_id.startswith('sha256:'):raise SystemExit('Agent image must have an immutable ID')
+    # OpenShell admits mounts by operator labels on a Docker volume, never a raw host path. This
+    # labeled volume is backed by the host work folder; sandboxes mount one run subpath each.
+    work=Path(os.environ.get('AEION_WORK_DIR',ROOT/'.local/work')).resolve()
+    work.mkdir(mode=0o700,parents=True,exist_ok=True);(work/'published').mkdir(mode=0o755,exist_ok=True)
+    volume='aeion-openshell-work'
+    labels={'openshell.ai/sandbox-attachable':'true','openshell.ai/sandbox-attachable-workspace':'default'}
+    existing=subprocess.run(['docker','volume','inspect',volume],capture_output=True)
+    if existing.returncode==0:
+        found=json.loads(existing.stdout)[0]
+        options=found.get('Options') or {}
+        if options.get('device')!=str(work) or options.get('o')!='bind' or (found.get('Labels') or {})!=labels:
+            raise SystemExit(f'Docker volume {volume} is not the labeled host-backed work volume; after retiring its sandboxes '
+                             f'and keeping any data you need, remove it with: docker volume rm {volume}')
+    else:
+        command(['docker','volume','create','--driver','local','--opt','type=none','--opt','o=bind','--opt',f'device={work}',
+                 *[a for k,v in labels.items() for a in ('--label',f'{k}={v}')],volume],stdout=subprocess.DEVNULL)
     # Only non-secret host routing settings; the original provider credentials stay private.
     stack=ROOT/'.local/stack.env'
     if stack.exists():
         keys=('DEMO_RELAY_URL=','AEION_RELAY_PUBLISH_IP=','OPENSHELL_AGENT_IMAGE=','OPENSHELL_ENDPOINT=','AEION_AGENT_UID=','OPENSHELL_TELEMETRY_ENABLED=')
         text=stack.read_text();lines=[l for l in text.splitlines() if not l.startswith(keys)]
         stack.write_text('\n'.join(lines)+f'\nOPENSHELL_ENDPOINT={bind}:17670\nOPENSHELL_AGENT_IMAGE={image_id}\nAEION_AGENT_UID={agent_uid}\nOPENSHELL_TELEMETRY_ENABLED=false\n');stack.chmod(0o600)
-    command([str(sdk/'bin/python'),str(ROOT/'openshell/qualify.py'),'--endpoint',bind+':17670','--state',str(STATE),'--image',image_id,'--uid',str(agent_uid)],env=env)
+    command([str(sdk/'bin/python'),str(ROOT/'openshell/qualify.py'),'--endpoint',bind+':17670','--state',str(STATE),'--image',image_id,'--uid',str(agent_uid),'--work',str(work)],env=env)
     print('OpenShell ready; NVIDIA telemetry=false. Qualification expires after 24 hours; rerun setup to refresh.')
 
 

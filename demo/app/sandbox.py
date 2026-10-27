@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import time
 
-from settings import AGENT_UID, DATA, DEMO, OPENSHELL_STATE
+from settings import AGENT_UID, DATA, DEMO, OPENSHELL_STATE, WORK, WORK_VOLUME
 
 VERSION = '0.1.5'
 # Files the agent image must contain byte-for-byte (verified inside a live sandbox).
@@ -47,6 +47,7 @@ def connection(timeout=120):
             or evidence.get('version') != VERSION or evidence.get('telemetry_disabled') is not True
             or evidence.get('agent_image') != os.environ.get('OPENSHELL_AGENT_IMAGE')
             or evidence.get('agent_uid') != AGENT_UID
+            or evidence.get('work_volume') != WORK_VOLUME or evidence.get('work_dir') != str(WORK.resolve())
             or evidence.get('bundle_sha256') != bundle
             or evidence.get('expires_ns', 0) < time.time_ns()
             or evidence.get('ca_sha256') != hashlib.sha256((root / 'ca.crt').read_bytes()).hexdigest()):
@@ -82,8 +83,10 @@ class Sandbox:
         self.closed = False
         spec = pb.SandboxSpec(template=pb.SandboxTemplate(image=os.environ['OPENSHELL_AGENT_IMAGE']),
                               policy=policy(root), command=['/bin/sleep', 'infinity'])
-        # Only this run's directory is visible; it persists on the host across fresh sandboxes.
-        ParseDict({'docker': {'mounts': [{'type': 'bind', 'source': str(root), 'target': str(root), 'read_only': False}]}},
+        # Only this run's subpath of the labeled work volume is visible; it is the host folder
+        # under WORK, so files persist across fresh sandboxes. A root outside WORK fails here.
+        ParseDict({'docker': {'mounts': [{'type': 'volume', 'source': WORK_VOLUME, 'target': str(root),
+                                          'subpath': str(root.relative_to(WORK)), 'read_only': False}]}},
                   spec.template.driver_config)
         ParseDict({'limits': {'cpu': '1', 'memory': '1Gi'}}, spec.template.resources)
         try:
