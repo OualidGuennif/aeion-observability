@@ -288,6 +288,6 @@ cohorts remain comparable; only the reported check counts of such failures chang
 - Removed unused `TASK`/`SOLUTION` constants, a no-op `try/except` and two unreferenced fixtures;
   the cockpit shows each task's own check total; hosted CI now runs the Docker-free demo checks.
 
-Checks: offline suite 33 tests; demo host suite 26 tests (4 Docker-only skips); eight Node gate
+Checks: offline suite 33 tests; demo host suite 27 tests (4 Docker-only skips); eight Node gate
 tests; fixture validator pass; `runner.py` imports with the pinned requirements. Not run here:
 image builds and the OpenShell/CLI qualifications (hosted CI runs both on Linux).
