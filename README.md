@@ -20,9 +20,10 @@ that evidence to choose models, providers and inference settings. Optimize **cos
 time, and correct completion without corrective human intervention** within fixed authority.
 
 This folder contains a sourced design, offline examples and an opt-in [local demo](demo/README.md)
-with Langfuse, OpenTelemetry, Hindsight, claude-mem and Flue + Pi coding agents whose tools run only in
-NVIDIA OpenShell, supervised by a host-native cockpit. The offline examples need no service or
-key. The demo operates on four frozen synthetic task contracts; no cost or quality improvement has been
+with Langfuse, OpenTelemetry, Hindsight, claude-mem and Flue + Pi agents in three execution tiers
+(in-memory triage, folder-confined local assistant, autonomous coding whose tools run only in
+NVIDIA OpenShell), supervised by a host-native cockpit. The offline examples need no service or
+key. The demo operates on five frozen synthetic task contracts; no cost or quality improvement has been
 measured on representative Æion workloads.
 
 ## Run the local demo
@@ -90,7 +91,7 @@ links the primary documentation and papers behind it.
 | [Worked examples](examples/README.md) | Synthetic events, request fragments, policy and cost/quality arithmetic |
 | [Sources and credits](knowledge/references/sources.md) | Evidence register, research depth and attribution |
 | [Current work](work/current.md) | Current scope and next implementation decision |
-| [Docker demo specification](knowledge/components/docker-demo.md) | Langfuse/OTel, Flue + Pi in OpenShell, context gate and evidence limits |
+| [Docker demo specification](knowledge/components/docker-demo.md) | Langfuse/OTel, Flue + Pi execution tiers, OpenShell, context gate and evidence limits |
 
 ## What “real time” means here
 

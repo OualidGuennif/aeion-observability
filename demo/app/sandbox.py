@@ -18,7 +18,9 @@ PROTOCOL_FILES = [
     'tokenizers.json', 'agent/Dockerfile', 'agent/fs-helper.py', 'app/sandbox.py', 'app/runner.py', 'app/relay.py',
     'app/bridge.py', 'app/policy.py', 'app/token_budget.py', 'app/profiles.py', 'fixtures/check-scenario.js',
     'fixtures/scenarios.json', 'flue/package-lock.json', 'flue/src/db.ts', 'flue/src/provider.ts', 'flue/src/observe.ts',
-    'flue/src/sandboxes/openshell.ts', 'flue/src/agents/coder.ts',
+    'flue/src/sandboxes/openshell.ts', 'flue/src/agents/coder.ts', 'app/triage.py', 'fixtures/triage.json',
+    'flue/src/sandboxes/restricted-local.ts', 'flue/src/skills/local-change/SKILL.md', 'flue/src/agents/local-assistant.ts',
+    'flue/src/tools/submit-triage.ts', 'flue/src/agents/triage.ts',
 ]
 
 

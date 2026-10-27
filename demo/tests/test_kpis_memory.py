@@ -49,6 +49,12 @@ class EvidenceTests(unittest.TestCase):
         other["limit"] = 12000
         self.assertEqual(len(summarize([run(), run(synthetic=True), other])), 3)
 
+    def test_execution_tiers_are_not_pooled(self):
+        local = run()
+        local["runtime"] = "flue-local"
+        rows = summarize([dict(run(), runtime="flue-openshell"), local])
+        self.assertEqual(sorted(row["runtime"] for row in rows), ["flue-local", "flue-openshell"])
+
     def test_analysis_uses_only_metadata(self):
         source = run()
         source.update(prompt="PRIVATE_CANARY", source="PRIVATE_CANARY", api_key="PRIVATE_CANARY", stderr="PRIVATE_CANARY")

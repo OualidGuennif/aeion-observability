@@ -20,9 +20,14 @@ from relay import ContextRelay
 from sandbox import Sandbox
 from scenarios import SCENARIOS, SOLUTIONS, contract
 from settings import AGENT_UID, FLUE, HARNESS, SERVICES, WORK
+import triage
 
 CHECKER = "/opt/demo/fixtures/check-scenario.js"
 AGENT_TIMEOUT_SECONDS = 360
+# Execution tier per run runtime. Relay gates, handover, checks, telemetry and memory are shared.
+AGENTS = {"flue-openshell": "src/agents/coder.ts", "flue-local": "src/agents/local-assistant.ts",
+          "flue-just-bash": "src/agents/triage.ts"}
+TRIAGE = "flue-just-bash"
 FAILURES = {"USAGE_UNKNOWN", "COST_UNKNOWN", "INVALID_ARTIFACT", "INVALID_CHECK_OUTPUT", "PROVIDER_CONTEXT_VIOLATION",
             "CONTEXT_ACCOUNTING_MISMATCH", "CONTEXT_UNKNOWN", "PROVIDER_REJECTED", "CLI_CLIENT_REQUIRED",
             "GO_SUBSCRIPTION_REQUIRED", "MODEL_DISABLED", "PROVIDER_ERROR", "CLI_FAILED", "CLI_PROTOCOL_ERROR",
@@ -69,6 +74,20 @@ def acceptance(workspace, sandbox, task_id="pricing-js-v1"):
     return check
 
 
+def artifact_name(run):
+    return triage.ARTIFACT if run.get("runtime") == TRIAGE else "src/pricing.js"
+
+
+def tasks(runtime):
+    # Tier 1 has its own frozen triage contract; tiers 2 and 3 share the four coding contracts.
+    return triage.TRIAGE if runtime == TRIAGE else SCENARIOS
+
+
+def task_contract(run):
+    task_id = run.get("task_id", "pricing-js-v1")
+    return triage.contract(task_id) if run.get("runtime") == TRIAGE else contract(task_id)
+
+
 class Runner:
     def __init__(self, telemetry, save, work_root=WORK, memory=None, audit=None):
         self.telemetry, self.save, self.work_root = telemetry, save, work_root
@@ -91,21 +110,34 @@ class Runner:
             self.telemetry.emit(run, name, **attrs, **{"aeion.event.id": event["id"], "aeion.event.sequence": sequence})
             self.save(run)
 
+    def check(self, run, workspace, sandbox):
+        if run.get("runtime") == TRIAGE:
+            return triage.check(workspace / triage.ARTIFACT, run.get("task_id"))
+        return acceptance(workspace, sandbox, run.get("task_id", "pricing-js-v1"))
+
     def prepare_handover(self, run, workspace, observed, basis="native_report"):
         # Informational check in the live sandbox; the authoritative verdict uses a fresh one.
-        check = acceptance(workspace, self.active_sandbox, run.get("task_id", "pricing-js-v1"))
-        source_hash = digest(workspace / "src/pricing.js")
+        check = self.check(run, workspace, self.active_sandbox)
+        artifact = artifact_name(run)
+        source_hash = digest(workspace / artifact)
+        if run.get("runtime") == TRIAGE:
+            basis_note = "interim check by the supervisor's deterministic validator."
+            next_action = ("Re-read /data/events.json, complete the triage and submit the full result again with "
+                           "submit_triage; the supervisor checks the submitted result.")
+        else:
+            basis_note = "interim protected check in the live sandbox; the final verdict uses a fresh sandbox."
+            next_action = ("Read this document and the preserved source. Complete or verify the implementation; "
+                           "the supervisor runs immutable Deno checks and probes the Hono API. Edit only src/pricing.js.")
         markdown = (
             "# AEion agent handover\n\n"
             f"Task: {run.get('task_id', 'pricing-js-v1')}\nAgent: {run['agents']}\n"
             f"Context ({basis}, {run['metric']}): {observed}\nGate: {run['limit']} tokens\nHard admission budget: 300000 tokens\n\n"
-            "## Objective\n\n" + contract(run.get("task_id", "pricing-js-v1")) + "\n\n"
-            f"## Preserved artifact\n\n- File: `src/pricing.js`\n- SHA-256: `{source_hash}`\n\n"
+            "## Objective\n\n" + task_contract(run) + "\n\n"
+            f"## Preserved artifact\n\n- File: `{artifact}`\n- SHA-256: `{source_hash}`\n\n"
             f"## Independent verification\n\n- Passed: {check['passed']}/{check['total']}\n"
             "- Remaining checks: " + (", ".join(check["failed"]) or "none") + "\n"
-            "- Basis: interim protected check in the live sandbox; the final verdict uses a fresh sandbox.\n\n"
-            "## Next action\n\nRead this document and the preserved source. Complete or verify the implementation; "
-            "the supervisor runs immutable Deno checks and probes the Hono API. Edit only src/pricing.js. "
+            "- Basis: " + basis_note + "\n\n"
+            "## Next action\n\n" + next_action + " "
             "This is a new session: no prior transcript, resumed session, compaction summary or tool state is required.\n"
         )
         path = workspace / "HANDOVER.md"
@@ -129,6 +161,8 @@ class Runner:
         return run["handover_md_sha256"]
 
     def verify(self, run, root, workspace):
+        if run.get("runtime") == TRIAGE:
+            return self.check(run, workspace, None)  # Data comparison only; no generated code runs.
         # Authoritative verdict in a fresh sandbox where no agent process has ever run.
         sandbox = Sandbox(run, root, role="check")
         try:
@@ -140,14 +174,18 @@ class Runner:
         root_span = self.telemetry.begin(run)
         root = self.work_root / run["id"]
         workspace = root / "workspace"
-        source = workspace / "src/pricing.js"
+        source = workspace / artifact_name(run)
+        isolated = run.get("runtime") != TRIAGE
         # On Linux the sandbox runs as this user; Docker Desktop maps a foreign UID instead.
-        foreign = AGENT_UID != os.getuid()
+        foreign = isolated and AGENT_UID != os.getuid()
         try:
             root.mkdir(mode=0o700, parents=False)
             workspace.mkdir(mode=0o755)
-            source.parent.mkdir(mode=0o755)
-            source.write_text("export function " + SCENARIOS[run.get("task_id", "pricing-js-v1")]["export"] + "() { throw new Error(\"not implemented\"); }\n")
+            if isolated:
+                source.parent.mkdir(mode=0o755)
+                source.write_text("export function " + SCENARIOS[run.get("task_id", "pricing-js-v1")]["export"] + "() { throw new Error(\"not implemented\"); }\n")
+            else:
+                source.write_text(triage.EMPTY)  # Tier 1 has no OpenShell sandbox; its harness writes as this user.
             if foreign:
                 root.chmod(0o711)
                 source.parent.chmod(0o777)
@@ -158,22 +196,25 @@ class Runner:
             for agent in range(1, 4):
                 run["agents"] = agent
                 self.event(run, "agent.started", **{"aeion.agent.number": agent})
-                self.active_sandbox = Sandbox(run, root)
-                self.event(run, "sandbox.ready", **{"aeion.sandbox.id": self.active_sandbox.ref.id})
+                # Tier 2 tools never reach this sandbox; it serves the supervisor's interim checks.
+                self.active_sandbox = Sandbox(run, root) if isolated else None
+                if self.active_sandbox:
+                    self.event(run, "sandbox.ready", **{"aeion.sandbox.id": self.active_sandbox.ref.id})
                 try:
                     outcome = self.simulate(run, workspace, agent) if run["synthetic"] else self.live(run, workspace, handover)
                 finally:
                     sandbox = self.active_sandbox
-                    sandbox.close()  # OpenShell deletes the workload and reaps every process in it.
-                    self.active_sandbox = None
-                    self.event(run, "sandbox.retired", **{"aeion.sandbox.id": sandbox.ref.id})
+                    if sandbox:
+                        sandbox.close()  # OpenShell deletes the workload and reaps every process in it.
+                        self.active_sandbox = None
+                        self.event(run, "sandbox.retired", **{"aeion.sandbox.id": sandbox.ref.id})
                     self.event(run, "session.wiped", **{"aeion.agent.number": agent})
                 check = self.verify(run, root, workspace)
                 changed = digest(source) != original
                 run.update(check=check, artifact_sha256=digest(source), changed=changed)
                 self.event(run, "artifact.checked", **{"aeion.check.passed": check["passed"], "aeion.artifact.changed": changed})
                 state = {"task": run.get("task_id", "pricing-js-v1"), "previous_agent": agent,
-                         "artifact": "src/pricing.js", "sha256": digest(source), "check": check}
+                         "artifact": artifact_name(run), "sha256": digest(source), "check": check}
                 if self.memory:
                     try:
                         state = self.memory.checkpoint(run, state)
@@ -189,7 +230,7 @@ class Runner:
                     self.event(run, "agent.handover", **{"aeion.agent.number": agent})
                     continue
                 run["status"] = "passed" if changed and check["failed"] == [] else "failed_acceptance"
-                if run["status"] == "passed":
+                if run["status"] == "passed" and isolated:
                     published = self.work_root / "published"
                     published.mkdir(exist_ok=True, mode=0o755)
                     target = published / (run.get("task_id", "pricing-js-v1") + ".js")
@@ -250,11 +291,13 @@ class Runner:
                 return "handover"
             if observed >= max(1, run["limit"] - 20000):
                 self.prepare_handover(run, workspace, observed)
-        (workspace / "src/pricing.js").write_text(SOLUTIONS[run.get("task_id", "pricing-js-v1")])
+        task_id = run.get("task_id", "pricing-js-v1")
+        solution = triage.solution(task_id) if run.get("runtime") == TRIAGE else SOLUTIONS[task_id]
+        (workspace / artifact_name(run)).write_text(solution)
         return "complete"
 
     def live(self, run, workspace, handover):
-        prompt = contract(run.get("task_id", "pricing-js-v1"))
+        prompt = task_contract(run)
         if handover:
             if digest(workspace / "HANDOVER.md") != handover["handover_sha256"]:
                 raise ValueError("HANDOVER_NOT_READY")
@@ -290,7 +333,9 @@ class Runner:
 
         relay = ContextRelay(run["model"], os.environ["OPENCODE_API_KEY"], run["limit"], relay_checkpoint,
                              lambda name, **attrs: self.event(run, name, **attrs), admission=admission)
-        bridge = SandboxBridge(self.active_sandbox)
+        runtime = run.get("runtime", "flue-openshell")
+        # Only tier 3 tools reach OpenShell; tier 2 tools act on the workspace folder directly.
+        bridge = SandboxBridge(self.active_sandbox) if runtime == "flue-openshell" else None
         HARNESS.mkdir(mode=0o700, parents=True, exist_ok=True)
         scratch = Path(tempfile.mkdtemp(dir=HARNESS))
         events, empty_env = scratch / "events.ndjson", scratch / "empty.env"
@@ -300,15 +345,22 @@ class Runner:
         # Only loopback credentials scoped to this session; never the Go key or host secrets.
         env = {"PATH": os.environ["PATH"], "HOME": str(scratch), "LANG": "C.UTF-8", "NODE_NO_WARNINGS": "1",
                "AEION_RELAY_URL": relay.url, "AEION_RELAY_TOKEN": relay.token,
-               "AEION_MODEL_JSON": json.dumps(model_metadata(key)),
-               "AEION_BRIDGE_URL": bridge.url, "AEION_BRIDGE_TOKEN": bridge.token,
-               "AEION_WORKSPACE": str(workspace), "AEION_EVENTS_FILE": str(events)}
-        argv = [str(FLUE / "node_modules/.bin/flue"), "run", "src/agents/coder.ts", "--message", prompt,
+               "AEION_MODEL_JSON": json.dumps(model_metadata(key)), "AEION_EVENTS_FILE": str(events)}
+        if runtime == TRIAGE:
+            # Events and labels only; expected answers never leave the supervisor.
+            (scratch / "input.json").write_text(triage.agent_input(run["task_id"]))
+            env.update(AEION_TRIAGE_INPUT=str(scratch / "input.json"), AEION_RESULT_FILE=str(workspace / triage.ARTIFACT))
+        else:
+            env["AEION_WORKSPACE"] = str(workspace)
+        if bridge:
+            env.update(AEION_BRIDGE_URL=bridge.url, AEION_BRIDGE_TOKEN=bridge.token)
+        argv = [str(FLUE / "node_modules/.bin/flue"), "run", AGENTS[runtime], "--message", prompt,
                 "--id", instance, "--new", "--json", "--env", str(empty_env)]
         process = None
         try:
             relay.start()
-            bridge.start()
+            if bridge:
+                bridge.start()
             # stdout carries the model reply and stderr streams conversation text: discard both.
             process = subprocess.Popen(argv, cwd=FLUE, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                        stderr=subprocess.DEVNULL, start_new_session=True)
@@ -416,6 +468,7 @@ class Runner:
                         process.wait(timeout=5)
                 self.event(run, "process.retired", **{"aeion.process.pid": process.pid})
             relay.close()
-            bridge.close()
+            if bridge:
+                bridge.close()
             shutil.rmtree(scratch, ignore_errors=True)
             run["usage_complete"] = run.get("usage_complete", True) and state["steps"] == relay.forwarded_count

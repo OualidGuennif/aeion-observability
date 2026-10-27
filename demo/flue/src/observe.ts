@@ -4,7 +4,9 @@ import { closeSync, openSync, writeSync } from 'node:fs';
 import { observe } from '@flue/runtime';
 
 // `task` is always listed by Flue; with no declared subagent every delegation is refused.
-const TOOLS = new Set(['read', 'write', 'edit', 'bash', 'grep', 'glob', 'task']);
+// `activate_skill`/`read_skill_resource` come with mounted skills; `submit_triage` is tier 1 output.
+const TOOLS = new Set(['read', 'write', 'edit', 'bash', 'grep', 'glob', 'task', 'activate_skill', 'read_skill_resource',
+                       'submit_triage']);
 const FINISH = new Set(['stop', 'toolUse', 'length', 'error', 'aborted']);
 const OUTCOMES = new Set(['completed', 'failed', 'aborted']);
 

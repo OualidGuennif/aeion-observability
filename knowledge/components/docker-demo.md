@@ -1,7 +1,7 @@
 ---
 type: Component
 title: "Local agent observability and memory showcase"
-description: "A Flue + Pi coding agent whose tools run only in NVIDIA OpenShell, a host-native Python cockpit with a counting relay, Markdown handover, a Docker Deno/Hono target and four complementary observation/memory tools."
+description: "Flue + Pi agents in three execution tiers (in-memory triage, folder-confined local assistant, autonomous coding in NVIDIA OpenShell), a host-native Python cockpit with a counting relay, Markdown handover, a Docker Deno/Hono target and four complementary observation/memory tools."
 status: draft
 sources:
   - id: framework
@@ -16,11 +16,17 @@ sources:
 
 ## Intent
 
-Make a small coding workflow observable, verifiable and resumable. The host-native Python
-cockpit/supervisor runs **Flue 2.3.0 + Pi 1.4.0** agent sessions against four frozen Deno
-JavaScript contracts. Every agent tool call and every check of generated code executes inside a
-mandatory NVIDIA OpenShell 0.1.5 sandbox through a Flue sandbox adapter; model calls leave from
-the host through the supervisor's counting relay. A Hono application serves the accepted
+Make small agent workflows observable, verifiable and resumable. The host-native Python
+cockpit/supervisor runs **Flue 2.3.0 + Pi 1.4.0** agent sessions in three execution tiers that
+share every gate, memory and telemetry path:
+
+| Tier (`runtime`) | Tools | Tasks | Verdict |
+| --- | --- | --- | --- |
+| 1 · Triage (`flue-just-bash`) | just-bash emulated shell over in-memory files; `submit_triage` | One frozen triage contract | Supervisor comparison, no sandbox |
+| 2 · Local assistant (`flue-local`) | read/write/edit confined to the run workspace (writes in `src/`), strict skill, no shell | Four frozen Deno JavaScript contracts | Protected checks in OpenShell |
+| 3 · Autonomous coding (`flue-openshell`) | bash/read/write/edit/grep/glob in OpenShell through a Flue sandbox adapter | Same four contracts | Protected checks in OpenShell |
+
+Model calls leave from the host through the supervisor's counting relay. A Hono application serves the accepted
 artifact. Ten observation/application services use Docker; a private native mTLS gateway owns
 OpenShell sandboxes through its Docker compute driver. This is an explicitly authorized local
 pilot, not a production OPS boundary or general model benchmark.
@@ -33,12 +39,17 @@ HTTP traces. Primary integration references, checked 2026-10-27:
 
 - Flue at [`deee93b`](https://github.com/withastro/flue/tree/deee93b40d275ecc9a50c50af2158f20089d54bc) (v2.3.0):
   [sandboxes](https://github.com/withastro/flue/blob/deee93b40d275ecc9a50c50af2158f20089d54bc/apps/docs/src/content/docs/guide/sandboxes.md)
-  (`local()` has no isolation by design),
+  (`local()` has no isolation by design; the just-bash virtual sandbox is isolated from host
+  files, processes and environment variables, with network opt-in),
+  [skills](https://github.com/withastro/flue/blob/deee93b40d275ecc9a50c50af2158f20089d54bc/apps/docs/src/content/docs/guide/skills.md),
+  [tools](https://github.com/withastro/flue/blob/deee93b40d275ecc9a50c50af2158f20089d54bc/apps/docs/src/content/docs/guide/tools.md),
   [sandbox adapter API](https://github.com/withastro/flue/blob/deee93b40d275ecc9a50c50af2158f20089d54bc/apps/docs/src/content/docs/reference/sandbox-api.md),
   [models and Pi providers](https://github.com/withastro/flue/blob/deee93b40d275ecc9a50c50af2158f20089d54bc/apps/docs/src/content/docs/guide/models.md),
   [runtime events](https://github.com/withastro/flue/blob/deee93b40d275ecc9a50c50af2158f20089d54bc/apps/docs/src/content/docs/guide/observability.md)
   and its [OpenTelemetry adapter](https://github.com/withastro/flue/blob/deee93b40d275ecc9a50c50af2158f20089d54bc/apps/docs/src/content/docs/ecosystem/tooling/opentelemetry.md)
   (content on by default, therefore unused).
+- [just-bash 3.6.0](https://www.npmjs.com/package/just-bash/v/3.6.0) (Apache-2.0): emulated
+  commands including `jq`; without a network option `curl` is absent (observed).
 - Pi [`@earendil-works/pi-ai` 1.4.0](https://www.npmjs.com/package/@earendil-works/pi-ai/v/1.4.0)
   OpenAI-completions compatibility flags (`supportsDeveloperRole`, `maxTokensField`,
   `supportsReasoningEffort`), observed on the wire with a local fake server.
@@ -64,7 +75,8 @@ file fingerprints. No remote model code is executed and no coding-model weights 
 
 ## Inputs
 
-One of four fixed versioned task contracts, an authorized Go key reference, approved model/profile,
+One execution tier and one of its fixed versioned task contracts (four coding contracts, one
+synthetic triage contract), an authorized Go key reference, approved model/profile,
 active-input checkpoint (250k default), 300k admission budget, 4,096 output limit, framing
 reserve, time/request/session limits and privacy policy. Free/Contributor models are excluded.
 No host repository, global agent configuration or Docker socket is visible to the harness or
@@ -73,13 +85,14 @@ key is copied privately, and only the supervisor holds it.
 
 ## Outputs
 
-- Verified JS artifact and live Hono quote API; 12 or 14 immutable Deno checks per task protect
-  behavior, with the final verdict in a fresh OpenShell sandbox.
+- Coding tiers: verified JS artifact and live Hono quote API; 12 or 14 immutable Deno checks per
+  task protect behavior, with the final verdict in a fresh OpenShell sandbox. Triage: a validated
+  `result.json` scored per event against answers that never reach the harness.
 - OTel traces to Langfuse, including native usage/cost estimates and quality/autonomy scores.
 - Fsynced local metadata audit plus bounded OTLP/Docker logs, joined by run/trace/event identity.
 - Read-back claude-mem working checkpoints and Hindsight session-analysis memories in separate
   real/synthetic banks. Neither memory service receives a coding-provider credential. Hindsight also retains task-specific model-selection decisions and their run IDs as advisory snapshots.
-- Cockpit KPIs: all-attempt cost estimates, input/output tokens, median task time, verified
+- Cockpit KPIs per tier and task: all-attempt cost estimates, input/output tokens, median task time, verified
   autonomous completion, unknown exposure, human assistance and comparable profile versions.
 
 ## Invariants
@@ -99,24 +112,28 @@ key is copied privately, and only the supervisor holds it.
    verify the MD, and start a new Flue conversation (fresh id, in-memory store) over preserved
    files/checks. Flue compaction is disabled and a compaction event fails the task. No opaque
    resume, generated summary, subagent, self-modifying harness or provider fallback is enabled.
-5. Agent tools and generated-code verification execute only inside OpenShell, via the Flue
-   adapter and the supervisor's loopback bridge (fixed argv commands). Flue's `local()` is not used
-   for this case. Missing/expired security or harness qualification blocks execution; no host or
-   plain-Docker fallback exists. The gateway propagates `OPENSHELL_TELEMETRY_ENABLED=false`.
+5. Tier 3 agent tools and all generated-code verification execute only inside OpenShell, via the
+   Flue adapter and the supervisor's loopback bridge (fixed argv commands). Tier 2 tools act on the
+   host workspace folder: a tool-level restriction (no shell, path confinement, symbolic links
+   refused, writes in `src/`), not OS isolation. Tier 1 tools are emulated in memory with no
+   network configured. Flue's `local()` is used in no tier. Missing/expired security or harness
+   qualification blocks live execution; no host or plain-Docker fallback exists for checks. The gateway propagates `OPENSHELL_TELEMETRY_ENABLED=false`.
    Immutable agent image IDs, the qualified agent UID, Landlock, one run subpath of the
    operator-labeled host-backed work volume and network mode `none` with no egress rule bound this
    local workload. Flue lists its `task` tool, but with no declared subagent every delegation is
    refused. After acceptance, the Hono playground imports the published artifact in its read-only
    Docker container; Deno permissions limit it to `/work/published` and the collector. That is not
    an OpenShell boundary.
-6. The agent UID may write only the workspace `src/` directory. Config, verifier, reports and MD
-   stay outside that writable scope, and expected check results never exist in the agent's image or
-   workspace (they reach Deno on stdin). Artifact/check evidence, not completion text, determines success.
+6. Coding agents may write only the workspace `src/` directory. Config, verifier, reports and MD
+   stay outside that writable scope, and expected check results never exist in the agent's image,
+   workspace or harness input (they reach Deno on stdin; triage answers stay in the supervisor).
+   Artifact/check evidence, not completion text, determines success.
 7. Export no raw prompts/source/completions/reasoning/tool payloads/keys/arbitrary errors. The
    harness observer copies only usage numbers, finish labels, known tool names and outcomes; harness
    stdout/stderr are discarded. OTel reception and recalled memory have no authority over admission,
    permissions or acceptance.
-8. Include failed attempts and unresolved usage. No undefined denominator, absent feedback or
+8. Tiers are separate cohorts in KPIs and selection; campaigns run only tier 3. Include failed
+   attempts and unresolved usage. No undefined denominator, absent feedback or
    missing charge becomes a zero-cost autonomous success. Recorded human assistance revises
    autonomy and its native score; it does not erase the verified artifact.
 
@@ -125,11 +142,14 @@ key is copied privately, and only the supervisor holds it.
 [Request boundary](../../demo/app/relay.py), [token budget](../../demo/app/token_budget.py),
 [supervisor](../../demo/app/runner.py), [sandbox bridge](../../demo/app/bridge.py),
 [harness provider](../../demo/flue/src/provider.ts), [harness observer](../../demo/flue/src/observe.ts),
-[sandbox adapter](../../demo/flue/src/sandboxes/openshell.ts), [audit](../../demo/app/audit.py),
+[sandbox adapter](../../demo/flue/src/sandboxes/openshell.ts),
+[folder-confined tools](../../demo/flue/src/sandboxes/restricted-local.ts),
+[triage submission](../../demo/flue/src/tools/submit-triage.ts), [triage verdict](../../demo/app/triage.py),
+[audit](../../demo/app/audit.py),
 [memory adapter](../../demo/app/memory.py), [score adapter](../../demo/app/scores.py),
 [KPI calculation](../../demo/app/kpis.py), [task-specific selection](../../demo/app/selection.py) and
 [required sandbox boundary](../../demo/app/sandbox.py) use ordinary validated state, never an LLM vote.
-Selection requires two complete autonomous successes per same-task, same-method, 250k active-context cohort. Cost/time objectives are explicit and normalized deterministically. Ineligible or absent evidence uses a labeled provisional default. Model behavior and upstream service performance remain stochastic. The [target](../../demo/playground/main.js)
+Selection requires two complete autonomous successes per same-tier, same-task, same-method, 250k active-context cohort. Cost/time objectives are explicit and normalized deterministically. Ineligible or absent evidence uses a labeled provisional default. Model behavior and upstream service performance remain stochastic. The [target](../../demo/playground/main.js)
 and [cockpit](../../demo/app/server.py) separate the observed workload from its controls.
 
 ## Acceptance checks

@@ -46,7 +46,7 @@ jobs:
         run: npm test
       - name: Verify four protected task contracts inside OpenShell
         run: demo/.local/venv/bin/python demo/tests/qualify_scenarios.py
-      - name: Qualify the real Flue harness against OpenShell using local fake inference only
+      - name: Qualify the real Flue harness on all three tiers using local fake inference only
         run: demo/.local/venv/bin/python demo/tests/qualify_flue.py
       - name: Stop the private OpenShell gateway
         if: always()

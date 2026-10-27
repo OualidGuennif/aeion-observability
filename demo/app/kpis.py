@@ -7,10 +7,11 @@ from statistics import median
 def summarize(runs):
     groups = defaultdict(list)
     for run in runs:
-        key = (run.get("task_id", "pricing-js-v1"), run["synthetic"], "synthetic-replay" if run["synthetic"] else run["model"], run["metric"], run["limit"], run.get("profile_version", "unversioned"))
+        # Tiers never share a cohort: the same task under another runtime is a different method.
+        key = (run.get("task_id", "pricing-js-v1"), run.get("runtime", "legacy"), run["synthetic"], "synthetic-replay" if run["synthetic"] else run["model"], run["metric"], run["limit"], run.get("profile_version", "unversioned"))
         groups[key].append(run)
     rows = []
-    for (task_id, synthetic, model, metric, limit, version), cohort in groups.items():
+    for (task_id, runtime, synthetic, model, metric, limit, version), cohort in groups.items():
         completed = [r for r in cohort if r.get("ended_ns")]
         # A controller restart never resolves these; their usage stays unknown, not pending.
         interrupted = [r for r in cohort if not r.get("ended_ns") and r["status"] == "interrupted"]
@@ -20,7 +21,7 @@ def summarize(runs):
         cost = sum((Decimal(r["native_cost_usd"]) for r in cohort), Decimal(0))
         complete_cost = all(r.get("usage_complete", False) and r.get("ended_ns") for r in cohort)
         rows.append({
-            "task_id": task_id, "synthetic": synthetic, "model": model, "metric": metric, "limit": limit, "profile_version": version,
+            "task_id": task_id, "runtime": runtime, "synthetic": synthetic, "model": model, "metric": metric, "limit": limit, "profile_version": version,
             "offered": len(cohort), "completed": len(completed), "interrupted": len(interrupted),
             "pending": len(cohort) - len(completed) - len(interrupted),
             "passed": sum(r["status"] == "passed" for r in completed), "autonomous": len(autonomous),

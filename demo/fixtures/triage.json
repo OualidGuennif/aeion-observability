@@ -1,0 +1,140 @@
+{
+  "webhook-triage-v1": {
+    "name": "Webhook triage",
+    "synthetic": true,
+    "contract": "Triage every webhook event in /data/events.json. For each event return id, severity, component, route and duplicate_of. component: payments for type prefix payment, shipping for shipment, auth for login. duplicate_of: the id of the earliest earlier event with the same delivery_id, otherwise null. severity: low when environment is not production or the event is a duplicate; otherwise critical when the type ends with .failed and error_rate_pct >= 5; otherwise high when the type ends with .failed; otherwise low. route: page-oncall for critical, ticket for high, ignore for low.",
+    "labels": {
+      "severity": [
+        "critical",
+        "high",
+        "low"
+      ],
+      "component": [
+        "payments",
+        "shipping",
+        "auth"
+      ],
+      "route": [
+        "page-oncall",
+        "ticket",
+        "ignore"
+      ]
+    },
+    "events": [
+      {
+        "id": "evt-001",
+        "type": "payment.failed",
+        "environment": "production",
+        "error_rate_pct": 12,
+        "delivery_id": "d-101"
+      },
+      {
+        "id": "evt-002",
+        "type": "shipment.delayed",
+        "environment": "production",
+        "error_rate_pct": 0,
+        "delivery_id": "d-102"
+      },
+      {
+        "id": "evt-003",
+        "type": "login.failed",
+        "environment": "production",
+        "error_rate_pct": 2,
+        "delivery_id": "d-103"
+      },
+      {
+        "id": "evt-004",
+        "type": "payment.failed",
+        "environment": "production",
+        "error_rate_pct": 12,
+        "delivery_id": "d-101"
+      },
+      {
+        "id": "evt-005",
+        "type": "payment.failed",
+        "environment": "staging",
+        "error_rate_pct": 40,
+        "delivery_id": "d-105"
+      },
+      {
+        "id": "evt-006",
+        "type": "shipment.failed",
+        "environment": "production",
+        "error_rate_pct": 5,
+        "delivery_id": "d-106"
+      },
+      {
+        "id": "evt-007",
+        "type": "login.succeeded",
+        "environment": "production",
+        "error_rate_pct": 0,
+        "delivery_id": "d-107"
+      },
+      {
+        "id": "evt-008",
+        "type": "shipment.failed",
+        "environment": "production",
+        "error_rate_pct": 4,
+        "delivery_id": "d-108"
+      }
+    ],
+    "expected": [
+      {
+        "id": "evt-001",
+        "severity": "critical",
+        "component": "payments",
+        "route": "page-oncall",
+        "duplicate_of": null
+      },
+      {
+        "id": "evt-002",
+        "severity": "low",
+        "component": "shipping",
+        "route": "ignore",
+        "duplicate_of": null
+      },
+      {
+        "id": "evt-003",
+        "severity": "high",
+        "component": "auth",
+        "route": "ticket",
+        "duplicate_of": null
+      },
+      {
+        "id": "evt-004",
+        "severity": "low",
+        "component": "payments",
+        "route": "ignore",
+        "duplicate_of": "evt-001"
+      },
+      {
+        "id": "evt-005",
+        "severity": "low",
+        "component": "payments",
+        "route": "ignore",
+        "duplicate_of": null
+      },
+      {
+        "id": "evt-006",
+        "severity": "critical",
+        "component": "shipping",
+        "route": "page-oncall",
+        "duplicate_of": null
+      },
+      {
+        "id": "evt-007",
+        "severity": "low",
+        "component": "auth",
+        "route": "ignore",
+        "duplicate_of": null
+      },
+      {
+        "id": "evt-008",
+        "severity": "high",
+        "component": "shipping",
+        "route": "ticket",
+        "duplicate_of": null
+      }
+    ]
+  }
+}
