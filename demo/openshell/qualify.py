@@ -7,6 +7,10 @@ from pathlib import Path
 import subprocess
 import shutil
 import time
+import sys
+
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'app'))
+from sandbox import BUNDLE_FILES
 
 from openshell import SandboxClient, TlsConfig
 from openshell._proto import openshell_pb2 as api, sandbox_pb2 as pb
@@ -19,7 +23,9 @@ def main():
     parser.add_argument('--image',default='aeion-openshell-agent:local')
     args=parser.parse_args();root=args.state.resolve();tls=root/'tls'
     assert os.environ.get('OPENSHELL_TELEMETRY_ENABLED')=='false'
-    client=SandboxClient(args.endpoint,tls=TlsConfig(ca_path=tls/'ca.crt',cert_path=tls/'client/tls.crt',key_path=tls/'client/tls.key'),timeout=30)
+    client=SandboxClient(args.endpoint,tls=TlsConfig(ca_path=tls/'ca.crt',cert_path=tls/'client/tls.crt',key_path=tls/'client/tls.key'),timeout=120)
+    folder=root/'qualification';folder.mkdir(mode=0o700,exist_ok=True)
+    out=folder/'security.json';out.unlink(missing_ok=True)
     assert client.health().version=='0.1.5'
     name='ae-qualification';ref=None
     try:
@@ -42,6 +48,10 @@ print(json.dumps(checks))'''
         result=client.exec(name,['python3','-c',probe],workspace='default',no_login_shell=True,timeout_seconds=15)
         evidence=json.loads(result.stdout)
         assert result.exit_code==0 and evidence=={'uid':True,'filesystem_denied':True,'network_denied':True},evidence
+        script='import hashlib,json,pathlib; paths='+repr(BUNDLE_FILES)+'; print(json.dumps({name:hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest() for name,path in paths.items()}))'
+        bundle=client.exec(name,['python3','-c',script],workspace='default',no_login_shell=True,timeout_seconds=15)
+        assert bundle.exit_code==0
+        evidence['bundle_sha256']=json.loads(bundle.stdout)
         names=subprocess.check_output([shutil.which('docker'),'ps','--format','{{.Names}}'],close_fds=False).decode().splitlines()
         supervisor=next(n for n in names if ref.id in n and n.endswith('-supervisor'))
         inspected=json.loads(subprocess.check_output([shutil.which('docker'),'inspect',supervisor],close_fds=False))[0]
@@ -54,13 +64,13 @@ print(json.dumps(checks))'''
         evidence.update(version='0.1.5',telemetry_disabled=True,network_mode='none',sandbox_id=ref.id,
             agent_image=args.image,ca_sha256=hashlib.sha256((tls/'ca.crt').read_bytes()).hexdigest(),
             qualified_ns=time.time_ns(),expires_ns=time.time_ns()+86400000000000)
-        folder=root/'qualification';folder.mkdir(mode=0o700,exist_ok=True)
-        out=folder/'security.json';tmp=out.with_suffix('.tmp');tmp.write_text(json.dumps(evidence,indent=2));tmp.chmod(0o600);tmp.replace(out)
-        print(json.dumps(evidence))
     finally:
         if ref:
-            deletion=client.delete(name,workspace='default');client.wait_deleted(name,workspace='default',expected_sandbox_id=deletion.sandbox_id)
+            deletion=client.delete(name,workspace='default');client.wait_deleted(name,workspace='default',expected_sandbox_id=deletion.sandbox_id,timeout_seconds=120)
         client.close()
+    # Publish readiness only after the probe workload has been confirmed deleted.
+    tmp=out.with_suffix('.tmp');tmp.write_text(json.dumps(evidence,indent=2));tmp.chmod(0o600);tmp.replace(out)
+    print(json.dumps(evidence))
 
 
 if __name__=='__main__':main()

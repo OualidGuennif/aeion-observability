@@ -1,4 +1,5 @@
 const $ = (id) => document.getElementById(id);
+let refreshing = false;
 let busy = false, evidence = 'real', cachedRuns = [], cachedRows = [], signature = '', catalog = {}, recommendations = {}, campaigns = [];
 const pretty = (n) => Number(n ?? 0).toLocaleString('en-US');
 const money = (n) => n == null ? '—' : '$' + Number(n).toFixed(5);
@@ -81,6 +82,8 @@ function chart(rows) {
   $('chart-count').textContent=`${points.length} profile(s) · ${evidence==='real'?'real evidence':'synthetic evidence'}`;
 }
 async function refresh() {
+  if(refreshing)return;
+  refreshing=true;
   try {
     const [health,runs,rows,configuration,choices,batches]=await Promise.all(['/api/health','/api/runs','/api/kpis','/api/catalog','/api/recommendations?objective='+$('objective').value,'/api/campaigns'].map(url=>fetch(url).then(r=>r.json())));
     catalog=configuration;recommendations=choices;campaigns=batches;
@@ -91,7 +94,7 @@ async function refresh() {
     $('sandbox-status').textContent=health.sandbox_ready?'OpenShell qualified · NVIDIA telemetry disabled':'OpenShell unavailable or qualification expired · execution blocked';
     const batch=campaigns[0];$('campaign-status').textContent=batch?`${batch.status} · ${batch.run_ids.length}/${batch.planned} runs · ${money(batch.native_cost_estimate_usd)} native estimate`:'';
     const next=JSON.stringify([runs,rows,evidence,choices,$('scenario').value]);cachedRuns=runs;cachedRows=rows;if(next!==signature){signature=next;render();}
-  } catch {$('message').textContent='Observer temporarily unavailable.';}
+  } catch {$('message').textContent='Observer temporarily unavailable.';} finally {refreshing=false;}
 }
 async function integrations(){try{const states=await fetch('/api/integrations').then(r=>r.json());let connected=0;document.querySelectorAll('[data-service]').forEach(e=>{const good=states[e.dataset.service]==='connected';e.classList.toggle('connected',good);e.title=good?'Connected':'Unavailable';if(good)connected++;});$('system-dot').classList.toggle('connected',connected===4);$('system-status').textContent=`${connected}/4 tools connected`;}catch{$('system-status').textContent='Checking services';}}
 async function post(payload){$('message').textContent='';try{const r=await fetch('/api/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const result=await r.json();if(!r.ok)$('message').textContent=result.error;}catch{$('message').textContent='Unable to submit request.';}await refresh();}

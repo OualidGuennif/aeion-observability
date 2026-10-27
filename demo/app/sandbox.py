@@ -10,6 +10,12 @@ from urllib.parse import urlparse
 
 VERSION = '0.1.5'
 AGENT_TIMEOUT_SECONDS = 360
+BUNDLE_FILES = {
+    'context-gate.mjs':'/opt/demo/context-gate.mjs', 'gate-policy.mjs':'/opt/demo/gate-policy.mjs',
+    'agent/models.json':'/opt/demo/models.json', 'agent/process.py':'/opt/demo/agent-process.py',
+    'fixtures/check-scenario.js':'/opt/demo/fixtures/check-scenario.js',
+    'fixtures/scenarios.json':'/opt/demo/fixtures/scenarios.json',
+}
 
 
 def protocol_hash():
@@ -29,16 +35,19 @@ def cli_qualified():
         return False
 
 
-def connection(timeout=30):
+def connection(timeout=120):
     from openshell import SandboxClient, TlsConfig
     if Path('/data/sandbox.blocked').exists():
         raise ValueError('SANDBOX_NOT_QUALIFIED')
     root = Path(os.environ.get('OPENSHELL_TLS_DIR', '/gateway/tls'))
     endpoint = os.environ['OPENSHELL_ENDPOINT']
     evidence = json.loads((root.parent / 'qualification/security.json').read_text())
+    base = Path(__file__).resolve().parent.parent
+    bundle = {name:hashlib.sha256((base/name).read_bytes()).hexdigest() for name in BUNDLE_FILES}
     if (os.environ.get('OPENSHELL_TELEMETRY_ENABLED') != 'false'
             or evidence.get('version') != VERSION or evidence.get('telemetry_disabled') is not True
             or evidence.get('agent_image') != os.environ.get('OPENSHELL_AGENT_IMAGE')
+            or evidence.get('bundle_sha256') != bundle
             or evidence.get('expires_ns', 0) < time.time_ns()
             or evidence.get('ca_sha256') != hashlib.sha256((root / 'ca.crt').read_bytes()).hexdigest()):
         raise ValueError('SANDBOX_NOT_QUALIFIED')
