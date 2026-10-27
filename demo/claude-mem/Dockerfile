@@ -1,5 +1,5 @@
 # Isolated local runtime; no global Claude Code/OpenCode hooks or provider credentials.
-FROM oven/bun:1.3.12-debian
+FROM oven/bun:1.3.12-debian@sha256:1b709c9dd883fc1af38c210f7ea5222c552a8d470ea73efbd4b8fcfee798a64b
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates procps curl \
     && rm -rf /var/lib/apt/lists/*

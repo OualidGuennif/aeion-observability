@@ -79,7 +79,7 @@ AEion dotenv is not mounted; only its explicitly authorized OpenCode key is copi
 4. Close inference admission, delete/reap the old sandbox through OpenShell and wait for deletion, remove only its XDG runtime, verify the MD, and start a
    fresh session over preserved files/checks. No implicit compaction, opaque resume, generated
    summary, hidden title model, subagent or provider fallback is enabled.
-5. OpenCode and generated-code verification execute only via the OpenShell SDK. Missing/expired security or CLI qualification blocks execution; no local/plain Docker fallback exists. The gateway propagates `OPENSHELL_TELEMETRY_ENABLED=false`, confirmed on the real supervisor. Immutable agent image IDs, UID 10001, Landlock, run-subpath mounts, network mode `none` and exact-binary/POST-only relay egress bound this local workload.
+5. OpenCode and generated-code verification execute only via the OpenShell SDK. Missing/expired security or CLI qualification blocks execution; no local/plain Docker fallback exists. The gateway propagates `OPENSHELL_TELEMETRY_ENABLED=false`, confirmed on the real supervisor. Immutable agent image IDs, UID 10001, Landlock, run-subpath mounts, network mode `none` and exact-binary/POST-only relay egress bound this local workload. After acceptance, the Hono playground imports the published artifact in its read-only Docker container; Deno permissions limit it to `/work/published` and the collector. That is not an OpenShell boundary.
 6. The separate agent UID may edit only `src/pricing.js`. Config, verifier, reports and MD stay
    outside that writable scope. Artifact/check evidence, not completion text, determines success.
 7. Export no raw prompts/source/completions/reasoning/tool payloads/keys/arbitrary errors. OTel

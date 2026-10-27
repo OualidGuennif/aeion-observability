@@ -51,7 +51,8 @@ class Telemetry:
         scope = resource.scope_logs.add()
         scope.scope.name = "aeion.demo"
         record = scope.log_records.add(time_unix_nano=ended, observed_time_unix_nano=ended,
-                                      severity_number=13 if name in {"gate.closed", "task.failed"} else 9,
+                                      # Mirrors the audit's WARN events in runner.py.
+                                      severity_number=13 if name in {"gate.closed", "task.failed", "context.refused"} else 9,
                                       trace_id=bytes.fromhex(run["trace_id"]), span_id=bytes.fromhex(run["root_span_id"]))
         record.body.string_value = "aeion.event"
         for key, value in {**common, **attributes, "aeion.event.name": name}.items():

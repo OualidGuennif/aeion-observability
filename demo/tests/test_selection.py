@@ -32,6 +32,8 @@ class SelectionTests(unittest.TestCase):
                 runs=cohort('glm');runs[0][field]=value
                 self.assertEqual(recommend(runs,'pricing-js-v1')['basis'],'provisional_default')
         self.assertEqual(recommend(cohort('glm',cost='0'),'pricing-js-v1')['basis'],'provisional_default')
+        stopped=dict(cohort('glm')[0],id='glm-stopped',status='interrupted');del stopped['ended_ns']
+        self.assertEqual(recommend(cohort('glm')+[stopped],'pricing-js-v1')['basis'],'provisional_default')
         self.assertEqual(recommend(cohort('glm')[:1],'pricing-js-v1')['basis'],'provisional_default')
 
     def test_synthetic_legacy_and_other_runtime_cannot_influence_routing(self):

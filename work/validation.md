@@ -144,6 +144,11 @@ The latest harness commit `4efc12b` passes both hosted CI jobs
 Local runtime checks pass 20 Python tests and seven Node gate tests; the existing offline
 suite passes 33 tests. Paid campaign and full-stack receipts follow below.
 
+Provenance: the evidence `harness_commit` values (`4efc12b`, `0039d7a…`) exist on branch
+`task/openshell-safe-model-lab`, not on `main`. Squash commit `f2b9c22` (PR #4) has the same
+tree as that branch tip `0bccce4`, and `demo/` is unchanged since `4efc12b` (empty `git diff`).
+Keep that branch while those receipts are cited.
+
 ### Search-tool qualification correction
 
 The first paid matrix (`openshell-go-v4`) completed 40 attempts with 31 accepted outcomes,
@@ -228,3 +233,35 @@ Evidence: [post-campaign receipts](evidence/2026-10-27-post-campaign-checks.json
 [250k cockpit screenshot](evidence/2026-10-27-handover-cockpit.png),
 [measured model map](evidence/2026-10-27-model-lab.png). The model-map screenshot includes
 the additional Auto shipping run; the frozen matrix remains the original 40 attempts.
+
+## Repository review follow-ups — 2026-10-27
+
+A repository review found defects outside the qualified protocol. This first batch leaves the
+`protocol_hash()` inputs, the qualified bundle and the agent image inputs byte-identical to
+`main`, so the existing sandbox/CLI qualification still applies. No paid model call was made.
+
+- **Linux gateway detection:** `ps -o comm=` reports `openshell-gatew` (15 characters), so
+  bootstrap never recognized its running gateway and a rerun started a second one. It now
+  compares the launched executable path from `ps -o command=`; a regression test spawns a
+  long-named process.
+- **Restart recovery:** a controller stop during Hindsight retention left `memory.status=pending`,
+  which disabled every cockpit action indefinitely. Startup now marks it `interrupted`. A
+  scratch-path run of the real `server.py` with seeded stale reports confirmed the reset,
+  the interrupted campaign and an `interrupted` (not `pending`) KPI count.
+- **Campaign total:** one plan now drives both execution and the advertised total, so expired
+  profiles are neither run nor counted. Its order matches the previous loop for all-available
+  and DeepSeek-expired catalogs.
+- **Playground read scope:** with `--allow-read=/work`, an accepted artifact could read another
+  run's `HANDOVER.md` (reproduced with Deno 2.5.6). The scope is now `/work/published`; the
+  same probe is refused, while a published solution still returns the expected result.
+- Telemetry severity and the log allowlist now match the audit; the claude-mem Bun base image
+  is digest-pinned (content-addressed index verified against the registry).
+
+Checks: offline suite 33 tests; demo host suite 26 tests (4 Docker-only skips); seven Node gate
+tests; fixture validator pass. Not run here: Docker image builds, the OpenShell/CLI
+qualifications and the hosted CI jobs.
+
+Remaining, protocol-hashed and therefore requiring requalification: `check-scenario.js` counts
+`TypeError` cases as passed when the artifact cannot load (a syntax error reports 9/12), the hook
+writes its gate file non-atomically, the cost-stop default differs between hook and supervisor,
+and `runner.py` keeps dead constants.

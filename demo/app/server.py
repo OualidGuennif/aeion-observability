@@ -19,6 +19,7 @@ from scores import publish
 from profiles import PROFILES, PROFILE_VERSION, available
 from scenarios import SCENARIOS
 from selection import recommend
+from lifecycle import plan, recover
 
 DATA = Path("/data")
 DATA.mkdir(mode=0o700, exist_ok=True)
@@ -58,23 +59,20 @@ def campaign(value):
     total=Decimal(0)
     disabled=set()
     try:
-        for repeat in range(2):
-            for i,task_id in enumerate(SCENARIOS):
-                keys=list(PROFILES);shift=(i+repeat)%len(keys);keys=keys[shift:]+keys[:shift]
-                for profile in keys:
-                    if profile in disabled or not available(profile): continue
-                    if total>=Decimal(value["budget_estimate_usd"]):
-                        value["status"]="budget_stopped";return
-                    if not live_ready() or len(runs())>=100:
-                        value["status"]="guard_stopped";return
-                    run=new_run("live",profile,task_id,campaign_id=value["id"])
-                    value.update(current_task=task_id,current_profile=profile,repeat=repeat+1)
-                    save(run);save_campaign(value);execute(run,release=False)
-                    value["run_ids"].append(run["id"])
-                    total+=Decimal(run["native_cost_usd"]);value["native_cost_estimate_usd"]=str(total);save_campaign(value)
-                    if run.get("failure", "").startswith("SANDBOX") or not run.get("usage_complete") or run.get("failure") in {"INSUFFICIENT_FUNDS","PROVIDER_CONTEXT_VIOLATION","CONTEXT_ACCOUNTING_MISMATCH","SANDBOX_STOP_FAILED"}:
-                        value["status"]="guard_stopped";return
-                    if run.get("failure") in {"MODEL_DISABLED","QUOTA_STOP","GO_REGION_REQUIRED","GO_SUBSCRIPTION_REQUIRED"}: disabled.add(profile)
+        for repeat,task_id,profile in plan():
+            if profile in disabled or not available(profile): continue
+            if total>=Decimal(value["budget_estimate_usd"]):
+                value["status"]="budget_stopped";return
+            if not live_ready() or len(runs())>=100:
+                value["status"]="guard_stopped";return
+            run=new_run("live",profile,task_id,campaign_id=value["id"])
+            value.update(current_task=task_id,current_profile=profile,repeat=repeat+1)
+            save(run);save_campaign(value);execute(run,release=False)
+            value["run_ids"].append(run["id"])
+            total+=Decimal(run["native_cost_usd"]);value["native_cost_estimate_usd"]=str(total);save_campaign(value)
+            if run.get("failure", "").startswith("SANDBOX") or not run.get("usage_complete") or run.get("failure") in {"INSUFFICIENT_FUNDS","PROVIDER_CONTEXT_VIOLATION","CONTEXT_ACCOUNTING_MISMATCH","SANDBOX_STOP_FAILED"}:
+                value["status"]="guard_stopped";return
+            if run.get("failure") in {"MODEL_DISABLED","QUOTA_STOP","GO_REGION_REQUIRED","GO_SUBSCRIPTION_REQUIRED"}: disabled.add(profile)
         value["status"]="completed"
     except Exception:
         value["status"]="failed"
@@ -97,17 +95,13 @@ def save(run):
 
 for path in report_paths():
     previous = json.loads(path.read_text())
-    if previous["status"] == "running":
-        previous["status"] = "interrupted"
-        save(previous)
-    if previous.get("postprocessing"):
-        previous["postprocessing"] = False
+    if recover(previous):
         save(previous)
 
 for path in CAMPAIGNS.glob("*.json"):
     previous=json.loads(path.read_text())
-    if previous["status"]=="running":
-        previous["status"]="interrupted";save_campaign(previous)
+    if recover(previous):
+        save_campaign(previous)
 
 memory = Memory()
 runner = Runner(Telemetry(), save, memory=memory, audit=Audit(DATA))
@@ -285,7 +279,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if request["mode"]=="benchmark":
             value={"id":uuid.uuid4().hex,"status":"running","started_ns":time.time_ns(),"run_ids":[],
-                "planned":len(SCENARIOS)*len(PROFILES)*2,"budget_estimate_usd":"2.00","native_cost_estimate_usd":"0"}
+                "planned":len(plan()),"budget_estimate_usd":"2.00","native_cost_estimate_usd":"0"}
             save_campaign(value);threading.Thread(target=campaign,args=(value,),daemon=True).start()
             self.respond(202,{"campaign_id":value["id"]});return
         try:
