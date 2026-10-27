@@ -371,5 +371,11 @@ harness receives only events and labels; the frozen answers in `demo/fixtures/tr
 - Offline suite 33 tests; demo suite 40 tests (8 skips on system Python, 4 tokenizer-file skips
   on the pinned venv); Flue 14 tests; fixture validation and cohort comparison passed.
 
-Not verified here: tiers 1 and 2 against real OpenShell (hosted CI runs the same qualification)
-and any paid Go request in any tier.
+- Hosted CI on Linux ([run 40589836618](https://github.com/OualidGuennif/aeion-observability/actions/runs/40589836618),
+  commit `944d237`, real OpenShell 0.1.5): security qualification passed as for tier 3; demo suite
+  40 tests with the pinned tokenizer files and no skips; Flue 14 tests; `qualify_scenarios.py`
+  12/14/14/14; `qualify_flue.py` in `openshell` mode passed tier 3 (6 requests, 2 fresh
+  conversations, 12/12), tier 2 (5 requests, 1 conversation, 12/12 from a fresh OpenShell
+  verdict) and tier 1 (5 requests, 1 conversation, 8/8), all with complete usage.
+
+Not verified: any paid Go request in any tier.
