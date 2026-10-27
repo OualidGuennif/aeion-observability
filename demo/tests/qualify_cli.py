@@ -10,7 +10,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
-from runner import Runner, SOLUTION, config
+from runner import Runner, config
+from scenarios import SOLUTIONS
 from relay import ContextRelay
 
 requests = []
@@ -53,7 +54,7 @@ class Inference(BaseHTTPRequestHandler):
                 assert 'Supervisor-loaded HANDOVER.md' in json.dumps(body["messages"])
                 assert '## Independent verification' in json.dumps(body["messages"])
             call = {"index": 0, "id": "call_write", "type": "function", "function": {
-                "name": "write", "arguments": json.dumps({"filePath": str(workspace / "src/pricing.js"), "content": PARTIAL if number == 4 else SOLUTION})}}
+                "name": "write", "arguments": json.dumps({"filePath": str(workspace / "src/pricing.js"), "content": PARTIAL if number == 4 else SOLUTIONS["pricing-js-v1"]})}}
         delta = {"role": "assistant", "tool_calls": [call]} if call else {"role": "assistant", "content": "Done."}
         count = 250000 if number == 4 else 4000
         usage = {"prompt_tokens": count, "completion_tokens": 100, "total_tokens": count + 100}

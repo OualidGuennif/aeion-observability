@@ -20,6 +20,10 @@ jobs:
       - run: python3 -m unittest discover -s tests -v
       - name: Validate bundled synthetic fixtures
         run: python3 examples/validate_fixtures.py
+      - name: Run host-level demo checks (bootstrap helpers and Docker-free units)
+        run: python3 -m unittest discover -s demo/tests -v
+      - name: Run hook gate checks on the host
+        run: node --test demo/tests/gate.test.mjs
 
   docker-demo:
     runs-on: ubuntu-latest

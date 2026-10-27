@@ -18,26 +18,11 @@ from scenarios import SCENARIOS, SOLUTIONS, contract
 
 BASE = Path(__file__).resolve().parent.parent
 AGENT_UID = 10001
-TASK = (
-    "Implement JavaScript export function totalCents(items, shippingCents=0) in src/pricing.js. "
-    "items is an array of [priceCents, quantity] pairs. Sum price*quantity plus shipping. "
-    "All numbers and the result must be nonnegative safe integers; reject invalid values, "
-    "malformed pairs and overflow with TypeError. Keep the interface. Edit only src/pricing.js. "
-    "Do not add imports, files or tests. The supervisor runs immutable Deno checks after you stop."
-)
-SOLUTION = '''export function totalCents(items, shippingCents = 0) {
-  const valid = (n) => Number.isSafeInteger(n) && n >= 0;
-  if (!Array.isArray(items) || !valid(shippingCents)) throw new TypeError("invalid input");
-  let total = shippingCents;
-  for (const pair of items) {
-    if (!Array.isArray(pair) || pair.length !== 2 || !pair.every(valid)) throw new TypeError("invalid item");
-    total += pair[0] * pair[1];
-    if (!valid(total)) throw new TypeError("overflow");
-  }
-  return total;
-}
-'''
 
+
+def max_cost():
+    # One default for the hook budget and the supervisor stop; Compose sets the documented $0.10.
+    return Decimal(os.environ.get("DEMO_MAX_COST_USD", "0.10"))
 
 
 def digest(path):
@@ -285,11 +270,8 @@ class Runner:
                 marker.write_text(json.dumps({"action": "handover", "observed": counted, "metric": run["metric"],
                                                "limit": run["limit"], "basis": "local_tokenizer"}))
                 marker.replace(gate_file)
-        try:
-            relay = ContextRelay(run["model"], os.environ["OPENCODE_API_KEY"], run["limit"], relay_checkpoint,
-                                 lambda name, **attrs: self.event(run, name, **attrs))
-        except Exception:
-            raise
+        relay = ContextRelay(run["model"], os.environ["OPENCODE_API_KEY"], run["limit"], relay_checkpoint,
+                             lambda name, **attrs: self.event(run, name, **attrs))
         cfg = config(run["model"])
         provider = run["model"].split("/", 1)[0]
         cfg.setdefault("provider", {}).setdefault(provider, {}).setdefault("options", {})["baseURL"] = relay.url
@@ -301,7 +283,7 @@ class Runner:
                "AEION_OPENCODE_KEY": relay.token,
                "OPENCODE_CONFIG_CONTENT": json.dumps(cfg),
                "AEION_CONTEXT_LIMIT": str(run["limit"]), "AEION_CONTEXT_METRIC": run["metric"],
-               "AEION_MAX_COST_USD": str(max(Decimal(0), Decimal(os.environ.get("DEMO_MAX_COST_USD", "0.10")) - Decimal(run["native_cost_usd"]))),
+               "AEION_MAX_COST_USD": str(max(Decimal(0), max_cost() - Decimal(run["native_cost_usd"]))),
                "AEION_GATE_FILE": str(gate_file)}
         env.update(AEION_CHECKPOINT_REQUEST=str(checkpoint_request), AEION_CHECKPOINT_ACK=str(checkpoint_ack))
         for key in ("DATA", "CONFIG", "STATE", "CACHE"):
@@ -416,7 +398,7 @@ class Runner:
                         raise ValueError("PROVIDER_CONTEXT_VIOLATION")
                     if not run["model"].startswith("fixture/") and (relay.last_count is None or usage["input"] > relay.last_count + 20000):
                         raise ValueError("CONTEXT_ACCOUNTING_MISMATCH")
-                    if Decimal(run["native_cost_usd"]) > Decimal(os.environ.get("DEMO_MAX_COST_USD", "0")):
+                    if Decimal(run["native_cost_usd"]) > max_cost():
                         raise ValueError("BUDGET_STOP")
                     if observed >= run["limit"]:
                         threshold_reached = True

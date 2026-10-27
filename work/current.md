@@ -9,7 +9,7 @@
 
 ## Repository review follow-ups
 - Owner decision: Fix reviewed defects that leave the qualified protocol hash unchanged first; handle protocol-hashed fixes as a separate requalified change. Approved in chat, 2026-10-27.
-- State: First batch implemented: Linux gateway detection, restart recovery of pending memory, campaign totals for expired profiles, playground read scope, telemetry severity/allowlist alignment, interrupted-run KPIs, base-image digest and documentation.
-- Next: Second batch, each requiring OpenShell bootstrap and CLI requalification: count unloadable artifacts as failed checks, write the hook's gate file atomically, align the cost-stop default and remove dead harness code.
-- Blocker: None for the first batch. The second batch needs a Docker/OpenShell host to requalify.
-- Evidence: [validation record](validation.md#repository-review-follow-ups--2026-10-27).
+- State: First batch merged in [PR #5](https://github.com/OualidGuennif/aeion-observability/pull/5). Second batch implemented on a separate branch: unloadable artifacts fail every check, the hook publishes its state files atomically, one cost-stop default, dead harness code removed, per-task check totals in the cockpit and host-level demo checks in CI.
+- Next: Merge the second batch after hosted CI, then rerun `demo/openshell/setup.py`, rebuild the stack and rerun `qualify_cli.py` locally: the protocol hash and agent image change.
+- Blocker: Local live runs stay blocked until that requalification; hosted CI exercises the same OpenShell qualification on Linux.
+- Evidence: [first batch](validation.md#repository-review-follow-ups--2026-10-27); [second batch](validation.md#protocol-review-follow-ups--2026-10-27).
