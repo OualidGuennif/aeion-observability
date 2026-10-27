@@ -1,8 +1,8 @@
 # Current work
 
-## Local agent observability and memory showcase
-- Owner decision: Add a Docker Langfuse/OTel demo, Deno JS/Hono target, Python cockpit, Go-backed OpenCode build agents, Hindsight and claude-mem; require Markdown before reset, 250k handover and independent 300k admission guard. Implementation and subsequent PR/main publication approved in chat, 2026-10-25.
-- State: Implemented on task/langfuse-opencode-demo; both paid Go profiles passed the protected 12-check task. Local checks, real Go tasks, backend reads, handover qualification and browser QA passed; publication through the PR workflow is authorized.
-- Next: Use demo/README.md for presentation and restart commands; hosted CI and publication state are available in the release PR.
-- Blocker: None for the local pilot. General model ranking, invoices and production runtime qualification remain outside the measured evidence.
-- Evidence: demo/README.md; knowledge/components/docker-demo.md; demo/tests/; demo/verify_backend.py; work/validation.md.
+## OpenShell isolation and task-specific model lab
+- Owner decision: Require OpenShell for every build/check execution, disable NVIDIA telemetry, broaden paid Go task/model comparisons, preserve MD-before-reset and 250k/300k gates, retain analyses/decisions in Hindsight, then publish through PR and merge main. Explicitly approved in chat, most recently 2026-10-27.
+- State: Implemented on task/openshell-safe-model-lab. Local OpenShell security probes, real CLI/fake-inference handover, all five official tokenizer templates and four protected scenario contracts pass. Paid campaign, final backend/UI verification and hosted CI are being completed.
+- Next: Run the comparable Go campaign, verify backend receipts and browser behavior, finish evidence, then PR/merge/main publication.
+- Blocker: No implementation approval is missing. General model superiority, invoices and hostile-code/production qualification remain outside this small lab's evidence.
+- Evidence: demo/README.md; knowledge/components/docker-demo.md; demo/openshell/; demo/tests/; work/validation.md.

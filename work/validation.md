@@ -114,3 +114,27 @@ Approximate idle memory observed with Docker stats: supervisor 111 MiB, Hindsigh
 Langfuse web 877 MiB/worker 464 MiB and ClickHouse 960 MiB. This local eleven-service stack is
 intentionally heavier than the supervisor itself. Existing sibling containers were preserved.
 Hosted CI runs separately through the release PR; its Docker job uses fake inference only.
+
+## OpenShell migration and expanded model lab — 2026-10-27 (in progress)
+
+The earlier two-model Docker results above are historical evidence. They are deliberately
+excluded from current OpenShell selection. New method: `openshell-go-v4`.
+
+- Official OpenShell 0.1.5 native gateway/SDK, SHA-verified releases, pinned runtime/supervisor
+  image digests and immutable local agent image ID. Actual probes confirm UID 10001, denied
+  system writes/outbound requests, workload network `none`, no socket and propagated NVIDIA
+  telemetry=false. Security qualification expires after 24 hours.
+- Real OpenCode 1.19.4 through OpenShell, local fake inference: four requests, two fresh
+  sessions, MD-before-close/ack, preserved partial artifact, successor MD load, removed
+  runtimes, and 12/12 checks. Separate >300k/concurrent-admission and missing/stale-ack tests pass.
+- All five official tokenizer/templates count a text/tool roundtrip. Four reference contracts
+  pass 12+14+14+14 protected Deno cases inside OpenShell; deliberately broken artifacts fail.
+- Unit tests exercise per-task routing, cost/speed objectives, incomplete usage, failures,
+  assistance, legacy/synthetic/runtime separation and gate-cohort evidence IDs.
+- Startup denied runtime npm/model discovery as intended. Bundled model metadata and read-only
+  plugin config remove those downloads; exact executable identity is the shipped OpenCode
+  binary. No broad egress was added. A loaded shared 8 GB Docker VM caused substantial cold
+  startup delays and one deletion timeout; admission stayed closed and deletion was confirmed
+  before requalification. Other projects were not stopped or modified.
+
+Paid campaign, latest full-stack receipts, visual QA and hosted CI are not yet recorded here.

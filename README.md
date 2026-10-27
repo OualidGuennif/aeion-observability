@@ -20,8 +20,8 @@ that evidence to choose models, providers and inference settings. Optimize **cos
 time, and correct completion without corrective human intervention** within fixed authority.
 
 This folder contains a sourced design, offline examples and an opt-in [Docker demo](demo/README.md)
-with Langfuse, OpenTelemetry, Hindsight, claude-mem and OpenCode build agents. The offline examples need no service or
-key. The demo operates only on a synthetic task; no cost or quality improvement has been
+with Langfuse, OpenTelemetry, Hindsight, claude-mem and OpenCode build agents isolated in NVIDIA OpenShell. The offline examples need no service or
+key. The demo operates on four frozen synthetic task contracts; no cost or quality improvement has been
 measured on representative Æion workloads.
 
 ## Run the Docker demo

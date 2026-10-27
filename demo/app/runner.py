@@ -5,9 +5,7 @@ import os
 from pathlib import Path
 import selectors
 import shutil
-import signal
 import subprocess
-import tempfile
 import time
 import urllib.request
 import threading
@@ -15,6 +13,8 @@ from decimal import Decimal
 
 from policy import gate_value, native_usage
 from relay import ContextRelay
+from sandbox import Sandbox, AGENT_TIMEOUT_SECONDS
+from scenarios import SCENARIOS, SOLUTIONS, contract
 
 BASE = Path(__file__).resolve().parent.parent
 AGENT_UID = 10001
@@ -47,15 +47,14 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def acceptance(workspace):
+def acceptance(workspace, sandbox, task_id="pricing-js-v1"):
     path = workspace / "src/pricing.js"
     digest(path)
     # Agent code runs as an unprivileged user with a minimal environment; not as the supervisor.
-    result = subprocess.run(
+    result = sandbox.exec(
         ["deno", "run", "--no-config", "--no-npm", "--no-remote", "--no-prompt",
-         "--allow-read=" + str(path), str(BASE / "fixtures/verify.js"), str(path)],
-        capture_output=True, timeout=10, env={"PATH": "/usr/local/bin:/usr/bin:/bin", "DENO_DIR": "/tmp/deno-checks"},
-        user=AGENT_UID, group=AGENT_UID, extra_groups=[],
+         "--allow-read=" + str(path) + ",/opt/demo/fixtures/scenarios.json", str(BASE / "fixtures/check-scenario.js"), str(path), task_id],
+        timeout=10, env={"DENO_DIR": "/tmp/deno-checks"},
     )
     if len(result.stdout) > 4096:
         raise ValueError("INVALID_CHECK_OUTPUT")
@@ -65,7 +64,7 @@ def acceptance(workspace):
             raise ValueError
         if not isinstance(check["failed"], list) or any(not isinstance(v, str) or len(v) > 40 for v in check["failed"]):
             raise ValueError
-        if (result.returncode == 0) != (check == {"passed": 12, "failed": [], "total": 12}):
+        if (result.exit_code == 0) != (check == {"passed": len(SCENARIOS[task_id]["cases"]), "failed": [], "total": len(SCENARIOS[task_id]["cases"])}):
             raise ValueError
     except (ValueError, TypeError):
         raise ValueError("INVALID_CHECK_OUTPUT") from None
@@ -91,22 +90,6 @@ def config(model):
     }
 
 
-def terminate(process):
-    # Kill the entire process group, then reap it before any successor is admitted.
-    try:
-        os.killpg(process.pid, signal.SIGTERM)
-        process.wait(timeout=2)
-    except subprocess.TimeoutExpired:
-        os.killpg(process.pid, signal.SIGKILL)
-        process.wait(timeout=3)
-    except ProcessLookupError:
-        process.wait(timeout=3)
-    finally:
-        # npm's launcher can exit before its CLI child; always close the residual group.
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
 
 
 class Runner:
@@ -114,6 +97,7 @@ class Runner:
         self.telemetry, self.save, self.work_root = telemetry, save, work_root
         self.memory = memory
         self.audit = audit
+        self.active_sandbox = None
         self.event_lock = threading.RLock()
 
     def event(self, run, name, **attrs):
@@ -122,6 +106,7 @@ class Runner:
             sequence = len(run["events"]) + 1
             event = {"name": name, "id": f"{run['id']}:{sequence}", "sequence": sequence,
                      "time_unix_ns": time.time_ns(), "trace_id": run["trace_id"], "span_id": run["root_span_id"],
+                     "aeion.task.id": run.get("task_id", "pricing-js-v1"), "aeion.runtime": run.get("runtime", "legacy"),
                      "severity": "WARN" if name in {"gate.closed", "task.failed", "context.refused"} else "INFO", **attrs}
             if self.audit:
                 self.audit.record(run, event)
@@ -130,13 +115,13 @@ class Runner:
             self.save(run)
 
     def prepare_handover(self, run, workspace, observed, basis="native_report"):
-        check = acceptance(workspace)
+        check = acceptance(workspace, self.active_sandbox, run.get("task_id", "pricing-js-v1"))
         source_hash = digest(workspace / "src/pricing.js")
         markdown = (
             "# AEion agent handover\n\n"
-            f"Task: pricing-js-v1\nAgent: {run['agents']}\n"
+            f"Task: {run.get('task_id', 'pricing-js-v1')}\nAgent: {run['agents']}\n"
             f"Context ({basis}, {run['metric']}): {observed}\nGate: {run['limit']} tokens\nHard admission budget: 300000 tokens\n\n"
-            "## Objective\n\n" + TASK + "\n\n"
+            "## Objective\n\n" + contract(run.get("task_id", "pricing-js-v1")) + "\n\n"
             f"## Preserved artifact\n\n- File: `src/pricing.js`\n- SHA-256: `{source_hash}`\n\n"
             f"## Independent verification\n\n- Passed: {check['passed']}/{check['total']}\n"
             "- Remaining checks: " + (", ".join(check["failed"]) or "none") + "\n\n"
@@ -173,7 +158,7 @@ class Runner:
             root.mkdir(mode=0o711)
             workspace.mkdir(mode=0o755)
             source.parent.mkdir(mode=0o755)
-            shutil.copyfile(BASE / "fixtures/pricing.js", source)
+            source.write_text("export function " + SCENARIOS[run.get("task_id", "pricing-js-v1")]["export"] + "() { throw new Error(\"not implemented\"); }\n")
             os.chown(source.parent, AGENT_UID, AGENT_UID)
             os.chown(source, AGENT_UID, AGENT_UID)
             subprocess.run(["git", "init", "-q", str(workspace)], check=True, capture_output=True)
@@ -182,20 +167,32 @@ class Runner:
             for agent in range(1, 4):
                 run["agents"] = agent
                 self.event(run, "agent.started", **{"aeion.agent.number": agent})
-                outcome = self.simulate(run, workspace, agent) if run["synthetic"] else self.live(run, root, workspace, handover)
-                check = acceptance(workspace)
-                changed = digest(source) != original
-                run.update(check=check, artifact_sha256=digest(source), changed=changed)
-                self.event(run, "artifact.checked", **{"aeion.check.passed": check["passed"], "aeion.artifact.changed": changed})
-                state = {"task": "pricing-js-v1", "previous_agent": agent,
-                         "artifact": "src/pricing.js", "sha256": digest(source), "check": check}
-                if self.memory:
-                    try:
-                        state = self.memory.checkpoint(run, state)
-                        self.event(run, "memory.checkpoint", **{"aeion.memory.backend": "claude-mem"})
-                    except Exception:
-                        # Storage is advisory; artifact/check state remains locally authoritative.
-                        run["checkpoint_status"] = "unavailable"
+                self.active_sandbox = Sandbox(run, root)
+                self.event(run, "sandbox.ready", **{"aeion.sandbox.id": self.active_sandbox.ref.id})
+                try:
+                    outcome = self.simulate(run, workspace, agent) if run["synthetic"] else self.live(run, root, workspace, handover)
+                    check = acceptance(workspace, self.active_sandbox, run.get("task_id", "pricing-js-v1"))
+                    changed = digest(source) != original
+                    run.update(check=check, artifact_sha256=digest(source), changed=changed)
+                    self.event(run, "artifact.checked", **{"aeion.check.passed": check["passed"], "aeion.artifact.changed": changed})
+                    state = {"task": run.get("task_id", "pricing-js-v1"), "previous_agent": agent,
+                             "artifact": "src/pricing.js", "sha256": digest(source), "check": check}
+                    if self.memory:
+                        try:
+                            state = self.memory.checkpoint(run, state)
+                            self.event(run, "memory.checkpoint", **{"aeion.memory.backend": "claude-mem"})
+                        except Exception:
+                            # Storage is advisory; artifact/check state remains locally authoritative.
+                            run["checkpoint_status"] = "unavailable"
+                finally:
+                    sandbox = self.active_sandbox
+                    sandbox.close()  # OpenShell owns termination/reaping, including all exec descendants.
+                    if sandbox.process:
+                        self.event(run, "process.retired", **{"aeion.process.pid": sandbox.process.pid})
+                    self.active_sandbox = None
+                    shutil.rmtree(sandbox.runtime)
+                    self.event(run, "sandbox.retired", **{"aeion.sandbox.id": sandbox.ref.id})
+                    self.event(run, "session.wiped", **{"aeion.agent.number": agent})
                 if outcome == "handover":
                     if not run.get("handover_md_sha256") or digest(workspace / "HANDOVER.md") != run["handover_md_sha256"]:
                         raise ValueError("HANDOVER_NOT_READY")
@@ -207,8 +204,8 @@ class Runner:
                 if run["status"] == "passed":
                     published = self.work_root / "published"
                     published.mkdir(exist_ok=True, mode=0o755)
-                    target = published / "pricing.js"
-                    temporary = published / "pricing.tmp"
+                    target = published / (run.get("task_id", "pricing-js-v1") + ".js")
+                    temporary = target.with_suffix(".tmp")
                     temporary.write_bytes(source.read_bytes())
                     temporary.chmod(0o644)
                     temporary.replace(target)
@@ -219,7 +216,7 @@ class Runner:
         except Exception as error:
             # Never export arbitrary error strings, provider responses or stderr.
             allowed = {"USAGE_UNKNOWN", "COST_UNKNOWN", "INVALID_ARTIFACT", "INVALID_CHECK_OUTPUT",
-                       "PROVIDER_CONTEXT_VIOLATION", "CONTEXT_ACCOUNTING_MISMATCH", "CONTEXT_UNKNOWN", "PROVIDER_REJECTED", "CLI_CLIENT_REQUIRED", "GO_SUBSCRIPTION_REQUIRED", "MODEL_DISABLED", "PROVIDER_ERROR", "CLI_FAILED", "CLI_PROTOCOL_ERROR", "AGENT_TIMEOUT", "BUDGET_STOP", "STEP_LIMIT", "APP_PROBE_FAILED", "HANDOVER_NOT_READY", "INSUFFICIENT_FUNDS", "GO_REGION_REQUIRED", "QUOTA_STOP", "AUTH_ERROR"}
+                       "PROVIDER_CONTEXT_VIOLATION", "CONTEXT_ACCOUNTING_MISMATCH", "CONTEXT_UNKNOWN", "PROVIDER_REJECTED", "CLI_CLIENT_REQUIRED", "GO_SUBSCRIPTION_REQUIRED", "MODEL_DISABLED", "PROVIDER_ERROR", "CLI_FAILED", "CLI_PROTOCOL_ERROR", "AGENT_TIMEOUT", "BUDGET_STOP", "STEP_LIMIT", "APP_PROBE_FAILED", "HANDOVER_NOT_READY", "INSUFFICIENT_FUNDS", "GO_REGION_REQUIRED", "QUOTA_STOP", "AUTH_ERROR", "SANDBOX_NOT_QUALIFIED", "SANDBOX_UNAVAILABLE", "SANDBOX_VERSION_MISMATCH", "SANDBOX_EXEC_FAILED", "SANDBOX_STOP_FAILED"}
             reason = str(error) if str(error) in allowed else "RUN_FAILED"
             run.update(status="failed", failure=reason)
             self.event(run, "task.failed", **{"aeion.failure.code": reason})
@@ -239,10 +236,13 @@ class Runner:
         started = time.monotonic()
         # Propagate the task trace to Deno's native HTTP instrumentation.
         header = f"00-{run['trace_id']}-{run['root_span_id']}-01"
-        request = urllib.request.Request(endpoint + "/api/quote", data=b'{"items":[[125,2]],"shippingCents":75}',
-                                         headers={"Content-Type": "application/json", "traceparent": header})
-        with urllib.request.urlopen(request, timeout=10) as response:
-            if json.loads(response.read(4096)) != {"totalCents": 325, "currency": "EUR"}:
+        task_id = run.get("task_id", "pricing-js-v1")
+        task = SCENARIOS[task_id]
+        request = urllib.request.Request(endpoint + "/api/scenario/" + task_id,
+            data=json.dumps({"args":task["probe_args"]}).encode(),
+            headers={"Content-Type":"application/json", "traceparent":header})
+        with urllib.request.urlopen(request,timeout=10) as response:
+            if json.loads(response.read(4096)) != {"result":task["probe_result"]}:
                 raise ValueError("APP_PROBE_FAILED")
         run["app_probe_ms"] = round((time.monotonic() - started) * 1000, 2)
         self.event(run, "app.verified", **{"aeion.app.probe_ms": run["app_probe_ms"]})
@@ -264,19 +264,17 @@ class Runner:
                 return "handover"
             if observed >= max(1, run["limit"] - 20000):
                 self.prepare_handover(run, workspace, observed)
-        (workspace / "src/pricing.js").write_text(SOLUTION)
+        (workspace / "src/pricing.js").write_text(SOLUTIONS[run.get("task_id", "pricing-js-v1")])
         return "complete"
 
     def live(self, run, root, workspace, handover):
-        prompt = TASK
+        prompt = contract(run.get("task_id", "pricing-js-v1"))
         if handover:
             if digest(workspace / "HANDOVER.md") != handover["handover_sha256"]:
                 raise ValueError("HANDOVER_NOT_READY")
             prompt += ("\nFresh session. Supervisor-loaded HANDOVER.md:\n" + (workspace / "HANDOVER.md").read_text()
                        + "\nPreserved artifact/check state: " + json.dumps(handover))
-        runtime = Path(tempfile.mkdtemp(prefix="runtime-", dir=root))
-        runtime.chmod(0o700)
-        os.chown(runtime, AGENT_UID, AGENT_UID)
+        runtime = self.active_sandbox.runtime
         gate_file = runtime / "gate.json"
         checkpoint_request = runtime / "checkpoint-request.json"
         checkpoint_ack = runtime / "checkpoint-ack.json"
@@ -291,13 +289,12 @@ class Runner:
             relay = ContextRelay(run["model"], os.environ["OPENCODE_API_KEY"], run["limit"], relay_checkpoint,
                                  lambda name, **attrs: self.event(run, name, **attrs))
         except Exception:
-            shutil.rmtree(runtime)
             raise
         cfg = config(run["model"])
         provider = run["model"].split("/", 1)[0]
         cfg.setdefault("provider", {}).setdefault(provider, {}).setdefault("options", {})["baseURL"] = relay.url
         env = {"PATH": os.environ["PATH"], "HOME": str(runtime), "CI": "true",
-               "OPENCODE_DISABLE_DEFAULT_PLUGINS": "true", "OPENCODE_DISABLE_EXTERNAL_SKILLS": "true",
+               "OPENCODE_DISABLE_DEFAULT_PLUGINS": "true", "OPENCODE_DISABLE_PROJECT_CONFIG": "true", "OPENCODE_DISABLE_MODELS_FETCH": "true", "OPENCODE_MODELS_PATH": "/opt/demo/models.json", "OPENCODE_DISABLE_EXTERNAL_SKILLS": "true",
                "OPENCODE_DISABLE_CLAUDE_CODE": "true", "OPENCODE_DISABLE_LSP_DOWNLOAD": "true",
                "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "safe.directory", "GIT_CONFIG_VALUE_0": str(workspace),
                "OPENCODE_API_KEY": "aeion-gate-closed",
@@ -329,12 +326,11 @@ class Runner:
             raise ValueError("USAGE_UNKNOWN")
         try:
             relay.start()
-            process = subprocess.Popen(argv, cwd=workspace, env=env, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                       start_new_session=True, user=AGENT_UID, group=AGENT_UID, extra_groups=[])
+            process = self.active_sandbox.start(argv, env, workspace)
             self.event(run, "process.started", **{"aeion.process.pid": process.pid, "aeion.agent.number": run["agents"]})
             selector = selectors.DefaultSelector()
             selector.register(process.stdout, selectors.EVENT_READ)
-            deadline = time.monotonic() + 180
+            deadline = time.monotonic() + AGENT_TIMEOUT_SECONDS
             buffer = b""
             steps, cumulative, session, final = 0, 0, None, False
             request_started_ns = time.time_ns()
@@ -438,12 +434,11 @@ class Runner:
                 raise ValueError("CLI_FAILED")
             return "complete"
         finally:
+            # Gate is already closed before handover; OpenShell deletes/reaps the workload
+            # after protected verification. Never try to signal from another sandbox exec.
             if process is not None:
-                terminate(process)
                 process.stdout.close()
-                self.event(run, "process.retired", **{"aeion.process.pid": process.pid})
+            if 'selector' in locals():
+                selector.close()
             relay.close()
             run["usage_complete"] = run.get("usage_complete", True) and steps == relay.forwarded_count
-            # Remove only this retired runtime after reaping; preserve task files.
-            shutil.rmtree(runtime)
-            self.event(run, "session.wiped", **{"aeion.agent.number": run["agents"]})

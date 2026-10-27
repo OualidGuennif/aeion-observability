@@ -9,7 +9,9 @@ export const ContextGate = async () => {
   "chat.headers": async (input, output) => {
     // The provider receives only a deliberately invalid key without this hook.
     // Consume one admission ticket per main request; missing plugins fail closed.
-    if (input.agent !== "build" || !admitted || !process.env.AEION_OPENCODE_KEY) throw new Error("AEION_GATE_CLOSED");
+    if (input.agent !== "build") throw new Error("AEION_GATE_CLOSED_AGENT");
+    if (!admitted) throw new Error("AEION_GATE_CLOSED_TICKET");
+    if (!process.env.AEION_OPENCODE_KEY) throw new Error("AEION_GATE_CLOSED_CREDENTIAL");
     admitted = false;
     output.headers.Authorization = `Bearer ${process.env.AEION_OPENCODE_KEY}`;
   },

@@ -18,7 +18,7 @@ class Audit:
                    "aeion.app.probe_ms", "aeion.failure.code", "aeion.process.pid", "aeion.http.status"}
         allowed.update({"aeion.tool.name", "aeion.tool.status", "aeion.step.elapsed_ms", "trace_id", "span_id", "aeion.cost.estimated_usd", "aeion.human.interventions"})
         allowed.update({"aeion.context.reserve", "aeion.context.max_output", "aeion.context.tokenizer_revision"})
-        allowed.update({"aeion.context.basis", "aeion.handover.sha256"})
+        allowed.update({"aeion.context.basis", "aeion.handover.sha256", "aeion.sandbox.id", "aeion.task.id", "aeion.runtime"})
         if set(event) - allowed or any(not isinstance(v, (str, int, float, bool)) or isinstance(v, str) and len(v) > 256 for v in event.values()):
             raise ValueError("INVALID_AUDIT_EVENT")
         path = self.folder / (run["id"] + ".events.jsonl")

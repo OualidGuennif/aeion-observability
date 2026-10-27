@@ -108,7 +108,7 @@ if __name__ == "__main__":
             Runner(NoExport(), lambda _run: None, root).run(run)
         summary = {key: run.get(key) for key in ("status", "failure", "agents", "check", "changed")}
         summary.update(request_count=len(requests), fresh_sessions=len(set(run["sessions"])),
-                       runtimes_removed=not list((root / "fixture").glob("runtime-*")))
+                       runtimes_removed=not (root / "fixture/runtime").exists())
         print(json.dumps(summary))
         if run["status"] != "passed":
             print("Fixture supervisor exceptions:", failures[-8:])
@@ -118,4 +118,10 @@ if __name__ == "__main__":
         names = [e["name"] for e in run["events"]]
         assert names.index("handover.prepared") < names.index("gate.closed") < names.index("agent.handover")
         assert summary["runtimes_removed"], summary
+        from sandbox import protocol_hash
+        marker = Path('/data/cli-qualification.json')
+        temporary = marker.with_suffix('.tmp')
+        temporary.write_text(json.dumps({'protocol_sha256':protocol_hash(), 'expires_ns':time.time_ns()+86400000000000}))
+        temporary.chmod(0o600)
+        temporary.replace(marker)
     server.shutdown()
