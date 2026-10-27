@@ -138,3 +138,18 @@ excluded from current OpenShell selection. New method: `openshell-go-v4`.
   before requalification. Other projects were not stopped or modified.
 
 Paid campaign, latest full-stack receipts, visual QA and hosted CI are not yet recorded here.
+
+### Search-tool qualification correction
+
+The first paid matrix (`openshell-go-v4`) completed 40 attempts with 31 accepted outcomes,
+complete native usage and $0.398896882 in CLI estimates. All 40 analyses and the decision
+snapshot were retained with zero LLM tokens. The data remains in
+[evidence/2026-10-27-openshell-model-lab-v4.json](evidence/2026-10-27-openshell-model-lab-v4.json).
+
+Review found repeated search-tool errors. A direct OpenShell probe confirmed no system
+`rg`; pinned OpenCode 1.19.4 source resolves system ripgrep first and otherwise downloads it
+from GitHub, which the required egress policy correctly denies. The image now preinstalls
+that dependency and qualification forces successful `glob`/`grep` before the existing
+read/write/handover sequence. The acceptance cases and context gates are unchanged.
+Method `openshell-go-v5` separates the corrected environment; v4 is historical evidence and
+is excluded from its routing. No network permission was broadened.

@@ -70,7 +70,7 @@ def main():
         raise SystemExit("Langfuse score values differ from the canonical outcome")
     result = {"run_id": run["id"], "trace_id": run["trace_id"], "observations": len(data),
               "generations": len(generations), "content_fields_empty": True,
-              "claude_mem_checkpoint": run["claude_mem_id"], "hindsight_recall_results": len(recall["results"]),
+              "claude_mem_checkpoint": run.get("claude_mem_id"), "hindsight_recall_results": len(recall["results"]),
               "native_cost_estimate_usd": run["native_cost_usd"], "scores": "read_back_matching",
               "deno_trace_join": deno_join, "hindsight_document": "read_back_matching"}
     print(json.dumps(result, indent=2))

@@ -138,7 +138,10 @@ workload network mode `none`, no Docker socket and propagated NVIDIA telemetry=f
 workload mounts only its run subdirectory; mTLS server keys and the Go key stay outside it.
 Its sole egress rule permits the pinned OpenCode binary to POST the counted relay endpoint.
 The public model catalog is bundled and config is read-only to prevent runtime npm/catalog
-downloads. No host CLI, plain Docker agent execution or permissive fallback exists.
+downloads. The image also preinstalls ripgrep: OpenCode's `glob` and `grep` use the system
+binary instead of attempting a blocked runtime download. CLI qualification exercises both
+search tools before the read/write and handover sequence. No host CLI, plain Docker agent
+execution or permissive fallback exists.
 
 Security qualification expires in 24 hours. A separate real-CLI/fake-inference qualification
 binds the exact immutable agent image and gate/counter/protocol sources; live execution is
