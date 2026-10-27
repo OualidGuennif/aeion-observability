@@ -10,7 +10,7 @@ import datetime
 from urllib.parse import urlparse, parse_qs
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from runner import Runner
+from runner import AGENTS, TRIAGE, Runner, tasks
 from telemetry import Telemetry
 from memory import Memory
 from kpis import summarize
@@ -24,6 +24,8 @@ from settings import DATA, SERVICES, WORK
 
 DATA.mkdir(mode=0o700, parents=True, exist_ok=True)
 WORK.mkdir(mode=0o700, parents=True, exist_ok=True)
+RUNTIMES = {"flue-just-bash": "Triage · just-bash", "flue-local": "Local assistant · restricted folder",
+            "flue-openshell": "Autonomous coding · OpenShell"}
 LOCK = threading.Lock()
 SAVE_LOCK = threading.Lock()
 CAMPAIGNS = DATA / "campaigns"
@@ -39,15 +41,15 @@ def runs():
     return sorted([json.loads(p.read_text()) for p in report_paths()],key=lambda r:r["started_ns"],reverse=True)
 
 
-def new_run(mode,profile,task_id,objective="balanced",campaign_id=None):
-    decision = recommend(runs(),task_id,objective) if profile=="auto" else {"profile":profile,"basis":"explicit_profile","task_id":task_id,"objective":objective}
+def new_run(mode,profile,task_id,objective="balanced",campaign_id=None,runtime="flue-openshell"):
+    decision = recommend(runs(),task_id,objective,runtime) if profile=="auto" else {"profile":profile,"basis":"explicit_profile","task_id":task_id,"objective":objective}
     key=decision["profile"]
     if not available(key): raise ValueError("profile_requires_requalification")
     return {"id":uuid.uuid4().hex,"status":"running","synthetic":mode=="simulation","started_ns":time.time_ns(),
         "events":[],"sessions":[],"agents":0,"human_interventions":0,"postprocessing":True,"usage_complete":True,
         "task_id":task_id,"profile_version":PROFILE_VERSION,"native_cost_usd":"0","model":PROFILES[key]["model"],
         "limit":int(os.environ.get("DEMO_CONTEXT_LIMIT","250000")),"metric":os.environ.get("DEMO_CONTEXT_METRIC","active_context"),
-        "runtime":"flue-openshell","selection":decision,"campaign_id":campaign_id}
+        "runtime":runtime,"selection":decision,"campaign_id":campaign_id}
 
 
 def save_campaign(value):
@@ -116,9 +118,17 @@ def sandbox_ready():
         return False
 
 
-def live_ready():
+def live_ready(runtime="flue-openshell"):
     from sandbox import cli_qualified
-    return bool(os.environ.get("OPENCODE_API_KEY") and cli_qualified() and sandbox_ready() and not (DATA/"context.blocked").exists())
+    # Tier 1 never touches OpenShell; tiers 2 and 3 verify generated code there.
+    return bool(os.environ.get("OPENCODE_API_KEY") and cli_qualified() and (runtime == TRIAGE or sandbox_ready())
+                and not (DATA/"context.blocked").exists())
+
+
+def ready(runtime, mode):
+    if mode in {"live", "benchmark"}:
+        return live_ready(runtime)
+    return mode != "simulation" or runtime == TRIAGE or sandbox_ready()
 
 
 def execute(run, release=True):
@@ -179,15 +189,21 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/catalog":
             self.respond(200,{"profiles":{k:{**p,"available":available(k)} for k,p in PROFILES.items()},
                 "scenarios":{k:{"name":v["name"],"checks":len(v["cases"])} for k,v in SCENARIOS.items()},
-                "runtime":"flue-openshell","nvidia_telemetry":False,"profile_version":PROFILE_VERSION})
+                "runtimes":{r:{"name":RUNTIMES[r],"tasks":list(tasks(r))} for r in AGENTS},
+                "triage":{k:{"name":v["name"],"checks":len(v["expected"])} for k,v in tasks(TRIAGE).items()},
+                "nvidia_telemetry":False,"profile_version":PROFILE_VERSION})
         elif urlparse(self.path).path == "/api/recommendations":
-            objective=parse_qs(urlparse(self.path).query).get("objective",["balanced"])[0]
-            if objective not in {"balanced","cost","speed"}: self.respond(400,{"error":"invalid_objective"});return
-            self.respond(200,{task:recommend(runs(),task,objective) for task in SCENARIOS})
+            query=parse_qs(urlparse(self.path).query)
+            objective=query.get("objective",["balanced"])[0]
+            runtime=query.get("runtime",["flue-openshell"])[0]
+            if objective not in {"balanced","cost","speed"} or runtime not in AGENTS: self.respond(400,{"error":"invalid_selection"});return
+            self.respond(200,{task:recommend(runs(),task,objective,runtime) for task in tasks(runtime)})
         elif self.path == "/api/campaigns":
             self.respond(200,sorted([json.loads(p.read_text()) for p in CAMPAIGNS.glob("*.json")],key=lambda v:v["started_ns"],reverse=True))
         elif self.path == "/api/health":
-            self.respond(200, {"status": "ok", "live_ready": live_ready(), "sandbox_ready": sandbox_ready(), "nvidia_telemetry": False, "model": os.environ.get("DEMO_MODEL", ""),
+            self.respond(200, {"status": "ok", "live_ready": live_ready(), "sandbox_ready": sandbox_ready(),
+                               "ready": {r: {"live": live_ready(r), "simulation": ready(r, "simulation")} for r in AGENTS},
+                               "nvidia_telemetry": False, "model": os.environ.get("DEMO_MODEL", ""),
                                "limit": int(os.environ.get("DEMO_CONTEXT_LIMIT", "250000")),
                                "metric": os.environ.get("DEMO_CONTEXT_METRIC", "active_context")})
         elif self.path == "/api/integrations":
@@ -228,16 +244,20 @@ class Handler(BaseHTTPRequestHandler):
             if not 0 < length <= 1024:
                 raise ValueError
             request = json.loads(self.rfile.read(length))
-            if (not isinstance(request, dict) or set(request) - {"mode", "profile", "run_id", "task_id", "objective"}
-                    or request.get("mode") not in {"simulation", "live", "intervention", "benchmark"}
+            if not isinstance(request, dict) or set(request) - {"mode", "profile", "run_id", "task_id", "objective", "runtime"}:
+                raise ValueError
+            runtime = request.get("runtime", "flue-openshell")
+            # Campaigns stay on tier 3; tier 1 has its own task contract.
+            if (runtime not in AGENTS or request.get("mode") not in {"simulation", "live", "intervention", "benchmark"}
+                    or (request["mode"] == "benchmark" and runtime != "flue-openshell")
                     or request.get("profile", "auto") not in {*PROFILES,"auto"}
-                    or request.get("task_id","pricing-js-v1") not in SCENARIOS
+                    or request.setdefault("task_id", next(iter(tasks(runtime)))) not in tasks(runtime)
                     or request.get("objective","balanced") not in {"balanced","cost","speed"}):
                 raise ValueError
         except (ValueError, TypeError):
             self.respond(400, {"error": "invalid_request"})
             return
-        if (request["mode"] in {"live","benchmark"} and not live_ready()) or (request["mode"]=="simulation" and not sandbox_ready()):
+        if not ready(runtime, request["mode"]):
             self.respond(409, {"error": "live_not_configured"})
             return
         if request["mode"] == "intervention":
@@ -279,7 +299,7 @@ class Handler(BaseHTTPRequestHandler):
             save_campaign(value);threading.Thread(target=campaign,args=(value,),daemon=True).start()
             self.respond(202,{"campaign_id":value["id"]});return
         try:
-            run=new_run(request["mode"],request.get("profile","auto"),request.get("task_id","pricing-js-v1"),request.get("objective","balanced"))
+            run=new_run(request["mode"],request.get("profile","auto"),request["task_id"],request.get("objective","balanced"),runtime=runtime)
         except ValueError:
             LOCK.release();self.respond(409,{"error":"profile_requires_requalification"});return
         if run["metric"] not in {"active_context", "cumulative_input"} or not 1 <= run["limit"] <= 250000:

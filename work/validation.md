@@ -339,3 +339,43 @@ host-backed volume and each sandbox mounts only its run subpath.
 Not verified: macOS ownership of the host-backed work volume and any paid Go request, including
 Go's acceptance of the forwarded Pi identity. Earlier `openshell-go-v5` evidence stays historical
 and is excluded from Auto selection.
+
+## Triage and local-assistant tiers — 2026-10-27
+
+Tiers 1 and 2 reuse the tier 3 relay, gates, handover, observer, audit, telemetry and memories;
+only the sandbox, tools and verdict differ. Checked against the pinned Flue documentation
+(sandboxes, skills, tools) and the installed packages: the just-bash virtual sandbox emulates
+commands in-process over an in-memory filesystem with network opt-in; Flue's `bash` tool takes
+`command`, `activate_skill` takes `name`; a `defineTool` handler that throws returns the error to
+the model. Observed with just-bash 3.6.0 and the `hardened` profile: `jq` works, host
+`/etc/passwd` is absent and `curl` is not a command when no network is configured.
+
+Tier 2 (`restricted-local`) restricts model-facing tools only: path confinement, symbolic links
+refused on every component, `O_NOFOLLOW`, writes only under `src/`, and no shell, grep or glob.
+The harness process keeps the host user's privileges; that is documented, not hidden. Tier 1's
+harness receives only events and labels; the frozen answers in `demo/fixtures/triage.json`
+(synthetic, eight events) are recomputed independently from the contract rules by a unit test.
+
+- `qualify_flue.py --local-sandbox` (real Flue CLI and Pi, fake inference, host stand-in for
+  OpenShell): tier 3 unchanged (6 requests, 2 fresh conversations, MD before the refused request
+  at 250k, 12/12); tier 2 passed with 5 requests, no shell/grep/glob offered, the strict skill
+  loaded, a `package.json` write refused back to the model with no file left, 12/12; tier 1
+  passed with 5 requests, `jq length` = 8, host file invisible, an incomplete submission refused
+  without writing, 8/8 and no sandbox event. Complete usage, no compaction, no persisted
+  conversation store and no prompt text in events for all three. A negative control (a failing
+  fake-inference assertion) failed the run with `CLI_FAILED`.
+- Cockpit on the controller venv without OpenShell: the catalog lists tasks per tier, readiness
+  enables triage simulation only, an off-tier task and a non-tier-3 benchmark are refused, and
+  a simulated triage run passed 8/8 through a handover with no sandbox. Chromium: the tier selector
+  repopulates tasks and controls with no console error. OTel export errors were expected (no collector).
+- Offline suite 33 tests; demo suite 40 tests (8 skips on system Python, 4 tokenizer-file skips
+  on the pinned venv); Flue 14 tests; fixture validation and cohort comparison passed.
+
+- Hosted CI on Linux ([run 40589836618](https://github.com/OualidGuennif/aeion-observability/actions/runs/40589836618),
+  commit `944d237`, real OpenShell 0.1.5): security qualification passed as for tier 3; demo suite
+  40 tests with the pinned tokenizer files and no skips; Flue 14 tests; `qualify_scenarios.py`
+  12/14/14/14; `qualify_flue.py` in `openshell` mode passed tier 3 (6 requests, 2 fresh
+  conversations, 12/12), tier 2 (5 requests, 1 conversation, 12/12 from a fresh OpenShell
+  verdict) and tier 1 (5 requests, 1 conversation, 8/8), all with complete usage.
+
+Not verified: any paid Go request in any tier.

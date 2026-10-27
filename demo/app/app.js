@@ -5,9 +5,11 @@ const pretty = (n) => Number(n ?? 0).toLocaleString('en-US');
 const money = (n) => n == null ? '—' : '$' + Number(n).toFixed(5);
 const seconds = (n) => n == null ? '—' : (n / 1000).toFixed(1) + 's';
 const label = (name) => Object.values(catalog.profiles??{}).find(p=>p.model===name)?.name ?? (name==='synthetic-replay'?'Synthetic replay':name??'Unknown model');
-const checkTotal = (r) => r.check?.total ?? catalog.scenarios?.[r.task_id ?? 'pricing-js-v1']?.checks ?? '—';
+const taskInfo = (id) => catalog.scenarios?.[id] ?? catalog.triage?.[id];
+const checkTotal = (r) => r.check?.total ?? taskInfo(r.task_id ?? 'pricing-js-v1')?.checks ?? '—';
 function el(tag, text = '', cls = '') { const e = document.createElement(tag); e.textContent = text; e.className = cls; return e; }
-function selected(r) { return r.synthetic === (evidence === 'synthetic') && r.profile_version===catalog.profile_version && (r.task_id??'pricing-js-v1')===$('scenario').value; }
+function selected(r) { return r.synthetic === (evidence === 'synthetic') && r.profile_version===catalog.profile_version && (r.runtime??'legacy')===$('runtime').value && (r.task_id??'pricing-js-v1')===$('scenario').value; }
+function syncTasks() { const ids=catalog.runtimes?.[$('runtime').value]?.tasks??[]; if(!ids.length||ids.join()===[...$('scenario').options].map(o=>o.value).join())return; $('scenario').replaceChildren(...ids.map(id=>{const o=el('option',taskInfo(id)?.name??id);o.value=id;return o;})); }
 function setFilter(value) {
   evidence = value;
   $('recalled').replaceChildren(el('p','Recall analyses from the selected evidence bank.','muted'));
@@ -15,7 +17,7 @@ function setFilter(value) {
   render();
 }
 function render() {
-  $('task-title').textContent=catalog.scenarios?.[$('scenario').value]?.name??'Cart totals';
+  $('task-title').textContent=taskInfo($('scenario').value)?.name??'Cart totals';
   const runs = cachedRuns.filter(selected), rows = cachedRows.filter(selected), latest = runs[0];
   $('runs').replaceChildren(); $('kpi-cards').replaceChildren(); $('model-rows').replaceChildren(); $('checkpoints').replaceChildren();
   const completed = runs.filter(r=>r.ended_ns), successes = completed.filter(r=>r.status==='passed' && !r.human_interventions);
@@ -47,7 +49,7 @@ function render() {
   } else $('active-detail').append(el('p','Start a live build or replay the boundary. Verified execution and memory acknowledgements appear here.'));
   for(const run of runs) {
     const card=el('article','','run'), head=el('div','','run-header');
-    head.append(el('h3',run.synthetic ? '250k boundary · synthetic replay' : label(run.model)+' · '+(catalog.scenarios?.[run.task_id]?.name??run.task_id??'Cart totals')),el('span',run.status.replaceAll('_',' '),'tag'));card.append(head);
+    head.append(el('h3',run.synthetic ? '250k boundary · synthetic replay' : label(run.model)+' · '+(taskInfo(run.task_id)?.name??run.task_id??'Cart totals')),el('span',run.status.replaceAll('_',' '),'tag'));card.append(head);
     const cost = run.synthetic ? 'synthetic · no model call' : run.usage_complete ? `${money(run.native_cost_usd)} native estimate` : 'cost unresolved';
     card.append(el('div',`${run.agents} agent(s) · ${run.check?.passed ?? '—'}/${checkTotal(run)} checks · ${cost} · ${run.human_interventions ? 'assisted' : 'no intervention recorded'}`,'run-meta'));
     const timeline=el('div','','timeline');
@@ -86,21 +88,22 @@ async function refresh() {
   if(refreshing)return;
   refreshing=true;
   try {
-    const [health,runs,rows,configuration,choices,batches]=await Promise.all(['/api/health','/api/runs','/api/kpis','/api/catalog','/api/recommendations?objective='+$('objective').value,'/api/campaigns'].map(url=>fetch(url).then(r=>r.json())));
-    catalog=configuration;recommendations=choices;campaigns=batches;
+    const [health,runs,rows,configuration,choices,batches]=await Promise.all(['/api/health','/api/runs','/api/kpis','/api/catalog','/api/recommendations?objective='+$('objective').value+'&runtime='+$('runtime').value,'/api/campaigns'].map(url=>fetch(url).then(r=>r.json())));
+    catalog=configuration;recommendations=choices;campaigns=batches;syncTasks();
     busy=campaigns.some(c=>c.status==='running')||runs.some(r=>r.status==='running'||r.postprocessing||r.memory?.status==='pending');
     $('limit').replaceChildren(document.createTextNode(pretty(health.limit)+' '),el('small','tokens'));
     $('metric').textContent=health.metric==='active_context'?'Active input context · cache included':'Cumulative input per agent';
-    $('live').disabled=busy||!health.live_ready;$('simulate').disabled=busy||!health.sandbox_ready;$('tour').disabled=busy||!health.sandbox_ready;$('benchmark').disabled=busy||!health.live_ready;
+    const tier=health.ready?.[$('runtime').value];
+    $('live').disabled=busy||!tier?.live;$('simulate').disabled=busy||!tier?.simulation;$('tour').disabled=busy||!tier?.simulation;$('benchmark').disabled=busy||!health.live_ready;
     $('sandbox-status').textContent=health.sandbox_ready?'OpenShell qualified · NVIDIA telemetry disabled':'OpenShell unavailable or qualification expired · execution blocked';
     const batch=campaigns[0];$('campaign-status').textContent=batch?`${batch.status} · ${batch.run_ids.length}/${batch.planned} runs · ${money(batch.native_cost_estimate_usd)} native estimate`:'';
-    const next=JSON.stringify([runs,rows,evidence,choices,$('scenario').value]);cachedRuns=runs;cachedRows=rows;if(next!==signature){signature=next;render();}
+    const next=JSON.stringify([runs,rows,evidence,choices,$('runtime').value,$('scenario').value]);cachedRuns=runs;cachedRows=rows;if(next!==signature){signature=next;render();}
   } catch {$('message').textContent='Observer temporarily unavailable.';} finally {refreshing=false;}
 }
 async function integrations(){try{const states=await fetch('/api/integrations').then(r=>r.json());let connected=0;document.querySelectorAll('[data-service]').forEach(e=>{const good=states[e.dataset.service]==='connected';e.classList.toggle('connected',good);e.title=good?'Connected':'Unavailable';if(good)connected++;});$('system-dot').classList.toggle('connected',connected===4);$('system-status').textContent=`${connected}/4 tools connected`;}catch{$('system-status').textContent='Checking services';}}
 async function post(payload){$('message').textContent='';try{const r=await fetch('/api/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const result=await r.json();if(!r.ok)$('message').textContent=result.error;}catch{$('message').textContent='Unable to submit request.';}await refresh();}
-async function start(mode){setFilter(mode==='simulation'?'synthetic':'real');await post({mode,profile:$('profile').value,task_id:$('scenario').value,objective:$('objective').value});}
-$('benchmark').onclick=()=>post({mode:'benchmark'});$('scenario').onchange=()=>{render();$('recalled').replaceChildren(el('p','Recall analyses for the selected bank.','muted'));};$('objective').onchange=refresh;
+async function start(mode){setFilter(mode==='simulation'?'synthetic':'real');await post({mode,profile:$('profile').value,task_id:$('scenario').value,objective:$('objective').value,runtime:$('runtime').value});}
+$('benchmark').onclick=()=>post({mode:'benchmark'});$('scenario').onchange=()=>{render();$('recalled').replaceChildren(el('p','Recall analyses for the selected bank.','muted'));};$('objective').onchange=refresh;$('runtime').onchange=()=>{syncTasks();refresh();};
 $('simulate').onclick=()=>start('simulation');$('live').onclick=()=>start('live');$('tour').onclick=async()=>{document.getElementById('sessions').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});await start('simulation');};
 document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>setFilter(b.dataset.filter));
 $('recall').onclick=async()=>{const button=$('recall');button.disabled=true;$('recalled').replaceChildren(el('p','Recalling retained analyses…','muted'));try{const r=await fetch('/api/memory'+(evidence==='synthetic'?'?synthetic=true':''));const result=await r.json();$('recalled').replaceChildren();for(const item of result.results??[]){const e=el('div','','memory-item');let text=item.text;try{const a=JSON.parse(item.text);text=a.schema==='aeion.model-decision.v1'?`Task-specific decisions: ${Object.values(a.recommendations??{}).map(r=>`${r.task_id}: ${label(r.model)} (${r.basis})`).join('; ')}`:`${a.task??'Task'} · ${label(a.model)} · ${a.status} · ${a.input_tokens} input tokens · ${seconds(a.duration_ms)} · ${a.human_interventions} human intervention(s). ${a.assessment}`;}catch{}e.append(el('strong',evidence==='real'?'Recalled real-session evidence':'Recalled synthetic-session evidence'),el('span',text));$('recalled').append(e);}if(!$('recalled').children.length)$('recalled').append(el('p',result.status==='ok'?'No retained analyses in this bank yet.':'Memory backend unavailable.','muted'));}catch{$('recalled').replaceChildren(el('p','Memory backend unavailable.','muted'));}finally{button.disabled=false;}};

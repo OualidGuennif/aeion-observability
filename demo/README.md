@@ -1,9 +1,11 @@
 # Æion Observatory — the agent atelier
 
 A local showcase connecting **OpenTelemetry, Langfuse, Hindsight and claude-mem** around real
-**Flue + Pi** coding-agent sessions. The cockpit/supervisor is Python and runs **natively on the
-host**; the agent harness is **Flue 2.3.0 on Pi 1.4.0**; every agent tool call and every check
-of generated code runs inside **NVIDIA OpenShell 0.1.5**. The application under test is **Deno
+**Flue + Pi** agent sessions. The cockpit/supervisor is Python and runs **natively on the
+host**; the agent harness is **Flue 2.3.0 on Pi 1.4.0** in [three execution tiers](#three-execution-tiers):
+triage in an emulated in-memory shell, a guided local assistant with folder-confined file tools,
+and autonomous coding whose every tool call runs inside **NVIDIA OpenShell 0.1.5**. Generated
+code from both coding tiers is checked in OpenShell. The application under test is **Deno
 JavaScript + Hono**. The interface uses Æion's ivory, forest-green and copper palette, locally
 bundled fonts and a native GPT Image illustration.
 
@@ -49,10 +51,11 @@ A useful presentation sequence:
 
 1. **Play the handover demo**: synthetic usage crosses 230k/250k, a Markdown checkpoint appears,
    a fresh agent continues, and the four real local services capture/remember the task.
-2. **Run Flue build**: choose Auto or one of five paid Go profiles. The real agent edits
-   `src/pricing.js` through OpenShell; 12 or 14 protected Deno checks run for the selected task
-   in a fresh sandbox, then its Hono API is probed.
-3. Compare the **same task, gate and method version** in the model lab. Read cost/latency/autonomy
+2. **Run Flue build**: choose an execution tier, then Auto or one of five paid Go profiles.
+   Coding tiers edit `src/pricing.js` (through OpenShell in tier 3); 12 or 14 protected Deno
+   checks run for the selected task in a fresh sandbox, then its Hono API is probed. Triage
+   submits one labeled result per event, checked by the supervisor.
+3. Compare the **same tier, task, gate and method version** in the model lab. Read cost/latency/autonomy
    together; declare human assistance when applicable rather than inferring independence.
 4. **Recall session analyses**; inspect the checkpoint, correlated JSONL logs and Langfuse trace.
 
@@ -65,14 +68,33 @@ fake inference. Real provider runs and synthetic rows/banks are kept distinct.
 | Layer | Where it runs | What it may do |
 | --- | --- | --- |
 | Cockpit, supervisor, relay | Host process, loopback only | Owns the Go key, counts and admits requests, writes MD/audit |
-| Flue + Pi harness (`demo/flue`) | Host child process, scrubbed environment | Holds only per-session relay and bridge tokens |
-| Sandbox bridge | Host loopback, per-session token | Forwards nine file/shell verbs as fixed argv commands into one sandbox |
+| Flue + Pi harness (`demo/flue`) | Host child process, scrubbed environment | Holds only per-session relay (and, in tier 3, bridge) tokens |
+| Sandbox bridge (tier 3) | Host loopback, per-session token | Forwards nine file/shell verbs as fixed argv commands into one sandbox |
 | OpenShell sandbox | Docker driver, Landlock, network `none` | Agent UID; one run subpath of the labeled work volume; writes only `src/`; no egress |
 
 The harness's model calls leave from the host through the relay, so sandboxes need no network.
-Flue's `local()` sandbox is deliberately unused for this case: its documentation states it has
-no isolation. The adapter in `demo/flue/src/sandboxes/openshell.ts` follows Flue's sandbox-adapter
-contract; OpenShell is not wired into the harness itself.
+Flue's `local()` sandbox is unused in every tier: its documentation states it has no isolation
+and its commands are real host processes. The adapter in `demo/flue/src/sandboxes/openshell.ts`
+follows Flue's sandbox-adapter contract; OpenShell is not wired into the harness itself.
+
+## Three execution tiers
+
+| Tier (`runtime`) | Flue sandbox and tools | Tasks | Acceptance |
+| --- | --- | --- | --- |
+| 1 · Triage (`flue-just-bash`) | Flue `bash()` over just-bash 3.6.0: emulated shell, in-memory files, no network configured, `hardened` limits; plus `submit_triage` | `webhook-triage-v1` (8 synthetic events) | Supervisor compares each submitted result with frozen answers; no sandbox |
+| 2 · Local assistant (`flue-local`) | `restricted-local`: read/write/edit on the run workspace only, writes only under `src/`, symbolic links refused; no shell, grep or glob; strict `local-change` skill | The four coding contracts | Protected Deno checks in OpenShell, final verdict in a fresh sandbox |
+| 3 · Autonomous coding (`flue-openshell`) | OpenShell adapter: bash/read/write/edit/grep/glob in the sandbox through the bridge | The four coding contracts | Same as tier 2 |
+
+All tiers share the relay, 230k/250k/300k gates, handover MD, observer, audit, telemetry and
+memories. Tier 2 restricts the **model-facing tools, not the operating system**: the harness
+process keeps the host user's privileges, so use tier 3 for unattended code changes. Tier 1's
+harness receives only the events and label vocabulary; expected answers stay in the supervisor.
+`submit_triage` accepts only known ids and labels, refuses an incomplete submission without
+writing, and atomically replaces `result.json`, which the supervisor validates as untrusted input.
+Flue documents just-bash as isolated from host files, processes and environment variables, with
+network opt-in; none is configured, and the emulated shell has no `curl` (observed).
+KPIs and Auto selection key cohorts by tier as well as task, so tiers are never pooled.
+Comparison campaigns stay on tier 3.
 
 ## Four tools, four responsibilities
 
@@ -115,7 +137,9 @@ changes privacy, Extra Usage or subscription settings.
 
 Four versioned contracts cover cart totals (12 checks), shipping rules, exact discount arithmetic
 and cart normalization (14 checks each). They exercise validation, safe integers, boundaries,
-aggregation, sorting and input mutation. They remain small synthetic coding tasks.
+aggregation, sorting and input mutation. They remain small synthetic coding tasks. Tier 1 has
+one separate frozen contract: eight synthetic webhook events, each labeled with severity,
+component, route and duplicate reference (one check per event).
 
 **Compare all tasks & models** runs every available profile × 4 tasks × 2 repetitions (40 runs
 while all five profiles are qualified), sequentially with rotated model order. Expired profiles
@@ -124,8 +148,8 @@ runs; a per-task $0.10 budget also applies. Unknown usage, context violations or
 stop the campaign. Unavailable/quota-restricted profiles are preserved as failures and skipped
 thereafter.
 
-Auto selection compares only real Flue/OpenShell evidence with the same task, method version
-(`flue-openshell-v1`) and 250k active-context gate. Earlier `openshell-go-v5` OpenCode cohorts
+Auto selection compares only real Flue evidence with the same execution tier, task, method
+version (`flue-openshell-v1`) and 250k active-context gate. Earlier `openshell-go-v5` OpenCode cohorts
 remain historical evidence and never influence it. Eligibility requires at least two completed
 runs, 100% recorded autonomous success and complete positive cost/latency evidence. A run
 interrupted by a controller restart keeps unknown usage, so its cohort stays ineligible; KPIs
@@ -228,10 +252,13 @@ python3 demo/verify_backend.py --synthetic           # latest successful replay
 ```
 
 `qualify_flue.py` runs the real Flue CLI and Pi against local fake inference through the real
-relay and bridge, with tools and checks in OpenShell. It asserts glob/grep/read/write in the
+relay, once per tier. Tier 3 (bridge, tools and checks in OpenShell): glob/grep/read/write in the
 sandbox, the MD before the refused request at a native 250k report, preserved partial work, two
-fresh conversations, 12/12 checks, complete usage, no compaction, no persisted conversation store
-and no prompt text in events. `--local-sandbox` runs the same chain with a host stand-in for
+fresh conversations and 12/12. Tier 2: no shell/grep/glob offered, the strict skill loads, a write
+outside `src/` is refused back to the model and leaves no file, then 12/12 in OpenShell. Tier 1:
+`jq` sees the supplied events, host `/etc/passwd` is invisible, an incomplete submission is refused
+without writing, then 8/8 with no sandbox event. Every tier asserts complete usage, no compaction,
+no persisted conversation store and no prompt text in events; the marker requires all three. `--local-sandbox` runs the same chain with a host stand-in for
 development and never writes the qualification marker. The admission test refuses a >300k
 proposal without contacting an upstream, including concurrent requests while the MD callback is
 held. Neither fixture spends model quota. Do not spend 250k tokens just to animate a showcase.

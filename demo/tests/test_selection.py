@@ -9,9 +9,9 @@ from profiles import PROFILE_VERSION, PROFILES
 from selection import recommend
 
 
-def cohort(profile, cost='0.01', seconds=2, task='pricing-js-v1'):
+def cohort(profile, cost='0.01', seconds=2, task='pricing-js-v1', runtime='flue-openshell'):
     return [dict(id=f'{profile}-{i}', model=PROFILES[profile]['model'], task_id=task,
-                 synthetic=False, profile_version=PROFILE_VERSION, runtime='flue-openshell',
+                 synthetic=False, profile_version=PROFILE_VERSION, runtime=runtime,
                  metric='active_context', limit=250000, status='passed',
                  started_ns=1, ended_ns=1+int(seconds*1e9), agents=1,
                  human_interventions=0, native_cost_usd=cost, usage_complete=True, events=[])
@@ -42,6 +42,12 @@ class SelectionTests(unittest.TestCase):
                 runs=cohort('glm')
                 for run in runs:run[field]=value
                 self.assertEqual(recommend(runs,'pricing-js-v1')['basis'],'provisional_default')
+
+    def test_each_execution_tier_selects_from_its_own_runs(self):
+        runs=cohort('glm',runtime='flue-local')+cohort('glm-full',runtime='flue-openshell')
+        self.assertEqual(recommend(runs,'pricing-js-v1',runtime='flue-local')['profile'],'glm')
+        self.assertEqual(recommend(runs,'pricing-js-v1')['profile'],'glm-full')
+        self.assertEqual(recommend(runs,'pricing-js-v1',runtime='flue-just-bash')['basis'],'provisional_default')
 
     def test_run_ids_are_limited_to_the_selected_gate_cohort(self):
         runs=cohort('glm')+cohort('glm',task='cart-js-v1')

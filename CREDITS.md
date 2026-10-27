@@ -28,6 +28,10 @@ as a measured Æion result.
   (`@flue/runtime`/`@flue/cli` 2.3.0, Apache-2.0) and its model/agent core (`@earendil-works/pi-ai`
   1.4.0, MIT) used by the local showcase. [Flue](https://github.com/withastro/flue),
   [Pi](https://www.npmjs.com/package/@earendil-works/pi-ai).
+- **just-bash (vercel-labs) and Valibot contributors** — the emulated in-memory shell behind the
+  triage tier (`just-bash` 3.6.0, Apache-2.0) and the schema library for its submission tool
+  (`valibot` 1.5.0, MIT). [just-bash](https://github.com/vercel-labs/just-bash),
+  [Valibot](https://github.com/open-circle/valibot).
 - **OpenCode, Deno and Hono contributors** — the Go inference service and its documentation
   (the OpenCode CLI powered the earlier `openshell-go-v5` evidence), the JavaScript runtime,
   native OpenTelemetry support and small application API used by the local showcase.
