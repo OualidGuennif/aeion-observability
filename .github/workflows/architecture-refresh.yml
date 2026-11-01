@@ -1,0 +1,39 @@
+# Spec: knowledge/operations/architecture-maintenance.md
+name: Architecture refresh
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  architecture:
+    name: Graphify and Archify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Prepare pinned local tools
+        run: tools/architecture/setup
+      - name: Refresh the exact source snapshot
+        env:
+          TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: tools/architecture/refresh --target "$TARGET_SHA" --base "$BASE_SHA"
+      - name: Keep immutable analysis and browser evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: factory-analysis-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .aeion/analysis/${{ github.event.pull_request.head.sha || github.sha }}/
+            .aeion/analysis/comparisons/${{ github.event.pull_request.head.sha || github.sha }}/
+          retention-days: 14
+          if-no-files-found: error

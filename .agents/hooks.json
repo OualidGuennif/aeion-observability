@@ -1,0 +1,23 @@
+{
+  "aeion-factory": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {"command": "python3 \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/tools/agents/hook.py\" antigravity PreToolUse"}
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {"command": "python3 \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/tools/agents/hook.py\" antigravity PostToolUse"}
+        ]
+      }
+    ],
+    "Stop": [
+      {"command": "python3 \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/tools/agents/hook.py\" antigravity Stop"}
+    ]
+  }
+}

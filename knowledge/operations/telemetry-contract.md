@@ -4,6 +4,8 @@ title: "Session telemetry and accounting contract"
 description: "Proposed identities, event schemas, timing boundaries, token normalization, accounting lineage, metric labels and data-quality rules."
 status: draft
 sources:
+  - resource: ../../tests/test_validate_fixtures.py
+    title: "Fixture validation test"
   - id: upstream
     resource: ../references/sources.md
     title: "Pinned standards and official integration sources"

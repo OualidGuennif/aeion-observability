@@ -1,0 +1,19 @@
+{
+  "name": "aeion-local",
+  "owner": {
+    "name": "\u00c6ion Factory"
+  },
+  "description": "Local language-server registrations: native servers only, resolved from the project.",
+  "plugins": [
+    {
+      "name": "native-lsp",
+      "source": "./native-lsp",
+      "description": "Eclipse JDT LS on the project's JDK, and the project's own TypeScript 7 native server"
+    },
+    {
+      "name": "deno-lsp",
+      "source": "./deno-lsp",
+      "description": "Deno's built-in language server (for a Deno project or folder)"
+    }
+  ]
+}

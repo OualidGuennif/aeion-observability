@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+# Spec: knowledge/operations/architecture-maintenance.md
+"""Install only reviewed integration revisions inside the ignored project-local directory."""
+import json
+from pathlib import Path
+import subprocess
+import sys
+import venv
+from process import run
+
+if sys.version_info < (3, 12) or sys.version_info[:3] == (3, 14, 1):
+    sys.exit("Æion Factory analysis pins require Python 3.12+ (excluding 3.14.1); use a supported interpreter.")
+
+root = Path(__file__).resolve().parents[2]
+config = json.loads((root / "tools/architecture/integrations.json").read_text())
+folder = root / ".aeion/integrations"
+folder.mkdir(parents=True, exist_ok=True)
+python = folder / "graphify-venv/bin/python"
+if not python.exists():
+    venv.EnvBuilder(with_pip=True).create(python.parent.parent)
+# Every pinned file is hash-checked, so a replaced upload or an unpinned runtime dependency fails the
+# install; the tools pip fetches to build a source archive in isolation are not hash-checked.
+run([str(python), "-m", "pip", "install", "--disable-pip-version-check", "--require-hashes", "-r",
+     str(root / "tools/architecture/requirements.txt")], timeout=600)
+# Pip may keep a same-version wheel from another source; stamp the reviewed commit explicitly.
+reference = f"graphifyy @ {config['graphify']['archive_url']}#sha256={config['graphify']['archive_sha256']}"
+run([str(python), "-m", "pip", "install", "--disable-pip-version-check", "--force-reinstall", "--no-deps", reference], timeout=300)
+archify = folder / "archify"
+if not archify.exists():
+    run(["git", "clone", "--no-checkout", "--filter=blob:none", config["archify"]["repository"], str(archify)])
+actual = subprocess.run(["git", "-C", str(archify), "rev-parse", "HEAD"], capture_output=True, text=True)
+if actual.returncode or actual.stdout.strip() != config["archify"]["revision"] or not (archify / "archify/bin/archify.mjs").is_file():
+    run(["git", "-C", str(archify), "fetch", "origin", config["archify"]["revision"]])
+    run(["git", "-C", str(archify), "checkout", "--detach", config["archify"]["revision"]], timeout=60)
+run(["node", str(archify / "archify/bin/archify.mjs"), "doctor"], timeout=30)
+print("Æion Factory analysis integrations: ready (a real refresh is still required)")

@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""A small scorecard of what makes a repository expensive for agents, and the caps that fail it.
+
+    tools/repo-health/repo-health            print the scorecard; fail on a cap
+    tools/repo-health/repo-health --json     the scorecard as JSON
+
+Caps: AGENTS.md at most 120 lines; work/current.md at most 150; no tracked source file (by suffix or shebang) over 1,500
+lines; no comment block over 20 lines; at most nine top-level folders. Spec: knowledge/policies/engineering.md
+"""
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SOURCE = {".py", ".ts", ".tsx", ".js", ".mjs", ".java", ".go", ".rs", ".kt", ".swift", ".rb", ".php", ".cs", ".sh"}
+COMMENT = re.compile(r"^\s*(//|#|\*|/\*|--)")
+sys.path.insert(0, str(ROOT / ".claude/hooks"))
+from project_files import project_files  # noqa: E402
+
+
+def tracked():
+    try:
+        files = project_files(ROOT)
+    except (OSError, subprocess.SubprocessError) as error:
+        print(f"FAIL file enumeration failed: {error}", file=sys.stderr)
+        sys.exit(1)
+    return [ROOT / p for p in files if (ROOT / p).is_file()]
+
+
+def is_source(path):
+    # Extensionless executables (tools/*/run, refresh) are source too: their shebang says so.
+    if path.suffix in SOURCE:
+        return True
+    if path.suffix:
+        return False
+    with path.open("rb") as stream:
+        return stream.read(2) == b"#!"
+
+
+def longest_comment_block(text):
+    best = run = 0
+    for line in text.splitlines():
+        run = run + 1 if COMMENT.match(line) else 0
+        best = max(best, run)
+    return best
+
+
+def main(argv):
+    files = tracked()
+    candidates = [p for p in files if is_source(p) and not p.name.startswith("test_")]
+    # The versioned passive library preserves upstream formatting; its own integrity check is mandatory.
+    catalog = ROOT / "skills/catalog.json"
+    passive_pool = (catalog.is_file() and not catalog.is_symlink()
+                    and json.loads(catalog.read_text()).get("generator") == "aeion-skill-files-v2")
+    sources = [p for p in candidates if not (passive_pool and p.relative_to(ROOT).parts[0] == "skills")]
+    big, blocks = [], []
+    for p in sources:
+        text = p.read_text(encoding="utf-8", errors="replace")
+        if text.count("\n") > 1500:
+            big.append(p.relative_to(ROOT).as_posix())
+        if longest_comment_block(text) > 20:
+            blocks.append(p.relative_to(ROOT).as_posix())
+    lines = lambda rel: (ROOT / rel).read_text(encoding="utf-8").count("\n") if (ROOT / rel).exists() else 0
+    top = sorted({p.relative_to(ROOT).parts[0] for p in files if len(p.relative_to(ROOT).parts) > 1 and not p.relative_to(ROOT).parts[0].startswith(".")})
+    card = {"agents_md_lines": lines("AGENTS.md"), "work_current_lines": lines("work/current.md"),
+            "source_files_checked": len(sources), "source_suffixes": sorted(SOURCE),
+            "passive_pool_source_files_excluded": len(candidates) - len(sources),
+            "files_over_1500_lines": big, "comment_blocks_over_20_lines": blocks, "top_level_folders": top}
+    if "--json" in argv:
+        print(json.dumps(card, indent=2))
+    problems = []
+    if card["agents_md_lines"] > 120:
+        problems.append("AGENTS.md over 120 lines")
+    if card["work_current_lines"] > 150:
+        problems.append("work/current.md over 150 lines")
+    problems += [f"{p}: over 1,500 lines; split it along a real seam" for p in big]
+    problems += [f"{p}: a comment block over 20 lines; the history goes in the commit message" for p in blocks]
+    if len(top) > 9:
+        problems.append(f"{len(top)} top-level folders (max 9): {', '.join(top)}")
+    for p in problems:
+        print(f"FAIL {p}", file=sys.stderr)
+    if "--json" not in argv:
+        print(f"repo-health: AGENTS.md {card['agents_md_lines']} lines, work/current.md {card['work_current_lines']}, "
+              f"{len(top)} top-level folders, {len(big)} big files, {len(blocks)} long comment blocks")
+    return 1 if problems else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

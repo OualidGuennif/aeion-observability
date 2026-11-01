@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Deno's built-in language server; the desktop app's PATH may lack ~/.deno/bin, so look there too.
+# Spec: knowledge/operations/build-and-test.md
+set -euo pipefail
+DENO="$(command -v deno || true)"
+[[ -n "$DENO" ]] || DENO="$HOME/.deno/bin/deno"
+[[ -x "$DENO" ]] || { echo "deno-lsp: deno not found" >&2; exit 1; }
+exec "$DENO" lsp

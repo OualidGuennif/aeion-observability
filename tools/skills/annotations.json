@@ -1,0 +1,23 @@
+[
+  {
+    "file": "third-party/ecc/skills/taste-application/scripts/pipeline.py",
+    "source_sha256": "1528bde87c5f1193ebda8cb59a63baa2cfaea0e3543cb68d0de0e41c0c0ec2aa",
+    "needle": "    rc = subprocess.run(_command(vcmd)).returncode",
+    "rule": "python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args",
+    "reason": "The executable and verifier script are fixed; arguments stay an argv list and shell is never enabled."
+  },
+  {
+    "file": "third-party/ecc/skills/taste-application/scripts/taste/timeline.py",
+    "source_sha256": "bbd8c53139dea08edecfd9fdf2c028b197097488fc1f57a7acef74536f0b2623",
+    "needle": "        ET.parse(p1)",
+    "rule": "python.lang.security.use-defused-xml-parse.use-defused-xml-parse",
+    "reason": "The self-check parses only the XML emitted immediately above into its own private temporary directory."
+  },
+  {
+    "file": "third-party/ecc/skills/taste-distillation/scripts/taste/timeline.py",
+    "source_sha256": "bbd8c53139dea08edecfd9fdf2c028b197097488fc1f57a7acef74536f0b2623",
+    "needle": "        ET.parse(p1)",
+    "rule": "python.lang.security.use-defused-xml-parse.use-defused-xml-parse",
+    "reason": "The self-check parses only the XML emitted immediately above into its own private temporary directory."
+  }
+]

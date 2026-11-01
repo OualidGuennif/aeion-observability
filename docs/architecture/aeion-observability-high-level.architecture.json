@@ -1,0 +1,290 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "AEion Observability - high level",
+    "output": "aeion-observability-high-level.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "knowledge",
+      "type": "external",
+      "label": "Knowledge and contracts",
+      "sublabel": "specs, policies, sources",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        190,
+        56
+      ]
+    },
+    {
+      "id": "offline",
+      "type": "backend",
+      "label": "Offline examples",
+      "sublabel": "synthetic fixtures + unittest",
+      "pos": [
+        40,
+        160
+      ],
+      "size": [
+        190,
+        60
+      ],
+      "tag": "no service, no key"
+    },
+    {
+      "id": "owner",
+      "type": "external",
+      "label": "Owner / operator",
+      "sublabel": "browser cockpit",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        130,
+        56
+      ]
+    },
+    {
+      "id": "cockpit",
+      "type": "backend",
+      "label": "Host-native cockpit",
+      "sublabel": "demo/app: policy, lifecycle",
+      "pos": [
+        210,
+        294
+      ],
+      "size": [
+        180,
+        68
+      ]
+    },
+    {
+      "id": "relay",
+      "type": "security",
+      "label": "Counting relay",
+      "sublabel": "admission + reservation",
+      "pos": [
+        420,
+        298
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "tag": "300k budget"
+    },
+    {
+      "id": "harness",
+      "type": "backend",
+      "label": "Flue + Pi harness",
+      "sublabel": "flue-openshell-v1",
+      "pos": [
+        610,
+        298
+      ],
+      "size": [
+        160,
+        60
+      ]
+    },
+    {
+      "id": "tiers",
+      "type": "security",
+      "label": "Execution tiers",
+      "sublabel": "triage / local / OpenShell",
+      "pos": [
+        610,
+        420
+      ],
+      "size": [
+        160,
+        60
+      ]
+    },
+    {
+      "id": "provider",
+      "type": "cloud",
+      "label": "Inference provider",
+      "sublabel": "OpenRouter / DeepInfra / CLI",
+      "pos": [
+        830,
+        294
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "observer",
+      "type": "backend",
+      "label": "Metadata-only observer",
+      "sublabel": "telemetry.py",
+      "pos": [
+        420,
+        430
+      ],
+      "size": [
+        160,
+        56
+      ]
+    },
+    {
+      "id": "collector",
+      "type": "backend",
+      "label": "OTel collector",
+      "sublabel": "otel-collector.yaml",
+      "pos": [
+        210,
+        540
+      ],
+      "size": [
+        160,
+        56
+      ]
+    },
+    {
+      "id": "langfuse",
+      "type": "database",
+      "label": "Langfuse",
+      "sublabel": "web + worker",
+      "pos": [
+        420,
+        540
+      ],
+      "size": [
+        150,
+        56
+      ]
+    },
+    {
+      "id": "stores",
+      "type": "database",
+      "label": "Postgres / ClickHouse / MinIO",
+      "sublabel": "traces and objects",
+      "pos": [
+        610,
+        540
+      ],
+      "size": [
+        190,
+        56
+      ],
+      "tag": "Redis queue"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Local Docker pilot (opt-in)",
+      "wraps": [
+        "collector",
+        "langfuse",
+        "stores"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "owner-cockpit",
+      "from": "owner",
+      "to": "cockpit",
+      "label": "task",
+      "variant": "emphasis"
+    },
+    {
+      "id": "cockpit-relay",
+      "from": "cockpit",
+      "to": "relay",
+      "label": "admit"
+    },
+    {
+      "id": "relay-provider",
+      "from": "relay",
+      "to": "provider",
+      "label": "forwarded request"
+    },
+    {
+      "id": "relay-harness",
+      "from": "relay",
+      "to": "harness",
+      "label": "request"
+    },
+    {
+      "id": "harness-tiers",
+      "from": "harness",
+      "to": "tiers",
+      "label": "dispatch"
+    },
+    {
+      "id": "harness-observer",
+      "from": "harness",
+      "to": "observer",
+      "label": "events, usage",
+      "variant": "dashed"
+    },
+    {
+      "id": "observer-collector",
+      "from": "observer",
+      "to": "collector",
+      "label": "OTLP metadata",
+      "variant": "dashed"
+    },
+    {
+      "id": "collector-langfuse",
+      "from": "collector",
+      "to": "langfuse",
+      "label": "traces"
+    },
+    {
+      "id": "langfuse-stores",
+      "from": "langfuse",
+      "to": "stores",
+      "label": "persist"
+    },
+    {
+      "id": "offline-knowledge",
+      "from": "offline",
+      "to": "knowledge",
+      "label": "evidence",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "What it optimizes",
+      "items": [
+        "cost per verified autonomous success",
+        "elapsed time and corrective work",
+        "bounded recommendations inside fixed authority"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "What it refuses",
+      "items": [
+        "raw prompts or secrets in default telemetry",
+        "widening OPS/CROA permissions or removing review gates",
+        "synthetic examples reported as measured gains"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Evidence limits",
+      "items": [
+        "40-attempt OpenShell matrix: synthetic, real CLI calls",
+        "Flue + Pi harness qualified with fake inference only",
+        "no paid Flue campaign yet"
+      ]
+    }
+  ]
+}

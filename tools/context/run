@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+# Spec: knowledge/operations/context-safety.md
+"""Launch the supported checkpoint profile; strict admission is explicitly unsupported."""
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+root = Path(__file__).resolve().parents[2]
+arguments = sys.argv[1:]
+if "--strict" in arguments:
+    sys.exit("UNSUPPORTED: strict pre-request 300k admission has not been qualified for this runtime.")
+if any(value.startswith("--autocompact") for value in arguments):
+    sys.exit("Æion Factory owns --autocompact; use the 250000-token checkpoint profile.")
+if os.environ.get("DISABLE_AUTO_COMPACT") or os.environ.get("DISABLE_COMPACT"):
+    sys.exit("Æion Factory requires native compaction; remove the disabling environment override.")
+# The baseline needs local installs, which the user approves; its absence is a warning, not a refusal.
+result = subprocess.run([str(root / "tools/architecture/refresh"), "--check", "--target", "HEAD"], cwd=root)
+if result.returncode:
+    print("Æion Factory: no verified Graphify/Archify baseline for this commit. It is strongly recommended and never "
+          "installed automatically; see knowledge/operations/architecture-maintenance.md. Continuing.", file=sys.stderr)
+os.environ["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = "250000"
+os.chdir(root)
+os.execvp("claude", ["claude", "--autocompact", "250000", *arguments])

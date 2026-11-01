@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+# Spec: knowledge/operations/agent-compatibility.md
+"""Launch one native agent from this project, recommending (never installing) its architecture baseline."""
+import os
+import re
+from pathlib import Path
+import subprocess
+import sys
+
+root = Path(__file__).resolve().parents[2]
+if len(sys.argv) < 2 or sys.argv[1] not in {'claude', 'codex', 'opencode', 'pi', 'dsh', 'devin', 'droid', 'antigravity'}:
+    sys.exit('usage: tools/agents/run <claude|codex|opencode|pi|dsh|devin|droid|antigravity> [native arguments]')
+provider, arguments = sys.argv[1], sys.argv[2:]
+if '--strict' in arguments:
+    sys.exit('UNSUPPORTED: strict pre-request 300k admission is not qualified for any Æion Factory adapter.')
+os.chdir(root)
+os.environ['PWD'] = str(root)
+if provider == 'claude':
+    sys.exit(subprocess.run(['./tools/context/run', *arguments], cwd=root, shell=False).returncode)
+# The baseline needs local installs, which the user approves; its absence is a warning, not a refusal.
+if subprocess.run([str(root / 'tools/architecture/refresh'), '--check', '--target', 'HEAD'], cwd=root).returncode:
+    print('Æion Factory: no verified Graphify/Archify baseline for this commit. It is strongly recommended and never '
+          'installed automatically; see knowledge/operations/architecture-maintenance.md. Continuing.', file=sys.stderr)
+if provider == 'codex':
+    for value in arguments:
+        if any(key in value for key in ('model_auto_compact_token_limit', 'features.hooks', 'disableAllHooks')):
+            sys.exit('Æion Factory owns native compaction/hook settings in managed launches.')
+    arguments = ['-C', str(root), '-c', 'model_auto_compact_token_limit=250000', '-c', 'features.hooks=true', *arguments]
+if provider == 'opencode' and '--isolated' in arguments:
+    arguments.remove('--isolated')
+    for kind in ('DATA', 'CONFIG', 'STATE', 'CACHE'):
+        path = root / '.aeion/opencode' / kind.lower()
+        path.mkdir(parents=True, exist_ok=True)
+        os.environ[f'XDG_{kind}_HOME'] = str(path)
+if provider == 'opencode':
+    try:
+        result = subprocess.run(['opencode', '--version'], cwd=root, capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        sys.exit('OpenCode 2.1.4+ is required; install it using the official V2 instructions.')
+    version = re.search(r'\bv?(\d+)\.(\d+)\.(\d+)\b', result.stdout)
+    if result.returncode or not version or tuple(map(int, version.groups())) < (2, 1, 4):
+        sys.exit('Æion Factory requires OpenCode 2.1.4+ native V2 hooks; older skill discovery does not prove hook support.')
+if provider == 'pi':
+    # Pi 1.4.0 is the release whose extension events (tool_call, session_before_compact) the adapter uses.
+    try:
+        result = subprocess.run(['pi', '--version'], cwd=root, capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        sys.exit('Pi 1.4.0+ is required; install it using the official instructions.')
+    version = re.search(r'\bv?(\d+)\.(\d+)\.(\d+)\b', result.stdout + result.stderr)
+    if result.returncode or not version or tuple(map(int, version.groups())) < (1, 4, 0):
+        sys.exit('Æion Factory requires Pi 1.4.0+ for its extension events.')
+    sys.exit(subprocess.run(['pi', *arguments], cwd=root, shell=False).returncode)
+if provider == 'dsh':
+    # dsh loads project plugins only from a patch overlay; the profile comes first. dsh ships no tui profile:
+    # web (a browser UI) is the interactive one, headless answers one task.
+    profile, rest = (arguments[0], arguments[1:]) if arguments and not arguments[0].startswith('-') else ('web', arguments)
+    patch = ['--patch', str(root / '.dsh/factory.patch.yml')]
+    sys.exit(subprocess.run(['dsh', '--profile', profile, *patch, *rest], cwd=root, shell=False).returncode)
+if provider == 'codex':
+    sys.exit(subprocess.run(['codex', *arguments], cwd=root, shell=False).returncode)
+if provider == 'devin':
+    sys.exit(subprocess.run(['devin', *arguments], cwd=root, shell=False).returncode)
+if provider == 'droid':
+    sys.exit(subprocess.run(['droid', *arguments], cwd=root, shell=False).returncode)
+if provider == 'antigravity':
+    sys.exit(subprocess.run(['agy', *arguments], cwd=root, shell=False).returncode)
+sys.exit(subprocess.run(['opencode', *arguments], cwd=root, shell=False).returncode)

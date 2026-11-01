@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Spec: knowledge/operations/build-and-test.md
+# The factory's own test suites, in the order CI runs them; the first failure stops the run.
+# One command keeps AGENTS.md short enough for a project to add its own build lines.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+run() {
+  echo "== $*"
+  "$@"
+}
+
+run python3 tools/knowledge/tests/test_doc_links.py
+run python3 tools/knowledge/tests/test_knowledge_check.py
+run python3 tools/knowledge/tests/test_stale.py
+run python3 tools/knowledge/tests/test_orphans.py
+run python3 tools/skills/tests/test_pool.py
+run python3 tools/skills/tests/test_lint.py
+run python3 tools/skills/pool.py check
+run python3 .claude/hooks/test_hooks.py
+run python3 .claude/hooks/test_token_feedback.py
+run python3 tools/repo-health/tests/test_repo_health.py
+run python3 tools/git-hooks/tests/test_pre_push.py
+run python3 tools/release/tests/test_release.py
+run python3 tools/context/tests/test_budget.py
+run python3 tools/architecture/tests/test_refresh.py
+run python3 tools/architecture/tests/test_ask.py
+run python3 tools/architecture/tests/test_gallery.py
+run python3 tools/agents/tests/test_hooks.py
+run node --test tools/agents/tests/test_opencode.mjs
+run node --test tools/agents/tests/test_pi.mjs
+run node --test tools/agents/tests/test_dsh.mjs
+run python3 tools/evals/tests/test_evals.py
+run python3 tools/loops/tests/test_loops.py
+echo "factory-tests: PASS"

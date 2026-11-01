@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# The project's own TypeScript 7 compiler as the language server, never a global tsc; stdout is the
+# protocol, so messages go to stderr. Spec: knowledge/operations/build-and-test.md
+set -euo pipefail
+ROOT="${CLAUDE_PROJECT_DIR:?CLAUDE_PROJECT_DIR is not set}"
+# The root first, then one and two levels down (apps/*, packages/*, services/*).
+for dir in "$ROOT" "$ROOT"/* "$ROOT"/*/*; do
+    if [[ -x "$dir/node_modules/.bin/tsc" ]] \
+        && grep -q '"version": "7\.' "$dir/node_modules/typescript/package.json" 2>/dev/null; then
+        exec "$dir/node_modules/.bin/tsc" --lsp --stdio
+    fi
+done
+echo "tsc-lsp: no TypeScript 7 install under $ROOT; run npm ci first" >&2
+exit 1

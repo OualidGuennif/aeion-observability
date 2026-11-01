@@ -1,0 +1,593 @@
+#!/usr/bin/env python3
+# Spec: knowledge/components/graph-queries.md
+"""Exact, deterministic answers to structural questions, from a Graphify graph of the working tree
+that is rebuilt only when a project file changed, and type-resolved callers from the project's own
+language server. No language model is involved."""
+import argparse
+import collections
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import select
+import shutil
+import subprocess
+import sys
+import time
+
+FACTORY = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(FACTORY / ".claude/hooks"))
+from secret_names import is_secret  # noqa: E402
+from project_files import inside, nested_projects, project_files  # noqa: E402
+
+VENV_PYTHON = FACTORY / ".aeion/integrations/graphify-venv/bin/python"
+GRAPH_SCRIPT = FACTORY / "tools/architecture/graph.py"
+CODE = {"imports", "imports_from", "re_exports", "calls", "indirect_call", "inherits", "names_file", "dynamic_import"}
+IMPORTS = {"imports", "imports_from", "re_exports", "dynamic_import"}
+TEST_NAME = re.compile(r"(^|/)(tests?/|test_[^/]*$|[^/]*[._]test\.[^/]+$|[^/]*\.spec\.[^/]+$)")
+CONFIG = (".json", ".jsonc", ".yml", ".yaml", ".toml", ".lock")
+MAX_BYTES = 1_000_000
+CAP = 40
+LSP_TIMEOUT = 60
+LSP_SOURCES = (".ts", ".tsx", ".mts", ".js", ".jsx")
+
+
+class Refusal(Exception):
+    """An answer that is not a result: the exit code and the lines that explain it."""
+    def __init__(self, code, lines):
+        super().__init__(code)
+        self.code, self.lines = code, lines
+
+
+def is_test(path):
+    return bool(TEST_NAME.search(path))
+
+
+def place(where):
+    """A `file:line` as a sort key, so line 9 comes before line 10."""
+    path, _, line = where.rpartition(":")
+    return (path, int(line)) if line.isdigit() else (where, 0)
+
+
+# --- The working graph ------------------------------------------------------------------------
+
+def corpus(root):
+    """The files the graph covers: the project's files, without secrets, generated state, nested
+    projects or files too large to be source."""
+    files = project_files(root, untracked=True)
+    nested = nested_projects(files)
+    kept = []
+    for rel in files:
+        path = root / rel
+        if is_secret(Path(rel).name) or rel.startswith(".aeion/") or inside(rel, nested) or path.is_symlink():
+            continue
+        try:
+            if path.is_file() and path.stat().st_size <= MAX_BYTES:
+                kept.append(rel)
+        except OSError:
+            continue
+    return kept
+
+
+def fingerprint(root, files):
+    """Changes when a file is added, removed or edited, or when the extraction code changes."""
+    digest = hashlib.sha256(GRAPH_SCRIPT.read_bytes())
+    digest.update((FACTORY / "tools/architecture/integrations.json").read_bytes())
+    for rel in files:
+        stat = (root / rel).stat()
+        digest.update(f"{rel}\0{stat.st_size}\0{stat.st_mtime_ns}\n".encode())
+    return digest.hexdigest()
+
+
+def working_graph(root):
+    """Load .aeion/graph/graph.json, rebuilding it first under a lock when the fingerprint changed."""
+    out = root / ".aeion/graph"
+    out.mkdir(parents=True, exist_ok=True)
+    with (out / "build.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        files = corpus(root)
+        current = fingerprint(root, files)
+        stamp = out / "fingerprint"
+        rebuilt = not (stamp.is_file() and stamp.read_text().strip() == current and (out / "graph.json").is_file())
+        if rebuilt:
+            build(root, out, files)
+            # The stamp is written last, so an interrupted build is redone on the next call.
+            stamp.write_text(current + "\n")
+    graph = json.loads((out / "graph.json").read_text())
+    coverage = json.loads((out / "coverage.json").read_text())
+    return graph, coverage, {"fingerprint": current[:12], "rebuilt": rebuilt}
+
+
+def build(root, out, files):
+    if not VENV_PYTHON.is_file():
+        raise Refusal(1, ["FAIL the Graphify venv is missing: run tools/architecture/setup (on the user's yes)."])
+    manifest = out / "manifest.json"
+    manifest.write_text(json.dumps([{"path": rel, "required": False} for rel in files]))
+    result = subprocess.run([str(VENV_PYTHON), str(GRAPH_SCRIPT), str(root), str(out), str(manifest)],
+                            capture_output=True, text=True, timeout=600)
+    if result.returncode:
+        raise Refusal(1, ["FAIL the graph build failed:", *result.stderr.strip().splitlines()[-5:]])
+
+
+class Graph:
+    """Node and file-level views of graph.json; every list it returns is sorted."""
+
+    def __init__(self, data):
+        self.nodes = {node["id"]: node for node in data["nodes"]}
+        edges = data.get("links", data.get("edges", []))
+        self.files = {}
+        for node_id, node in self.nodes.items():
+            source, label = node.get("source_file", ""), node.get("label", "")
+            # Graphify labels a file by its name, or by a longer suffix when two files share it.
+            if source and (label == Path(source).name or label.endswith("/" + Path(source).name)):
+                self.files.setdefault(source, node_id)
+        # Graphify infers a cross-file call by name alone; keep it only when the caller's file imports
+        # the callee's file, so a shared name such as main() or build() draws no false dependency.
+        imported = {(self.file(e["source"]), self.file(e["target"])) for e in edges if e["relation"] in IMPORTS}
+        self.edges = [e for e in edges if e.get("confidence") != "INFERRED" or e["relation"] not in CODE
+                      or self.file(e["source"]) == self.file(e["target"])
+                      or (self.file(e["source"]), self.file(e["target"])) in imported]
+        self.dropped = len(edges) - len(self.edges)
+        self.symbols = collections.Counter(self.file(node_id) for node_id in self.nodes
+                                           if self.nodes[node_id].get("file_type") == "code"
+                                           and node_id not in self.files.values())
+
+    def source(self, path):
+        """A file with symbols that is neither a test nor configuration."""
+        return bool(self.symbols[path]) and not is_test(path) and not path.endswith(CONFIG)
+
+    def file(self, node_id):
+        return self.nodes.get(node_id, {}).get("source_file", "")
+
+    def where(self, node_id):
+        node = self.nodes[node_id]
+        line = str(node.get("source_location", "")).lstrip("L")
+        return f"{node['source_file']}:{line}" if node.get("source_file") and line else node.get("source_file") or "external"
+
+    def evidence(self, edge):
+        line = str(edge.get("source_location", "")).lstrip("L")
+        return f"{edge.get('source_file', '')}:{line}" if line else edge.get("source_file", "")
+
+    def file_links(self, relations):
+        """{file: {other file: (relation, evidence)}} with the earliest evidence for each pair."""
+        links = collections.defaultdict(dict)
+        for edge in sorted(self.edges, key=lambda e: (place(self.evidence(e)), e["relation"], e["source"], e["target"])):
+            if edge["relation"] not in relations:
+                continue
+            source, target = self.file(edge["source"]), self.file(edge["target"])
+            if source and target and source != target and target not in links[source]:
+                links[source][target] = (edge["relation"], self.evidence(edge))
+        return links
+
+    def resolve(self, name):
+        """A file path, a label, a label without its `()` or a node id; exact only, never guessed."""
+        name = name.strip().removeprefix("./")
+        if name in self.files:
+            return self.files[name]
+        if name in self.nodes and self.nodes[name].get("file_type") != "rationale":
+            return name
+        found = sorted((node_id for node_id, node in self.nodes.items()
+                        if node.get("file_type") != "rationale" and node.get("source_file")
+                        and node.get("label") in (name, f"{name}()", f".{name}()")),
+                       key=lambda node_id: (place(self.where(node_id)), node_id))
+        if not found:
+            raise Refusal(4, [f"no node is named {name!r} (exact match on path, label or id); try `find`"])
+        if len(found) > 1:
+            raise Refusal(3, [f"{name!r} is ambiguous; name one of these by id:"] +
+                          [f"  {node_id}  {self.nodes[node_id]['label']}  {self.where(node_id)}" for node_id in found])
+        return found[0]
+
+
+# --- Commands: each returns rows of (text, data) ---------------------------------------------
+
+def reach(links, start):
+    """{file: (depth, previous file)} for every file reachable from start."""
+    seen, frontier, depth = {start: (0, None)}, [start], 0
+    while frontier:
+        depth += 1
+        following = []
+        for current in frontier:
+            for nxt in sorted(links.get(current, {})):
+                if nxt not in seen:
+                    seen[nxt] = (depth, current)
+                    following.append(nxt)
+        frontier = following
+    return seen
+
+
+def hops(seen, links, goal):
+    chain = [goal]
+    while seen[chain[-1]][1] is not None:
+        chain.append(seen[chain[-1]][1])
+    chain.reverse()
+    return [(a, b, *links[a][b]) for a, b in zip(chain, chain[1:])]
+
+
+def cmd_status(graph, coverage, args):
+    no_symbol = sorted(path for path in graph.files if graph.nodes[graph.files[path]].get("file_type") == "code"
+                       and not graph.symbols[path])
+    facts = [("nodes", len(graph.nodes)), ("edges", len(graph.edges)), ("files", len(graph.files)),
+             ("inferred calls dropped (no import between the files)", graph.dropped),
+             ("inventory only (no extractor)", len(coverage.get("inventory_only", []))),
+             ("code files without a symbol", len(no_symbol)),
+             ("toolchain imports", coverage.get("toolchain_imports", "not recorded")),
+             ("unresolved Spec: lines", len(coverage.get("unresolved_spec_lines", []))),
+             ("unresolved frontmatter sources", len(coverage.get("unresolved_spec_sources", [])))]
+    rows = [(f"{key}: {value}", {"fact": key, "value": value}) for key, value in facts]
+    return rows + [(f"  no symbol: {path}", {"no_symbol": path}) for path in no_symbol]
+
+
+def cmd_find(graph, coverage, args):
+    name = args.name.strip().removeprefix("./")
+    if name in graph.files:
+        found = [graph.files[name]]
+    else:
+        found = sorted((node_id for node_id, node in graph.nodes.items() if node.get("file_type") != "rationale"
+                        and (node_id == name or node.get("label") in (name, f"{name}()", f".{name}()"))),
+                       key=lambda node_id: (place(graph.where(node_id)), node_id))
+    if not found:
+        raise Refusal(4, [f"no node is named {name!r} (exact match on path, label or id)"])
+    return [(f"{graph.where(n)}  {graph.nodes[n]['label']}  [{graph.nodes[n].get('file_type', '')}]  id={n}",
+             {"id": n, "label": graph.nodes[n]["label"], "where": graph.where(n)}) for n in found]
+
+
+def cmd_deps(graph, coverage, args, reverse=False):
+    target = graph.resolve(args.name)
+    if target in graph.files.values():
+        links = graph.file_links(CODE)
+        if reverse:
+            backwards = collections.defaultdict(dict)
+            for source, targets in links.items():
+                for other, why in targets.items():
+                    backwards[other][source] = why
+            links = backwards
+        seen = reach(links, graph.file(target))
+        depth = getattr(args, "depth", 1)
+        rows = []
+        for path, (level, previous) in sorted(seen.items(), key=lambda item: (item[1][0], item[0])):
+            if 0 < level <= depth:
+                relation, where = links[previous][path]
+                via = "" if level == 1 else f" via {previous}"
+                rows.append((f"{path}  [{relation} at {where}]{via}" + (f"  depth {level}" if depth > 1 else ""),
+                             {"file": path, "relation": relation, "evidence": where, "depth": level, "via": previous}))
+        if not reverse:
+            external = sorted({graph.nodes[e["target"]]["label"] for e in graph.edges
+                               if e["relation"] in IMPORTS and graph.file(e["source"]) == graph.file(target)
+                               and not graph.file(e["target"])})
+            if external:
+                rows.append((f"external: {', '.join(external)}", {"external": external}))
+        return rows
+    key, other = ("target", "source") if reverse else ("source", "target")
+    edges = sorted((e for e in graph.edges if e[key] == target and e["relation"] in CODE),
+                   key=lambda e: (place(graph.where(e[other])), e["relation"]))
+    return [(f"{graph.where(e[other])}  {graph.nodes[e[other]]['label']}  [{e['relation']} at {graph.evidence(e)}]",
+             {"id": e[other], "label": graph.nodes[e[other]]["label"], "where": graph.where(e[other]),
+              "relation": e["relation"], "evidence": graph.evidence(e)}) for e in edges]
+
+
+def cmd_path(graph, coverage, args):
+    start, goal = graph.file(graph.resolve(args.source)), graph.file(graph.resolve(args.target))
+    for kind, relations in (("imports", IMPORTS), ("imports and calls", CODE)):
+        links = graph.file_links(relations)
+        seen = reach(links, start)
+        if goal in seen:
+            return [(f"{a} -> {b}  [{relation} at {where}]", {"from": a, "to": b, "relation": relation, "evidence": where})
+                    for a, b, relation, where in hops(seen, links, goal)] or [(f"{start} is {goal}", {"same_file": start})]
+    reached = sorted(set(reach(graph.file_links(CODE), start)) - {start})
+    return [(f"no edge path: {start} reaches {len(reached)} files by imports and calls, not {goal}; "
+             "the missing hop may be a method called on an object (ask callers <file>:<method>) or a runtime link",
+             {"path": None, "from": start, "to": goal, "reached": reached})]
+
+
+def test_reach(graph):
+    """{test file: {file: (how, via)}} for every file each test reaches."""
+    links = graph.file_links(CODE)
+    named = {(s, t) for s, targets in links.items() for t, (relation, _) in targets.items() if relation == "names_file"}
+    result = {}
+    for test in sorted(path for path in graph.files if is_test(path)):
+        seen = reach(links, test)
+        result[test] = {}
+        for path, (level, previous) in seen.items():
+            if level == 0:
+                continue
+            how = "named" if (test, path) in named else "direct" if level == 1 else "transitive"
+            result[test][path] = (how, " -> ".join(a for a, *_ in hops(seen, links, path)[1:]) if level > 1 else "")
+    return result
+
+
+def cmd_tests(graph, coverage, args):
+    path = graph.file(graph.resolve(args.name))
+    rows = []
+    for test, reached in test_reach(graph).items():
+        if path in reached:
+            how, via = reached[path]
+            rows.append((f"{test}  {how}" + (f" via {via}" if via else ""), {"test": test, "how": how, "via": via}))
+    order = {"direct": 0, "named": 1, "transitive": 2}
+    rows.sort(key=lambda row: (order[row[1]["how"]], row[1]["test"]))
+    return rows or [(f"no test reaches {path}", {"test": None})]
+
+
+def cmd_untested(graph, coverage, args):
+    best = {}
+    order = {"direct": 0, "named": 1, "transitive": 2}
+    for reached in test_reach(graph).values():
+        for path, (how, _) in reached.items():
+            if path not in best or order[how] < order[best[path]]:
+                best[path] = how
+    sources = sorted(path for path in graph.files if graph.source(path))
+    counts = collections.Counter(best.get(path, "none") for path in sources)
+    rows = [(f"{len(sources)} source files: {counts['direct']} imported by a test, {counts['named']} named by a test, "
+             f"{counts['transitive']} reached through others, {counts['none']} reached by none",
+             {"sources": len(sources), **{key: counts[key] for key in ("direct", "named", "transitive", "none")}})]
+    return rows + [(f"untested: {path}", {"untested": path}) for path in sources if path not in best]
+
+
+def spec_pairs(graph):
+    """{(file, doc): set of origins} from frontmatter `specifies` and `Spec:`-line `specified_by` edges."""
+    pairs = collections.defaultdict(set)
+    for edge in graph.edges:
+        if edge["relation"] == "specifies":
+            pairs[(graph.file(edge["target"]), graph.file(edge["source"]))].add("frontmatter")
+        elif edge["relation"] == "specified_by":
+            pairs[(graph.file(edge["source"]), graph.file(edge["target"]))].add("Spec: line")
+    return pairs
+
+
+def describe(graph, pairs, source, doc):
+    """How a file and a spec name each other. Only `no Spec: line` and `missing from the spec's sources`
+    are gaps to fix; a file two specs list, whose header names one of them, is shared, not in conflict."""
+    origins = pairs[(source, doc)]
+    if len(origins) == 2:
+        return "both"
+    if "frontmatter" in origins:
+        named = sorted(other for (path, other), found in pairs.items() if path == source and "Spec: line" in found)
+        if named:
+            return f"in the spec's sources; its Spec: line names {', '.join(Path(n).name for n in named)}"
+        kind = graph.nodes[graph.files[source]].get("file_type") if source in graph.files else ""
+        return "in the spec's sources; no Spec: line (gap)" if kind == "code" else "in the spec's sources"
+    if is_test(source):
+        return "test, Spec: line"
+    return "Spec: line; missing from the spec's sources (gap)"
+
+
+def cmd_spec(graph, coverage, args):
+    path = graph.file(graph.resolve(args.name))
+    pairs = spec_pairs(graph)
+    rows = [(f"{doc}  [{describe(graph, pairs, source, doc)}]",
+             {"spec": doc, "origins": sorted(origins), "note": describe(graph, pairs, source, doc)})
+            for (source, doc), origins in sorted(pairs.items()) if source == path]
+    return rows or [(f"no spec names {path}, and it names none", {"spec": None})]
+
+
+def cmd_files(graph, coverage, args):
+    doc = graph.file(graph.resolve(args.name))
+    pairs = spec_pairs(graph)
+    rows = [(f"{source}  [{describe(graph, pairs, source, spec)}]",
+             {"file": source, "origins": sorted(origins), "note": describe(graph, pairs, source, spec)})
+            for (source, spec), origins in sorted(pairs.items()) if spec == doc]
+    return rows or [(f"{doc} covers no file", {"file": None})]
+
+
+def cmd_hubs(graph, coverage, args):
+    links = graph.file_links(CODE)
+    fan_in = collections.Counter(target for targets in links.values() for target in targets)
+    candidates = [path for path in graph.files if graph.source(path)]
+    ranked = sorted(candidates, key=lambda path: (-fan_in[path], -len(links.get(path, {})), path))[:args.top]
+    return [(f"{path}  used by {fan_in[path]} files, uses {len(links.get(path, {}))}",
+             {"file": path, "fan_in": fan_in[path], "fan_out": len(links.get(path, {}))}) for path in ranked]
+
+
+# --- Type-resolved callers ---------------------------------------------------------------------
+
+def language_server(root, path):
+    """The project's own server for this file: the nearest deno.json above it, else a TypeScript 7 install."""
+    for folder in [path.parent, *path.parent.parents]:
+        if not folder.is_relative_to(root):
+            break
+        if (folder / "deno.json").is_file() or (folder / "deno.jsonc").is_file():
+            # The desktop app's PATH may lack ~/.deno/bin, as tools/claude-plugins/deno-lsp knows.
+            deno = shutil.which("deno") or str(Path.home() / ".deno/bin/deno")
+            if not os.access(deno, os.X_OK):
+                raise Refusal(1, [f"FAIL {folder.relative_to(root).as_posix() or '.'} is a Deno project but deno is not "
+                                  "installed; nothing is installed."])
+            return folder, [deno, "lsp"]
+        tsc = folder / "node_modules/.bin/tsc"
+        version = folder / "node_modules/typescript/package.json"
+        if tsc.is_file() and version.is_file() and '"version": "7.' in version.read_text(errors="replace"):
+            return folder, [str(tsc), "--lsp", "--stdio"]
+    raise Refusal(1, [f"FAIL no language server for {path.relative_to(root).as_posix()}: callers needs a deno.json or "
+                      "a TypeScript 7 install above it, and installs nothing. Search instead: rg -n '\\b<name>\\('"])
+
+
+class LanguageServer:
+    """One JSON-RPC session over stdio with the project's language server, for one question."""
+    def __init__(self, command, folder):
+        self.process = subprocess.Popen(command, cwd=folder, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                        stderr=subprocess.DEVNULL)
+        self.deadline = time.monotonic() + LSP_TIMEOUT
+        self.buffer, self.last = b"", 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.process.kill()
+        self.process.wait()
+        self.process.stdin.close()
+        self.process.stdout.close()
+
+    def write(self, message):
+        body = json.dumps({"jsonrpc": "2.0", **message}).encode()
+        self.process.stdin.write(b"Content-Length: %d\r\n\r\n" % len(body) + body)
+        self.process.stdin.flush()
+
+    def notify(self, method, params):
+        self.write({"method": method, "params": params})
+
+    def read(self):
+        """The next message; past the deadline or at the server's exit, a refusal, never a hang."""
+        while True:
+            end = self.buffer.find(b"\r\n\r\n")
+            length = re.search(rb"Content-Length: *(\d+)", self.buffer[:end], re.I) if end >= 0 else None
+            if length and len(self.buffer) >= end + 4 + int(length.group(1)):
+                stop = end + 4 + int(length.group(1))
+                body, self.buffer = self.buffer[end + 4:stop], self.buffer[stop:]
+                return json.loads(body)
+            remaining = self.deadline - time.monotonic()
+            if remaining <= 0 or not select.select([self.process.stdout], [], [], remaining)[0]:
+                raise Refusal(1, [f"FAIL the language server gave no answer within {LSP_TIMEOUT} s."])
+            chunk = os.read(self.process.stdout.fileno(), 65536)
+            if not chunk:
+                raise Refusal(1, ["FAIL the language server stopped before it answered."])
+            self.buffer += chunk
+
+    def request(self, method, params):
+        self.last += 1
+        self.write({"id": self.last, "method": method, "params": params})
+        while True:
+            message = self.read()
+            if "method" in message and "id" in message:
+                # The server asks for settings: Deno's are {"enable": true}; anything else gets null.
+                items = message.get("params", {}).get("items", [])
+                result = [{"enable": True}] * len(items) if message["method"] == "workspace/configuration" else None
+                self.write({"id": message["id"], "result": result})
+            elif message.get("id") == self.last:
+                if "error" in message:
+                    raise Refusal(1, [f"FAIL the language server refused {method}: {message['error'].get('message')}"])
+                return message.get("result")
+
+
+def symbols(items, parents=()):
+    """documentSymbol results, flattened to (name, kind, line, character, container)."""
+    for item in items or []:
+        where = item.get("selectionRange") or item.get("location", {}).get("range", {})
+        start = where.get("start", {})
+        yield item["name"], item.get("kind"), start.get("line", 0), start.get("character", 0), ".".join(parents)
+        yield from symbols(item.get("children"), (*parents, item["name"]))
+
+
+def target_symbol(found, rel, wanted):
+    """The one symbol `wanted` (a name, or a 1-based line) names in the file; nothing is guessed."""
+    if wanted.isdigit():
+        matches = [s for s in found if s[2] + 1 == int(wanted)]
+    else:
+        matches = [s for s in found if s[0] == wanted]
+    if not matches:
+        raise Refusal(4, [f"no symbol {wanted!r} in {rel}; check the name against the file, or give file:line"])
+    if len(matches) > 1:
+        raise Refusal(3, [f"{wanted!r} names {len(matches)} symbols in {rel}; give one as {rel}:<line>:"]
+                      + [f"  {rel}:{line + 1}  {'.'.join(filter(None, (container, name)))}"
+                         for name, _, line, _, container in sorted(matches, key=lambda s: (s[2], s[3]))])
+    return matches[0]
+
+
+def relative(uri, root):
+    path = Path(uri.removeprefix("file://"))
+    return path.relative_to(root).as_posix() if path.is_relative_to(root) else None
+
+
+def cmd_callers(root, args):
+    rel, _, wanted = args.target.rpartition(":")
+    path = (root / rel).resolve()
+    if not rel or not wanted or not path.is_file() or not path.is_relative_to(root) or is_secret(path.name):
+        raise Refusal(2, [f"callers takes <file>:<name or line> for a file in the project, not {args.target!r}"])
+    folder, command = language_server(root, path)
+    with LanguageServer(command, folder) as server:
+        # Deno reads its settings from initializationOptions; the folder scopes the project.
+        capabilities = (server.request("initialize", {
+            "processId": os.getpid(), "rootUri": folder.as_uri(),
+            "workspaceFolders": [{"uri": folder.as_uri(), "name": folder.name}],
+            "capabilities": {"textDocument": {"callHierarchy": {}, "references": {}, "documentSymbol": {
+                "hierarchicalDocumentSymbolSupport": True}}, "workspace": {"workspaceFolders": True, "configuration": True}},
+            "initializationOptions": {"enable": True}}) or {}).get("capabilities", {})
+        server.notify("initialized", {})
+        # Every source file is opened, so a caller in a file nothing has loaded yet is still found.
+        for source in sorted(rel for rel in corpus(root) if rel.endswith(LSP_SOURCES) and (root / rel).resolve().is_relative_to(folder)):
+            server.notify("textDocument/didOpen", {"textDocument": {
+                "uri": (root / source).resolve().as_uri(), "languageId": "typescriptreact" if source.endswith("x") else "typescript",
+                "version": 1, "text": (root / source).read_text(errors="replace")}})
+        document = {"uri": path.as_uri()}
+        name, _, line, character, _ = target_symbol(list(symbols(server.request("textDocument/documentSymbol",
+                                                                                  {"textDocument": document}))), rel, wanted)
+        position = {"textDocument": document, "position": {"line": line, "character": character}}
+        sites = []
+        items = server.request("textDocument/prepareCallHierarchy", position) if capabilities.get("callHierarchyProvider") else None
+        if items:
+            for call in server.request("callHierarchy/incomingCalls", {"item": items[0]}) or []:
+                where = relative(call["from"]["uri"], root)
+                # A call at module level comes from the file itself, which Deno names by its path.
+                caller = "(module)" if "/" in call["from"]["name"] else call["from"]["name"]
+                sites += [(where, site["start"]["line"] + 1, caller, "lsp call") for site in call.get("fromRanges", []) if where]
+        else:
+            for location in server.request("textDocument/references", {**position, "context": {"includeDeclaration": False}}) or []:
+                where = relative(location["uri"], root)
+                if where:
+                    sites.append((where, location["range"]["start"]["line"] + 1, "", "lsp reference"))
+    rows = [(f"{where}:{number}  {caller}  [{how}]" if caller else f"{where}:{number}  [{how}]",
+             {"where": f"{where}:{number}", "caller": caller or None, "how": how})
+            for where, number, caller, how in sorted(set(sites))]
+    return rows or [(f"no caller of {name} at {rel}:{line + 1}", {"where": None})]
+
+
+# --- Entry point --------------------------------------------------------------------------------
+
+def parser():
+    top = argparse.ArgumentParser(prog="ask", description=__doc__)
+    top.add_argument("--root", default=".", help="project root (default: the current folder)")
+    top.add_argument("--json", action="store_true", help="one JSON object instead of text")
+    top.add_argument("--all", action="store_true", help=f"no {CAP}-line cap")
+    commands = top.add_subparsers(dest="command", required=True)
+    commands.add_parser("status", help="freshness and size of the graph")
+    for name, helptext in (("find", "where it is defined"), ("deps", "what it uses"), ("tests", "tests that reach it"),
+                           ("spec", "specs that cover this file"), ("files", "files this spec covers")):
+        commands.add_parser(name, help=helptext).add_argument("name")
+    rdeps = commands.add_parser("rdeps", help="what depends on it")
+    rdeps.add_argument("name")
+    rdeps.add_argument("--depth", type=int, default=1)
+    path = commands.add_parser("path", help="how A reaches B, hop by hop")
+    path.add_argument("source")
+    path.add_argument("target")
+    commands.add_parser("untested", help="source files no test reaches")
+    commands.add_parser("hubs", help="the most used source files").add_argument("--top", type=int, default=10)
+    commands.add_parser("callers", help="who calls it, resolved by the language server").add_argument(
+        "target", metavar="file:name-or-line")
+    return top
+
+
+COMMANDS = {"status": cmd_status, "find": cmd_find, "deps": cmd_deps,
+            "rdeps": lambda g, c, a: cmd_deps(g, c, a, reverse=True), "path": cmd_path, "tests": cmd_tests,
+            "untested": cmd_untested, "spec": cmd_spec, "files": cmd_files, "hubs": cmd_hubs}
+
+
+def main(argv):
+    args = parser().parse_args(argv)
+    root = Path(args.root).resolve()
+    try:
+        # callers asks the language server, which reads the files themselves; it needs no graph.
+        if args.command == "callers":
+            state, rows = None, cmd_callers(root, args)
+        else:
+            data, coverage, state = working_graph(root)
+            graph = Graph(data)
+            state.update(nodes=len(graph.nodes), edges=len(graph.edges))
+            rows = COMMANDS[args.command](graph, coverage, args)
+    except Refusal as refusal:
+        print("\n".join(refusal.lines), file=sys.stderr)
+        return refusal.code
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        print(f"FAIL {type(error).__name__}: {error}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps({"command": args.command, "graph": state, "results": [data for _, data in rows]}, indent=1))
+        return 0
+    shown = rows if args.all else rows[:CAP]
+    print("\n".join(text for text, _ in shown))
+    if len(shown) < len(rows):
+        print(f"... {len(rows) - len(shown)} more lines (--all shows them)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

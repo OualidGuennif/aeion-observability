@@ -1,7 +1,7 @@
 ---
 type: Component
 title: "Local agent observability and memory showcase"
-description: "Flue + Pi agents in three execution tiers (in-memory triage, folder-confined local assistant, autonomous coding in NVIDIA OpenShell), a host-native Python cockpit with a counting relay, Markdown handover, a Docker Deno/Hono target and four complementary observation/memory tools."
+description: "Flue + Pi agents in three execution tiers (in-memory triage, folder-confined local assistant, autonomous coding in OpenShell), a host-native cockpit with a counting relay, Markdown handover and four observation/memory tools."
 status: draft
 sources:
   - id: framework

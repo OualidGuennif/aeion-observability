@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""Knowledge documents nothing leads to from the index.
+
+    tools/knowledge/orphans [--root DIR]
+
+Reachability starts at knowledge/index.md and follows, inside knowledge/, a relative Markdown link
+or a frontmatter `sources:` entry whose `resource:` names a document. A folder index is the normal
+hop: knowledge/index.md to knowledge/<folder>/index.md to the document it lists. Any document left
+over is an orphan and is named with the index to link it from. Spec:
+knowledge/operations/build-and-test.md
+"""
+import argparse
+import os
+import re
+import sys
+from pathlib import Path
+
+LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+FM_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
+RESOURCE_RE = re.compile(r'^\s*(?:-\s+)?resource:\s*"?([^"\n]+?)"?\s*$', re.MULTILINE)
+
+
+def document(base, value, kb):
+    """The knowledge document a link or source names, or None for free text and outside paths."""
+    value = value.split("#")[0].strip()
+    if not value or "://" in value or value.startswith(("mailto:", "/")) or ":" in value.split("/")[0]:
+        return None
+    path = Path(os.path.normpath(base / value))
+    return path if path.suffix == ".md" and path.is_file() and kb in path.parents else None
+
+
+def links(doc, kb):
+    text = doc.read_text(encoding="utf-8", errors="replace")
+    found = {document(doc.parent, m.group(1), kb) for m in LINK_RE.finditer(text)}
+    block = FM_RE.match(text)
+    if block:
+        found |= {document(doc.parent, m.group(1), kb) for m in RESOURCE_RE.finditer(block.group(1))}
+    return {path for path in found if path}
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--root", default=str(Path(__file__).resolve().parents[2]))
+    root = Path(parser.parse_args(argv).root).resolve()
+    kb = root / "knowledge"
+    if not kb.is_dir():
+        print(f"FAIL {kb}: knowledge directory not found", file=sys.stderr)
+        return 1
+    start = kb / "index.md"
+    if not start.is_file():
+        print(f"FAIL {start}: knowledge index not found", file=sys.stderr)
+        return 1
+    docs = sorted(kb.rglob("*.md"))
+    seen, queue = {start}, [start]
+    while queue:
+        for target in links(queue.pop(), kb):
+            if target not in seen:
+                seen.add(target)
+                queue.append(target)
+    orphans = [path for path in docs if path not in seen]
+    for path in orphans:
+        print(f"FAIL {path.relative_to(root).as_posix()}: orphan, link it from knowledge/index.md or the folder index")
+    if orphans:
+        return 1
+    print(f"PASS: {len(seen)} documents reachable")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

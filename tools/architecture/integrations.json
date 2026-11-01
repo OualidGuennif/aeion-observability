@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "graphify": {
+    "repository": "https://github.com/Graphify-Labs/graphify.git",
+    "revision": "0a8cd4e1e342235fe53e881fb5d591bf0460071f",
+    "version": "0.9.97",
+    "archive_url": "https://codeload.github.com/Graphify-Labs/graphify/tar.gz/0a8cd4e1e342235fe53e881fb5d591bf0460071f",
+    "archive_sha256": "5991696931ab1995f412dcd0fbb4b4caa96ac040e32bd8ba3996c8277f35e14f"
+  },
+  "archify": {
+    "repository": "https://github.com/tt-a1i/archify.git",
+    "revision": "208acba8d412335185b2056fedf54b3405df43fb"
+  },
+  "scope": [
+    ".agents/**",
+    ".codex/**",
+    ".devin/**",
+    ".factory/README.md",
+    ".factory/settings.json",
+    ".opencode/**",
+    ".pi/**",
+    ".claude/**",
+    ".github/**",
+    "AGENTS.md",
+    "CREDITS.md",
+    "LICENSE",
+    "README.md",
+    "SECURITY.md",
+    "Workflow_Agent.md",
+    "command.md",
+    "docs/**",
+    "efficiency/**",
+    "knowledge/**",
+    "loops/**",
+    "tech-watch/**",
+    "tools/**",
+    "work/current.md",
+    "opencode.json"
+  ],
+  "architecture_spec": "knowledge/components/factory-architecture.md"
+}
