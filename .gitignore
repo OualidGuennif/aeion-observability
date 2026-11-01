@@ -11,3 +11,5 @@ node_modules/
 work/handovers/
 .tmp/
 docs/architecture/*.html
+docs/architecture/*.browser-check.json
+docs/architecture/*.png
