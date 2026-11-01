@@ -84,3 +84,20 @@ trait this note already warns about. The observations were read back through
   upstream README; a repository-local install under `.tmp/pi-agent` (`PI_CODING_AGENT_DIR`); and a
   real transmission read back from the local Langfuse API (2026-11-01).
   **Not verified here:** a paid provider session, and the plugin against Langfuse Cloud.
+
+## Decision — not adopted (2026-11-01)
+
+The owner asked whether the extension adds anything Flue does not already give us. Measured answer:
+
+- **Duplicated:** token usage, cache reads, model name, latency and per-turn spans. The supervisor
+  already receives all of them from Flue's metadata observer (`demo/flue/src/observe.ts`), which
+  emits `usage {input, output, cacheRead, cacheWrite, cost}` per turn and never copies prompts.
+- **Unique, and unwanted:** the raw prompt and output text, plus time-to-first-token. The raw text
+  is exactly what `AGENTS.md` rule 7 forbids in default telemetry, and TTFT does not justify a
+  second producer that bypasses the collector's attribute allowlist.
+- **Not needed:** standalone `pi` CLI coverage outside Flue. No workflow in this repository runs
+  that way.
+
+So the experiment is closed: the local install under `.tmp/pi-agent` was removed, and no code
+path referenced it. The record above stays as evidence that the transmission was verified; it is
+not a recommendation to reinstall it.

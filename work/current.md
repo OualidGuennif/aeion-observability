@@ -9,8 +9,8 @@
 
 ## Æion Factory v1.8.3 template adoption
 - Owner decision: Import AEion Factory (v1.8.2, then v1.8.3) and migrate this repository onto its template, then prove Pi sessions reach Langfuse, run Archify/Graphify, and publish a high-level diagram. Requested in chat, 2026-10-31.
-- State: Template skeleton imported (tools, efficiency, native harness folders, knowledge policies), AGENTS.md merged with the owner rules, Graphify graph built (1017 nodes), Archify diagram validated and rendered. The local ten-service stack boots from a fresh `demo/.local`, the supervisor's spans and scores reach Langfuse, claude-mem and Hindsight acknowledge, and **Pi → Langfuse is now verified end to end** with a local fake model (`environment=development`, no paid call). The Factory `loops/` jobs are imported and `tools/factory-tests` now passes its 25 suites to the end.
-- Next: Decide on the Git hooks; decide whether the Pi extension stays an experiment or is generalized.
+- State: Template skeleton imported (tools, efficiency, native harness folders, knowledge policies), AGENTS.md merged with the owner rules, Graphify graph built (1017 nodes), Archify diagram validated and rendered. The local ten-service stack boots from a fresh `demo/.local`, the supervisor's spans and scores reach Langfuse, claude-mem and Hindsight acknowledge, and **Pi → Langfuse via the community plugin was verified end to end, then dropped**: the Flue observer already carries tokens, cache reads and cost, and the plugin's only extra (raw prompts) is what the telemetry policy forbids. The Factory `loops/` jobs are imported and `tools/factory-tests` now passes its 25 suites to the end.
+- Next: Decide on the Git hooks.
 - Blocker: None for the Pi experiment. Langfuse v4 `events_only` removed `GET /api/public/traces|sessions|scores`, so any read-back must use `GET /api/public/v2/observations`.
 - Evidence: [repository report](report-2026-11-01.md); [Langfuse + Pi record](langfuse-pi-plugin.md); [high-level diagram](../docs/architecture/high-level.md); `.aeion/analysis/graph-*` (local).
 
