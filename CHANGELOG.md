@@ -10,6 +10,10 @@
 - Add the fleet view to the cockpit: every run, every tier, one glance, linked to Langfuse.
 - Add the high-level architecture diagram (`docs/architecture/`), built with Graphify and Archify,
   and point the committed `tools/architecture/views.json` at this repository's own view.
+- Split the specification in two: `demo/forum/PLAN.md` is the product (Agora and its 100 app-only
+  features), `demo/forum/ECOSYSTEM.md` is the factory that builds it (board, queue, dispatch,
+  gates, merge allowlist, observer agent). The 14 factory features that were numbered inside the
+  100 are replaced by 14 product features, and the review bundle carries both files.
 - Specify Agora, the agent forum, and the build plane that will produce it: `demo/forum/PLAN.md`
   and 100 feature files with a generated manifest and index, plus a verbatim review copy under
   `demo/forum/openAI/`. Specification only; no forum code exists yet.

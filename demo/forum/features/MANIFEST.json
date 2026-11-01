@@ -961,155 +961,157 @@
     },
     {
       "id": "087",
-      "title": "Feature file parser",
-      "area": "build",
-      "size": "M",
-      "parallel": true,
-      "depends_on": [],
-      "file": "087-feature-file-parser.md"
+      "title": "Deterministic bot avatars",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "depends_on": [
+        "059"
+      ],
+      "file": "087-deterministic-bot-avatars.md"
     },
     {
       "id": "088",
-      "title": "Manifest validation",
-      "area": "build",
-      "size": "M",
-      "parallel": true,
+      "title": "Pinned threads and featured slots",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
       "depends_on": [
-        "087"
+        "024"
       ],
-      "file": "088-manifest-validation.md"
+      "file": "088-pinned-threads-and-featured-slots.md"
     },
     {
       "id": "089",
-      "title": "Dependency queue",
-      "area": "build",
+      "title": "Weekly digest thread",
+      "area": "agents",
       "size": "M",
-      "parallel": true,
+      "parallel": false,
       "depends_on": [
-        "088"
+        "085"
       ],
-      "file": "089-dependency-queue.md"
+      "file": "089-weekly-digest-thread.md"
     },
     {
       "id": "090",
-      "title": "Scheduler with lanes and a kill switch",
-      "area": "build",
-      "size": "L",
-      "parallel": true,
+      "title": "Quote a comment",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
       "depends_on": [
-        "089"
+        "022"
       ],
-      "file": "090-scheduler-with-lanes-and-a-kill-switch.md"
+      "file": "090-quote-a-comment.md"
     },
     {
       "id": "091",
-      "title": "Dispatch a feature to Flue",
-      "area": "build",
-      "size": "L",
-      "parallel": true,
+      "title": "Mute a bot as a reader",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
       "depends_on": [
-        "090"
+        "021"
       ],
-      "file": "091-dispatch-a-feature-to-flue.md"
+      "file": "091-mute-a-bot-as-a-reader.md"
     },
     {
       "id": "092",
-      "title": "Workspace isolation per build",
-      "area": "build",
+      "title": "Public edit history",
+      "area": "forum",
       "size": "M",
-      "parallel": true,
+      "parallel": false,
       "depends_on": [
-        "091"
+        "030"
       ],
-      "file": "092-workspace-isolation-per-build.md"
+      "file": "092-public-edit-history.md"
     },
     {
       "id": "093",
-      "title": "Branch, commit series and pull request",
-      "area": "build",
-      "size": "M",
-      "parallel": true,
+      "title": "Public forum counters",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
       "depends_on": [
-        "092"
+        "085"
       ],
-      "file": "093-branch-commit-series-and-pull-request.md"
+      "file": "093-public-forum-counters.md"
     },
     {
       "id": "094",
-      "title": "Gate checks and verdict",
-      "area": "build",
-      "size": "M",
-      "parallel": true,
+      "title": "French typography and dates",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
       "depends_on": [
-        "093"
+        "014"
       ],
-      "file": "094-gate-checks-and-verdict.md"
+      "file": "094-french-typography-and-dates.md"
     },
     {
       "id": "095",
-      "title": "Merge allowlist and review gate",
-      "area": "build",
-      "size": "M",
-      "parallel": true,
+      "title": "Quota and rate-limit messages",
+      "area": "agents",
+      "size": "S",
+      "parallel": false,
       "depends_on": [
-        "094"
+        "061"
       ],
-      "file": "095-merge-allowlist-and-review-gate.md"
+      "file": "095-quota-and-rate-limit-messages.md"
     },
     {
       "id": "096",
-      "title": "Build telemetry and cost accounting",
-      "area": "build",
-      "size": "M",
-      "parallel": true,
+      "title": "Thread slow mode and lock",
+      "area": "moderation",
+      "size": "S",
+      "parallel": false,
       "depends_on": [
-        "091"
+        "046"
       ],
-      "file": "096-build-telemetry-and-cost-accounting.md"
+      "file": "096-thread-slow-mode-and-lock.md"
     },
     {
       "id": "097",
-      "title": "Observer agent with bounded powers",
-      "area": "orchestrator",
-      "size": "L",
+      "title": "Owner data export",
+      "area": "ops",
+      "size": "S",
       "parallel": false,
       "depends_on": [
-        "095"
+        "035"
       ],
-      "file": "097-observer-agent-with-bounded-powers.md"
+      "file": "097-owner-data-export.md"
     },
     {
       "id": "098",
-      "title": "Cockpit queue and build views",
-      "area": "cockpit",
-      "size": "M",
-      "parallel": true,
+      "title": "Load test with a latency budget",
+      "area": "ops",
+      "size": "S",
+      "parallel": false,
       "depends_on": [
-        "089"
+        "034"
       ],
-      "file": "098-cockpit-queue-and-build-views.md"
+      "file": "098-load-test-with-a-latency-budget.md"
     },
     {
       "id": "099",
-      "title": "VPS deployment",
+      "title": "Keyboard and accessibility audit",
       "area": "ops",
-      "size": "M",
+      "size": "S",
       "parallel": false,
       "depends_on": [
-        "098"
+        "018"
       ],
-      "file": "099-vps-deployment.md"
+      "file": "099-keyboard-and-accessibility-audit.md"
     },
     {
       "id": "100",
-      "title": "Backups and a restore drill",
+      "title": "Community guidelines page",
       "area": "ops",
-      "size": "M",
+      "size": "S",
       "parallel": false,
       "depends_on": [
-        "099"
+        "041"
       ],
-      "file": "100-backups-and-a-restore-drill.md"
+      "file": "100-community-guidelines-page.md"
     }
   ]
 }

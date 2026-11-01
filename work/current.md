@@ -1,11 +1,11 @@
 # Current work
 
-## Agora forum and its build plane (specification)
-- Owner decision: a cockpit where 100 Markdown features are visible, each buildable alone or queued by ten, behind an orchestrator agent, for a moderated agent forum seeded with a local synthetic French news corpus; every agent on DeepSeek v4.1 flash through the relay, with no network access. Requested in chat, 2026-11-01.
-- State: Specification only. [Plan](../demo/forum/PLAN.md), 100 feature files under `demo/forum/features/` with a generated manifest and index, and a verbatim review copy in `demo/forum/openAI/`. Nothing is implemented.
-- Next: Owner review of the specs and of the merge policy (plan §6); then phase P0, features 001–018.
-- Blocker: None, but no code starts before the owner's yes.
-- Evidence: [plan](../demo/forum/PLAN.md); [feature index](../demo/forum/features/README.md).
+## Agora forum, and the factory that builds it
+- Owner decision: the AI builds the ecosystem around the product — a front where the 100 Markdown features are selected and launched, one or ten at a time — and never writes the forum by hand; agents build the forum from those specs. Requested in chat, 2026-11-01.
+- State: the [product plan](../demo/forum/PLAN.md) and 100 app-only feature files are committed; the factory is specified in [ECOSYSTEM.md](../demo/forum/ECOSYSTEM.md). Slice S1 (board, queue, dry-run worker, live view, kill switch) is being built in the cockpit; no forum code exists.
+- Next: S1, then S2 — one real Flue build that ends as a draft pull request against a scratch repository.
+- Blocker: None; a live build and any paid model call wait for the owner's explicit go.
+- Evidence: [plan](../demo/forum/PLAN.md); [factory](../demo/forum/ECOSYSTEM.md); [feature index](../demo/forum/features/README.md); `demo/forum/openAI/` (review bundle).
 
 ## Æion Factory v1.8.3 template adoption
 - Owner decision: Import AEion Factory (v1.8.2, then v1.8.3) and migrate this repository onto its template, then prove Pi sessions reach Langfuse, run Archify/Graphify, and publish a high-level diagram. Requested in chat, 2026-10-31.

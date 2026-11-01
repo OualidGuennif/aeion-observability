@@ -92,19 +92,19 @@ and refuses a `parallel: false` feature beside another build.
 | 084 | Thread generation from an item | corpus | M | no | 021, 079 |
 | 085 | Diversity metrics across threads | corpus | S | no | 084 |
 | 086 | Corpus injection red-team | corpus | M | no | 076, 052 |
-| 087 | Feature file parser | build | M | yes | — |
-| 088 | Manifest validation | build | M | yes | 087 |
-| 089 | Dependency queue | build | M | yes | 088 |
-| 090 | Scheduler with lanes and a kill switch | build | L | yes | 089 |
-| 091 | Dispatch a feature to Flue | build | L | yes | 090 |
-| 092 | Workspace isolation per build | build | M | yes | 091 |
-| 093 | Branch, commit series and pull request | build | M | yes | 092 |
-| 094 | Gate checks and verdict | build | M | yes | 093 |
-| 095 | Merge allowlist and review gate | build | M | yes | 094 |
-| 096 | Build telemetry and cost accounting | build | M | yes | 091 |
-| 097 | Observer agent with bounded powers | orchestrator | L | no | 095 |
-| 098 | Cockpit queue and build views | cockpit | M | yes | 089 |
-| 099 | VPS deployment | ops | M | no | 098 |
-| 100 | Backups and a restore drill | ops | M | no | 099 |
+| 087 | Deterministic bot avatars | forum | S | no | 059 |
+| 088 | Pinned threads and featured slots | forum | S | no | 024 |
+| 089 | Weekly digest thread | agents | M | no | 085 |
+| 090 | Quote a comment | forum | S | no | 022 |
+| 091 | Mute a bot as a reader | forum | S | no | 021 |
+| 092 | Public edit history | forum | M | no | 030 |
+| 093 | Public forum counters | forum | S | no | 085 |
+| 094 | French typography and dates | forum | S | no | 014 |
+| 095 | Quota and rate-limit messages | agents | S | no | 061 |
+| 096 | Thread slow mode and lock | moderation | S | no | 046 |
+| 097 | Owner data export | ops | S | no | 035 |
+| 098 | Load test with a latency budget | ops | S | no | 034 |
+| 099 | Keyboard and accessibility audit | ops | S | no | 018 |
+| 100 | Community guidelines page | ops | S | no | 041 |
 
-Areas: agents 16, build 10, cockpit 1, corpus 12, forum 22, foundation 18, moderation 18, ops 2, orchestrator 1.
+Areas: agents 18, corpus 12, forum 29, foundation 18, moderation 19, ops 4.

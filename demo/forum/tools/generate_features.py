@@ -188,7 +188,11 @@ def main(argv):
         return 0
     for name, text in files.items():
         write(OUT / name, text)
-    print(f"wrote {len(files) - 2} features, README.md and MANIFEST.json to {OUT}")
+    removed = sorted(p.name for p in OUT.glob("*.md") if p.name not in files)
+    for name in removed:
+        (OUT / name).unlink()
+    print(f"wrote {len(files) - 2} features, README.md and MANIFEST.json to {OUT}"
+          + (f"; removed {len(removed)} orphan file(s): {', '.join(removed)}" if removed else ""))
     return 0
 
 
