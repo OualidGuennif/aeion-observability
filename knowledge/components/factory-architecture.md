@@ -109,7 +109,10 @@ from another source; analysis refuses mismatched package provenance or a dirty A
 | Unit | Responsibility | Interfaces / persistence |
 | --- | --- | --- |
 | Instructions and seven-phase guide | Owner precedence, scope and adoption | Markdown links; `CLAUDE.md` points to `AGENTS.md` |
-| Skills | Plan/spec/build/test/review/sign-off/ship and focused procedures | `.claude/skills/*/SKILL.md`; no second task ledger |
+| Skills | Plan/spec/build/test/review/sign-off/ship, template update and focused procedures | `.claude/skills/*/SKILL.md`; no second task ledger |
+| Connector checks | Byte equality against a checkout or a git reference, config wiring, steer identity | `tools/agents/adapter-check`; `connectors.py` (one file list), `refs.py` (one reference reader) |
+| Project update | Move an adopted project to a release, writing only the files a harness loads | `tools/agents/template-update`; names `AGENTS.md`, merged settings and `knowledge/` for a human |
+| Desktop install | Pin the dsh profile's plugin at a release instead of a working tree | `tools/agents/dsh-install`; `<profile>/aeion-factory` symlink |
 | Hook adapter | Read event JSON and call a bounded local check | stdin/stdout JSON; failure blocks where supported |
 | Context budget | Usage, closure-only state, checkpoint receipt (with per-file digests, so a stale one names what changed), 300k forced compaction | `.aeion/context/<session>.json`; per-session file lock |
 | Handover | Recovery facts for the current session | Ignored `work/handovers/<session>.md`, created atomically only when closure needs it |

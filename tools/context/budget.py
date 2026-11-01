@@ -340,24 +340,34 @@ def apply_usage(root, session, state, name, event, usage):
             ensure_handover(root, session)
             first = state.pop("warning_pending", False)
             call = {**event, "session_id": session}
-            if state["state"] == "COMPACT_REQUIRED":
-                message = (f"Æion Factory 300k: write {handover.relative_to(root)} and verify the checkpoint now "
-                           f"({checkpoint_command(root, session)}); compaction follows; {SHAPE}.")
-                allowed = compact_tool(root, call)
+            if event.get("compaction_unavailable") is True:
+                # The harness reaches no compaction service from this plugin (dsh web keeps it inside each agent
+                # preset), so a hard gate would stall the run until a human typed /compact. Keep the alert and the
+                # handover so recovery survives the harness's own compaction, and never stop the work.
+                message = (f"Æion Factory: this harness compacts on its own, so the 250k/300k gate is advisory here. "
+                           f"Keep {handover.relative_to(root)} current so the session can recover, and continue; "
+                           f"verify before it compacts: {checkpoint_command(root, session)}.")
+                if first or name in {"Stop", "SubagentStop"}:
+                    result = {"systemMessage": message, "hookSpecificOutput": {"hookEventName": name, "additionalContext": message}}
             else:
-                message = (f"Æion Factory 250k alert: finish closure only, update {handover.relative_to(root)}, work/current.md and affected docs; "
-                           f"verify the checkpoint before compaction ({checkpoint_command(root, session)}); {SHAPE}.")
-                allowed = closure_tool(root, call)
-            if name == "PreToolUse" and not allowed:
-                result = {"hookSpecificOutput": {"hookEventName": name, "permissionDecision": "deny", "permissionDecisionReason": message}}
-            elif name in {"Stop", "SubagentStop"}:
-                # An agent can claim closure without running the command; name the missing receipt, so it cannot.
-                missing = "" if ready(root, session, state) else " No verified checkpoint receipt exists for this session yet."
-                result = stop(name, message + missing + " Task has not been signed off.")
-            elif first and name in {"PreToolUse", "PostToolUse", "UserPromptSubmit"}:
-                result = {"systemMessage": message, "hookSpecificOutput": {"hookEventName": name, "additionalContext": message}}
-            if first:
-                result["systemMessage"] = message
+                if state["state"] == "COMPACT_REQUIRED":
+                    message = (f"Æion Factory 300k: write {handover.relative_to(root)} and verify the checkpoint now "
+                               f"({checkpoint_command(root, session)}); compaction follows; {SHAPE}.")
+                    allowed = compact_tool(root, call)
+                else:
+                    message = (f"Æion Factory 250k alert: finish closure only, update {handover.relative_to(root)}, work/current.md and affected docs; "
+                               f"verify the checkpoint before compaction ({checkpoint_command(root, session)}); {SHAPE}.")
+                    allowed = closure_tool(root, call)
+                if name == "PreToolUse" and not allowed:
+                    result = {"hookSpecificOutput": {"hookEventName": name, "permissionDecision": "deny", "permissionDecisionReason": message}}
+                elif name in {"Stop", "SubagentStop"}:
+                    # An agent can claim closure without running the command; name the missing receipt, so it cannot.
+                    missing = "" if ready(root, session, state) else " No verified checkpoint receipt exists for this session yet."
+                    result = stop(name, message + missing + " Task has not been signed off.")
+                elif first and name in {"PreToolUse", "PostToolUse", "UserPromptSubmit"}:
+                    result = {"systemMessage": message, "hookSpecificOutput": {"hookEventName": name, "additionalContext": message}}
+                if first:
+                    result["systemMessage"] = message
         elif state["state"] == "RECOVERING":
             state["state"] = "RUNNING"
         # A closure the 300k stopgap deferred is still owed: the run ends with its receipt, or not at all.
@@ -402,7 +412,7 @@ def handle(root, event):
             if handover.is_file():
                 context += f" Recovery: {handover.relative_to(root)}"
             if state.get("closure_owed") == "due":
-                context += (f" Closure still owed from a 300k compaction: fix the failing check, then verify the "
+                context += (f" Closure still owed from a compaction before the handover: fix the failing check, then verify the "
                             f"checkpoint: {checkpoint_command(root, session)}.")
             result = {"hookSpecificOutput": {"hookEventName": name, "additionalContext": context}}
             if state.pop("warning_pending", False):

@@ -455,3 +455,25 @@ protocol, Decisions API client), without `.DS_Store` and without editing the sib
 
 Not verified: no loop job was executed (`LOOPS_ENABLED` unset, no paid or headless run); the
 `loops/` payload is imported and inventoried, not exercised.
+
+## Factory v1.8.4 update applied — 2026-11-01
+
+The owner asked for the 1.8.4 fix after a dsh session failed to reload (`session event at seq 29
+message must have role "user"`). The release moves the 250k/300k gate to advisory on a harness the
+plugin cannot reach a compaction service for, so the session is no longer held waiting for a human
+to type `/compact`; it also drops Pi's refusal of its own window compaction.
+
+- **Written by `tools/agents/template-update --ref v1.8.4` from the tagged checkout** (`fac8bcb`):
+  the 27 contract files and `VERSION`; `--check` afterwards reports `0 file(s) differ from v1.8.4`.
+- **New connector tools**: `tools/agents/connectors.py` (one contract/merge file list),
+  `refs.py` (git-reference reader), `dsh-install` (tag-pinned desktop plugin) and
+  `template-update`; the `.agents/skills/template-update` skill and the 1.8.4 knowledge sentences
+  for architecture, compatibility, context safety and build-and-test.
+- **Checks**: `tools/agents/adapter-check --self` PASS (27 connectors: 27 matching, 0 drifted,
+  0 absent, 0 unwired, 0 invalid, 0 unidentified); `tools/factory-tests` PASS with all 27 suites,
+  including the new `test_dsh_install.py` and `test_template_update.py`.
+- **Live profile**: the desktop dsh profile already loads a 1.8.4 copy of the plugin at
+  `~/.dsh/profiles/desktop/aeion-factory/`; the repository now matches that release.
+
+Not verified: no dsh session was replayed from the new plugin in this run; the corrupt transcripts
+(`session-2d8481df…`, `session-8accced1…`) stay on disk and were read for recovery, not repaired.

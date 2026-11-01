@@ -2,7 +2,7 @@
 
 Research and design workspace with an opt-in local Docker demo. Read [README](README.md) and the
 [framework specification](knowledge/components/observability.md) before extending it. The
-repository follows the [Æion Factory](https://github.com/OualidGuennif/aeion-factory) v1.8.3
+repository follows the [Æion Factory](https://github.com/OualidGuennif/aeion-factory) v1.8.4
 development template: `tools/`, `efficiency/` and the native harness folders come from it.
 
 ## Working rules
@@ -66,6 +66,7 @@ environment file, raw harness output or credentials.
 | Harness or runtime behavior | [Demo runbook](demo/README.md), [compatibility](knowledge/references/provider-capabilities.md) |
 | A failing check or bug | `.agents/skills/debug/SKILL.md`, then `.agents/skills/test/SKILL.md` |
 | Finishing a task | `.agents/skills/sign-off/SKILL.md` |
+| Updating to a new Factory release | `.agents/skills/template-update/SKILL.md`, `tools/agents/template-update` |
 | Adopting more Factory phases | `efficiency/00-EFFICIENCY.md`, `.agents/skills/adopt/SKILL.md` |
 
 ## Critical rules

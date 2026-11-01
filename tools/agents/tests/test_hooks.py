@@ -176,6 +176,33 @@ class HookTests(unittest.TestCase):
             self.assertFalse(self.call(provider,hook_event_name='PreCompact')['continue'])
             (self.root/'changed.py').unlink()
 
+    def test_pi_native_compaction_runs_and_owes_the_closure_after_it(self):
+        # Pi cancels a compaction the hook refuses; at its own window that traps the session, so a native
+        # compaction runs and the handover and checkpoint are owed in the new epoch, as for Codex and Droid.
+        key=hook.key('pi',self.event)
+        self.call('pi')
+        result=self.call('pi',hook_event_name='PreCompact',native=True)
+        self.assertNotIn('continue',result)
+        self.assertIn('compaction before a verified handover',result['systemMessage'])
+        state_file=self.root/'.aeion/context'/f'{key}.json'
+        self.assertEqual(json.loads(state_file.read_text()).get('closure_owed'),'pending')
+        self.call('pi',hook_event_name='SessionStart',source='compact')
+        self.assertEqual(json.loads(state_file.read_text()).get('closure_owed'),'due')
+        # The settlement is refused until that debt is paid, so the compaction is not a free pass.
+        self.assertFalse(self.call('pi',hook_event_name='Stop')['continue'])
+
+    def test_dsh_without_a_compaction_service_is_never_gated_on_one(self):
+        # dsh web keeps compaction inside each agent preset, out of the plugin's reach: gating code on a
+        # compaction the plugin cannot start would stall the session until a human typed /compact.
+        edit={'tool_name':'Edit','tool_input':{'file_path':str(self.root/'src.py')}}
+        gated=self.measure('dsh',250_000,session_id='gate-dsh',**edit)
+        self.assertEqual(gated['hookSpecificOutput']['permissionDecision'],'deny')
+        allowed=self.measure('dsh',250_000,session_id='no-service-dsh',compaction_unavailable=True,**edit)
+        self.assertNotEqual(allowed.get('hookSpecificOutput',{}).get('permissionDecision'),'deny')
+        self.assertIn('advisory',allowed['systemMessage'])
+        stopped=self.measure('dsh',250_000,session_id='no-service-dsh',compaction_unavailable=True,hook_event_name='Stop')
+        self.assertNotIn('continue',stopped)
+
     def test_compaction_resets_receipt_but_keeps_recovery_pointer(self):
         self.call()
         key=hook.key('codex',self.event)

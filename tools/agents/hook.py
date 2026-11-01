@@ -310,10 +310,11 @@ def handle(root, provider, event):
                 state['warning_pending'] = True
         budget.atomic(file, json.dumps(state, sort_keys=True) + '\n')
         if name == 'PreCompact':
-            if not budget.ready(root, session, state) and provider in {'codex', 'droid'}:
-                # Codex ends its turn on a refused compaction and retries it before every turn, and Droid documents
-                # no way to refuse one, so a refusal would stall them: compaction runs, and the handover and
-                # checkpoint come right after.
+            if not budget.ready(root, session, state) and (provider in {'codex', 'droid'}
+                    or provider == 'pi' and event.get('native') is True):
+                # Codex ends its turn on a refused compaction and retries it before every turn, Droid documents no
+                # way to refuse one, and Pi cancels a native compaction at the model window: a refusal would stall
+                # them. The compaction runs, and the handover and checkpoint come right after it.
                 budget.ensure_handover(root, session)
                 state['closure_owed'] = 'pending'
                 budget.atomic(file, json.dumps(state, sort_keys=True) + '\n')
@@ -380,9 +381,10 @@ def handle(root, provider, event):
             if reason:
                 return fail(provider, name, reason)
             # Pi, OpenCode and dsh start compaction themselves: at 250k once the checkpoint is verified, and at
-            # 300k always, because that compaction is what the stopgap uses to release a frozen session.
-            if state['state'] == 'COMPACT_REQUIRED' \
-                    or (state['state'] == 'HANDOVER_REQUIRED' and budget.ready(root, session, state)):
+            # 300k always, because that compaction is what the stopgap uses to release a frozen session. A profile
+            # that gives the plugin no compaction service (dsh web) is not asked to start one it cannot reach.
+            if not event.get('compaction_unavailable') and (state['state'] == 'COMPACT_REQUIRED' \
+                    or (state['state'] == 'HANDOVER_REQUIRED' and budget.ready(root, session, state))):
                 measured['aeion'] = {'compact': True}
     if name == 'SessionStart':
         result = script(root, 'session-start.py', normalized)

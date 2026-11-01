@@ -73,6 +73,17 @@ test('dsh past 250k is held to closure by its own token meter', () => {
   assert.match(guard(call(agent, 'write', { file_path: `${root}/src.py`, content: 'x' })), /250k alert/);
 });
 
+test('dsh steers an advisory notice that a denial would otherwise carry', () => {
+  // The web profile's gate allows the call, so its notice must reach the agent through a steer instead.
+  const notice = 'Æion Factory: this harness compacts on its own; the gate is advisory here.';
+  const folder = answering({ PreToolUse: { systemMessage: notice, hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: notice } } });
+  const { guard, agent, steered } = load(folder, 1000);
+  agent.session.id = `${sessionID}-notice`;
+  assert.equal(guard(call(agent, 'write', { file_path: `${folder}/x.py`, content: 'x' })), undefined);
+  rmSync(folder, { recursive: true, force: true });
+  assert.deepEqual(steered.map((message) => message.content[0].text), [notice]);
+});
+
 test('dsh compacts before the next step once the hook reports a verified handover, then resumes', async () => {
   // A stand-in adapter answers as the shared rule does after a verified checkpoint past 250k.
   const folder = mkdtempSync(join(tmpdir(), 'dsh-compact-'));
@@ -106,22 +117,27 @@ function recorder() {
   return { folder, events };
 }
 
-test('dsh without a root compaction service asks the user for /compact instead of compacting', async () => {
-  const { folder } = recorder();
+test('dsh without a root compaction service keeps working and never asks for /compact', async () => {
+  const { folder, events } = recorder();
   const { handlers, compactions, agent, steered } = load(folder, 260000, { root: false });
   agent.session.id = `${sessionID}-web`;
   await handlers['tools/post-execute'](call(agent, 'bash', { command: 'true' }), {}, async () => ({}));
   let stepped = 0;
   await handlers['agent/pre-step']({ agent, signal: new AbortController().signal }, async () => { stepped += 1; });
+  const recorded = events();
   rmSync(folder, { recursive: true, force: true });
   assert.deepEqual(compactions, []);
   assert.equal(stepped, 1);
-  assert.equal(steered.length, 1);
-  assert.match(steered[0].content[0].text, /\/compact/);
+  // The shared rule is told the truth, so it stops gating work the plugin cannot finish.
+  assert.ok(recorded.filter((event) => event.hook_event_name !== 'SessionStart')
+    .every((event) => event.compaction_unavailable === true));
+  assert.ok(!steered.some((message) => /type \/compact|ask them to/i.test(message.content[0].text)));
+  assert.match(steered[0].content[0].text, /compacts on its own/);
 });
 
-test('dsh asks the user to compact with the hook\'s own words, verified or owed (dsh FB-004)', async () => {
-  // The 300k stopgap allows a compaction the checkpoint did not verify: the user must not be told it did.
+test('dsh never tells the user to type /compact, verified or owed (dsh FB-004)', async () => {
+  // The 300k stopgap allows a compaction the checkpoint did not verify. In a profile with no compaction service
+  // the plugin must not order a human command either way: the harness compacts on its own.
   const owed = answering({
     PostToolUse: { aeion: { compact: true } },
     PreCompact: { systemMessage: 'Æion Factory 300k: compacting before a verified checkpoint' },
@@ -130,8 +146,9 @@ test('dsh asks the user to compact with the hook\'s own words, verified or owed 
   await first.handlers['tools/post-execute'](call(first.agent, 'bash', { command: 'true' }), {}, async () => ({}));
   await first.handlers['agent/pre-step']({ agent: first.agent, signal: new AbortController().signal }, async () => {});
   rmSync(owed, { recursive: true, force: true });
-  assert.match(first.steered[0].content[0].text, /^Æion Factory 300k: compacting before a verified checkpoint/);
-  assert.match(first.steered[0].content[0].text, /\/compact/);
+  assert.equal(first.steered.length, 1);
+  assert.match(first.steered[0].content[0].text, /compacts on its own/);
+  assert.doesNotMatch(first.steered[0].content[0].text, /type \/compact|ask them to/i);
 });
 
 test('dsh treats a token fall to under half as a compaction and restarts the session as compacted', () => {

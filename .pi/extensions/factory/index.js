@@ -145,13 +145,18 @@ export default function (pi) {
     const session = ctx.sessionManager.getSessionId();
     let reason;
     try {
-      ({ reason } = invoke(projectRoot(ctx.cwd), { session_id: session, hook_event_name: 'PreCompact' }));
+      // `native` tells the shared rule this is Pi's own compaction at its window, not one the factory asked for:
+      // refusing it would trap the session past the window, so it runs and the closure is owed after it.
+      ({ reason } = invoke(projectRoot(ctx.cwd), { session_id: session, hook_event_name: 'PreCompact', native: true }));
     } catch (error) {
-      reason = error.message || UNAVAILABLE;
+      // An unavailable hook is a broken guard, not a policy refusal: closing the only exit would lose the session.
+      ctx.ui.notify(error.message || UNAVAILABLE, 'error');
+      return undefined;
     }
     if (!reason) return undefined;
-    ctx.ui.notify(reason, 'error');
-    return { cancel: true };
+    // A policy refusal still lets the compaction through: the session must never be held at the model window.
+    ctx.ui.notify(reason, 'warning');
+    return undefined;
   });
 
   pi.on('session_compact', async (event, ctx) => {

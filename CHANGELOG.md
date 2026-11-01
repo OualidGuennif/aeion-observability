@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Update to the Æion Factory v1.8.4 template (tag `v1.8.4`, commit `fac8bcb`): the dsh web plugin
+  tells the shared 250k/300k rule that its profile has no compaction service, so the gate is
+  advisory and the harness compacts itself instead of asking for `/compact`; Pi's native compaction
+  runs and owes its receipt; `adapter-check` reports a `steer` call without an id as `UNIDENTIFIED`;
+  `tools/agents/{connectors.py,refs.py,dsh-install,template-update}` and the `template-update`
+  skill arrive, and `tools/factory-tests` runs their suites.
 - Adopt the Æion Factory v1.8.3 template (tag `v1.8.3`, commit `bac6d7b`): `tools/`, `efficiency/`,
   native harness folders, `VERSION`, knowledge policies, merged `AGENTS.md`, the agent adapter check
   and the prompt-defense hook, and the Factory knowledge docs the imported tools name as their spec.

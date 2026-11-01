@@ -5,6 +5,7 @@ import importlib.machinery
 import importlib.util
 import io
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -98,6 +99,72 @@ class AdapterCheckTests(unittest.TestCase):
         code, output = self.run_check()
         self.assertEqual(code, 1, output)
         self.assertIn('UNWIRED   .codex/config.toml → tools/agents/removed-hook.py', output)
+
+    def test_steer_without_id_is_unidentified(self):
+        self.assertEqual(check.unidentified("  agent.steer({ content: [], source: { kind: 'x' } });\n"), [1])
+        self.assertEqual(check.unidentified("  agent.steer({ id: randomUUID(), content: [] });\n"), [])
+
+    def test_a_steering_copy_fails_the_check(self):
+        # A steered message with no id is persisted as history dsh cannot reopen.
+        target = self.project / '.dsh/plugins/factory/index.js'
+        target.write_text(target.read_text().replace(
+            'agent.steer({ id: globalThis.crypto.randomUUID(), content:',
+            'agent.steer({ content:'))
+        code, output = self.run_check()
+        self.assertEqual(code, 1, output)
+        self.assertIn('UNIDENTIFIED .dsh/plugins/factory/index.js — steer() without an id at line', output)
+        self.assertIn('adapter-check: FAIL', output)
+
+    def tagged_factory(self):
+        """A repository holding the connectors at v1.0.0, with a dirty working tree on top."""
+        factory = Path(self.tmp.name) / 'factory'
+        for relative in check.VENDORED:
+            target = factory / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / relative, target)
+        shutil.copy2(ROOT / 'VERSION', factory / 'VERSION')
+
+        def git(*arguments):
+            subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.com', *arguments],
+                           cwd=factory, check=True, capture_output=True, text=True)
+
+        git('init', '-q')
+        git('add', '-A')
+        git('commit', '-q', '-m', 'release')
+        git('tag', 'v1.0.0')
+        (factory / '.dsh/plugins/factory/index.js').write_text('a dirty working tree\n')
+        return factory
+
+    def test_a_reference_wins_over_a_dirty_working_tree(self):
+        factory = self.tagged_factory()
+        code, output = self.run_check('--ref', 'v1.0.0', '--repo', str(factory))
+        self.assertEqual(code, 0, output)
+        self.assertIn('reference v1.0.0', output)
+        self.assertIn(f'{len(check.VENDORED)} connectors: {len(check.VENDORED)} matching', output)
+
+    def test_a_copy_that_differs_from_the_reference_fails(self):
+        factory = self.tagged_factory()
+        (self.project / '.pi/extensions/factory/index.js').write_text('a hand edit\n')
+        code, output = self.run_check('--ref', 'v1.0.0', '--repo', str(factory))
+        self.assertEqual(code, 1, output)
+        self.assertIn('DRIFT     .pi/extensions/factory/index.js', output)
+        self.assertIn('git show v1.0.0:.pi/extensions/factory/index.js', output)
+
+    def test_an_unknown_reference_is_refused(self):
+        factory = self.tagged_factory()
+        output_text = io.StringIO()
+        with patch.object(sys, 'argv', ['adapter-check', '--root', str(self.project),
+                                        '--ref', 'v9.9.9', '--repo', str(factory)]):
+            with contextlib.redirect_stdout(output_text), contextlib.redirect_stderr(output_text):
+                code = check.main()
+        self.assertEqual(code, 2)
+        self.assertIn('no such reference: v9.9.9', output_text.getvalue())
+
+    def test_the_shipped_adapters_are_identified(self):
+        for relative in check.VENDORED:
+            if relative.endswith('.js'):
+                text = (ROOT / relative).read_text(encoding='utf-8')
+                self.assertEqual(check.unidentified(text), [], relative)
 
 
 if __name__ == '__main__':

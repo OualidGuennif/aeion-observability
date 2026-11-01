@@ -17,49 +17,14 @@ from pathlib import Path
 
 FACTORY = Path(__file__).resolve().parents[2]
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from connectors import CONTRACT as VENDORED, WIRING  # noqa: E402
+from refs import Refused, ref_bytes, ref_exists, require_repository  # noqa: E402
+
 # Every harness-facing file the factory ships: a copy must stay byte-identical, because an
 # adapter's failure is silent and its body is not something a project edits.
-VENDORED = (
-    "tools/agents/hook.py",
-    "tools/agents/run",
-    "tools/context/budget.py",
-    "tools/context/run",
-    ".claude/hooks/after-edit.py",
-    ".claude/hooks/context-budget.py",
-    ".claude/hooks/guard-bash.py",
-    ".claude/hooks/guard-path.py",
-    ".claude/hooks/project_files.py",
-    ".claude/hooks/prompt-defense.py",
-    ".claude/hooks/secret_names.py",
-    ".claude/hooks/session-start.py",
-    ".claude/hooks/sign-off.py",
-    ".claude/hooks/token-feedback.py",
-    ".dsh/factory.patch.yml",
-    ".dsh/plugins/factory/index.js",
-    ".dsh/plugins/factory/seam.js",
-    ".dsh/plugins/factory/compaction.js",
-    ".pi/extensions/factory/index.js",
-    ".opencode/plugins/factory/index.js",
-    ".opencode/plugins/factory/package.json",
-    ".codex/hooks.json",
-    ".devin/hooks.v1.json",
-    ".factory/settings.json",
-    ".agents/hooks.json",
-)
-
 # Native configs a project may merge with its own settings, so they are not compared, but a
 # command in them still has to name a file that exists.
-WIRING = (
-    ".claude/settings.json",
-    ".codex/hooks.json",
-    ".codex/config.toml",
-    ".devin/hooks.v1.json",
-    ".devin/config.json",
-    ".factory/settings.json",
-    ".agents/hooks.json",
-    ".dsh/factory.patch.yml",
-)
-
 # A command in these files names its script as a path from the project root, sometimes after a
 # shell expansion of that root, so the path itself may follow any character.
 SCRIPT = re.compile(r"((?:tools|\.claude|\.dsh|\.pi|\.opencode|\.codex|\.devin|\.factory)/[\w./-]+\.(?:py|js|sh))")
@@ -67,23 +32,31 @@ SCRIPT = re.compile(r"((?:tools|\.claude|\.dsh|\.pi|\.opencode|\.codex|\.devin|\
 MODULE = re.compile(r"(?<![\w./-])(\./[\w./-]+\.js)")
 
 
-def factory_version():
+def factory_version(repo, ref=None):
+    """The version of the side this run treats as canonical: the working tree, or one reference."""
     try:
-        return (FACTORY / "VERSION").read_text(encoding="utf-8").strip()
-    except OSError:
+        if ref is not None:
+            return ref_bytes(repo, ref, "VERSION").decode("utf-8").strip()
+        return (repo / "VERSION").read_text(encoding="utf-8").strip()
+    except (OSError, Refused):
         return "unknown"
 
 
-def compare(root):
+def compare(root, read=None):
     """(drifted, missing, clean) over every vendored file, by exact bytes."""
+    read = read or (lambda relative: (FACTORY / relative).read_bytes())
     drifted, missing, clean = [], [], []
     for relative in VENDORED:
-        canonical = FACTORY / relative
         found = root / relative
         if not found.is_file():
             missing.append(relative)
             continue
-        expected = canonical.read_bytes()
+        try:
+            expected = read(relative)
+        except Refused:
+            # An older release legitimately lacks a file added later; the working tree is the reference
+            # and always carries the whole list.
+            continue
         actual = found.read_bytes()
         if expected == actual:
             clean.append(relative)
@@ -96,6 +69,46 @@ def references(text, relative):
     """The script paths a config names, as written."""
     pattern = MODULE if relative == ".dsh/factory.patch.yml" else SCRIPT
     return sorted(set(pattern.findall(text)))
+
+
+# A steered message with no identity is persisted as history the harness cannot reopen, so the whole
+# session stops loading. Every steer call must carry an id in its own literal, not one nested below.
+STEER = re.compile(r"\.steer\s*\(\s*\{")
+
+
+def identified(body):
+    """Whether an object literal names a top-level `id`, scanning braces a literal way."""
+    depth = 0
+    index = 0
+    while index < len(body):
+        character = body[index]
+        if character in "{[(":
+            depth += 1
+        elif character in "}])":
+            depth -= 1
+        elif depth == 0 and re.match(r"\bid\s*:", body[index:]):
+            return True
+        index += 1
+    return False
+
+
+def unidentified(text):
+    """The 1-based lines of every steer call whose object literal has no top-level id."""
+    lines = []
+    for match in STEER.finditer(text):
+        opening = text.find("{", match.start() + len(".steer"))
+        depth, index = 0, opening
+        while index < len(text):
+            if text[index] == "{":
+                depth += 1
+            elif text[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            index += 1
+        if not identified(text[opening + 1:index]):
+            lines.append(text.count("\n", 0, match.start()) + 1)
+    return lines
 
 
 def wiring(root):
@@ -127,28 +140,51 @@ def main():
         description="Compare a repository's harness connectors with the factory copy this script ships in.",
     )
     parser.add_argument("--root", default=str(FACTORY), help="the repository to check (default: this one)")
+    parser.add_argument("--ref", help="compare against this git reference (tag, main, develop, sha), not the working tree")
+    parser.add_argument("--repo", default=str(FACTORY), help="the repository holding the reference (default: this checkout)")
     parser.add_argument("--strict", action="store_true", help="also fail when a connector is not vendored")
     parser.add_argument("--self", action="store_true", help="allow the factory to compare with itself")
     parser.add_argument("--verbose", action="store_true", help="list the connectors that are absent")
     arguments = parser.parse_args()
 
     root = Path(arguments.root).resolve()
+    repo = Path(arguments.repo).resolve()
     if not root.is_dir():
         print(f"adapter-check: {root} is not a directory", file=sys.stderr)
         return 2
     # A project that copied this script compares its copies with themselves and always passes: refuse it,
     # so the project's CI runs this script from a pinned factory checkout with --root instead.
-    if root == FACTORY and not arguments.self:
+    if root == FACTORY and not arguments.self and not arguments.ref:
         print(f"adapter-check: {root} is the copy this script lives in, so every connector would match "
               f"itself; run the factory's copy with --root {root}, or pass --self to check the factory",
               file=sys.stderr)
         return 2
 
-    drifted, missing, clean = compare(root)
-    unwired, broken = wiring(root)
+    reference = arguments.ref
+    if reference:
+        try:
+            require_repository(repo)
+        except Refused as refusal:
+            print(f"adapter-check: {refusal}", file=sys.stderr)
+            return 2
+        if not ref_exists(repo, reference):
+            print(f"adapter-check: no such reference: {reference}", file=sys.stderr)
+            return 2
+    read = (lambda relative: ref_bytes(repo, reference, relative)) if reference else None
 
-    print(f"adapter-check: factory {factory_version()} at {FACTORY}")
+    drifted, missing, clean = compare(root, read)
+    unwired, broken = wiring(root)
+    unmanaged = []
+    for relative in VENDORED:
+        if not relative.endswith(".js") or not (root / relative).is_file():
+            continue
+        for line in unidentified((root / relative).read_text(encoding="utf-8", errors="replace")):
+            unmanaged.append((relative, line))
+
+    print(f"adapter-check: factory {factory_version(repo, reference)} at {repo}")
     print(f"               against {root}")
+    if reference:
+        print(f"               reference {reference}")
     for relative in clean:
         print(f"ok        {relative}")
     for relative, expected, actual in drifted:
@@ -160,11 +196,17 @@ def main():
         print(f"UNWIRED   {relative} → {reference} — no such file")
     for relative, error in broken:
         print(f"invalid   {relative} — {error}")
+    for relative, line in unmanaged:
+        print(f"UNIDENTIFIED {relative} — steer() without an id at line {line}")
 
-    failed = bool(drifted or unwired or broken)
+    failed = bool(drifted or unwired or broken or unmanaged)
     if arguments.strict and missing:
         failed = True
-    if drifted:
+    if drifted and reference:
+        print(f"\nRepair each drifted copy from the reference, then run the project's tests:")
+        for relative, _, _ in drifted:
+            print(f"  git show {reference}:{relative} > {root / relative}")
+    elif drifted:
         print("\nRepair each drifted copy from the factory, then run the project's tests:")
         for relative, _, _ in drifted:
             print(f"  cp {FACTORY / relative} {root / relative}")
@@ -173,7 +215,8 @@ def main():
 
     print(
         f"\n{len(VENDORED)} connectors: {len(clean)} matching, {len(drifted)} drifted, "
-        f"{len(missing)} absent, {len(unwired)} unwired, {len(broken)} invalid"
+        f"{len(missing)} absent, {len(unwired)} unwired, {len(broken)} invalid, "
+        f"{len(unmanaged)} unidentified"
     )
     print("adapter-check: PASS" if not failed else "adapter-check: FAIL")
     return 1 if failed else 0

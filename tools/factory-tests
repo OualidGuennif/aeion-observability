@@ -29,6 +29,8 @@ run python3 tools/architecture/tests/test_gallery.py
 run python3 tools/agents/tests/test_hooks.py
 run python3 tools/agents/tests/test_prompt_defense.py
 run python3 tools/agents/tests/test_adapter_check.py
+run python3 tools/agents/tests/test_dsh_install.py
+run python3 tools/agents/tests/test_template_update.py
 run tools/agents/adapter-check --self
 run node --test tools/agents/tests/test_opencode.mjs
 run node --test tools/agents/tests/test_pi.mjs

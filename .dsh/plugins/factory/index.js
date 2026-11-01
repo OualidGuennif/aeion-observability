@@ -9,7 +9,7 @@ export const inject = ['tools', 'tokenMeter', 'workingDirectory'];
 
 const UNAVAILABLE = 'Æion Factory hook unavailable; action refused.';
 const RESUME = 'Æion Factory: context compacted. Read your handover in work/handovers/ and continue the task.';
-const ASK = 'This dsh profile lets only the user compact: ask them to type /compact now, then wait.';
+const ASK = 'Æion Factory: this profile gives the plugin no compaction service, so dsh compacts on its own. Keep the handover current and continue.';
 // dsh's built-in tools under the names the shared guards know; glob only lists paths.
 const TOOLS = { bash: 'Bash', read: 'Read', write: 'Write', edit: 'Edit', str_replace_editor: 'Edit', glob: 'Glob', grep: 'Grep' };
 
@@ -93,6 +93,8 @@ export function apply(ctx) {
       tool_name: tool, tool_input: exec.arguments,
       // dsh's own replay-based measure feeds the shared 250k/300k rule.
       observed_tokens: tokens(exec.agent),
+      // The web profile keeps compaction inside each agent preset; the shared rule must not gate work it cannot finish.
+      compaction_unavailable: !seam.compaction,
     };
     // Any result a local file tool did not produce is forwarded; the adapter decides what reads outside.
     if (result !== undefined && !LOCAL.has(tool)) {
@@ -112,7 +114,12 @@ export function apply(ctx) {
       if (!root) return undefined;
       observe(exec.agent);
       start(root, exec.agent);
-      return invoke(root, toolEvent(exec, 'PreToolUse')).reason || undefined;
+      const { output, reason } = invoke(root, toolEvent(exec, 'PreToolUse'));
+      // A gate that allows the call still carries its notice here; PostToolUse sees no pending alert, so the
+      // agent reads it once instead of losing it with the returned reason.
+      const context = output.hookSpecificOutput?.additionalContext || output.systemMessage;
+      if (context && !reason) say(exec.agent, context);
+      return reason || undefined;
     } catch (error) {
       return error.message || UNAVAILABLE;
     }
@@ -142,7 +149,8 @@ export function apply(ctx) {
     try {
       const root = rootOf(agent);
       if (!root) return;
-      const { output, reason } = invoke(root, { session_id: agent.session.id, hook_event_name: 'Stop' });
+      const { output, reason } = invoke(root, { session_id: agent.session.id, hook_event_name: 'Stop',
+        compaction_unavailable: !seam.compaction });
       if (reason && output.continue !== false) say(agent, reason);
     } catch (error) {
       ctx.logger?.warn?.(`aeion-factory: ${error.message || UNAVAILABLE}`);
@@ -158,11 +166,13 @@ export function apply(ctx) {
       const root = rootOf(agent);
       // The shared rule refuses the compaction unless the checkpoint is verified, and allows it at 300k with the
       // closure owed; its own words say which, so they reach the user instead of a fixed "verified" claim.
-      const { output, reason } = invoke(root, { session_id: session, hook_event_name: 'PreCompact' });
+      const { output, reason } = invoke(root, { session_id: session, hook_event_name: 'PreCompact',
+        compaction_unavailable: !seam.compaction });
       if (reason) return next();
-      // The web profile keeps compaction inside each agent preset, out of a plugin's reach: the user compacts.
+      // The web profile keeps compaction inside each agent preset, out of a plugin's reach: the harness compacts
+      // itself and the plugin only keeps the handover current. It never asks the user to type /compact.
       if (!seam.compaction) {
-        say(agent, `${output.systemMessage || 'Æion Factory: closure pending.'} ${ASK}`);
+        say(agent, ASK);
         return next();
       }
       // dsh's overflow path compacts now whatever its own threshold; it is the step-time compaction dsh exposes.

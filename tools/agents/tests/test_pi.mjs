@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,10 +47,29 @@ test('Pi started in a subfolder finds the project hooks', async () => {
   assert.equal((await handlers.tool_call(bash('cat .env'), ctx)).block, true);
 });
 
-test('Pi compaction is cancelled without a verified checkpoint', async () => {
+test('Pi never cancels its own compaction before a verified checkpoint', async () => {
+  // Pi compacts at its own window; cancelling there would hold the session past the window and lose it.
   const { handlers, notes, ctx } = load(root);
-  assert.deepEqual(await handlers.session_before_compact({ type: 'session_before_compact', reason: 'threshold' }, ctx), { cancel: true });
-  assert.match(notes[0][1], /checkpoint/);
+  assert.equal(await handlers.session_before_compact({ type: 'session_before_compact', reason: 'threshold' }, ctx), undefined);
+  assert.deepEqual(notes, []);
+});
+
+test('Pi marks its own compaction as native so the shared rule lets it through', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'pi-native-'));
+  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
+  writeFileSync(join(folder, 'tools/agents/hook.py'), [
+    'import json, sys',
+    'event = json.load(sys.stdin)',
+    "open('events.jsonl', 'a').write(json.dumps(event) + '\\n')",
+    "print(json.dumps({'systemMessage': 'Æion Factory: compaction before a verified handover; the closure is owed after it.'}))",
+  ].join('\n') + '\n');
+  const { handlers, ctx } = load(folder);
+  const native = { ...ctx, sessionManager: { getSessionId: () => `${sessionID}-native` } };
+  assert.equal(await handlers.session_before_compact({ type: 'session_before_compact', reason: 'threshold' }, native), undefined);
+  const event = JSON.parse(readFileSync(join(folder, 'events.jsonl'), 'utf8').trim());
+  rmSync(folder, { recursive: true, force: true });
+  assert.equal(event.native, true);
+  assert.equal(event.hook_event_name, 'PreCompact');
 });
 
 test('Pi gives the factory context once per session, and again after a compaction', async () => {

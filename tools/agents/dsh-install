@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+# Spec: knowledge/operations/agent-compatibility.md
+"""Install the desktop dsh plugin from a release tag, and check the tag that is loaded.
+
+The desktop profile composes ./aeion-factory/index.js and ./aeion-factory/compaction.js from inside
+its own folder. Pointed at a working tree, the running app follows every edit made there, so a
+broken develop reaches the app and no review can name the version that ran. This copies one tag's
+plugin into the profile and links the entry at that copy.
+
+    tools/agents/dsh-install --tag v1.8.4
+    tools/agents/dsh-install --check
+"""
+import argparse
+import os
+import shutil
+import sys
+import tempfile
+from pathlib import Path
+
+FACTORY = Path(__file__).resolve().parents[2]
+PLUGIN = ".dsh/plugins/factory"
+ENTRY = "aeion-factory"
+VENDOR = "vendor"
+PREFIX = ENTRY + "-"
+DISPLACED = ENTRY + ".replaced"
+
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from refs import Refused, ref_bytes, ref_exists, ref_files, require_repository, tag_exists  # noqa: E402
+
+
+def discard(path):
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    elif path.exists() or path.is_symlink():
+        path.unlink()
+
+
+def materialize(repo, tag, destination):
+    for relative in ref_files(repo, tag, PLUGIN):
+        target = destination / relative[len(PLUGIN) + 1:]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(ref_bytes(repo, tag, relative))
+
+
+def install(repo, profiles, profile, tag, force):
+    require_repository(repo)
+    if not tag_exists(repo, tag):
+        # A branch moves under the app, which is the failure this pin exists to prevent.
+        raise Refused(f"no such tag: {tag}" if not ref_exists(repo, tag)
+                      else f"{tag} is not a tag; pin a release, not a branch")
+    if not ref_files(repo, tag, PLUGIN):
+        raise Refused(f"tag {tag} has no {PLUGIN}")
+    folder = profiles / profile
+    if not folder.is_dir():
+        raise Refused(f"no profile directory: {folder}")
+    entry = folder / ENTRY
+    displaced = None
+    # A link is ours to replace; anything else holds someone's files, so it moves aside once.
+    if entry.exists() and not entry.is_symlink():
+        if not force:
+            raise Refused(f"{entry} is not a link; move it aside or pass --force")
+        displaced = folder / DISPLACED
+        if displaced.exists() or displaced.is_symlink():
+            raise Refused(f"{displaced} exists; move it aside first")
+    vendor = folder / VENDOR
+    vendor.mkdir(exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=".staging-", dir=vendor))
+    try:
+        materialize(repo, tag, staging)
+        destination = vendor / f"{PREFIX}{tag}"
+        # A copy being replaced stays readable until its successor is in place, so the link never dangles.
+        replaced = None
+        if destination.exists():
+            replaced = vendor / f".previous-{tag}"
+            discard(replaced)
+            os.replace(destination, replaced)
+        os.replace(staging, destination)
+        staging = None
+        if replaced is not None:
+            discard(replaced)
+    finally:
+        # A copy that fails leaves no partial tree behind; the link below is still the old one.
+        if staging is not None and staging.exists():
+            shutil.rmtree(staging, ignore_errors=True)
+    if displaced is not None:
+        os.replace(entry, displaced)
+    # The link is replaced in one step, after the copy is complete, so no reader sees a half install.
+    replacement = folder / f".{ENTRY}.staging"
+    discard(replacement)
+    os.symlink(f"{VENDOR}/{PREFIX}{tag}", replacement)
+    os.replace(replacement, entry)
+    print(f"installed {tag} → {destination}")
+    return 0
+
+
+def check(repo, profiles, profile):
+    require_repository(repo)
+    folder = profiles / profile
+    entry = folder / ENTRY
+    if not entry.is_symlink():
+        raise Refused(f"no {ENTRY} link in {folder}")
+    target = os.readlink(entry)
+    destination = Path(target)
+    if not destination.is_absolute():
+        destination = folder / destination
+    if not destination.name.startswith(PREFIX) or destination.parent.name != VENDOR:
+        raise Refused(f"link does not name a vendored tag: {target}")
+    tag = destination.name[len(PREFIX):]
+    if not tag_exists(repo, tag):
+        # A branch moves under the app, which is the failure this pin exists to prevent.
+        raise Refused(f"no such tag: {tag}" if not ref_exists(repo, tag)
+                      else f"{tag} is not a tag; pin a release, not a branch")
+    expected = {relative[len(PLUGIN) + 1:]: relative for relative in ref_files(repo, tag, PLUGIN)}
+    drifted, missing = [], []
+    for relative, source in sorted(expected.items()):
+        found = destination / relative
+        if not found.is_file():
+            missing.append(relative)
+        elif found.read_bytes() != ref_bytes(repo, tag, source):
+            drifted.append(relative)
+    present = {str(path.relative_to(destination)) for path in destination.rglob("*") if path.is_file()}
+    extra = sorted(present - set(expected))
+    for relative in drifted:
+        print(f"DRIFT {relative} — differs from {tag}")
+    for relative in missing:
+        print(f"MISSING {relative} — {tag} has it, the copy does not")
+    for relative in extra:
+        print(f"DRIFT {relative} — not in {tag}")
+    if drifted or missing or extra:
+        print(f"check: FAIL — the copy of {tag} was edited")
+        return 1
+    print(f"ok {tag}")
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="dsh-install",
+        description="Install the desktop dsh plugin from a release tag, or check the tag that is loaded.",
+    )
+    parser.add_argument("--tag", help="the release tag to install, e.g. v1.8.4")
+    parser.add_argument("--check", action="store_true", help="verify the loaded copy against its tag")
+    parser.add_argument("--profile", default="desktop", help="the profile folder (default: desktop)")
+    parser.add_argument("--profile-dir", default=str(Path.home() / ".dsh" / "profiles"),
+                        help="the profiles folder (default: ~/.dsh/profiles)")
+    parser.add_argument("--repo", default=str(FACTORY), help="the repository holding the tag")
+    parser.add_argument("--force", action="store_true", help="replace an entry that is not a link")
+    arguments = parser.parse_args()
+    try:
+        if arguments.check:
+            return check(Path(arguments.repo), Path(arguments.profile_dir), arguments.profile)
+        if not arguments.tag:
+            parser.error("--tag is required unless --check is given")
+        return install(Path(arguments.repo), Path(arguments.profile_dir), arguments.profile,
+                       arguments.tag, arguments.force)
+    except Refused as refusal:
+        print(f"dsh-install: {refusal}", file=sys.stderr)
+        return 2
+    except (OSError, RuntimeError) as error:
+        print(f"dsh-install: {error}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
