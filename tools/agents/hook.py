@@ -261,6 +261,10 @@ def alert(result, measured):
         result['systemMessage'] = measured['systemMessage']
     if measured.get('aeion'):
         result['aeion'] = measured['aeion']
+    # The rule's own hookSpecificOutput must survive: a guard's answer wins field by field, and dropping the rest
+    # silently disarmed the additionalContext the rule had asked for.
+    if measured.get('hookSpecificOutput'):
+        result['hookSpecificOutput'] = {**measured['hookSpecificOutput'], **result.get('hookSpecificOutput', {})}
     return result
 
 
@@ -307,6 +311,11 @@ def handle(root, provider, event):
                 state['closure_owed'] = 'due'
                 if provider in {'codex', 'droid'}:
                     state['state'] = 'HANDOVER_REQUIRED'
+                    # This latch is not a threshold crossing that a later compaction may release: it is the
+                    # closure owed right after a compaction the harness ran itself. Mark it, so the shared
+                    # fall-back rule (which frees a dsh session that compacted unseen) does not reopen code
+                    # before the handover is verified.
+                    state['resumed_in_closure'] = True
                 state['warning_pending'] = True
         budget.atomic(file, json.dumps(state, sort_keys=True) + '\n')
         if name == 'PreCompact':
@@ -359,10 +368,15 @@ def handle(root, provider, event):
             if usage is None:
                 usage = state.get('observed_tokens') or 0
             # The closure owed since an early compaction ends with its verified handover, without compacting again.
+            # Below the threshold that settlement also drops the receipt: the work resumes editable. At or above
+            # it, dropping the receipt would close the gate on the same event that re-latches the alert, so the
+            # verified handover must stay on file for the compaction it still owes.
             if state.get('closure_owed') == 'due' and budget.ready(root, session, state):
-                for field in ('closure_owed', 'checkpoint', 'warning_pending'):
-                    state.pop(field, None)
-                state['state'] = 'RUNNING'
+                state.pop('closure_owed', None)
+                if usage < budget.WARNING:
+                    for field in ('checkpoint', 'warning_pending', 'resumed_in_closure'):
+                        state.pop(field, None)
+                    state['state'] = 'RUNNING'
             # Closure judges a file edit by `file_path`; native tools name it `path`, `filePath` or a patch header.
             call = normalized
             if name == 'PreToolUse' and event.get('tool_name') in {'Edit', 'Write', 'apply_patch'}:
