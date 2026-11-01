@@ -5,37 +5,34 @@ The editable Archify source is [aeion-observability-high-level.architecture.json
 `archify render architecture` regenerates the HTML next to it.
 
 ```mermaid
-flowchart TB
-    subgraph research["Research and contracts (offline, no service)"]
+flowchart LR
+    subgraph research["Research (offline)"]
+        direction TB
         K[Knowledge and contracts<br/>specs, policies, sources]
         O[Offline examples<br/>synthetic fixtures + unittest]
         O -. synthetic evidence .-> K
     end
 
-    subgraph control["Host-native control (no sandbox)"]
-        U[Owner / operator] -->|task| C[Cockpit<br/>demo/app: policy, lifecycle]
+    subgraph control["Control (host)"]
+        direction TB
+        U[Owner / operator] -->|task| C[Cockpit<br/>policy, lifecycle]
         C -->|admit| R[Counting relay<br/>admission + reservation]
     end
 
-    subgraph execution["Execution (Flue + Pi)"]
-        H[Flue + Pi harness<br/>flue-openshell-v1]
-        T[Execution tiers<br/>triage / local / OpenShell]
-        H -->|dispatch| T
+    subgraph exec["Execution"]
+        direction TB
+        H[Flue + Pi harness<br/>flue-openshell-v1] -->|dispatch| T[Execution tiers<br/>triage / local / OpenShell]
+    end
+
+    subgraph obs["Local Docker pilot (opt-in)"]
+        direction TB
+        OB[Metadata-only observer] -. OTLP metadata .-> COL[OTel collector]
+        COL -->|traces| LF[Langfuse<br/>web + worker] -->|persist| ST[Postgres / ClickHouse / MinIO]
     end
 
     R -->|request| H
     R -->|forwarded request| P[Inference provider<br/>OpenRouter / DeepInfra / CLI]
-
-    subgraph telemetry["Local Docker pilot (opt-in)"]
-        OB[Metadata-only observer<br/>telemetry.py]
-        COL[OTel collector]
-        LF[Langfuse<br/>web + worker]
-        ST[Postgres / ClickHouse / MinIO]
-        COL -->|traces| LF -->|persist| ST
-    end
-
     H -. events, usage .-> OB
-    OB -. OTLP metadata .-> COL
 ```
 
 ## Reading it
