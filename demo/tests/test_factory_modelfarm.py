@@ -1,0 +1,131 @@
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from factory.models import MODELS, Router, RoutingError, Telemetry, eligible, family
+from factory.review_circuit import two_vote_review
+
+FILES = {"demo/forum/product/x.js": "export function f() { return 1; }\n"}
+
+
+def approving(model, prompt):
+    return {"verdict": "approve", "reason": "looks fine"}
+
+
+def rejecting(model, prompt):
+    return {"verdict": "reject", "reason": "exfiltrates token"}
+
+
+def broken(model, prompt):
+    raise RuntimeError("provider down")
+
+
+class RegistryTests(unittest.TestCase):
+    def test_four_models_in_four_families(self):
+        self.assertEqual(len(MODELS), 4)
+        self.assertEqual(len({spec["family"] for spec in MODELS.values()}), 4)
+
+    def test_eligible_excludes_models_and_families(self):
+        remaining = eligible(exclude_models=["glm-5.3-flash"])
+        self.assertNotIn("glm-5.3-flash", remaining)
+        self.assertEqual(len(remaining), 3)
+        self.assertEqual(eligible(exclude_families=["anthropic"]),
+                         ["deepseek-4.1-flash", "glm-5.3-flash", "qwen-3.8-flash"])
+
+    def test_router_prefers_efficiency_then_is_deterministic(self):
+        router = Router()
+        first = router.select("review")
+        self.assertEqual(first, router.select("review"))
+        self.assertEqual(family(first), "zhipu")  # cheapest declared model wins on priors
+
+    def test_telemetry_moves_the_choice_away_from_a_failing_model(self):
+        telemetry = Telemetry()
+        for _ in range(5):
+            telemetry.record("glm-5.3-flash", "review", "error", latency_ms=900)
+        self.assertNotEqual(Router(telemetry).select("review"), "glm-5.3-flash")
+
+    def test_no_eligible_model_raises(self):
+        with self.assertRaisesRegex(RoutingError, "no_eligible_model"):
+            Router().select("review", exclude_families=["zhipu", "qwen", "deepseek", "anthropic"])
+
+
+class CircuitTests(unittest.TestCase):
+    def setUp(self):
+        self.telemetry = Telemetry()
+        self.router = Router(self.telemetry)
+
+    def test_two_distinct_families_never_the_author(self):
+        result = two_vote_review("claude-haiku-5.5", "001", FILES, self.router, approving)
+        self.assertEqual(result["status"], "approved")
+        models = [v["model"] for v in result["votes"]]
+        self.assertEqual(len(set(models)), 2)
+        self.assertNotIn("claude-haiku-5.5", models)
+        families = {family(m) for m in models}
+        self.assertNotIn("anthropic", families)
+        self.assertEqual(len(families), 2)
+
+    def test_author_is_excluded_even_when_it_is_the_cheapest(self):
+        result = two_vote_review("glm-5.3-flash", "001", FILES, self.router, approving)
+        self.assertNotIn("glm-5.3-flash", [v["model"] for v in result["votes"]])
+
+    def test_first_rejection_holds_without_asking_the_second_model(self):
+        calls = []
+
+        def reject_once(model, prompt):
+            calls.append(model)
+            return rejecting(model, prompt)
+
+        result = two_vote_review("deepseek-4.1-flash", "001", FILES, self.router, reject_once)
+        self.assertEqual(result["status"], "held")
+        self.assertEqual(result["reason"], "reviewer_rejected")
+        self.assertEqual(len(calls), 1)
+
+    def test_a_failing_reviewer_holds_and_never_approves(self):
+        result = two_vote_review("qwen-3.8-flash", "001", FILES, self.router, broken)
+        self.assertEqual(result["status"], "held")
+        self.assertEqual(result["reason"], "reviewer_failed")
+        self.assertEqual(result["votes"][0]["verdict"], "error")
+
+    def test_approval_requires_both_votes(self):
+        answers = iter([{"verdict": "approve", "reason": "ok"}, {"verdict": "reject", "reason": "no"}])
+        result = two_vote_review("glm-5.3-flash", "001", FILES, self.router, lambda m, p: next(answers))
+        self.assertEqual(result["status"], "held")
+        self.assertEqual([v["verdict"] for v in result["votes"]], ["approve", "reject"])
+
+    def test_malformed_answer_is_a_hold(self):
+        result = two_vote_review("glm-5.3-flash", "001", FILES, self.router, lambda m, p: "lgtm")
+        self.assertEqual(result["status"], "held")
+        self.assertEqual(result["reason"], "reviewer_failed")
+
+    def test_empty_diff_is_held_without_calling_any_model(self):
+        calls = []
+        result = two_vote_review("glm-5.3-flash", "001", {}, self.router,
+                                 lambda m, p: calls.append(m) or {"verdict": "approve"})
+        self.assertEqual(result["status"], "held")
+        self.assertEqual(calls, [])
+
+    def test_telemetry_records_both_votes(self):
+        two_vote_review("claude-haiku-5.5", "001", FILES, self.router, approving)
+        self.assertEqual(len(self.telemetry.records), 2)
+        self.assertEqual({r["purpose"] for r in self.telemetry.records}, {"review"})
+
+    def test_digest_is_stable_for_the_same_outcome(self):
+        a = two_vote_review("claude-haiku-5.5", "001", FILES, Router(Telemetry()), approving)
+        b = two_vote_review("claude-haiku-5.5", "001", FILES, Router(Telemetry()), approving)
+        self.assertEqual(a["digest"], b["digest"])
+
+    def test_prompt_is_bounded(self):
+        big = {"demo/forum/product/x.js": "a" * 20000}
+        seen = {}
+
+        def capture(model, prompt):
+            seen["len"] = len(prompt)
+            return {"verdict": "approve", "reason": "ok"}
+
+        two_vote_review("glm-5.3-flash", "001", big, self.router, capture)
+        self.assertLessEqual(seen["len"], 6200)
+
+
+if __name__ == "__main__":
+    unittest.main()

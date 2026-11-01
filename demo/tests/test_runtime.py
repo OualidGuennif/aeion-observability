@@ -134,5 +134,78 @@ class AdmissionTests(unittest.TestCase):
             upstream.shutdown()
 
 
+@unittest.skipUnless(IMPORTABLE, "controller requirements required")
+class DuplicateRequestTests(unittest.TestCase):
+    """A harness that submits the same turn twice must not be paid twice."""
+
+    def setUp(self):
+        self.forwarded = []
+        outer = self
+
+        class Upstream(BaseHTTPRequestHandler):
+            def log_message(self, *_args):
+                pass
+
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length", "0"))
+                outer.forwarded.append(self.rfile.read(length))
+                body = b'data: {"choices":[{"delta":{"content":"ok"}}]}\n\ndata: [DONE]\n\n'
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+        self.upstream = ThreadingHTTPServer(("127.0.0.1", 0), Upstream)
+        threading.Thread(target=self.upstream.serve_forever, daemon=True).start()
+        self.events = []
+
+        class Counter:
+            revision = "fixture"
+
+            def count(self, _payload):
+                return 10
+
+        self.relay = ContextRelay("fixture/mock", "not-sent", 250000, lambda *_a: None,
+                                  lambda name, **attrs: self.events.append((name, attrs)),
+                                  upstream=f"http://127.0.0.1:{self.upstream.server_port}/v1/chat/completions",
+                                  counter=Counter())
+        self.relay.start()
+        self.addCleanup(self.upstream.shutdown)
+        self.addCleanup(self.relay.close)
+
+    def send(self, payload):
+        request = urllib.request.Request(self.relay.url + "/chat/completions", data=payload,
+                                         headers={"Authorization": "Bearer " + self.relay.token,
+                                                  "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                return response.status, response.read()
+        except urllib.error.HTTPError as error:
+            return error.code, error.read()
+
+    @staticmethod
+    def payload(text):
+        return json.dumps({"model": "mock", "messages": [{"role": "user", "content": text}],
+                           "stream": True, "max_tokens": 4096}).encode()
+
+    def test_identical_body_is_refused_and_forwarded_once(self):
+        first, _ = self.send(self.payload("do the task"))
+        self.assertEqual(first, 200)
+        second, body = self.send(self.payload("do the task"))
+        self.assertEqual(second, 409)
+        self.assertIn(b"DUPLICATE_REQUEST", body)
+        self.assertEqual(len(self.forwarded), 1)
+        self.assertEqual(self.relay.forwarded_count, 1)
+        self.assertIn(("context.duplicate_refused", {"aeion.failure.code": "DUPLICATE_REQUEST"}), self.events)
+
+    def test_a_new_turn_is_still_forwarded(self):
+        self.send(self.payload("do the task"))
+        status, _ = self.send(self.payload("do the task"))
+        self.assertEqual(status, 409)
+        third, _ = self.send(self.payload("next step"))
+        self.assertEqual(third, 200)
+        self.assertEqual(len(self.forwarded), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

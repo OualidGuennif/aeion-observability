@@ -1,0 +1,50 @@
+/* Factory board: reuses the cockpit tokens (ivory / forest / copper). */
+main{max-width:1440px;margin:auto;padding:0 48px}
+.login-card{max-width:520px;margin:80px auto;padding:40px;background:var(--panel);border:1px solid var(--line);border-radius:6px}
+.login-card h1{font-size:clamp(32px,4vw,48px);font-weight:500;letter-spacing:-.05em;margin:18px 0}
+.login-card .intro{font-size:12px;line-height:1.8;color:var(--muted);margin-bottom:24px}
+.login-card code{font:12px ui-monospace,monospace;background:var(--soft);padding:2px 6px;border-radius:4px}
+.login-card label{display:block;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.login-card input{width:100%;padding:12px;border:1px solid var(--line);border-radius:5px;background:#fff;font:14px ui-monospace,monospace;margin-bottom:14px}
+.section-heading{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--line);padding:40px 0 20px;margin-bottom:24px}
+.section-heading h2{font-size:clamp(28px,3.4vw,44px);font-weight:500;letter-spacing:-.05em;margin:10px 0 0}
+.factory-layout{display:grid;grid-template-columns:1.6fr 1fr;gap:24px;align-items:start}
+.catalog-panel,.queue-panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px}
+.panel-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.filters{display:flex;gap:10px;margin-bottom:16px}
+.filters select{padding:9px 10px;border:1px solid var(--line);border-radius:5px;background:#fff;font-size:11px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;max-height:70vh;overflow:auto;padding:2px}
+.card{display:flex;gap:10px;padding:12px;border:1px solid var(--line);border-radius:5px;background:#fff;cursor:pointer}
+.card.selected{border-color:var(--accent);background:#944d3108}
+.card input{margin-top:3px;accent-color:var(--ink)}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card-head strong{font:600 12px ui-monospace,monospace}
+.card h4{font-size:12px;font-weight:600;margin:6px 0 8px;line-height:1.35}
+.card-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:9px;color:var(--muted)}
+.card-meta span{padding:2px 6px;background:var(--soft);border-radius:3px}
+.badge-parallel{color:#4f6b45;background:#7a97680d !important}
+.queue-actions{display:flex;gap:10px;margin-bottom:16px}
+.build-list,.event-list{display:flex;flex-direction:column;gap:8px;max-height:34vh;overflow:auto}
+.build-row{padding:10px 12px;border:1px solid var(--line);border-radius:5px;background:#fff}
+.build-row p{margin:4px 0 0;font-size:11px;color:var(--muted)}
+.build-head{display:flex;align-items:center;gap:8px}
+.build-head strong{font:600 11px ui-monospace,monospace}
+.build-row.simulated_complete{border-color:#7a976860}
+.build-row.cancelled,.build-row.failed{opacity:.6}
+.build-row.held{border-color:#944d3160}
+.build-row button{margin-left:auto;font-size:10px}
+.event-list{font-size:10px;color:var(--muted)}
+.event-list .event{padding:6px 10px;background:var(--soft);border-radius:4px}
+.event-list .event b{color:var(--ink);font-family:ui-monospace,monospace}
+@media(max-width:900px){.factory-layout{grid-template-columns:1fr}}
+
+/* Release plane: staging, rollout and the canary gate, above the build panels. */
+.release-panel{background:var(--soft);border:1px solid #ffffff10;border-radius:12px;padding:14px 16px;margin:0 0 18px}
+.release-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:8px 0 4px}
+.release-card{background:#ffffff06;border:1px solid #ffffff0d;border-radius:8px;padding:10px 12px}
+.release-card h3{margin:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.release-card .mono{font-family:ui-monospace,monospace;font-size:11px;margin:0 0 6px;word-break:break-all}
+.release-card .queue-actions{margin-top:8px;display:flex;gap:6px}
+.flag-row{display:flex;align-items:center;gap:6px;padding:2px 0}
+#release-msg{margin:6px 0 0}
+@media(max-width:900px){.release-grid{grid-template-columns:1fr}}

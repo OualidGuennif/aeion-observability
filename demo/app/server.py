@@ -20,7 +20,12 @@ from profiles import PROFILES, PROFILE_VERSION, available
 from scenarios import SCENARIOS
 from selection import recommend
 from lifecycle import plan, recover
-from settings import DATA, SERVICES, WORK
+from settings import DATA, SERVICES, WORK, FACTORY_MANIFEST, FACTORY_STATE, FACTORY_SPEC_DIR
+
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from factory.api import FactoryApp, ApiError, COOKIE
+from factory.auth import host_origin_ok
 
 DATA.mkdir(mode=0o700, parents=True, exist_ok=True)
 WORK.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -109,6 +114,20 @@ for path in CAMPAIGNS.glob("*.json"):
 memory = Memory()
 runner = Runner(Telemetry(), save, memory=memory, audit=Audit(DATA))
 
+factory = FactoryApp(FACTORY_MANIFEST, FACTORY_STATE, spec_dir=FACTORY_SPEC_DIR)
+
+
+def _factory_tick_loop():
+    while True:
+        try:
+            factory.tick()
+        except Exception:
+            pass
+        time.sleep(0.4)
+
+
+threading.Thread(target=_factory_tick_loop, daemon=True).start()
+
 
 def sandbox_ready():
     from sandbox import connection
@@ -159,7 +178,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_args):
         pass
 
-    def respond(self, code, body, content_type="application/json"):
+    def respond(self, code, body, content_type="application/json", headers=None):
         payload = body if isinstance(body, bytes) else body.encode() if isinstance(body, str) else json.dumps(body).encode()
         self.send_response(code)
         self.send_header("Content-Type", content_type)
@@ -167,6 +186,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; frame-ancestors 'none'")
+        for key, value in (headers or {}).items():
+            self.send_header(key, value)
         self.end_headers()
         self.wfile.write(payload)
 
@@ -186,6 +207,12 @@ class Handler(BaseHTTPRequestHandler):
             name = "index.html" if self.path == "/" else self.path[1:]
             content_type = {"index.html": "text/html; charset=utf-8", "app.js": "text/javascript", "style.css": "text/css"}[name]
             self.respond(200, (Path(__file__).parent / name).read_text(), content_type)
+        elif self.path in {"/factory", "/factory/"}:
+            self.respond(200, (Path(__file__).parent / "factory.html").read_text(), "text/html; charset=utf-8")
+        elif self.path == "/factory.js":
+            self.respond(200, (Path(__file__).parent / "factory.js").read_text(), "text/javascript")
+        elif self.path == "/factory.css":
+            self.respond(200, (Path(__file__).parent / "factory.css").read_text(), "text/css")
         elif self.path == "/api/catalog":
             self.respond(200,{"profiles":{k:{**p,"available":available(k)} for k,p in PROFILES.items()},
                 "scenarios":{k:{"name":v["name"],"checks":len(v["cases"])} for k,v in SCENARIOS.items()},
@@ -226,8 +253,130 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond(200, memory.recall(synthetic="synthetic=true" in self.path))
             except Exception:
                 self.respond(503, {"status": "unavailable", "results": []})
+        elif self.path == "/api/factory/releases":
+            if not host_origin_ok(self.headers.get("Host", "")):
+                self.respond(403, {"error": "origin_denied"})
+                return
+            session = factory.authenticate(self.headers.get("Cookie"))
+            if session is None:
+                self.respond(401, {"error": "unauthorized"})
+                return
+            try:
+                status, body, headers = factory.releases_view(session)
+                self.respond(status, body, headers=headers)
+            except ApiError as exc:
+                self.respond(exc.status, {"error": exc.code})
+        elif self.path in {"/api/factory/catalog", "/api/factory/board"}:
+            if not host_origin_ok(self.headers.get("Host", "")):
+                self.respond(403, {"error": "origin_denied"})
+                return
+            session = factory.authenticate(self.headers.get("Cookie"))
+            if session is None:
+                self.respond(401, {"error": "unauthorized"})
+                return
+            status, body, headers = factory.catalog_view(session) if self.path == "/api/factory/catalog" else factory.board(session)
+            self.respond(status, body, headers=headers)
+        elif urlparse(self.path).path == "/api/factory/events":
+            self.factory_sse()
         else:
             self.respond(404, {"error": "not_found"})
+
+    def factory_sse(self):
+        if not host_origin_ok(self.headers.get("Host", "")):
+            self.respond(403, {"error": "origin_denied"})
+            return
+        session = factory.authenticate(self.headers.get("Cookie"))
+        if session is None:
+            self.respond(401, {"error": "unauthorized"})
+            return
+        query = parse_qs(urlparse(self.path).query)
+        try:
+            since = int(query.get("since", ["0"])[0])
+        except (ValueError, TypeError):
+            self.respond(400, {"error": "invalid_since"})
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.send_header("X-Accel-Buffering", "no")
+        self.send_header("Content-Security-Policy", "default-src 'none'")
+        self.end_headers()
+        try:
+            def write(frame):
+                data = json.dumps(frame.get("data"), separators=(",", ":")) if frame.get("data") is not None else ""
+                self.wfile.write(f"id: {frame['seq']}\nevent: {frame['event']}\ndata: {data}\n\n".encode())
+                self.wfile.flush()
+            earliest = factory.hub.earliest_seq()
+            if since > 0 and since < earliest:
+                self.wfile.write(f"event: reload\ndata: {{\"earliest\":{earliest}}}\n\n".encode())
+                self.wfile.flush()
+                return
+            for frame in factory.events_since(since):
+                write(frame)
+                since = frame["seq"]
+            while True:
+                time.sleep(0.4)
+                for frame in factory.events_since(since):
+                    write(frame)
+                    since = frame["seq"]
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+
+    def handle_factory_post(self, path):
+        host = self.headers.get("Host", "")
+        origin = self.headers.get("Origin")
+        if "application/json" not in self.headers.get("Content-Type", ""):
+            self.respond(400, {"error": "invalid_request"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 65536:
+                raise ApiError(400, "invalid_request")
+            raw = self.rfile.read(length)
+            body = json.loads(raw) if raw else {}
+            if not isinstance(body, dict):
+                raise ApiError(400, "invalid_request")
+        except (ValueError, TypeError):
+            self.respond(400, {"error": "invalid_request"})
+            return
+        except ApiError as exc:
+            self.respond(exc.status, {"error": exc.code})
+            return
+
+        if path == "/api/factory/login":
+            try:
+                status, body_out, headers = factory.login(host, origin, body)
+                self.respond(status, body_out, headers=headers)
+            except ApiError as exc:
+                self.respond(exc.status, {"error": exc.code})
+            return
+
+        session = factory.authenticate(self.headers.get("Cookie"))
+        if session is None:
+            self.respond(401, {"error": "unauthorized"})
+            return
+        csrf = self.headers.get("X-CSRF-Token")
+        try:
+            if path == "/api/factory/logout":
+                status, body_out, _ = factory.logout(self.headers.get("Cookie"))
+                self.respond(status, body_out)
+            elif path == "/api/factory/queue":
+                status, body_out, _ = factory.queue(host, origin, session, csrf, body)
+                self.respond(status, body_out)
+            elif path == "/api/factory/cancel":
+                status, body_out, _ = factory.cancel(host, origin, session, csrf, body)
+                self.respond(status, body_out)
+            elif path == "/api/factory/release":
+                status, body_out, _ = factory.release_action(host, origin, session, csrf, body)
+                self.respond(status, body_out)
+            elif path == "/api/factory/session":
+                status, body_out, _ = factory.sessions(host, origin, session, csrf, body)
+                self.respond(status, body_out)
+            else:
+                self.respond(404, {"error": "not_found"})
+        except ApiError as exc:
+            self.respond(exc.status, {"error": exc.code})
 
     def do_POST(self):
         # Block browser cross-origin submissions/DNS rebinding; no CORS or form requests.
@@ -235,6 +384,9 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if not re.fullmatch(r"(?:127\.0\.0\.1|localhost)(?::\d+)?", host) or (origin and origin != "http://" + host):
             self.respond(403, {"error": "origin_denied"})
+            return
+        if self.path.startswith("/api/factory/"):
+            self.handle_factory_post(self.path)
             return
         if self.path != "/api/runs" or self.headers.get("Content-Type") != "application/json":
             self.respond(400, {"error": "invalid_request"})

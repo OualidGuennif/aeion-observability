@@ -1,4 +1,5 @@
 """The sole execution boundary for agent tools and generated code. No host or plain-Docker fallback."""
+import base64
 import hashlib
 import json
 import os
@@ -8,6 +9,73 @@ import time
 from settings import AGENT_UID, DATA, DEMO, OPENSHELL_STATE, WORK, WORK_VOLUME
 
 VERSION = '0.1.5'
+# Sandbox-owned work directory. Writes here stay inside the sandbox, which is the only
+# transport that is reliable on Docker Desktop: host-backed volume writes land but the
+# syscall returns EACCES, so results are collected over the exec channel instead.
+SANDBOX_OUT = '/tmp/aeion-out'
+MAX_SYNC_BYTES = 8 * 1024 * 1024
+COLLECT_SCRIPT = r'''
+import base64, json, os, sys
+root, limit = sys.argv[1], int(sys.argv[2])
+items, total = {}, 0
+for base, _, files in os.walk(root):
+    for name in files:
+        path = os.path.join(base, name)
+        with open(path, 'rb') as handle:
+            data = handle.read()
+        total += len(data)
+        if total > limit:
+            raise SystemExit('sync_too_large')
+        items[os.path.relpath(path, root)] = base64.b64encode(data).decode('ascii')
+print(json.dumps(items))
+'''
+SEED_SCRIPT = r'''
+import base64, json, os, sys
+root = sys.argv[1]
+items = json.loads(sys.stdin.read())
+written = 0
+for relative, payload in items.items():
+    if os.path.isabs(relative) or '..' in relative.split('/'):
+        raise SystemExit('seed_path')
+    target = os.path.join(root, relative)
+    folder = os.path.dirname(target)
+    if folder:
+        os.makedirs(folder, exist_ok=True)
+    with open(target, 'wb') as handle:
+        handle.write(base64.b64decode(payload))
+    written += 1
+print(written)
+'''
+
+
+def materialize(items, destination):
+    """Write collected sandbox files to the host, refusing anything outside the destination.
+
+    A file the sandbox created on the mounted volume belongs to the sandbox UID, so the host
+    user cannot overwrite it in place; the entry is removed and recreated instead.
+    """
+    destination = Path(destination)
+    written = []
+    for relative, payload in items.items():
+        parts = Path(relative).parts
+        if not relative or relative.startswith('/') or '\\' in relative or '..' in parts:
+            raise ValueError('SANDBOX_SYNC_PATH')
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        data = base64.b64decode(payload)
+        if target.is_file() and not target.is_symlink() and target.read_bytes() == data:
+            continue
+        try:
+            target.write_bytes(data)
+        except PermissionError:
+            try:
+                target.unlink(missing_ok=True)
+                target.write_bytes(data)
+            except PermissionError as error:
+                raise ValueError('SANDBOX_SYNC_TARGET_LOCKED') from error
+        written.append(str(relative))
+    return written
+
 # Files the agent image must contain byte-for-byte (verified inside a live sandbox).
 BUNDLE_FILES = {
     'agent/fs-helper.py': '/opt/demo/fs-helper.py',
@@ -107,6 +175,36 @@ class Sandbox:
             raise ValueError('SANDBOX_CLOSED')
         return self.client.exec(self.name, command, workspace='default', env=env, stdin=stdin,
                                 workdir=str(workdir) if workdir else None, no_login_shell=True, timeout_seconds=timeout)
+
+    def seed_in(self, files, destination=SANDBOX_OUT):
+        """Copy host files into the sandbox work directory before an agent starts."""
+        encoded = {}
+        total = 0
+        for relative, data in files.items():
+            blob = base64.b64encode(data).decode("ascii")
+            total += len(blob)
+            if total > MAX_SYNC_BYTES:
+                raise ValueError('SANDBOX_SEED_TOO_LARGE')
+            encoded[relative] = blob
+        result = self.exec(['python3', '-c', SEED_SCRIPT, destination],
+                           stdin=json.dumps(encoded).encode("utf-8"), timeout=60)
+        if result.exit_code != 0:
+            raise ValueError('SANDBOX_SEED_FAILED')
+        return int(result.stdout.strip() or 0)
+
+    def collect(self, source=SANDBOX_OUT):
+        """Return {relative path: base64 bytes} for everything under a sandbox directory."""
+        result = self.exec(['python3', '-c', COLLECT_SCRIPT, source, str(MAX_SYNC_BYTES)], timeout=60)
+        if result.exit_code != 0:
+            raise ValueError('SANDBOX_SYNC_FAILED')
+        try:
+            return json.loads(result.stdout)
+        except ValueError as exc:
+            raise ValueError('SANDBOX_SYNC_UNREADABLE') from exc
+
+    def sync_out(self, destination, source=SANDBOX_OUT):
+        """Copy a sandbox work directory to the host over the exec channel."""
+        return materialize(self.collect(source), destination)
 
     def close(self):
         if self.closed:

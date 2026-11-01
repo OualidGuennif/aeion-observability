@@ -15,7 +15,7 @@ class Audit:
                    "aeion.context.observed", "aeion.context.counted", "aeion.context.hard_limit",
                    "gen_ai.usage.input_tokens", "gen_ai.usage.output_tokens", "gen_ai.request.model",
                    "aeion.check.passed", "aeion.artifact.changed", "aeion.memory.backend",
-                   "aeion.app.probe_ms", "aeion.failure.code", "aeion.process.pid", "aeion.http.status"}
+                   "aeion.app.probe_ms", "aeion.failure.code", "aeion.failure.type", "aeion.sandbox.files", "aeion.process.pid", "aeion.http.status"}
         allowed.update({"aeion.tool.name", "aeion.tool.status", "aeion.step.elapsed_ms", "trace_id", "span_id", "aeion.cost.estimated_usd", "aeion.human.interventions"})
         allowed.update({"aeion.context.reserve", "aeion.context.max_output", "aeion.context.tokenizer_revision"})
         allowed.update({"aeion.context.basis", "aeion.handover.sha256", "aeion.sandbox.id", "aeion.task.id", "aeion.runtime"})
