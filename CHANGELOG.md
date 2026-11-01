@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Update to the Æion Factory v1.9.0 template (tag `v1.9.0`): the 250k latch lets go on a verified
+  handover and compacts a stale one; `adapter-check` matches all 27 connectors; five tool files a
+  release behind are refreshed from the tag, which is what makes `tools/factory-tests` pass again.
+  `tools/architecture/views.json` regains the three views `refresh` requires — this repository's
+  overview, now citing a verified source anchor for each of its twelve components, plus the release's
+  delivery and context views — and `demo/tests/test_sandbox.py` proves the sandbox refusal with an
+  inert stub instead of depending on the OpenShell SDK being importable.
 - Update to the Æion Factory v1.8.4 template (tag `v1.8.4`, commit `fac8bcb`): the dsh web plugin
   tells the shared 250k/300k rule that its profile has no compaction service, so the gate is
   advisory and the harness compacts itself instead of asking for `/compact`; Pi's native compaction

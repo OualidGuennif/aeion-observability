@@ -536,6 +536,34 @@ Five factory-owned tool files were a release behind and were refreshed from the 
 and `tools/context/tests/test_budget.py`. No project text was rewritten; the only project line edited
 is the version in `AGENTS.md`, which named 1.8.4 and was therefore false.
 
-Kept deliberately: `tools/architecture/views.json` (this repository's own diagram) and the three-line
-local adaptation in `tools/repo-health/repo-health` that keeps the generated passive `skills/` pool out
-of the hand-made folder count.
+Kept deliberately: this repository's own diagram in `tools/architecture/views.json` — which broke the
+refresh contract and is repaired in the entry below — and the three-line local adaptation in
+`tools/repo-health/repo-health` that keeps the generated passive `skills/` pool out of the hand-made
+folder count.
+
+## Release PR #9: the two red checks fixed at their cause — 2026-11-02
+
+`offline-examples` failed with seven `AttributeError`s inside one test:
+`demo/tests/test_sandbox.py` patched `openshell.SandboxClient`, but once another test module puts
+`demo` on `sys.path` — the factory tests do, with `sys.path.insert(0, parents[1])` — `import openshell`
+resolves to the `demo/openshell/` directory as a namespace package. The `skipUnless(openshell)` guard
+was satisfied by that namespace package, so the test ran and then could not find the attribute; it
+passed only while no such module had run first. The test now installs an inert stub module in
+`sys.modules` whose constructor raises `AssertionError`: the refusal must happen before any client
+object exists, and the test no longer depends on whether the SDK is installed. Local:
+`python3 -m unittest discover -s demo/tests` → 341 tests, 1 error (the pre-existing macOS `ps`
+limitation), 9 skipped; CI `offline-examples`: PASS.
+
+`Graphify and Archify` failed before rendering anything: `tools/architecture/refresh` requires exactly
+three views in `tools/architecture/views.json` — `architecture`, `workflow`, `lifecycle` — and the
+v1.8.3 adoption had replaced them with a single custom view, so every refresh since then stopped at
+"maintain exactly the overview, delivery and context views". The file now carries this repository's
+overview (its twelve components each citing a source anchor that resolves exactly once) followed by
+the v1.9.0 delivery and context views, whose anchors resolve unchanged in this tree. Local:
+`refresh --target e4ed339 --base origin/main` → `validate: pass`, `deliver: pass`, `check: pass`;
+`browser-check` cannot run inside the DSH macOS file sandbox (Chrome refuses to initialize its own
+sandbox there). CI `Graphify and Archify`: PASS.
+
+Both failures pre-date the v1.9.0 update and were invisible until this branch ran them: the workflow
+had never executed against the single-view file, and the sandbox test had always been the first module
+in a fresh interpreter.

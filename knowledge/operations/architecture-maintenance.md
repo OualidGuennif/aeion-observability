@@ -91,7 +91,10 @@ from the working tree when a file changed, in a git repository or a plain folder
 from it without the venv.
 
 The canonical [architecture spec](../components/factory-architecture.md) and `views.json` are
-reviewed source, not generated policy. Runtime/config changes must update the architecture spec
+reviewed source, not generated policy. `views.json` must define exactly three views: `architecture`
+(the overview), `workflow` (delivery) and `lifecycle` (context). `refresh` refuses any other set
+before rendering, so a local view is added alongside those three or not at all. Runtime/config
+changes must update the architecture spec
 in the same diff (or carry its existing `Docs-Checked` trailer). Reviewers verify semantic
 completeness. Refresh validates source anchors (one to three per node, Archify's limit), pins diagram provenance to the target SHA,
 and runs Archify `finalize` for every view, including browser checks. A browser/gate failure
