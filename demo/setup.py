@@ -7,6 +7,11 @@ import re
 import secrets
 
 
+# The demo account's address is not a secret, but it is written to the private configuration so a
+# person never has to read the compose file to find out what to type in the login form.
+LANGFUSE_EMAIL = "demo@aeion.local"
+
+
 def read_key(path):
     if not path.is_file():
         return ""
@@ -36,13 +41,13 @@ def main():
     values = {key: secrets.token_hex(24) for key in (
         "POSTGRES_PASSWORD", "CLICKHOUSE_PASSWORD", "REDIS_PASSWORD", "MINIO_PASSWORD", "SALT", "NEXTAUTH_SECRET", "LANGFUSE_PASSWORD")}
     values.update(ENCRYPTION_KEY=secrets.token_hex(32), LANGFUSE_PUBLIC_KEY="pk-lf-" + secrets.token_hex(16),
-                  LANGFUSE_SECRET_KEY="sk-lf-" + secrets.token_hex(24))
+                  LANGFUSE_SECRET_KEY="sk-lf-" + secrets.token_hex(24), LANGFUSE_EMAIL=LANGFUSE_EMAIL)
     values["LANGFUSE_AUTH"] = base64.b64encode((values["LANGFUSE_PUBLIC_KEY"] + ":" + values["LANGFUSE_SECRET_KEY"]).encode()).decode()
     values["OPENCODE_API_KEY"] = read_key(args.opencode_env) if args.opencode_env else ""
     with path.open("x") as output:
         output.write("".join(f"{key}={value}\n" for key, value in values.items()))
     print("Private demo configuration created. OpenCode key configured:", bool(values["OPENCODE_API_KEY"]))
-    print("Langfuse login: demo@aeion.local; password is LANGFUSE_PASSWORD in demo/.local/stack.env.")
+    print("Langfuse login: the address in LANGFUSE_EMAIL and the password in LANGFUSE_PASSWORD, both in demo/.local/stack.env.")
     print("Next: python3 demo/install.py && python3 demo/openshell/setup.py")
     print("Then: docker compose --env-file demo/.local/stack.env -f demo/compose.yaml up -d --build && python3 demo/run.py")
 

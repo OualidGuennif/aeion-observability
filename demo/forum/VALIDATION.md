@@ -728,6 +728,34 @@ The smoke test exists because a screenshot would not have proven the thing most 
 React Native does not expose `Set-Cookie` consistently, so the client parses the login response and
 replays the cookie itself. That is exactly the part a simulator can hide and a script cannot.
 
+## The same front in a browser — 2026-11-02
+
+The owner asked for the forum to be reachable "depuis l'app soit depuis juste un site internet en
+react natif". The client is therefore rendered by `react-native-web` as well: one source, two hosts.
+
+| Claim | Command | Result |
+| --- | --- | --- |
+| It renders in a browser | `npx expo start --port 8082`, headless Chrome on `http://127.0.0.1:8082` | thread list drawn from the live API, footer `release unreleased · runtime 25.0.4` |
+| The browser may read the forum | the page's own `/api/threads` call | threads rendered without a session |
+| The browser may open a session | `curl` with `Origin: http://127.0.0.1:8082` | preflight 200, `access-control-allow-credentials: true`, login 200 with `Set-Cookie` |
+| The browser may write | same origin, cookie jar plus `X-CSRF-Token` | create 201; **403 without the token** |
+| Nothing regressed on the device path | `npm run typecheck` / `npm run smoke` / `expo export --platform ios` | exit 0 / 12 steps / 1.5 MB Hermes bundle |
+
+Two changes made it work and are worth knowing:
+
+- **The cookie changes owner.** A browser hides `Set-Cookie` from JavaScript and forbids a `Cookie`
+  header, so `src/api.ts` sends `credentials: 'include'` and lets the jar hold the session; on a
+  device it keeps parsing and replaying the header as before. The CSRF token comes from the login
+  body either way, so mutations still carry `X-CSRF-Token`.
+- **The API allows exactly two origins**, `http://127.0.0.1:8082` and `http://localhost:8082`, with
+  credentials and nothing else (`quarkus.http.cors.*`). The session cookie stays `SameSite=Strict`,
+  so the page and the API must share a host name — open `127.0.0.1:8082`, not `localhost:8082`,
+  against an API on `127.0.0.1:8081`.
+
+Honest limit: no human has looked at it. The browser build was rendered headlessly and screenshotted;
+Expo Go was installed on a booted simulator but this Xcode ships no `Simulator.app`, so the native
+screen was never inspected.
+
 ## Two real Quarkus instances behind the release plane — 2026-11-01
 
 The release plane decided routing against synthetic bundles. It now decides it against **two running

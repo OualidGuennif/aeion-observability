@@ -23,8 +23,10 @@ runner, test harness), the accounts and sessions ahead of their turn, and thread
 producer and consumer behind a transactional outbox, CSRF tokens on every mutation, with 47 JUnit tests.
 `demo/forum-db/` is the guardian service for its SQLite file: WAL, `VACUUM INTO` snapshots, a
 restore drill and one-writer leasing. `demo/forum-mobile/` is the front on React Native 0.88.1
-through Expo SDK 58: it typechecks, bundles for iOS (619 modules) and its API client passes an
-11-step smoke test against the live service, though no simulator has run it. A real Kafka broker
+through Expo SDK 58: it typechecks, bundles for iOS (619 modules) and its API client passes a
+12-step smoke test against the live service, though no simulator has run it. The same client also
+renders in a browser through `react-native-web` (`npx expo start --port 8082` →
+`http://127.0.0.1:8082`), which is how the forum is shown without a phone. A real Kafka broker
 (`apache/kafka-native` in Docker) carried the event drill.
 
 ## Start and show
@@ -61,8 +63,9 @@ may hold more than the one it needs.
 | Langfuse | [localhost:3300](http://localhost:3300) | Real traces, generations, usage, estimated cost and boolean scores |
 | Hindsight | [localhost:9999](http://localhost:9999) | Session-analysis memory banks and semantic recall |
 
-Langfuse login: `demo@aeion.local`; its generated password is `LANGFUSE_PASSWORD` in the
-private configuration. Open it locally in an editor; never paste the password into chat/logs.
+Langfuse login: the address in `LANGFUSE_EMAIL` and its generated password in `LANGFUSE_PASSWORD`,
+both in the private configuration (`demo/.local/stack.env`, written by `python3 demo/setup.py`).
+Open it locally in an editor; never paste the password into chat/logs.
 claude-mem and the OTel collector publish on loopback only for the native controller.
 The first build downloads upstream runtimes and Hindsight's bundled local models, not model
 weights for coding inference. Compose runs only the observation services and the playground.
