@@ -6,15 +6,18 @@ from pathlib import Path
 import sys
 import tempfile
 import time
+import types
 import unittest
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'app'))
 import sandbox
-try:
-    import openshell
-except ImportError:
-    openshell=None
+
+
+class _UnreachableClient:
+    """Qualification must refuse before any SDK object exists."""
+    def __init__(self,*args,**kwargs):
+        raise AssertionError('SandboxClient constructed for unqualified evidence')
 
 
 class QualificationTests(unittest.TestCase):
@@ -22,8 +25,8 @@ class QualificationTests(unittest.TestCase):
         with patch.object(Path,'read_text',side_effect=FileNotFoundError):
             self.assertFalse(sandbox.cli_qualified())
 
-    @unittest.skipUnless(openshell,'OpenShell SDK in controller required')
     def test_expiry_image_drift_and_telemetry_never_connect(self):
+        sdk=types.ModuleType('openshell');sdk.SandboxClient=_UnreachableClient;sdk.TlsConfig=_UnreachableClient
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);(root/'tls').mkdir();(root/'qualification').mkdir();(root/'tls/ca.crt').write_bytes(b'fixture-ca')
             evidence=dict(version='0.1.5',telemetry_disabled=True,agent_image='sha256:fixture',agent_uid=sandbox.AGENT_UID,work_volume=sandbox.WORK_VOLUME,work_dir=str(sandbox.WORK.resolve()),
@@ -35,9 +38,8 @@ class QualificationTests(unittest.TestCase):
                     (root/'qualification/security.json').write_text(json.dumps({**evidence,**changes}))
                     with patch.dict(os.environ,{'OPENSHELL_TLS_DIR':str(root/'tls'),
                               'OPENSHELL_ENDPOINT':'fixture.invalid:17670','OPENSHELL_AGENT_IMAGE':'sha256:fixture',
-                              'OPENSHELL_TELEMETRY_ENABLED':flag}),patch('openshell.SandboxClient') as client:
+                              'OPENSHELL_TELEMETRY_ENABLED':flag}),patch.dict(sys.modules,{'openshell':sdk}):
                         with self.assertRaisesRegex(ValueError,'SANDBOX_NOT_QUALIFIED'):sandbox.connection()
-                        client.assert_not_called()
 
 
 if __name__=='__main__':unittest.main()
