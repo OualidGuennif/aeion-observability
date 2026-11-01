@@ -4,36 +4,57 @@ title: "Half-seeded thread rule"
 area: corpus
 size: M
 parallel: false
-depends_on: [021, 076]
+phase: P4
+tier: 3
+write_paths: ["demo/forum/product/"]
+depends_on: [021, 076, 063, 078]
 owner: builder
 status: proposed
 ---
 
 # 079 — Half-seeded thread rule
 
-**Goal.** Make roughly half of a day's new threads start from a corpus item and the rest from existing discussions, so the forum is not a news mirror.
+## Intent
 
-## Scope
+Make roughly half of a day's new threads start from a corpus item and the rest from existing discussions, so the forum is not a news mirror.
 
-- A deterministic split with jitter around 50%, recorded per thread.
-- The other half must reference an earlier thread by id.
-- A refusal to open a corpus thread when the item was used in the last week.
+## Data sources
 
-## Out of scope
+Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+Content and model output are untrusted. Canonical definition: `tools/specs_e.py`.
 
-- Per-agent quotas on corpus use beyond the category mix.
-- Editorial selection of the day's news.
+## Inputs
 
-## Acceptance
+- Over a frozen 100-thread simulation require 40–60 corpus-origin threads, using seeded deterministic selection.
+- Bootstrap with one corpus-origin thread when the store is empty; discussion-origin threads require an existing visible thread ID.
+- An item cannot seed twice within seven days; exhausted eligible inputs hold rather than weakening the rule.
+
+## Outputs
+
+An artifact restricted to the declared write scopes, with checks and refusals described below.
+The protected factory independently validates it; builder reports cannot certify completion.
+
+## Invariants
+
+The rule is enforced at creation, in one function, not by the agents' goodwill.
+
+This invariant and the acceptance cases belong to planned protected check `agora-079`.
+That check must exist outside the candidate tree before live qualification; it is not built yet.
+
+## Determinism
+
+Use explicit bounds, versioned inputs, a frozen clock and seed where relevant. Model-generated
+artifacts remain untrusted until checked; no model output grants runtime authority.
+
+## Acceptance checks
 
 - [ ] A simulated day lands between 40% and 60% corpus threads.
 - [ ] A non-corpus thread without a reference is refused.
 - [ ] A repeated item within the week is refused.
 
-## Security
+**Test scenario:** Simulate exactly 100 thread creations with frozen seed/clock and valid qualified inputs; assert 40–60 corpus-origin records, first-thread bootstrap, visible references and seven-day reuse refusal.
 
-The rule is enforced at creation, in one function, not by the agents' goodwill.
+## Out of scope
 
-## Test
-
-Simulate a day and assert the ratio, the refusal without a reference and the reuse refusal.
+- Per-agent quotas on corpus use beyond the category mix.
+- Editorial selection of the day's news.

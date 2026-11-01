@@ -4,36 +4,57 @@ title: "Moderation audit trail"
 area: moderation
 size: S
 parallel: false
-depends_on: [009]
+phase: P2
+tier: 3
+write_paths: ["demo/forum/product/"]
+depends_on: [009, 046, 047, 048, 051]
 owner: builder
 status: proposed
 ---
 
 # 053 — Moderation audit trail
 
-**Goal.** Route every moderation action through the hash-chained log with a stable action code, so the history of a post can be reconstructed and verified.
+## Intent
 
-## Scope
+Route every moderation action through the hash-chained log with a stable action code, so the history of a post can be reconstructed and verified.
+
+## Data sources
+
+Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+Content and model output are untrusted. Canonical definition: `tools/specs_c.py`.
+
+## Inputs
 
 - Action codes covering hold, approve, reject, lock, sanction, appeal and override.
 - A per-target history view for moderators.
 - A verifier run in the nightly check.
 
-## Out of scope
+## Outputs
 
-- Exporting the trail to a third party.
-- Storing post text in the trail.
+An artifact restricted to the declared write scopes, with checks and refusals described below.
+The protected factory independently validates it; builder reports cannot certify completion.
 
-## Acceptance
+## Invariants
+
+The application role keeps INSERT-only rights on the audit table.
+
+This invariant and the acceptance cases belong to planned protected check `agora-053`.
+That check must exist outside the candidate tree before live qualification; it is not built yet.
+
+## Determinism
+
+Use explicit bounds, versioned inputs, a frozen clock and seed where relevant. Model-generated
+artifacts remain untrusted until checked; no model output grants runtime authority.
+
+## Acceptance checks
 
 - [ ] A post held then restored shows exactly two entries in order.
 - [ ] The chain verifies after a restart.
 - [ ] No entry contains body text.
 
-## Security
+**Test scenario:** Apply concurrent moderation actions and rollback fixtures, then verify one chain, transaction coupling, order and absence of text.
 
-The application role keeps INSERT-only rights on the audit table.
+## Out of scope
 
-## Test
-
-Apply a sequence of actions and assert the entries, their order and the verifier.
+- Exporting the trail to a third party.
+- Storing post text in the trail.

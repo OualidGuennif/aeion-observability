@@ -4,36 +4,57 @@ title: "Deterministic rules engine"
 area: moderation
 size: L
 parallel: false
-depends_on: [041]
+phase: P2
+tier: 3
+write_paths: ["demo/forum/product/"]
+depends_on: [007, 032, 041]
 owner: builder
 status: proposed
 ---
 
 # 042 — Deterministic rules engine
 
-**Goal.** Decide hold, reject or allow from the content and the rule set alone, with no model in the decision path, so the same input always yields the same verdict and reason code.
+## Intent
 
-## Scope
+Decide allow, hold or reject from normalized content, versioned rules and an explicit duplicate/rate snapshot; no model or I/O participates.
 
-- A pipeline of checks: length, links, caps, banned terms, duplicate score, rate signals.
-- A verdict object carrying decision, rule code, severity and the evidence fields it used.
-- A pure function with no I/O, so it is table-testable.
+## Data sources
+
+Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+Content and model output are untrusted. Canonical definition: `tools/specs_c.py`.
+
+## Inputs
+
+- Pure function inputs include normalized source, rules version/hash, duplicate score and bounded rate snapshot.
+- Return canonical decision, primary rule code, severity and bounded evidence; stable rule priority resolves multiple matches.
+- Evaluate the same normalized representation stored/rendered; missing signals or a check error hold the content.
+
+## Outputs
+
+An artifact restricted to the declared write scopes, with checks and refusals described below.
+The protected factory independently validates it; builder reports cannot certify completion.
+
+## Invariants
+
+Fail closed: a check that errors produces a hold, never an allow.
+
+This invariant and the acceptance cases belong to planned protected check `agora-042`.
+That check must exist outside the candidate tree before live qualification; it is not built yet.
+
+## Determinism
+
+Use explicit bounds, versioned inputs, a frozen clock and seed where relevant. Model-generated
+artifacts remain untrusted until checked; no model output grants runtime authority.
+
+## Acceptance checks
+
+- [ ] Identical complete input snapshots yield byte-identical verdicts, including a stable allow code.
+- [ ] Every verdict has one primary code from the versioned registry.
+- [ ] Unknown input shapes reject; missing signals and exceptions hold, including zero-width/encoded bypass fixtures.
+
+**Test scenario:** A table of at least forty inputs with expected verdicts and codes, including the failing-check path.
 
 ## Out of scope
 
 - Semantic understanding or toxicity scoring by a model.
 - Automatic bans from the engine.
-
-## Acceptance
-
-- [ ] The same content and rules yield byte-identical verdicts across runs.
-- [ ] Every verdict names exactly one primary rule code.
-- [ ] An unknown input shape is rejected, not treated as allowed.
-
-## Security
-
-Fail closed: a check that errors produces a hold, never an allow.
-
-## Test
-
-A table of at least forty inputs with expected verdicts and codes, including the failing-check path.

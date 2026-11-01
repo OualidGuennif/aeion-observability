@@ -14,3 +14,12 @@ work/handovers/
 docs/architecture/*.html
 docs/architecture/*.browser-check.json
 docs/architecture/*.png
+
+# Product build output: a Gradle or Expo run writes megabytes that never belong in a commit.
+demo/forum-app/build/
+demo/forum-app/.gradle/
+demo/forum-app/.quarkus/
+demo/forum-mobile/dist/
+demo/forum-mobile/build/
+demo/forum-mobile/.expo/
+*.class

@@ -477,3 +477,65 @@ to type `/compact`; it also drops Pi's refusal of its own window compaction.
 
 Not verified: no dsh session was replayed from the new plugin in this run; the corrupt transcripts
 (`session-2d8481df…`, `session-8accced1…`) stay on disk and were read for recovery, not repaired.
+
+## Agora factory: safe circuit, capability keys, protected branches — 2026-11-01
+
+The local factory that builds the forum from 100 Markdown specs grew the parts the owner asked
+for after "comment se protéger des rogue AI".
+
+- **Review circuit** (`demo/factory/review_circuit.py`): the author model and its family are
+  excluded, vote 1 comes from a second family, vote 2 from a third; any reject, transport error or
+  malformed answer holds the feature. The publisher now refuses a receipt with no circuit, an
+  unapproved one, or fewer than two votes (`verified_receipt`, 8 tests in
+  `test_factory_pipeline.py`).
+- **Credential roles** (`demo/factory/keys.py`): `GH_BUILD_KEY` (read), `GH_API_KEY` (publish),
+  `GH_RELEASE_KEY` (human release), `OPENCODE_API_KEY` (inference); `assert_only`,
+  `assert_worker_isolated`, publisher refusal and start-up scrubbing. 18 tests in
+  `test_factory_keys.py`, including a drift test against the committed root `.env.example`.
+- **Stop-on-branch hand-off** (`demo/factory/boundary.py`): five written rules, the same five
+  copied into `demo/flue/src/agents/coder.ts`, the brief written to `TASK.md` outside the clone,
+  and `test_factory_boundary.py` proving both copies agree.
+- **Product repository**: `.github/scripts/check_product.py` plus a `Product artifacts` job,
+  merged as `develop@e79080ab` through PR #2 with green CI. `main` and `develop` now require a
+  pull request, those five checks, linear history and resolved conversations, with force-push and
+  deletion refused and admins included; a probe push to each branch was rejected by the server.
+  PR #1, the simulated transport artifact, was closed and its branch deleted.
+- **Checks**: 171 factory tests, then 232 in `demo/tests` with the one known macOS `ps`
+  `PermissionError` in `test_openshell_setup`; `knowledge-check`, `doc-links`, `repo-health`,
+  `factory-tests` (PASS, 27 suites) in the product clone; `git diff --check` clean.
+
+Not verified: no live publish ran through the new publisher, and no model call was made for the
+circuit — the OpenCode endpoint still has to accept the four model identifiers. The key roles are
+enforced in code, not by GitHub: a token whose real permissions are wider than the table would not
+be detected.
+
+## Factory v1.9.0 update applied — 2026-11-01
+
+Owner request: "make sure everyone is using the latest aeion factory template
+<https://github.com/OualidGuennif/aeion-factory/releases/tag/v1.9.0>".
+
+What v1.9.0 changes for a project: the 250k latch lets go. A verified handover releases the hard gate
+instead of leaving every call denied, a handover that went stale can still be compacted, the receipt
+survives the settlement, and the dsh plugin keeps its pending request when `PreCompact` refuses. For
+this repository that is harness behaviour only: no product or knowledge document changes.
+
+| Step | Command | Result |
+| --- | --- | --- |
+| What the release changes | `git show v1.9.0:CHANGELOG.md` (factory checkout) | compaction-latch fixes, no connector or policy change |
+| Dry run, three groups | `tools/agents/template-update --ref v1.9.0 --root <repo> --check` | `1.8.9 → 1.9.0`, **one** differing file (`VERSION`); nothing to merge |
+| Apply | `tools/agents/template-update --ref v1.9.0 --root <repo>` | `written VERSION → 1.9.0`; `knowledge/`, `work/`, `CHANGELOG.md`, `AGENTS.md` and the three settings files untouched |
+| Connectors | `tools/agents/adapter-check --root <repo> --ref v1.9.0` | `27 connectors: 27 matching, 0 drifted, 0 absent, 0 unwired, 0 invalid, 0 unidentified, 0 unroled` → **PASS** |
+| The repo's own checks | `tools/factory-tests`, `doc-links`, `knowledge-check`, `repo-health`, `git diff --check` | `14 tests OK`, 97 links, 0 problems, clean |
+
+**A red check was fixed by the update, not by a local patch.** `tools/factory-tests` had been failing
+on `test_a_steering_copy_fails_the_check`: the vendored test replaced the literal
+`agent.steer({ id: globalThis.crypto.randomUUID(), content:` while the 1.9.0 plugin writes
+`agent.steer({ id: ..., role: 'user', content:`, so the replacement was a no-op and the check exited 0.
+Five factory-owned tool files were a release behind and were refreshed from the tag byte for byte:
+`tools/agents/adapter-check`, `tools/agents/tests/{test_adapter_check.py, test_hooks.py, test_dsh.mjs}`
+and `tools/context/tests/test_budget.py`. No project text was rewritten; the only project line edited
+is the version in `AGENTS.md`, which named 1.8.4 and was therefore false.
+
+Kept deliberately: `tools/architecture/views.json` (this repository's own diagram) and the three-line
+local adaptation in `tools/repo-health/repo-health` that keeps the generated passive `skills/` pool out
+of the hand-made folder count.

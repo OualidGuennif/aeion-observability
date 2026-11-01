@@ -1,4 +1,5 @@
 {
+  "schema_version": 2,
   "generator": "demo/forum/tools/generate_features.py",
   "plan": "demo/forum/PLAN.md",
   "count": 100,
@@ -9,6 +10,11 @@
       "area": "foundation",
       "size": "S",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [],
       "file": "001-app-skeleton-and-settings.md"
     },
@@ -18,6 +24,11 @@
       "area": "foundation",
       "size": "M",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "001"
       ],
@@ -29,6 +40,11 @@
       "area": "foundation",
       "size": "S",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "002"
       ],
@@ -40,6 +56,11 @@
       "area": "foundation",
       "size": "M",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "002"
       ],
@@ -51,6 +72,11 @@
       "area": "foundation",
       "size": "M",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "004"
       ],
@@ -62,6 +88,11 @@
       "area": "foundation",
       "size": "S",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "005"
       ],
@@ -73,6 +104,11 @@
       "area": "foundation",
       "size": "M",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "001"
       ],
@@ -84,7 +120,13 @@
       "area": "foundation",
       "size": "M",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
+        "002",
         "005"
       ],
       "file": "008-rate-limiting-per-identity.md"
@@ -95,6 +137,11 @@
       "area": "foundation",
       "size": "M",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "002"
       ],
@@ -106,8 +153,14 @@
       "area": "foundation",
       "size": "S",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "001"
+        "001",
+        "009"
       ],
       "file": "010-uniform-error-answers.md"
     },
@@ -117,6 +170,11 @@
       "area": "foundation",
       "size": "S",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "001"
       ],
@@ -128,9 +186,15 @@
       "area": "foundation",
       "size": "M",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "001",
-        "011"
+        "011",
+        "009"
       ],
       "file": "012-forum-telemetry-through-the-collector.md"
     },
@@ -140,6 +204,11 @@
       "area": "foundation",
       "size": "S",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "001"
       ],
@@ -151,6 +220,11 @@
       "area": "foundation",
       "size": "S",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "001"
       ],
@@ -162,6 +236,11 @@
       "area": "foundation",
       "size": "S",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "002"
       ],
@@ -173,6 +252,11 @@
       "area": "foundation",
       "size": "S",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "001"
       ],
@@ -184,6 +268,11 @@
       "area": "foundation",
       "size": "S",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "001"
       ],
@@ -195,8 +284,16 @@
       "area": "foundation",
       "size": "S",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "014"
+        "014",
+        "005",
+        "006",
+        "013"
       ],
       "file": "018-no-js-baseline-and-accessibility.md"
     },
@@ -206,9 +303,19 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "002",
-        "004"
+        "004",
+        "006",
+        "009",
+        "014",
+        "041",
+        "043"
       ],
       "file": "019-channels-and-their-rules.md"
     },
@@ -218,8 +325,15 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "019"
+        "019",
+        "008",
+        "043"
       ],
       "file": "020-channel-membership-and-visibility.md"
     },
@@ -229,9 +343,16 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "007",
-        "019"
+        "019",
+        "020",
+        "017"
       ],
       "file": "021-posts-and-the-composer.md"
     },
@@ -241,8 +362,14 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "020"
       ],
       "file": "022-threaded-comments.md"
     },
@@ -252,9 +379,18 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "021",
-        "004"
+        "004",
+        "059",
+        "020",
+        "009",
+        "043"
       ],
       "file": "023-votes-with-one-identity-each.md"
     },
@@ -264,8 +400,14 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "023"
+        "023",
+        "022"
       ],
       "file": "024-deterministic-feed-ranking.md"
     },
@@ -275,8 +417,15 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "020",
+        "007"
       ],
       "file": "025-full-text-search.md"
     },
@@ -286,8 +435,16 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "024",
+        "033",
+        "020"
       ],
       "file": "026-cursor-pagination.md"
     },
@@ -297,8 +454,14 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "020"
       ],
       "file": "027-tags-and-topics.md"
     },
@@ -308,8 +471,14 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "022"
+        "022",
+        "020"
       ],
       "file": "028-reply-and-mention-notifications.md"
     },
@@ -319,8 +488,15 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "022",
+        "007"
       ],
       "file": "029-link-and-mention-policy.md"
     },
@@ -330,8 +506,15 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "009",
+        "043"
       ],
       "file": "030-author-edit-window-and-tombstones.md"
     },
@@ -341,8 +524,15 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "059",
+        "060"
       ],
       "file": "031-provenance-labels-on-every-post.md"
     },
@@ -352,8 +542,14 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "007"
       ],
       "file": "032-content-hashing-and-near-duplicates.md"
     },
@@ -363,8 +559,14 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "024"
+        "024",
+        "027"
       ],
       "file": "033-feed-diversity-guard.md"
     },
@@ -374,8 +576,16 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "022",
+        "023",
+        "025"
       ],
       "file": "034-query-indexes-and-a-budget.md"
     },
@@ -385,8 +595,17 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "022"
+        "022",
+        "023",
+        "031",
+        "020",
+        "043"
       ],
       "file": "035-thread-export-for-analysis.md"
     },
@@ -396,8 +615,15 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "019"
+        "019",
+        "021",
+        "041"
       ],
       "file": "036-channel-rules-displayed-with-the-post.md"
     },
@@ -407,8 +633,14 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "020"
       ],
       "file": "037-permalinks-and-canonical-urls.md"
     },
@@ -418,8 +650,15 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "028"
+        "028",
+        "005",
+        "006"
       ],
       "file": "038-thread-subscriptions-and-digest.md"
     },
@@ -429,9 +668,16 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "019",
-        "022"
+        "022",
+        "023",
+        "031"
       ],
       "file": "039-seed-a-demonstrable-forum.md"
     },
@@ -441,8 +687,22 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "039"
+        "039",
+        "005",
+        "006",
+        "009",
+        "012",
+        "020",
+        "025",
+        "031",
+        "059",
+        "060"
       ],
       "file": "040-forum-end-to-end-smoke-test.md"
     },
@@ -452,8 +712,14 @@
       "area": "moderation",
       "size": "M",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "002"
+        "002",
+        "014"
       ],
       "file": "041-rules-as-versioned-data.md"
     },
@@ -463,7 +729,14 @@
       "area": "moderation",
       "size": "L",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
+        "007",
+        "032",
         "041"
       ],
       "file": "042-deterministic-rules-engine.md"
@@ -474,8 +747,14 @@
       "area": "moderation",
       "size": "M",
       "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "004"
+        "004",
+        "009"
       ],
       "file": "043-roles-and-one-permission-matrix.md"
     },
@@ -485,8 +764,17 @@
       "area": "moderation",
       "size": "M",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "022",
+        "020",
+        "041",
+        "043"
       ],
       "file": "044-reports-with-severity.md"
     },
@@ -496,8 +784,15 @@
       "area": "moderation",
       "size": "M",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "044"
+        "044",
+        "041",
+        "043"
       ],
       "file": "045-moderation-queue-and-priority.md"
     },
@@ -507,9 +802,17 @@
       "area": "moderation",
       "size": "M",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "042",
-        "045"
+        "045",
+        "009",
+        "043",
+        "020"
       ],
       "file": "046-moderator-actions.md"
     },
@@ -519,8 +822,15 @@
       "area": "moderation",
       "size": "M",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "046"
+        "046",
+        "008",
+        "043"
       ],
       "file": "047-appeals.md"
     },
@@ -530,8 +840,14 @@
       "area": "moderation",
       "size": "M",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "043"
+        "043",
+        "009"
       ],
       "file": "048-bans-mutes-and-cooldowns.md"
     },
@@ -541,6 +857,11 @@
       "area": "moderation",
       "size": "S",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "048"
       ],
@@ -552,8 +873,17 @@
       "area": "moderation",
       "size": "L",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "046"
+        "046",
+        "052",
+        "061",
+        "066",
+        "073"
       ],
       "file": "050-moderator-agent-that-only-triages.md"
     },
@@ -563,8 +893,17 @@
       "area": "moderation",
       "size": "M",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "046"
+        "046",
+        "005",
+        "006",
+        "009",
+        "043"
       ],
       "file": "051-human-override-console.md"
     },
@@ -574,8 +913,15 @@
       "area": "moderation",
       "size": "L",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "022",
+        "007"
       ],
       "file": "052-injection-guard-for-inbound-content.md"
     },
@@ -585,8 +931,17 @@
       "area": "moderation",
       "size": "S",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "009"
+        "009",
+        "046",
+        "047",
+        "048",
+        "051"
       ],
       "file": "053-moderation-audit-trail.md"
     },
@@ -596,6 +951,11 @@
       "area": "moderation",
       "size": "M",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "046"
       ],
@@ -607,6 +967,11 @@
       "area": "moderation",
       "size": "M",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "042"
       ],
@@ -618,8 +983,15 @@
       "area": "moderation",
       "size": "S",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "046"
+        "046",
+        "009",
+        "043"
       ],
       "file": "056-moderation-kill-switch.md"
     },
@@ -629,8 +1001,14 @@
       "area": "moderation",
       "size": "S",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "041"
+        "041",
+        "009"
       ],
       "file": "057-rule-change-review-gate.md"
     },
@@ -640,8 +1018,14 @@
       "area": "moderation",
       "size": "S",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "053"
+        "053",
+        "014"
       ],
       "file": "058-transparency-page.md"
     },
@@ -651,8 +1035,15 @@
       "area": "agents",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "004"
+        "004",
+        "009",
+        "043"
       ],
       "file": "059-agent-registry-and-signed-tokens.md"
     },
@@ -662,6 +1053,11 @@
       "area": "agents",
       "size": "M",
       "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "059"
       ],
@@ -673,8 +1069,15 @@
       "area": "agents",
       "size": "M",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "059"
+        "059",
+        "009",
+        "008"
       ],
       "file": "061-per-agent-quotas.md"
     },
@@ -684,8 +1087,16 @@
       "area": "agents",
       "size": "M",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "061"
+        "061",
+        "066",
+        "071",
+        "073"
       ],
       "file": "062-cadence-scheduler.md"
     },
@@ -695,9 +1106,37 @@
       "area": "agents",
       "size": "L",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
+        "007",
+        "020",
+        "021",
+        "022",
+        "023",
+        "029",
+        "030",
+        "031",
+        "036",
+        "042",
+        "043",
+        "048",
         "052",
-        "061"
+        "056",
+        "057",
+        "059",
+        "060",
+        "061",
+        "064",
+        "065",
+        "066",
+        "071",
+        "072",
+        "073",
+        "096"
       ],
       "file": "063-posting-pipeline-from-draft-to-submission.md"
     },
@@ -707,8 +1146,14 @@
       "area": "agents",
       "size": "M",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "024"
+        "024",
+        "059"
       ],
       "file": "064-stance-diversity-guard.md"
     },
@@ -718,8 +1163,15 @@
       "area": "agents",
       "size": "M",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "022"
+        "022",
+        "048",
+        "059"
       ],
       "file": "065-reply-policy.md"
     },
@@ -729,8 +1181,16 @@
       "area": "agents",
       "size": "M",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "059"
+        "059",
+        "052",
+        "020",
+        "011"
       ],
       "file": "066-sandboxed-tool-surface-for-forum-bots.md"
     },
@@ -740,8 +1200,14 @@
       "area": "agents",
       "size": "M",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "032"
+        "032",
+        "042"
       ],
       "file": "067-duplicate-detection-between-bots.md"
     },
@@ -751,8 +1217,15 @@
       "area": "agents",
       "size": "S",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "059"
+        "059",
+        "060",
+        "020"
       ],
       "file": "068-public-bot-profiles.md"
     },
@@ -762,8 +1235,14 @@
       "area": "agents",
       "size": "M",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "059"
+        "059",
+        "011"
       ],
       "file": "069-bot-memory-checkpoint.md"
     },
@@ -773,8 +1252,14 @@
       "area": "agents",
       "size": "M",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "069"
+        "069",
+        "022"
       ],
       "file": "070-thread-summaries-in-hindsight.md"
     },
@@ -784,8 +1269,15 @@
       "area": "agents",
       "size": "S",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "063"
+        "059",
+        "068",
+        "009"
       ],
       "file": "071-circuit-breaker-on-repeated-failure.md"
     },
@@ -795,8 +1287,15 @@
       "area": "agents",
       "size": "S",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "031"
+        "031",
+        "059",
+        "060"
       ],
       "file": "072-provenance-enforced-at-submission.md"
     },
@@ -806,8 +1305,15 @@
       "area": "agents",
       "size": "S",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "009"
+        "009",
+        "012",
+        "059"
       ],
       "file": "073-agent-activity-audit.md"
     },
@@ -817,8 +1323,26 @@
       "area": "agents",
       "size": "M",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "063"
+        "050",
+        "062",
+        "063",
+        "064",
+        "065",
+        "066",
+        "067",
+        "068",
+        "069",
+        "070",
+        "071",
+        "072",
+        "073",
+        "095"
       ],
       "file": "074-ten-agent-dry-run.md"
     },
@@ -828,10 +1352,20 @@
       "area": "corpus",
       "size": "S",
       "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "002"
       ],
-      "file": "075-corpus-item-schema.md"
+      "file": "075-corpus-item-schema.md",
+      "categories": [
+        "tech",
+        "state",
+        "government"
+      ]
     },
     {
       "id": "076",
@@ -839,8 +1373,15 @@
       "area": "corpus",
       "size": "M",
       "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "075"
+        "075",
+        "002",
+        "009"
       ],
       "file": "076-offline-corpus-loader.md"
     },
@@ -849,9 +1390,16 @@
       "title": "Two hundred synthetic French items",
       "area": "corpus",
       "size": "M",
-      "parallel": false,
+      "parallel": true,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/corpus/items/",
+        "demo/forum/product/docs/corpus-style.md"
+      ],
       "depends_on": [
-        "075"
+        "075",
+        "052"
       ],
       "file": "077-two-hundred-synthetic-french-items.md"
     },
@@ -861,6 +1409,11 @@
       "area": "corpus",
       "size": "S",
       "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "076"
       ],
@@ -872,9 +1425,16 @@
       "area": "corpus",
       "size": "M",
       "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "021",
-        "076"
+        "076",
+        "063",
+        "078"
       ],
       "file": "079-half-seeded-thread-rule.md"
     },
@@ -884,9 +1444,17 @@
       "area": "corpus",
       "size": "S",
       "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "021",
-        "075"
+        "075",
+        "029",
+        "020",
+        "007"
       ],
       "file": "080-corpus-citation-in-posts.md"
     },
@@ -896,8 +1464,14 @@
       "area": "corpus",
       "size": "S",
       "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "076"
+        "076",
+        "009"
       ],
       "file": "081-refresh-from-a-local-drop-folder.md"
     },
@@ -906,7 +1480,12 @@
       "title": "Licensing and provenance note",
       "area": "corpus",
       "size": "S",
-      "parallel": false,
+      "parallel": true,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/docs/corpus-license.md"
+      ],
       "depends_on": [
         "075"
       ],
@@ -918,11 +1497,22 @@
       "area": "corpus",
       "size": "M",
       "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "060",
-        "076"
+        "076",
+        "078"
       ],
-      "file": "083-topic-interest-weighting.md"
+      "file": "083-topic-interest-weighting.md",
+      "required_categories": [
+        "tech",
+        "state",
+        "government"
+      ]
     },
     {
       "id": "084",
@@ -930,9 +1520,17 @@
       "area": "corpus",
       "size": "M",
       "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "021",
-        "079"
+        "079",
+        "080",
+        "060",
+        "063"
       ],
       "file": "084-thread-generation-from-an-item.md"
     },
@@ -942,8 +1540,14 @@
       "area": "corpus",
       "size": "S",
       "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "084"
+        "084",
+        "062"
       ],
       "file": "085-diversity-metrics-across-threads.md"
     },
@@ -952,10 +1556,17 @@
       "title": "Corpus injection red-team",
       "area": "corpus",
       "size": "M",
-      "parallel": false,
+      "parallel": true,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/tests/fixtures/corpus_injection/",
+        "demo/forum/product/tests/test_corpus_injection.py"
+      ],
       "depends_on": [
         "076",
-        "052"
+        "052",
+        "066"
       ],
       "file": "086-corpus-injection-red-team.md"
     },
@@ -965,8 +1576,15 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "059"
+        "059",
+        "060",
+        "014"
       ],
       "file": "087-deterministic-bot-avatars.md"
     },
@@ -976,8 +1594,15 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "024"
+        "024",
+        "020",
+        "043"
       ],
       "file": "088-pinned-threads-and-featured-slots.md"
     },
@@ -987,8 +1612,15 @@
       "area": "agents",
       "size": "M",
       "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "085"
+        "085",
+        "063",
+        "059"
       ],
       "file": "089-weekly-digest-thread.md"
     },
@@ -998,8 +1630,16 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "022"
+        "022",
+        "020",
+        "007",
+        "063"
       ],
       "file": "090-quote-a-comment.md"
     },
@@ -1009,8 +1649,17 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "021"
+        "021",
+        "059",
+        "005",
+        "006",
+        "020"
       ],
       "file": "091-mute-a-bot-as-a-reader.md"
     },
@@ -1020,8 +1669,15 @@
       "area": "forum",
       "size": "M",
       "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "030"
+        "030",
+        "014",
+        "020"
       ],
       "file": "092-public-edit-history.md"
     },
@@ -1031,8 +1687,15 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "085"
+        "085",
+        "020",
+        "058"
       ],
       "file": "093-public-forum-counters.md"
     },
@@ -1042,6 +1705,11 @@
       "area": "forum",
       "size": "S",
       "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
         "014"
       ],
@@ -1053,8 +1721,15 @@
       "area": "agents",
       "size": "S",
       "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "061"
+        "061",
+        "008",
+        "014"
       ],
       "file": "095-quota-and-rate-limit-messages.md"
     },
@@ -1064,8 +1739,15 @@
       "area": "moderation",
       "size": "S",
       "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "046"
+        "046",
+        "009",
+        "043"
       ],
       "file": "096-thread-slow-mode-and-lock.md"
     },
@@ -1075,8 +1757,16 @@
       "area": "ops",
       "size": "S",
       "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "035"
+        "035",
+        "059",
+        "009",
+        "043"
       ],
       "file": "097-owner-data-export.md"
     },
@@ -1086,8 +1776,16 @@
       "area": "ops",
       "size": "S",
       "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "034"
+        "034",
+        "039",
+        "025",
+        "026"
       ],
       "file": "098-load-test-with-a-latency-budget.md"
     },
@@ -1097,8 +1795,16 @@
       "area": "ops",
       "size": "S",
       "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "018"
+        "018",
+        "040",
+        "063",
+        "094"
       ],
       "file": "099-keyboard-and-accessibility-audit.md"
     },
@@ -1108,8 +1814,15 @@
       "area": "ops",
       "size": "S",
       "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
       "depends_on": [
-        "041"
+        "041",
+        "014",
+        "082"
       ],
       "file": "100-community-guidelines-page.md"
     }

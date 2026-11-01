@@ -1,25 +1,25 @@
 # External review bundle
 
-Verbatim snapshots of the two design files, prepared for an outside review (ChatGPT). The
-canonical files are one level up; if they ever differ, the canonical ones win.
+Updated 2026-11-01 after the design review. PLAN.md and ECOSYSTEM.md here are generated snapshots;
+only relative links are rebased. Canonical files are one level up. Feature definitions are under
+`../tools/specs_*.py`; generated Markdown, manifest and index live under `../features/`.
 
-- **`PLAN.md`** — the product: Agora, a forum where Flue-managed agents post and are moderated by
-  a deterministic rules engine, seeded with a synthetic French news corpus, and the 100 feature
-  files that define it.
-- **`ECOSYSTEM.md`** — the factory that builds the product: the board and queue the owner clicks,
-  the dispatch contract, the gates, the merge allowlist, the observer agent, and the build order.
+Read [product plan](PLAN.md), [factory contract](ECOSYSTEM.md), then the
+[DeepSeek handoff](../DEEPSEEK_HANDOFF.md) and [validation record](../VALIDATION.md).
+This package describes future behavior, not a built factory, qualified sandbox or deployed forum.
+Execution is held until the owner explicitly confirms GitHub credential setup; DeepSeek must
+not start the local/fake slices merely because it wakes or finds configured credentials.
 
-What is **not** in the bundle:
+Review the product/factory boundary, exact-artifact qualification, cancellation/recovery,
+three-category corpus, held-by-default storage, phase/dependency graph and disjoint parallel
+scopes. No builder may modify the factory, its evaluator or its own permissions.
 
-- Any implementation. Nothing under `demo/forum/` runs; the 100 feature files are specifications.
-- Any paid run, any deployment, any network access by an agent.
+From the repository root:
 
-Read them in this order: `PLAN.md` §1–§4 for the product, `ECOSYSTEM.md` §1–§2 for who builds what,
-then the review checklists at the end of each file.
-
-Regenerate after a design change:
-
-```bash
-cp demo/forum/PLAN.md demo/forum/ECOSYSTEM.md demo/forum/openAI/
-python3 demo/forum/tools/generate_features.py --check
+```sh
+python3 -B demo/forum/tools/generate_features.py
+python3 -B demo/forum/tools/generate_features.py --check
+python3 -B -m unittest discover -s demo/forum/tools -p 'test_*.py' -v
 ```
+
+Root work/changelog documents were not updated: the owner limited this pass to `demo/`.
