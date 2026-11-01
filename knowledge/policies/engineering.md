@@ -20,6 +20,21 @@ sources:
 
 # How code is written here
 
+## Three passes
+
+A change is made in one order, and each pass keeps its result:
+
+1. **Make it work.** The smallest edit that solves the problem; one decision in one place; a test
+   written first, and seen failing for the expected reason, when an honest test is practical.
+2. **Make it right.** The root cause, not the symptom; the structure that makes the illegal state
+   unrepresentable and checks data once, where it enters.
+3. **Follow practice.** The project's rules for naming, tests, docs, review and release.
+
+Before the passes: write the premise in one sentence. When two fixes that share a premise fail the
+same check, attack the premise instead of trying a third fix, and subtract what the change no longer
+needs. When the work is not obvious at a glance, build the small tool that does one unit, then let
+it do the rest.
+
 ## Code reads top to bottom
 
 A function that chains steps writes them one after the other, one call per step, each preceded
@@ -57,7 +72,7 @@ structural scorecard; each project's build, linter and tests provide language-sp
 
 This is the team flow, under git only. In a plain folder there is no branch, review, CI or tag: the
 tests for what changed and the `CHANGELOG.md` line are the whole ritual. In local mode
-(`git config aeion.mode local`, see [build and test](../../AGENTS.md#build-and-test)) commits stay
+(`git config aeion.mode local`, see [build and test](../operations/build-and-test.md)) commits stay
 local, without review, CI or a `work/current.md` entry, and pre-push lets the user's own push through;
 tests for what changed still run.
 
@@ -93,4 +108,6 @@ existing contracts unless the task requires changing them. No abstraction is cre
 The root `skills/` pool preserves source skill/agent/resource files as data with their original
 licenses and fingerprints. Repository source-size/comment heuristics apply to authored code,
 including `tools/skills/`, while the identified passive pool has its own mandatory integrity
-check in `tools/factory-tests`. No upstream executable is run by indexing/search/validation.
+check in `tools/factory-tests`. It is likewise not counted among the top-level folders
+`repo-health` caps, because that cap measures hand-made structure. No upstream executable is run
+by indexing/search/validation.

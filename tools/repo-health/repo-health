@@ -63,7 +63,10 @@ def main(argv):
         if longest_comment_block(text) > 20:
             blocks.append(p.relative_to(ROOT).as_posix())
     lines = lambda rel: (ROOT / rel).read_text(encoding="utf-8").count("\n") if (ROOT / rel).exists() else 0
-    top = sorted({p.relative_to(ROOT).parts[0] for p in files if len(p.relative_to(ROOT).parts) > 1 and not p.relative_to(ROOT).parts[0].startswith(".")})
+    # The passive library is generated and verified by its own check, so it is counted with the
+    # sources, not with the hand-made folders the cap is about.
+    mapped = [p for p in files if not (passive_pool and p.relative_to(ROOT).parts[0] == "skills")]
+    top = sorted({p.relative_to(ROOT).parts[0] for p in mapped if len(p.relative_to(ROOT).parts) > 1 and not p.relative_to(ROOT).parts[0].startswith(".")})
     card = {"agents_md_lines": lines("AGENTS.md"), "work_current_lines": lines("work/current.md"),
             "source_files_checked": len(sources), "source_suffixes": sorted(SOURCE),
             "passive_pool_source_files_excluded": len(candidates) - len(sources),

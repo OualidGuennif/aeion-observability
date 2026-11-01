@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- macOS launchd: the daily outer loop. Copy to ~/Library/LaunchAgents/, replace /path/to/repo,
+     then: launchctl load ~/Library/LaunchAgents/com.aeion.factory.outer.plist -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.aeion.factory.outer</string>
+  <key>ProgramArguments</key>
+  <array><string>/path/to/repo/loops/orchestrator.sh</string><string>outer</string></array>
+  <key>WorkingDirectory</key><string>/path/to/repo</string>
+  <key>StartCalendarInterval</key><dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>15</integer></dict>
+  <key>StandardErrorPath</key><string>/path/to/repo/.aeion/logs/launchd-outer.err</string>
+</dict>
+</plist>

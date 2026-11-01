@@ -379,3 +379,79 @@ harness receives only events and labels; the frozen answers in `demo/fixtures/tr
   verdict) and tier 1 (5 requests, 1 conversation, 8/8), all with complete usage.
 
 Not verified: any paid Go request in any tier.
+
+## Local stack end to end, and Langfuse v4 — 2026-11-01
+
+Fresh start: `demo/.local` was regenerated (new random credentials), the old Compose volumes were
+removed, the images rebuilt, and the ten services came up healthy on Docker 29.9.2
+(`langfuse-web` 4.49.0, worker, Postgres 17, ClickHouse 25.12, MinIO, Redis 7, OTel collector
+0.163.2, Deno playground, Hindsight 1.1.0, claude-mem). `GET /api/public/health` answers 200 and
+the cockpit reports `5/5` integrations connected.
+
+- **Supervisor spans reach Langfuse.** One synthetic triage replay (`flue-just-bash`, handover
+  through the 250k gate) wrote 22 observations in `environment=default`: `demo.task`,
+  `agent.started`, `gen_ai.request` ×5, `gate.closed`, `handover.prepared` ×3, `agent.handover`,
+  `artifact.checked` ×2, `session.wiped` ×2, `memory.checkpoint` ×2, `memory.retained`,
+  `quality.scored`, plus one playground `GET`. The run passed 8/8 checks.
+- **Scores are accepted.** `POST /api/public/scores` returned both deterministic ids
+  (`demo_verified_checks`, `demo_autonomous_success`) for that run.
+- **claude-mem** saved and read back checkpoint `#2`; **Hindsight** retained the analysis in
+  `aeion-demo-synthetic`. Both are real services, not stand-ins.
+- **Pi → Langfuse, verified.** The `@langfuse/pi-observability-plugin` 0.1.2 ran from the ignored
+  `.tmp/pi-agent` agent directory (`PI_CODING_AGENT_DIR`), against a local OpenAI-compatible
+  fixture, never a paid provider and never `~/.pi/agent`. Three sessions produced three
+  `Conversational Turn` spans and three `LLM Call` generations in `environment=development`,
+  with `input=1234`, `output=56`, latency, time-to-first-token, session id and trace id, and with
+  the raw prompt (58 chars) and output (35 chars) attached.
+- **Langfuse v4 events_only changes the API surface.** `GET /api/public/traces`,
+  `GET /api/public/sessions` and `GET /api/public/scores` answer 404 with
+  *"not available on deployments running in Langfuse v4 events_only mode"*. Reads go through
+  `GET /api/public/v2/observations` and `GET /api/public/v2/metrics`; score creation still works.
+  Any read-back procedure that still calls the v1 resources is dead on this instance.
+- **Flue harness re-qualified** with `qualify_flue.py --local-sandbox` (real Flue 2.3.0 + Pi 1.4.0,
+  fake inference): tier 3 6 requests / 2 fresh conversations / 12 checks, tier 2 5 requests /
+  12 checks, tier 1 5 requests / 8 checks, all complete usage.
+
+**OpenShell on macOS is not qualified and does not run.** `openshell/setup.py` builds the agent
+image and starts the gateway, then fails in `qualify.py` because the probe's `exec` returns an
+empty stdout. Measured cause, not a guess: on the host-backed work volume, writes are *performed*
+(the files appear on the host) while the syscall returns `EACCES` — `open(..., "w")`, `: > file`
+and `echo > file` fail this way, `touch` sometimes succeeds, and repeated probes disagree with each
+other. The same write succeeds in a plain container on a Docker volume-subpath mount and on the
+same bind mount, `os.access(..., W_OK)` is `True`, and `/tmp`, `/sandbox` and a tmpfs mounted
+inside the sandbox all accept writes normally. Host bind mounts are refused by admission
+(*"host bind or image mount cannot be attached while resource admission is enabled: no trusted
+label resolver"*), so the volume path is the only admitted one. The qualification therefore fails
+closed, as designed, and tier 3 stays unavailable locally.
+
+Not verified: any paid Go request; tier 3 in a real OpenShell sandbox on this machine.
+
+## Factory v1.8.3 import completed — 2026-11-01
+
+The template import was missing the `loops/` payload its own tools already named, so
+`tools/factory-tests` stopped at `tools/loops/tests/test_loops.py` with
+`FileNotFoundError: .../loops`. Fixed by importing `loops/` from the sibling Factory checkout at
+tag `v1.8.3` (15 files: `orchestrator.sh`, six job prompts, schedules, model routing, issue
+protocol, Decisions API client), without `.DS_Store` and without editing the sibling.
+
+- **`env.local` is now ignored**, as in Factory: the orchestrator reads loop settings from it and
+  the file may also carry the Decisions API secret. Only the template is tracked.
+- **doc-links rule L4 caught the new spec headers**: `loops/orchestrator.sh` and
+  `loops/decisions-api/client.sh` name `knowledge/operations/loops.md` as their spec, so that
+  runbook now lists them as `sources:`.
+- **`repo-health` counts nine top-level folders**, the cap, once `loops/` is tracked. The imported
+  `skills/` pool would have made ten: it is generated and verified by its own integrity check, so
+  the scorecard now counts it with the sources instead of the hand-made folders (one line plus a
+  comment, and the policy sentence in `knowledge/policies/engineering.md`). This is a deliberate
+  deviation from the byte-identical upstream tool, which Factory's own eleven-folder repository
+  would otherwise fail; no other rule changed.
+- **Checks re-run on the staged tree**: `tools/factory-tests` PASS with all 25 suites,
+  `tools/knowledge/knowledge-check` PASS, `tools/knowledge/doc-links` PASS (93 links),
+  `tools/repo-health/repo-health` OK (AGENTS.md 84 lines, 9 folders, 0 big files),
+  `examples/compare_cohorts.py` and `validate_fixtures.py` exit 0, offline suite 33 tests OK.
+- **`python3 -m unittest discover -s demo/tests`**: 39 pass, 8 skipped, one error:
+  `test_real_long_named_process_is_detected` cannot spawn `ps` (`Operation not permitted`) under
+  this session's sandbox. Environmental, independent of the change; it runs from a normal shell.
+
+Not verified: no loop job was executed (`LOOPS_ENABLED` unset, no paid or headless run); the
+`loops/` payload is imported and inventoried, not exercised.

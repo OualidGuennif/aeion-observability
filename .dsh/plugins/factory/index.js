@@ -13,6 +13,11 @@ const ASK = 'This dsh profile lets only the user compact: ask them to type /comp
 // dsh's built-in tools under the names the shared guards know; glob only lists paths.
 const TOOLS = { bash: 'Bash', read: 'Read', write: 'Write', edit: 'Edit', str_replace_editor: 'Edit', glob: 'Glob', grep: 'Grep' };
 
+// A local file tool reads the project's own text; any other result may have come from outside.
+const LOCAL = new Set(['Read', 'Grep', 'Glob', 'LS', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+// The hook refuses a payload over 2 MB; a larger result is not forwarded rather than truncated mid-text.
+const MAX_RESULT = 256 * 1024;
+
 // A session may work in a subfolder (demo/), so the hooks live in the nearest folder above that has them;
 // a session outside any Æion Factory project has none, and the plugin leaves it alone.
 function projectRoot(directory) {
@@ -67,7 +72,7 @@ export function apply(ctx) {
   }
 
   // The factory's start context reaches the model as steering: dsh has no hook that adds it to the prompt.
-  const say = (agent, text) => agent.steer({ content: [{ type: 'text', text }], source: { kind: 'aeion-factory' } });
+  const say = (agent, text) => agent.steer({ id: globalThis.crypto.randomUUID(), content: [{ type: 'text', text }], source: { kind: 'aeion-factory' } });
 
   function start(root, agent) {
     const session = agent.session.id;
@@ -81,13 +86,21 @@ export function apply(ctx) {
     if (context) say(agent, context);
   }
 
-  function toolEvent(exec, name) {
-    return {
+  function toolEvent(exec, name, result) {
+    const tool = toolName(exec);
+    const event = {
       session_id: exec.agent.session.id, hook_event_name: name, tool_use_id: exec.callId,
-      tool_name: toolName(exec), tool_input: exec.arguments,
+      tool_name: tool, tool_input: exec.arguments,
       // dsh's own replay-based measure feeds the shared 250k/300k rule.
       observed_tokens: tokens(exec.agent),
     };
+    // Any result a local file tool did not produce is forwarded; the adapter decides what reads outside.
+    if (result !== undefined && !LOCAL.has(tool)) {
+      try {
+        if (JSON.stringify(result).length <= MAX_RESULT) event.tool_response = result;
+      } catch { /* a result that cannot be serialized carries no text to scan */ }
+    }
+    return event;
   }
 
   // A synchronous guard runs after every other pre-execute policy, and nothing later can undo its denial.
@@ -111,8 +124,11 @@ export function apply(ctx) {
     try {
       const root = rootOf(exec.agent);
       if (!root) return downstream;
-      const { output } = invoke(root, toolEvent(exec, 'PostToolUse'));
+      const { output } = invoke(root, toolEvent(exec, 'PostToolUse', result));
       if (output.aeion?.compact) due.add(exec.agent);
+      // A PostToolUse warning (token feedback, prompt defense) reaches the model as a system note.
+      const context = output.hookSpecificOutput?.additionalContext;
+      if (context) say(exec.agent, context);
     } catch (error) {
       ctx.logger?.warn?.(`aeion-factory: ${error.message || UNAVAILABLE}`);
     }

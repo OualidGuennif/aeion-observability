@@ -3,6 +3,11 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
+// A local file tool reads the project's own text; any other result may have come from outside.
+const LOCAL = new Set(['Read', 'Grep', 'Glob', 'LS', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
+// The hook refuses a payload over 2 MB; a larger result is not forwarded rather than truncated mid-text.
+const MAX_RESULT = 256 * 1024;
+
 function invoke(root, event) {
   const result = spawnSync('python3', [resolve(root, 'tools/agents/hook.py'), 'opencode'], {
     cwd: root, input: JSON.stringify(event), encoding: 'utf8', timeout: 15000, maxBuffer: 128 * 1024,
@@ -22,15 +27,23 @@ function projectRoot(directory) {
   }
 }
 
-function toolEvent(event, name, usage) {
-  return {
+function toolEvent(event, name, usage, result) {
+  const tool = ({ bash: 'Bash', shell: 'Bash', read: 'Read', grep: 'Grep', edit: 'Edit', write: 'Write' })[event.tool] || event.tool;
+  const payload = {
     session_id: event.sessionID, hook_event_name: name,
     tool_use_id: event.id,
-    tool_name: ({ bash: 'Bash', shell: 'Bash', read: 'Read', grep: 'Grep', edit: 'Edit', write: 'Write' })[event.tool] || event.tool,
+    tool_name: tool,
     tool_input: event.input,
     // The last step's tokens feed the shared 250k/300k rule; null until OpenCode reports a step.
     observed_tokens: usage.get(event.sessionID) ?? null,
   };
+  // Any result a local file tool did not produce is forwarded; the adapter decides what reads outside.
+  if (result !== undefined && !LOCAL.has(tool)) {
+    try {
+      if (JSON.stringify(result).length <= MAX_RESULT) payload.tool_response = result;
+    } catch { /* a result that cannot be serialized carries no text to scan */ }
+  }
+  return payload;
 }
 
 // A step's prompt, cache and answer are the context the next step starts from.
@@ -67,7 +80,7 @@ export default {
     });
     await ctx.tool.hook('execute.after', async (event) => {
       if (event.status !== 'completed') return;
-      const { reason, output } = invoke(root, toolEvent(event, 'PostToolUse', usage));
+      const { reason, output } = invoke(root, toolEvent(event, 'PostToolUse', usage, event.result));
       // A verified handover past 250k compacts now, not when the model window is nearly full.
       if (output.aeion?.compact && !compacting.has(event.sessionID)) {
         compacting.add(event.sessionID);

@@ -28,12 +28,19 @@ class GatewayMatchTests(unittest.TestCase):
 @unittest.skipUnless(shutil.which("ps"), "ps required")
 class GatewayProcessTests(unittest.TestCase):
     def test_real_long_named_process_is_detected(self):
-        # A symlinked interpreter keeps the long argv[0]; multicall tools such as coreutils would exit.
+        # A symlinked binary keeps the long argv[0]; multicall tools such as coreutils would exit.
+        # A framework Python rewrites argv[0] on macOS, so `sleep` is preferred where it exists.
         with tempfile.TemporaryDirectory() as folder:
             gateway = Path(folder) / "bin/openshell-gateway"
             gateway.parent.mkdir()
-            gateway.symlink_to(Path(sys.executable).resolve())
-            process = subprocess.Popen([str(gateway), "-c", "import time; time.sleep(30)"])
+            sleeper = shutil.which("sleep")
+            if sleeper:
+                gateway.symlink_to(sleeper)
+                command = [str(gateway), "30"]
+            else:
+                gateway.symlink_to(Path(sys.executable).resolve())
+                command = [str(gateway), "-c", "import time; time.sleep(30)"]
+            process = subprocess.Popen(command)
             try:
                 line = subprocess.check_output(["ps", "-p", str(process.pid), "-o", "command="]).decode().strip()
                 if not line.startswith(str(gateway) + " "):

@@ -1,7 +1,7 @@
 # Pi sessions in Langfuse
 
-Status: **installed nowhere yet; end-to-end transmission not verified on this machine.**
-Owner request: prove that Pi sessions reach Langfuse (2026-11-01).
+Status: **verified end to end on the local stack, 2026-11-01**, with a local fake model so no
+paid provider was called. Owner request: prove that Pi sessions reach Langfuse (2026-11-01).
 
 ## Verified upstream facts
 
@@ -26,34 +26,47 @@ Source: the package README (`https://github.com/langfuse/pi-observability-plugin
 
 ## What this machine would need
 
-1. A Langfuse project and its two keys. The repository's own pilot (`demo/compose.yaml`) starts
-   Langfuse, ClickHouse, Postgres, MinIO and Redis locally, but there is no `.env` in this checkout,
-   so no keys exist yet.
-2. A write to `~/.pi/agent/` (`pi install` and `langfuse.json`). The current sandbox is
-   workspace-write, so that write is refused; it needs explicit approval.
+1. A Langfuse project and its two keys. The repository's own pilot (`demo/compose.yaml`) **creates**
+   them at first boot: `LANGFUSE_INIT_PROJECT_PUBLIC_KEY` / `..._SECRET_KEY` are seeded from the
+   `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` of `demo/.local/stack.env`, written by
+   `demo/setup.py`. That file is owner-only and must never be printed, committed or pasted.
+2. A Pi agent directory. `PI_CODING_AGENT_DIR` relocates it, so the install lands in the ignored
+   `.tmp/pi-agent/` instead of `~/.pi/agent/`; no write outside the repository is needed.
 3. One short Pi session, then the trace read back.
 
 ## Exact steps once approved
 
 ```bash
-# 1. Install the extension (writes ~/.pi/agent/)
+# 1. Install the extension into the ignored repository-local agent directory
+export PI_CODING_AGENT_DIR="$PWD/.tmp/pi-agent"    # already installed from the 0.1.2 probe
 pi install npm:@langfuse/pi-observability-plugin
 
-# 2. Point it at the Langfuse instance, without writing the secret to a file
+# 2. Point it at the host-published port, without writing the secret to a file
 export LANGFUSE_PUBLIC_KEY="pk-lf-..."
 export LANGFUSE_SECRET_KEY="sk-lf-..."
-export LANGFUSE_BASE_URL="http://127.0.0.1:3000"   # local pilot; cloud otherwise
+export LANGFUSE_BASE_URL="http://127.0.0.1:3300"   # demo/compose.yaml publishes 3300 -> 3000
 export LANGFUSE_TRACING_ENVIRONMENT="development"
 
 # 3. Run one session and confirm the status line says langfuse: on
 pi "reply with the single word: ok"
 ```
 
-Verification is a read of the backend, not a claim from the plugin: list the traces of that session
-through the Langfuse API (`GET /api/public/traces?sessionId=<id>` with the same keys) or open
-**Tracing → Sessions** in the Langfuse UI and check that the prompt, the generation with its token
-count and the tool calls are present. The Pi status line shows `langfuse: off (no keys)` when
-tracing is disabled or the keys are missing, which is the negative control.
+Verification is a read of the backend, not a claim from the plugin. On **Langfuse v4 events_only**
+the v1 read resources are gone — `GET /api/public/traces` and `/api/public/sessions` answer 404 —
+so read `GET /api/public/v2/observations` (or **Tracing → Sessions** in the UI) and check that the
+prompt, the generation with its token count and the tool calls are present. The Pi status line shows
+`langfuse: off (no keys)` when tracing is disabled or the keys are missing, which is the negative
+control.
+
+## Observed on 2026-11-01
+
+Run from `.tmp/pi-agent` against `http://127.0.0.1:3300` with a local OpenAI-compatible fixture
+(`fixture/mock`, no paid call). Three sessions produced, in `environment=development`, three
+`Conversational Turn` spans and three `LLM Call` generations, each generation carrying
+`input=1234`, `output=56`, latency, time-to-first-token, a Pi session id and a trace id. The raw
+prompt (58 characters) and the model output (35 characters) were attached, which is the privacy
+trait this note already warns about. The observations were read back through
+`GET /api/public/v2/observations`, not through the plugin's own status line.
 
 ## Risks and limits
 
@@ -62,6 +75,12 @@ tracing is disabled or the keys are missing, which is the negative control.
   owner-requested experiment: `environment=development`, a dedicated Langfuse project, and no
   production workload.
 - It is marked experimental upstream; versions may break.
-- Verified here: package metadata, install/credential mechanism and captured data, from the
-  upstream README. **Not verified here:** an actual install and a trace read back, because no
-  Langfuse keys exist in this checkout and the sandbox refuses writes to `~/.pi/agent/`.
+- **Two producers, one backend.** The supervisor already sends one metadata-only trace per run
+  (`langfuse.session.id` = run id, `demo/app/telemetry.py`), while the extension writes one trace
+  per prompt keyed by Pi's own session id. They are separate session views rather than duplicates,
+  but summing both double-counts cost: keep the extension on `environment=development` and out of
+  the demo's KPIs, and never merge its rows with the supervisor's.
+- Verified here: package metadata, the install/credential mechanism and captured data from the
+  upstream README; a repository-local install under `.tmp/pi-agent` (`PI_CODING_AGENT_DIR`); and a
+  real transmission read back from the local Langfuse API (2026-11-01).
+  **Not verified here:** a paid provider session, and the plugin against Langfuse Cloud.

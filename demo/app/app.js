@@ -1,6 +1,8 @@
 const $ = (id) => document.getElementById(id);
 let refreshing = false;
-let busy = false, evidence = 'real', cachedRuns = [], cachedRows = [], signature = '', catalog = {}, recommendations = {}, campaigns = [];
+let busy = false, evidence = 'real', cachedRuns = [], cachedRows = [], signature = '', fleetSignature = '', catalog = {}, recommendations = {}, campaigns = [];
+const TIERS = {'flue-just-bash': '1 · triage', 'flue-local': '2 · assistant', 'flue-openshell': '3 · OpenShell'};
+const LANGFUSE = 'http://localhost:3300';
 const pretty = (n) => Number(n ?? 0).toLocaleString('en-US');
 const money = (n) => n == null ? '—' : '$' + Number(n).toFixed(5);
 const seconds = (n) => n == null ? '—' : (n / 1000).toFixed(1) + 's';
@@ -15,6 +17,27 @@ function setFilter(value) {
   $('recalled').replaceChildren(el('p','Recall analyses from the selected evidence bank.','muted'));
   document.querySelectorAll('[data-filter]').forEach(b => {b.classList.toggle('selected', b.dataset.filter === value); b.setAttribute('aria-pressed', String(b.dataset.filter === value));});
   render();
+}
+function renderFleet(runs) {
+  const host = $('fleet'); if (!host) return;
+  const list = [...runs].sort((a, b) => (b.started_ns ?? 0) - (a.started_ns ?? 0)).slice(0, 6);
+  const next = JSON.stringify(list.map(r => [r.id, r.status, r.runtime, r.check?.passed, r.ended_ns, r.synthetic]));
+  if (next === fleetSignature) return;
+  fleetSignature = next;
+  host.replaceChildren();
+  if (!list.length) { host.append(el('p', 'No agent has run yet. Start a build or replay the handover.', 'muted')); return; }
+  for (const run of list) {
+    const card = el('a', '', 'fleet-card'); card.href = LANGFUSE; card.target = '_blank'; card.rel = 'noreferrer';
+    const top = el('div', '', 'fleet-top');
+    top.append(el('span', TIERS[run.runtime ?? 'legacy'] ?? (run.runtime ?? 'legacy'), 'fleet-tier'));
+    top.append(el('span', run.synthetic ? 'simulation' : run.status.replaceAll('_', ' '),
+                  'fleet-state ' + (run.status === 'passed' ? 'ok' : run.status === 'running' ? 'live' : '')));
+    card.append(top);
+    card.append(el('strong', taskInfo(run.task_id ?? 'pricing-js-v1')?.name ?? run.task_id ?? 'Cart totals', 'fleet-task'));
+    card.append(el('span', [run.synthetic ? 'replay' : label(run.model), run.check ? `${run.check.passed}/${checkTotal(run)} checks` : '',
+      run.ended_ns ? seconds((run.ended_ns - run.started_ns) / 1e6) : 'running'].filter(Boolean).join(' · '), 'fleet-meta'));
+    host.append(card);
+  }
 }
 function render() {
   $('task-title').textContent=taskInfo($('scenario').value)?.name??'Cart totals';
@@ -97,7 +120,7 @@ async function refresh() {
     $('live').disabled=busy||!tier?.live;$('simulate').disabled=busy||!tier?.simulation;$('tour').disabled=busy||!tier?.simulation;$('benchmark').disabled=busy||!health.live_ready;
     $('sandbox-status').textContent=health.sandbox_ready?'OpenShell qualified · NVIDIA telemetry disabled':'OpenShell unavailable or qualification expired · execution blocked';
     const batch=campaigns[0];$('campaign-status').textContent=batch?`${batch.status} · ${batch.run_ids.length}/${batch.planned} runs · ${money(batch.native_cost_estimate_usd)} native estimate`:'';
-    const next=JSON.stringify([runs,rows,evidence,choices,$('runtime').value,$('scenario').value]);cachedRuns=runs;cachedRows=rows;if(next!==signature){signature=next;render();}
+    const next=JSON.stringify([runs,rows,evidence,choices,$('runtime').value,$('scenario').value]);cachedRuns=runs;cachedRows=rows;renderFleet(runs);if(next!==signature){signature=next;render();}
   } catch {$('message').textContent='Observer temporarily unavailable.';} finally {refreshing=false;}
 }
 async function integrations(){try{const states=await fetch('/api/integrations').then(r=>r.json());let connected=0;document.querySelectorAll('[data-service]').forEach(e=>{const good=states[e.dataset.service]==='connected';e.classList.toggle('connected',good);e.title=good?'Connected':'Unavailable';if(good)connected++;});$('system-dot').classList.toggle('connected',connected===4);$('system-status').textContent=`${connected}/4 tools connected`;}catch{$('system-status').textContent='Checking services';}}

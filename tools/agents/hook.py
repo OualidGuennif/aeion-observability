@@ -67,6 +67,35 @@ def advisory(root, event):
         return {}
 
 
+# A tool whose name says it reads outside text, and a shell command that does: both results are data.
+NETWORK_TOOL = re.compile(r'fetch|search|browse|scrape|mcp', re.I)
+NETWORK_COMMAND = re.compile(r'\b(curl|wget|httpie|http|https|fetch|nc|ncat|ssh|scp|dig|nslookup|ftp)\b', re.I)
+SHELL_TOOL = re.compile(r'^(bash|execute|shell|exec)$', re.I)
+
+
+def reads_outside(event):
+    """True when a tool result may carry text from outside the project."""
+    tool = str(event.get('tool_name', ''))
+    if NETWORK_TOOL.search(tool):
+        return True
+    if not SHELL_TOOL.match(tool):
+        return False
+    data = event.get('tool_input')
+    command = data.get('command') if isinstance(data, dict) else None
+    return isinstance(command, str) and bool(NETWORK_COMMAND.search(command))
+
+
+def defense(root, event):
+    """Flag a fetched result that carries an injected instruction; an advisory may fail, never stop work."""
+    if not reads_outside(event):
+        return ''
+    try:
+        result = script(root, 'prompt-defense.py', event)
+    except Exception:  # noqa: BLE001 - a warning that fails must not become a refusal.
+        return ''
+    return result.get('hookSpecificOutput', {}).get('additionalContext', '')
+
+
 def script(root, name, event):
     result = subprocess.run([sys.executable, str(root / '.claude/hooks' / name)], cwd=root,
                             input=json.dumps(event), capture_output=True, text=True, timeout=4)
@@ -406,6 +435,9 @@ def handle(root, provider, event):
             if context:
                 messages.append(context)
         context = advisory(root, normalized).get('hookSpecificOutput', {}).get('additionalContext')
+        if context:
+            messages.append(context)
+        context = defense(root, normalized)
         if context:
             messages.append(context)
         return alert({'hookSpecificOutput': {'hookEventName': name, 'additionalContext': '\n'.join(messages)}} if messages else {}, measured)

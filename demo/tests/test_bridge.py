@@ -87,7 +87,7 @@ console.log(JSON.stringify(out));
         self.assertTrue(out["stat"]["isFile"] and not out["stat"]["isDirectory"] and out["stat"]["size"] == 20)
         self.assertEqual(out["listing"], ["nested"])
         self.assertEqual(out["exists"], [True, False])
-        self.assertEqual(out["exec"], {"stdout": str(self.folder) + "\n", "stderr": "export const a = 1;\n", "exitCode": 3})
+        self.assertEqual(out["exec"], {"stdout": str(Path(self.folder).resolve()) + "\n", "stderr": "export const a = 1;\n", "exitCode": 3})
         self.assertTrue(out["removed"])
         # Every verb ran as a fixed argv command; file content never became a shell argument.
         self.assertTrue(all(c[:3] == ["python3", "-I", HELPER] or c[:2] == ["/bin/bash", "-c"] for c in self.sandbox.calls))

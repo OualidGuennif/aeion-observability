@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+# Spec: knowledge/operations/agent-compatibility.md
+"""Compare a repository's harness connectors with the factory copy this script ships in.
+
+A project vendors the factory's adapters by copying them, so a hand edit to one copy is
+invisible until the day that harness silently stops loading it. This check names every
+copy that differs, and every native config that points at a file which is not there.
+
+    tools/agents/adapter-check                 # the repository this script lives in
+    tools/agents/adapter-check --root ../app   # a project that adopted the factory
+"""
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+FACTORY = Path(__file__).resolve().parents[2]
+
+# Every harness-facing file the factory ships: a copy must stay byte-identical, because an
+# adapter's failure is silent and its body is not something a project edits.
+VENDORED = (
+    "tools/agents/hook.py",
+    "tools/agents/run",
+    "tools/context/budget.py",
+    "tools/context/run",
+    ".claude/hooks/after-edit.py",
+    ".claude/hooks/context-budget.py",
+    ".claude/hooks/guard-bash.py",
+    ".claude/hooks/guard-path.py",
+    ".claude/hooks/project_files.py",
+    ".claude/hooks/prompt-defense.py",
+    ".claude/hooks/secret_names.py",
+    ".claude/hooks/session-start.py",
+    ".claude/hooks/sign-off.py",
+    ".claude/hooks/token-feedback.py",
+    ".dsh/factory.patch.yml",
+    ".dsh/plugins/factory/index.js",
+    ".dsh/plugins/factory/seam.js",
+    ".dsh/plugins/factory/compaction.js",
+    ".pi/extensions/factory/index.js",
+    ".opencode/plugins/factory/index.js",
+    ".opencode/plugins/factory/package.json",
+    ".codex/hooks.json",
+    ".devin/hooks.v1.json",
+    ".factory/settings.json",
+    ".agents/hooks.json",
+)
+
+# Native configs a project may merge with its own settings, so they are not compared, but a
+# command in them still has to name a file that exists.
+WIRING = (
+    ".claude/settings.json",
+    ".codex/hooks.json",
+    ".codex/config.toml",
+    ".devin/hooks.v1.json",
+    ".devin/config.json",
+    ".factory/settings.json",
+    ".agents/hooks.json",
+    ".dsh/factory.patch.yml",
+)
+
+# A command in these files names its script as a path from the project root, sometimes after a
+# shell expansion of that root, so the path itself may follow any character.
+SCRIPT = re.compile(r"((?:tools|\.claude|\.dsh|\.pi|\.opencode|\.codex|\.devin|\.factory)/[\w./-]+\.(?:py|js|sh))")
+# The dsh patch names its plugin modules relative to the .dsh folder that holds it.
+MODULE = re.compile(r"(?<![\w./-])(\./[\w./-]+\.js)")
+
+
+def factory_version():
+    try:
+        return (FACTORY / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        return "unknown"
+
+
+def compare(root):
+    """(drifted, missing, clean) over every vendored file, by exact bytes."""
+    drifted, missing, clean = [], [], []
+    for relative in VENDORED:
+        canonical = FACTORY / relative
+        found = root / relative
+        if not found.is_file():
+            missing.append(relative)
+            continue
+        expected = canonical.read_bytes()
+        actual = found.read_bytes()
+        if expected == actual:
+            clean.append(relative)
+            continue
+        drifted.append((relative, len(expected), len(actual)))
+    return drifted, missing, clean
+
+
+def references(text, relative):
+    """The script paths a config names, as written."""
+    pattern = MODULE if relative == ".dsh/factory.patch.yml" else SCRIPT
+    return sorted(set(pattern.findall(text)))
+
+
+def wiring(root):
+    """(unwired, broken) for every native config that is present."""
+    unwired, broken = [], []
+    for relative in WIRING:
+        config = root / relative
+        if not config.is_file():
+            continue
+        text = config.read_text(encoding="utf-8", errors="replace")
+        if relative.endswith(".json"):
+            try:
+                json.loads(text)
+            except json.JSONDecodeError as error:
+                broken.append((relative, str(error)))
+                continue
+        # The dsh patch sits in .dsh and names its modules from there; every other path starts at the root.
+        base = root / ".dsh" if relative == ".dsh/factory.patch.yml" else root
+        for reference in references(text, relative):
+            target = base / (reference[2:] if reference.startswith("./") else reference)
+            if not target.is_file():
+                unwired.append((relative, reference))
+    return unwired, broken
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="adapter-check",
+        description="Compare a repository's harness connectors with the factory copy this script ships in.",
+    )
+    parser.add_argument("--root", default=str(FACTORY), help="the repository to check (default: this one)")
+    parser.add_argument("--strict", action="store_true", help="also fail when a connector is not vendored")
+    parser.add_argument("--self", action="store_true", help="allow the factory to compare with itself")
+    parser.add_argument("--verbose", action="store_true", help="list the connectors that are absent")
+    arguments = parser.parse_args()
+
+    root = Path(arguments.root).resolve()
+    if not root.is_dir():
+        print(f"adapter-check: {root} is not a directory", file=sys.stderr)
+        return 2
+    # A project that copied this script compares its copies with themselves and always passes: refuse it,
+    # so the project's CI runs this script from a pinned factory checkout with --root instead.
+    if root == FACTORY and not arguments.self:
+        print(f"adapter-check: {root} is the copy this script lives in, so every connector would match "
+              f"itself; run the factory's copy with --root {root}, or pass --self to check the factory",
+              file=sys.stderr)
+        return 2
+
+    drifted, missing, clean = compare(root)
+    unwired, broken = wiring(root)
+
+    print(f"adapter-check: factory {factory_version()} at {FACTORY}")
+    print(f"               against {root}")
+    for relative in clean:
+        print(f"ok        {relative}")
+    for relative, expected, actual in drifted:
+        print(f"DRIFT     {relative} — {actual} bytes, factory has {expected}")
+    if arguments.verbose:
+        for relative in missing:
+            print(f"missing   {relative}")
+    for relative, reference in unwired:
+        print(f"UNWIRED   {relative} → {reference} — no such file")
+    for relative, error in broken:
+        print(f"invalid   {relative} — {error}")
+
+    failed = bool(drifted or unwired or broken)
+    if arguments.strict and missing:
+        failed = True
+    if drifted:
+        print("\nRepair each drifted copy from the factory, then run the project's tests:")
+        for relative, _, _ in drifted:
+            print(f"  cp {FACTORY / relative} {root / relative}")
+    if arguments.strict and missing:
+        print("\nVendored set incomplete; adopt the missing connectors or drop --strict.")
+
+    print(
+        f"\n{len(VENDORED)} connectors: {len(clean)} matching, {len(drifted)} drifted, "
+        f"{len(missing)} absent, {len(unwired)} unwired, {len(broken)} invalid"
+    )
+    print("adapter-check: PASS" if not failed else "adapter-check: FAIL")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

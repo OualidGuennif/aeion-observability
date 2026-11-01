@@ -6,7 +6,8 @@ description: Implements an approved plan in thin, tested slices, letting languag
 # Build
 
 ## Overview
-Thin vertical slices: each one compiles, passes its tests and is committed. Rules: `knowledge/policies/engineering.md`.
+Thin vertical slices: each one compiles, passes its tests and is committed. Three passes: make it
+work, make it right, follow practice. Rules: `knowledge/policies/engineering.md`.
 
 ## When to use
 After `plan` (and `spec` when behaviour changes). Not before a yes.

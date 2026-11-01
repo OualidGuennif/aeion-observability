@@ -3,627 +3,288 @@
     "schema_version": 1,
     "diagram_type": "architecture",
     "meta": {
-      "title": "Æion Factory authority and execution",
-      "quality_profile": "showcase",
-      "output": "architecture.html"
+      "title": "AEion Observability - high level",
+      "output": "architecture.html",
+      "quality_profile": "showcase"
     },
     "components": [
       {
-        "id": "owner",
+        "id": "knowledge",
         "type": "external",
-        "label": "Owner",
-        "sublabel": "Approves scope and delivery",
+        "label": "Knowledge and contracts",
+        "sublabel": "specs, policies, sources",
         "pos": [
           40,
-          310
+          40
         ],
         "size": [
           190,
-          74
-        ],
-        "sources": [
-          {
-            "path": "AGENTS.md",
-            "anchor": "**Precedence.**"
-          }
+          56
         ]
       },
       {
-        "id": "agent",
+        "id": "offline",
         "type": "backend",
-        "label": "Coding agent",
-        "sublabel": "Plans, edits, verifies",
+        "label": "Offline examples",
+        "sublabel": "synthetic fixtures + unittest",
         "pos": [
-          330,
-          310
+          40,
+          160
         ],
         "size": [
           190,
-          74
+          60
         ],
-        "sources": [
-          {
-            "path": "Workflow_Agent.md",
-            "anchor": "## 4. Build in thin slices"
-          }
+        "tag": "no service, no key"
+      },
+      {
+        "id": "owner",
+        "type": "external",
+        "label": "Owner / operator",
+        "sublabel": "browser cockpit",
+        "pos": [
+          40,
+          300
+        ],
+        "size": [
+          130,
+          56
         ]
       },
       {
-        "id": "hooks",
+        "id": "cockpit",
+        "type": "backend",
+        "label": "Host-native cockpit",
+        "sublabel": "demo/app: policy, lifecycle",
+        "pos": [
+          210,
+          294
+        ],
+        "size": [
+          180,
+          68
+        ]
+      },
+      {
+        "id": "relay",
         "type": "security",
-        "label": "Native hook adapters",
-        "sublabel": "Guard tools and task boundaries",
+        "label": "Counting relay",
+        "sublabel": "admission + reservation",
         "pos": [
-          620,
-          310
+          420,
+          298
         ],
         "size": [
-          190,
-          74
+          150,
+          60
         ],
-        "sources": [
-          {
-            "path": ".claude/settings.json",
-            "anchor": "\"PreToolUse\": ["
-          },
-          {
-            "path": "tools/agents/hook.py",
-            "anchor": "def handle(root, provider, event):"
-          },
-          {
-            "path": ".opencode/plugins/factory/index.js",
-            "anchor": "ctx.tool.hook('execute.before'"
-          }
-        ]
+        "tag": "300k budget"
       },
       {
-        "id": "checks",
+        "id": "harness",
         "type": "backend",
-        "label": "Deterministic checks",
-        "sublabel": "Knowledge, links, repository health",
+        "label": "Flue + Pi harness",
+        "sublabel": "flue-openshell-v1",
         "pos": [
-          910,
-          310
+          610,
+          298
         ],
         "size": [
-          190,
-          74
-        ],
-        "sources": [
-          {
-            "path": "tools/knowledge/knowledge-check",
-            "anchor": "def main(argv):"
-          }
+          160,
+          60
         ]
       },
       {
-        "id": "rules",
-        "type": "backend",
-        "label": "Canonical Knowledge",
-        "sublabel": "Policies, specs and decisions",
-        "pos": [
-          330,
-          80
-        ],
-        "size": [
-          190,
-          74
-        ],
-        "sources": [
-          {
-            "path": "knowledge/index.md",
-            "anchor": "# Knowledge"
-          }
-        ]
-      },
-      {
-        "id": "skills",
-        "type": "backend",
-        "label": "Task skills",
-        "sublabel": "Narrow reusable procedures",
-        "pos": [
-          620,
-          80
-        ],
-        "size": [
-          190,
-          74
-        ],
-        "sources": [
-          {
-            "path": "command.md",
-            "anchor": "## Skills"
-          }
-        ]
-      },
-      {
-        "id": "context",
+        "id": "tiers",
         "type": "security",
-        "label": "Context checkpoint",
-        "sublabel": "Claude: 250k; observed 300k",
+        "label": "Execution tiers",
+        "sublabel": "triage / local / OpenShell",
         "pos": [
-          620,
-          570
+          610,
+          420
         ],
         "size": [
-          190,
-          74
-        ],
-        "sources": [
-          {
-            "path": "tools/context/budget.py",
-            "anchor": "def handle(root, event):"
-          }
+          160,
+          60
         ]
       },
       {
-        "id": "loops",
-        "type": "backend",
-        "label": "Optional loops",
-        "sublabel": "Managed headless execution",
+        "id": "provider",
+        "type": "cloud",
+        "label": "Inference provider",
+        "sublabel": "OpenRouter / DeepInfra / CLI",
         "pos": [
-          330,
-          570
+          830,
+          294
         ],
         "size": [
-          190,
-          74
-        ],
-        "sources": [
-          {
-            "path": "loops/orchestrator.sh",
-            "anchor": "CMD=("
-          }
+          170,
+          60
         ]
       },
       {
-        "id": "review",
+        "id": "observer",
         "type": "backend",
-        "label": "Review and CI",
-        "sublabel": "Verified verdict and green checks",
+        "label": "Metadata-only observer",
+        "sublabel": "telemetry.py",
         "pos": [
-          1200,
-          310
+          420,
+          430
         ],
         "size": [
-          190,
-          74
-        ],
-        "sources": [
-          {
-            "path": ".claude/skills/pr-review/SKILL.md",
-            "anchor": "# Review a change"
-          }
+          160,
+          56
         ]
       },
       {
-        "id": "analysis",
+        "id": "collector",
         "type": "backend",
-        "label": "Source analysis",
-        "sublabel": "Graphify and Archify per commit",
+        "label": "OTel collector",
+        "sublabel": "otel-collector.yaml",
         "pos": [
-          1200,
-          570
+          210,
+          540
+        ],
+        "size": [
+          160,
+          56
+        ]
+      },
+      {
+        "id": "langfuse",
+        "type": "database",
+        "label": "Langfuse",
+        "sublabel": "web + worker",
+        "pos": [
+          420,
+          540
+        ],
+        "size": [
+          150,
+          56
+        ]
+      },
+      {
+        "id": "stores",
+        "type": "database",
+        "label": "Postgres / ClickHouse / MinIO",
+        "sublabel": "traces and objects",
+        "pos": [
+          610,
+          540
         ],
         "size": [
           190,
-          74
+          56
         ],
-        "sources": [
-          {
-            "path": "tools/architecture/refresh",
-            "anchor": "def refresh(root, target, base=None, check=False):"
-          }
+        "tag": "Redis queue"
+      }
+    ],
+    "boundaries": [
+      {
+        "kind": "security-group",
+        "label": "Local Docker pilot (opt-in)",
+        "wraps": [
+          "collector",
+          "langfuse",
+          "stores"
         ]
       }
     ],
     "connections": [
       {
-        "id": "approve",
+        "id": "owner-cockpit",
         "from": "owner",
-        "to": "agent",
-        "label": "authorizes"
-      },
-      {
-        "id": "govern",
-        "from": "rules",
-        "to": "agent",
-        "label": "governs",
-        "fromSide": "bottom",
-        "toSide": "top"
-      },
-      {
-        "id": "procedures",
-        "from": "skills",
-        "to": "agent",
-        "label": "guides",
-        "variant": "dashed",
-        "fromSide": "left",
-        "toSide": "top"
-      },
-      {
-        "id": "dispatch",
-        "from": "agent",
-        "to": "hooks",
-        "label": "tool events"
-      },
-      {
-        "id": "verify",
-        "from": "hooks",
-        "to": "checks",
-        "label": "runs checks"
-      },
-      {
-        "id": "review-change",
-        "from": "checks",
-        "to": "review",
-        "label": "change evidence"
-      },
-      {
-        "id": "budget",
-        "from": "hooks",
-        "to": "context",
-        "label": "usage and checkpoint",
-        "fromSide": "bottom",
-        "toSide": "top"
-      },
-      {
-        "id": "launch",
-        "from": "loops",
-        "to": "agent",
-        "label": "managed run",
-        "fromSide": "top",
-        "toSide": "bottom"
-      },
-      {
-        "id": "after-main",
-        "from": "review",
-        "to": "analysis",
-        "label": "merged SHA",
-        "fromSide": "bottom",
-        "toSide": "top"
-      }
-    ],
-    "cards": [
-      {
-        "dot": "cyan",
-        "title": "Authority",
-        "items": [
-          "Owner instructions and canonical Knowledge govern work",
-          "Graphs and diagrams remain derived evidence"
-        ]
-      },
-      {
-        "dot": "rose",
-        "title": "Context guarantee",
-        "items": [
-          "Native compaction is enabled at 250k",
-          "300k forces handover and compaction at hooks; strict admission is unavailable"
-        ]
-      }
-    ]
-  },
-  {
-    "schema_version": 2,
-    "diagram_type": "workflow",
-    "meta": {
-      "title": "Reviewed delivery and mandatory analysis",
-      "quality_profile": "showcase",
-      "output": "workflow.html"
-    },
-    "lanes": [
-      {
-        "id": "delivery",
-        "label": "Authorized delivery"
-      },
-      {
-        "id": "analysis",
-        "label": "Immutable analysis"
-      },
-      {
-        "id": "failure",
-        "label": "Failure and recovery",
-        "variant": "exception"
-      }
-    ],
-    "mainPath": [
-      "review",
-      "merge",
-      "snapshot",
-      "graph",
-      "archify",
-      "receipt"
-    ],
-    "nodes": [
-      {
-        "id": "review",
-        "lane": "delivery",
-        "col": 0,
-        "type": "security",
-        "label": "Review and CI",
-        "sublabel": "verified; owner authorized",
-        "sources": [
-          {
-            "path": ".claude/skills/pr-review/SKILL.md",
-            "anchor": "# Review a change"
-          }
-        ]
-      },
-      {
-        "id": "merge",
-        "lane": "delivery",
-        "col": 1,
-        "type": "backend",
-        "label": "Merge to main",
-        "sublabel": "explicit target SHA",
-        "sources": [
-          {
-            "path": ".github/workflows/architecture-refresh.yml",
-            "anchor": "name: Architecture refresh"
-          }
-        ]
-      },
-      {
-        "id": "snapshot",
-        "lane": "analysis",
-        "col": 2,
-        "type": "backend",
-        "label": "Freeze source",
-        "sublabel": "clean tracked snapshot",
-        "sources": [
-          {
-            "path": "tools/architecture/refresh",
-            "anchor": "manifest, excluded = scope(root, target, config)"
-          }
-        ]
-      },
-      {
-        "id": "graph",
-        "lane": "analysis",
-        "col": 3,
-        "type": "backend",
-        "label": "Graphify",
-        "sublabel": "code and Markdown structure",
-        "sources": [
-          {
-            "path": "tools/architecture/graph.py",
-            "anchor": "extraction = extract("
-          }
-        ]
-      },
-      {
-        "id": "archify",
-        "lane": "analysis",
-        "col": 4,
-        "type": "backend",
-        "label": "Archify",
-        "sublabel": "evidence and browser gates",
-        "sources": [
-          {
-            "path": "tools/architecture/refresh",
-            "anchor": "for view in views:"
-          }
-        ]
-      },
-      {
-        "id": "receipt",
-        "lane": "analysis",
-        "col": 5,
-        "type": "database",
-        "label": "Verified artifact",
-        "sublabel": "hashes and target SHA",
-        "sources": [
-          {
-            "path": "tools/architecture/refresh",
-            "anchor": "os.replace(temporary_receipt, output / \"receipt.json\")"
-          }
-        ]
-      },
-      {
-        "id": "failed",
-        "lane": "failure",
-        "col": 4,
-        "type": "security",
-        "label": "Round incomplete",
-        "sublabel": "correct and retry same SHA",
-        "sources": [
-          {
-            "path": "knowledge/operations/architecture-maintenance.md",
-            "anchor": "A failed post-merge round blocks closure/release"
-          }
-        ]
-      }
-    ],
-    "edges": [
-      {
-        "id": "ready",
-        "from": "review",
-        "to": "merge",
-        "label": "approved"
-      },
-      {
-        "id": "trigger",
-        "from": "merge",
-        "to": "snapshot",
-        "label": "main push"
-      },
-      {
-        "id": "extract",
-        "from": "snapshot",
-        "to": "graph",
-        "label": "allowed corpus"
-      },
-      {
-        "id": "views",
-        "from": "graph",
-        "to": "archify",
-        "label": "reviewed spec and sources"
-      },
-      {
-        "id": "pass",
-        "from": "archify",
-        "to": "receipt",
-        "label": "all gates pass",
+        "to": "cockpit",
+        "label": "task",
         "variant": "emphasis"
       },
       {
-        "id": "failure",
-        "from": "archify",
-        "to": "failed",
-        "label": "gate fails",
-        "variant": "security",
-        "role": "error"
+        "id": "cockpit-relay",
+        "from": "cockpit",
+        "to": "relay",
+        "label": "admit"
+      },
+      {
+        "id": "relay-provider",
+        "from": "relay",
+        "to": "provider",
+        "label": "forwarded request"
+      },
+      {
+        "id": "relay-harness",
+        "from": "relay",
+        "to": "harness",
+        "label": "request"
+      },
+      {
+        "id": "harness-tiers",
+        "from": "harness",
+        "to": "tiers",
+        "label": "dispatch"
+      },
+      {
+        "id": "harness-observer",
+        "from": "harness",
+        "to": "observer",
+        "label": "events, usage",
+        "variant": "dashed"
+      },
+      {
+        "id": "observer-collector",
+        "from": "observer",
+        "to": "collector",
+        "label": "OTLP metadata",
+        "variant": "dashed"
+      },
+      {
+        "id": "collector-langfuse",
+        "from": "collector",
+        "to": "langfuse",
+        "label": "traces"
+      },
+      {
+        "id": "langfuse-stores",
+        "from": "langfuse",
+        "to": "stores",
+        "label": "persist"
+      },
+      {
+        "id": "offline-knowledge",
+        "from": "offline",
+        "to": "knowledge",
+        "label": "evidence",
+        "variant": "dashed",
+        "fromSide": "top",
+        "toSide": "bottom"
       }
     ],
     "cards": [
       {
-        "dot": "cyan",
-        "title": "Every main update",
+        "dot": "emerald",
+        "title": "What it optimizes",
         "items": [
-          "Includes docs-only, squash, rebase and multi-commit pushes",
-          "One artifact per immutable SHA; no generated-source push"
+          "cost per verified autonomous success",
+          "elapsed time and corrective work",
+          "bounded recommendations inside fixed authority"
         ]
       },
-      {
-        "dot": "rose",
-        "title": "Failure boundary",
-        "items": [
-          "Any extraction, provenance or browser failure refuses PASS",
-          "A failed post-merge round blocks completed-work and release claims"
-        ]
-      }
-    ]
-  },
-  {
-    "schema_version": 3,
-    "diagram_type": "lifecycle",
-    "meta": {
-      "title": "Context checkpoints (Claude, Codex, OpenCode, Pi, dsh)",
-      "quality_profile": "showcase",
-      "output": "lifecycle.html"
-    },
-    "mainPath": [
-      "running",
-      "handover",
-      "checkpoint",
-      "recovering"
-    ],
-    "states": [
-      {
-        "id": "running",
-        "type": "start",
-        "label": "Running",
-        "sublabel": "positive native usage below 250k",
-        "sources": [
-          {
-            "path": "tools/context/budget.py",
-            "anchor": "WARNING = 250_000"
-          }
-        ]
-      },
-      {
-        "id": "handover",
-        "type": "active",
-        "label": "Handover required",
-        "sublabel": "closure work only",
-        "sources": [
-          {
-            "path": "tools/context/budget.py",
-            "anchor": "state[\"state\"] = \"HANDOVER_REQUIRED\""
-          }
-        ]
-      },
-      {
-        "id": "checkpoint",
-        "type": "decision",
-        "label": "Checkpoint verified",
-        "sublabel": "docs and source hashes match",
-        "sources": [
-          {
-            "path": "tools/context/budget.py",
-            "anchor": "def checkpoint(root, session, base):"
-          }
-        ]
-      },
-      {
-        "id": "recovering",
-        "type": "waiting",
-        "label": "Recovering",
-        "sublabel": "compact; restore handover",
-        "sources": [
-          {
-            "path": "tools/context/budget.py",
-            "anchor": "\"state\": \"RECOVERING\", \"warning_pending\""
-          }
-        ]
-      },
-      {
-        "id": "stopped",
-        "type": "active",
-        "label": "Compaction forced",
-        "sublabel": "observed 300k: handover and checkpoint only",
-        "sources": [
-          {
-            "path": "tools/context/budget.py",
-            "anchor": "if usage >= LIMIT and state[\"state\"] != \"COMPACT_REQUIRED\":"
-          }
-        ]
-      }
-    ],
-    "transitions": [
-      {
-        "id": "warn",
-        "from": "running",
-        "to": "handover",
-        "label": "250k observed"
-      },
-      {
-        "id": "verify",
-        "from": "handover",
-        "to": "checkpoint",
-        "label": "checkpoint passes"
-      },
-      {
-        "id": "compact",
-        "from": "checkpoint",
-        "to": "recovering",
-        "label": "compaction"
-      },
-      {
-        "id": "resume",
-        "from": "recovering",
-        "to": "running",
-        "label": "fresh observation"
-      },
-      {
-        "id": "limit",
-        "from": "handover",
-        "to": "stopped",
-        "label": "300k observed",
-        "variant": "security"
-      },
-      {
-        "id": "forced-verify",
-        "from": "stopped",
-        "to": "checkpoint",
-        "label": "checkpoint passes"
-      }
-    ],
-    "cards": [
       {
         "dot": "cyan",
-        "title": "Before compaction",
+        "title": "What it refuses",
         "items": [
-          "Create the handover at session start",
-          "Validate docs, current task and exact source state"
+          "raw prompts or secrets in default telemetry",
+          "widening OPS/CROA permissions or removing review gates",
+          "synthetic examples reported as measured gains"
         ]
       },
       {
-        "dot": "rose",
-        "title": "Observed boundaries",
+        "dot": "amber",
+        "title": "Evidence limits",
         "items": [
-          "No qualified pre-request callback is available",
-          "Strict launch refuses; this is checkpoint enforcement only"
+          "40-attempt OpenShell matrix: synthetic, real CLI calls",
+          "Flue + Pi harness qualified with fake inference only",
+          "no paid Flue campaign yet"
         ]
       }
     ]

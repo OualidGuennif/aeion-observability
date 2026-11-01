@@ -9,6 +9,8 @@ sources:
     title: "Native payload adapter"
   - resource: ../../tools/agents/run
     title: "Managed agent launch"
+  - resource: ../../tools/agents/adapter-check
+    title: "Connector copy drift check"
   - resource: ../../.codex/config.toml
     title: "Codex native compaction config"
   - resource: ../../.codex/hooks.json
@@ -212,8 +214,8 @@ qualification and setup commands are recorded below.
 
 ## Setup
 
-1. Follow the getting-started checks. Offer the recommended architecture
-   baseline and install it only on the user's yes (architecture maintenance). Install the
+1. Follow the [getting-started checks](getting-started.md). Offer the recommended architecture
+   baseline and install it only on the user's yes ([architecture maintenance](architecture-maintenance.md)). Install the
    chosen native CLI separately; preserve user account/provider settings.
 2. Claude: trust the workspace, then `tools/agents/run claude`.
 3. Codex: trust the project in native settings, review/enable the local hooks in `/hooks`, restart,
@@ -242,9 +244,42 @@ The adapter preserves Read/Grep range/result limits and the real edit kind when 
 `limit`; Grep's native `limit` is accepted alongside Claude's `head_limit`. Patch path checks use
 Edit semantics, so checking a patch never becomes an accidental full-file Read refusal.
 
+## Keeping a copy in step
+
+A project that adopts the factory carries its own copy of every connector: the shared adapter
+(`tools/agents/hook.py`), the context rule (`tools/context/budget.py`), the Claude hooks, the dsh
+plugin, the Pi extension, the OpenCode plugin and the native registrations. A copy that drifts from
+the factory does not fail loudly. The harness keeps loading whatever is there, or silently drops a
+module that no longer parses, and nothing in the session says so: that is how a desktop dsh profile
+ran for hours with no factory hooks at all while the factory's own copy was green.
+
+`tools/agents/adapter-check` compares a repository's copies with the factory copy the script ships
+in, by exact bytes:
+
+```bash
+tools/agents/adapter-check                  # this repository
+tools/agents/adapter-check --root ../app    # a project that adopted the factory
+tools/agents/adapter-check --root ../app --strict --verbose
+```
+
+It prints one line per connector: `ok`, `DRIFT` with both sizes and the exact `cp` that repairs it,
+`UNWIRED` for a native config that names a file which is not there, and `invalid` for a config that
+is not valid JSON. A connector the project does not carry is `absent`: listed under `--verbose`, and
+a failure only under `--strict`, because a Claude-only project legitimately has no Pi extension.
+Exit code 0 is clean, 1 is drift or broken wiring, 2 is a bad root or the script's own copy.
+
+Configs a project merges with its own settings are not compared byte for byte —
+`.claude/settings.json`, `.codex/config.toml`, `.devin/config.json` — but their commands are: every
+script they name must exist. Run the check after adopting, after every factory upgrade, and in the
+project's own CI — from a pinned factory checkout with `--root`, never from the copy inside the
+project, which would compare the project with itself and pass; the factory's own run passes
+`--self`. The factory runs it on itself in `tools/factory-tests`, which catches a
+registration that points at a renamed or deleted module.
+
 ## Qualification and limits
 
 Regression commands: `python3 tools/agents/tests/test_hooks.py`,
+`python3 tools/agents/tests/test_adapter_check.py`, `tools/agents/adapter-check`,
 `node --test tools/agents/tests/test_opencode.mjs`, `node --test tools/agents/tests/test_pi.mjs` and `python3 tools/loops/tests/test_loops.py`.
 These exercise real guard processes, payload normalization, patch paths, failure decisions,
 checkpoint invalidation, process deadlines, turn caps and issue severity routing.
@@ -255,7 +290,7 @@ V2 domain callbacks: legacy function exports can appear in discovery without exe
 
 Real model-driven qualification is separate: it must show actual file changes and a witnessed
 native guard denial in a disposable repository, not merely an agent's completion statement.
-The dated OpenCode experiment covers a native
+The [dated OpenCode experiment](../references/opencode-context-qualification.md) covers a native
 278k-input call and refusal of an over-budget tool continuation in an isolated primary-HTTP profile.
 No full 250k handover/compaction cycle or absolute Æion Factory admission ceiling is claimed. Local hook failures
 can be advisory in some native events; retain native sandbox/permissions and check actual dispatch.
