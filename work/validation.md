@@ -567,3 +567,35 @@ sandbox there). CI `Graphify and Archify`: PASS.
 Both failures pre-date the v1.9.0 update and were invisible until this branch ran them: the workflow
 had never executed against the single-view file, and the sandbox test had always been the first module
 in a fresh interpreter.
+
+## The forum in a browser, and the Langfuse address in the configuration — 2026-11-02
+
+The owner opened the links and found two things missing: the forum answered `Resource not found` at
+`/` (it is a JSON API; the front is the React Native app, which had never run anywhere), and the
+Langfuse login address was only in the compose file and the README, not in the generated
+configuration.
+
+**The front now runs in a browser, unchanged, through `react-native-web`.** Three pieces:
+`react-dom@19.3.1` and `react-native-web@0.21.4` (the first install picked `react-dom@19.3.0`
+against `react@19.3.1`, and React refuses to boot across a patch difference — the error named both
+versions); `src/api.ts` sends `credentials: 'include'` and lets the browser's cookie jar hold the
+session, since a browser hides `Set-Cookie` and forbids a `Cookie` header; and the forum allows
+exactly `http://127.0.0.1:8082` and `http://localhost:8082` with credentials
+(`quarkus.http.cors.*`), because the cookie is `SameSite=Strict` and the page must keep the API's
+host name.
+
+| Claim | Evidence |
+| --- | --- |
+| The page renders and reads the forum | headless Chrome on `http://127.0.0.1:8082`: thread list from `/api/threads`, footer `release unreleased · runtime 25.0.4` from `/healthz` |
+| The browser may open a session | `curl` with `Origin: http://127.0.0.1:8082` → preflight 200 with `access-control-allow-credentials: true`; login 200 with `Set-Cookie` |
+| The browser may write | register 201, create 201 with the CSRF token, **403 without it** |
+| The device path did not regress | `npm run typecheck` exit 0; `npm run smoke` 12/12; `expo export --platform ios` 1.5 MB Hermes bundle |
+
+Not verified: no human has looked at the screen. Expo Go was installed on a booted iPhone 17
+simulator and the project handed to it, but this Xcode ships no `Simulator.app`, so nothing was seen
+there; the browser check is a headless screenshot.
+
+**The Langfuse address now lives with the password.** `demo/setup.py` writes `LANGFUSE_EMAIL` into
+`demo/.local/stack.env` next to `LANGFUSE_PASSWORD`, prints where both are, and `demo/compose.yaml`
+reads `${LANGFUSE_EMAIL:-demo@aeion.local}` so an older configuration still boots. Verified by
+running the script in an isolated copy: the key is written once and the other keys are unchanged.

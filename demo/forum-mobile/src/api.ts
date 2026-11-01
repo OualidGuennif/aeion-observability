@@ -49,6 +49,13 @@ export class ApiError extends Error {
 
 const DEFAULT_BASE = 'http://127.0.0.1:8081';
 
+/**
+ * In a browser the cookie jar owns the session and `Cookie`/`Set-Cookie` are unreadable or
+ * forbidden headers, so the client sends no cookie of its own and keeps only the CSRF token.
+ * On a device the same code speaks to the same API with its own header.
+ */
+const browser = typeof document !== 'undefined';
+
 /** The base URL: `EXPO_PUBLIC_AGORA_API` when set, loopback otherwise. */
 export function baseUrl(): string {
   const configured = process.env.EXPO_PUBLIC_AGORA_API;
@@ -69,13 +76,13 @@ async function request<T>(path: string, init: RequestInit = {}, auth?: Auth): Pr
   const headers: Record<string, string> = {
     Accept: 'application/json',
     ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-    ...(auth ? { Cookie: `agora_session=${auth.cookie}` } : {}),
+    ...(auth && auth.cookie && !browser ? { Cookie: `agora_session=${auth.cookie}` } : {}),
     // A mutation carrying a session cookie must carry its token, or the forum answers 403.
     ...(auth && init.method && init.method !== 'GET' ? { 'X-CSRF-Token': auth.csrf } : {}),
   };
   let response: Response;
   try {
-    response = await fetch(`${baseUrl()}${path}`, { ...init, headers });
+    response = await fetch(`${baseUrl()}${path}`, { ...init, headers, credentials: 'include' });
   } catch (cause) {
     throw new ApiError(0, 'network_unreachable');
   }
@@ -122,14 +129,16 @@ export async function login(username: string, password: string): Promise<Session
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ username, password }),
+    credentials: 'include',
   });
   const text = await response.text();
   const body = text ? JSON.parse(text) : {};
   if (!response.ok) {
     throw new ApiError(response.status, body.error || 'login_failed');
   }
-  const cookie = cookieValue(response.headers.get('set-cookie'));
-  if (!cookie) {
+  // The browser stores the cookie itself and hides it from JavaScript; a device reads it here.
+  const cookie = browser ? '' : cookieValue(response.headers.get('set-cookie'));
+  if (!cookie && !browser) {
     throw new ApiError(500, 'session_cookie_missing');
   }
   if (!body.csrf) {

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Run the forum's React Native front in a browser through `react-native-web`
+  (`npx expo start --port 8082`): the API allows exactly `http://127.0.0.1:8082` and
+  `http://localhost:8082` with credentials, `src/api.ts` lets the browser's cookie jar own the session
+  (`credentials: 'include'`) while still reading the CSRF token from the login body, and the iOS path
+  keeps typechecking, bundling and passing its 12-step smoke test. `python3 demo/setup.py` now writes
+  `LANGFUSE_EMAIL` next to `LANGFUSE_PASSWORD` in `demo/.local/stack.env`, and the compose file reads
+  it with a default.
 - Update to the Æion Factory v1.9.0 template (tag `v1.9.0`): the 250k latch lets go on a verified
   handover and compacts a stale one; `adapter-check` matches all 27 connectors; five tool files a
   release behind are refreshed from the tag, which is what makes `tools/factory-tests` pass again.
