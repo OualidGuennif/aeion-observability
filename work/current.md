@@ -1,5 +1,12 @@
 # Current work
 
+## Agora forum and its build plane (specification)
+- Owner decision: a cockpit where 100 Markdown features are visible, each buildable alone or queued by ten, behind an orchestrator agent, for a moderated agent forum seeded with a local synthetic French news corpus; every agent on DeepSeek v4.1 flash through the relay, with no network access. Requested in chat, 2026-11-01.
+- State: Specification only. [Plan](../demo/forum/PLAN.md), 100 feature files under `demo/forum/features/` with a generated manifest and index, and a verbatim review copy in `demo/forum/openAI/`. Nothing is implemented.
+- Next: Owner review of the specs and of the merge policy (plan §6); then phase P0, features 001–018.
+- Blocker: None, but no code starts before the owner's yes.
+- Evidence: [plan](../demo/forum/PLAN.md); [feature index](../demo/forum/features/README.md).
+
 ## Æion Factory v1.8.3 template adoption
 - Owner decision: Import AEion Factory (v1.8.2, then v1.8.3) and migrate this repository onto its template, then prove Pi sessions reach Langfuse, run Archify/Graphify, and publish a high-level diagram. Requested in chat, 2026-10-31.
 - State: Template skeleton imported (tools, efficiency, native harness folders, knowledge policies), AGENTS.md merged with the owner rules, Graphify graph built (1017 nodes), Archify diagram validated and rendered. The local ten-service stack boots from a fresh `demo/.local`, the supervisor's spans and scores reach Langfuse, claude-mem and Hindsight acknowledge, and **Pi → Langfuse is now verified end to end** with a local fake model (`environment=development`, no paid call). The Factory `loops/` jobs are imported and `tools/factory-tests` now passes its 25 suites to the end.
