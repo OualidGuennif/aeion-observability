@@ -599,3 +599,23 @@ there; the browser check is a headless screenshot.
 `demo/.local/stack.env` next to `LANGFUSE_PASSWORD`, prints where both are, and `demo/compose.yaml`
 reads `${LANGFUSE_EMAIL:-demo@aeion.local}` so an older configuration still boots. Verified by
 running the script in an isolated copy: the key is written once and the other keys are unchanged.
+
+## The external review, checked at its claim sites — 2026-11-02
+
+An external review of this repository reports five defects and three product gaps, and asks for a
+decision before acting. This run applied no plan; it read the cited sites and reproduced the
+cheapest failures, so the owner decides on checked claims rather than on a summary.
+
+| Claim | Check | Result |
+| --- | --- | --- |
+| F2, publish loader raises | `publisher.load_publish_credential()` with `gh_probe.load_secret` replaced by a no-op | `NameError: name 'for_role' is not defined`, before any credential is read |
+| F1, review bytes are not bound | read `factory/artifact.py:88` and `factory/publisher.py:40-57` | the digest is SHA-256 over sorted **paths**; `verified_receipt` compares that digest and `base_sha`, never the content digest of the queued `files` |
+| F3, valid votes score zero | read `factory/review_circuit.py:82` and `factory/models.py:52` | stored outcomes are `approve`/`reject`; the success set is `approved`/`rejected`/`passed` |
+| F4, the diagnostic can serve | read `factory/live_readiness.py:30-36` and `demo/app/server.py` | `from server import sandbox_ready` inside the report; `server.py` calls `serve_forever()` at module level |
+| F5, the release proxy cannot carry a session | read `demo/deploy/playground.py` | `do_GET` handlers only; `_forward` builds a GET and passes no incoming headers |
+| G1, the builder is simulated | read `factory/api.py:28` and the `factory/dispatch.py` docstring | `profile=fake`, `mode=fake`, "fake inference and a fake forge" — stated, not hidden |
+
+Not verified here: the review's receipt-forgery fixture was not replayed end to end, no remote
+write and no secret read were attempted, and the cleanup and real-executor plans were not started.
+The claim that `demo/forum/product/` is absent from the tree and that the 100 features still point
+at it was not rechecked in this run.
