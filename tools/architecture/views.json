@@ -1,0 +1,689 @@
+[
+  {
+    "schema_version": 1,
+    "diagram_type": "architecture",
+    "meta": {
+      "title": "AEion Observability - high level",
+      "output": "architecture.html",
+      "quality_profile": "showcase"
+    },
+    "components": [
+      {
+        "id": "knowledge",
+        "type": "external",
+        "label": "Knowledge and contracts",
+        "sublabel": "specs, policies, sources",
+        "pos": [
+          40,
+          40
+        ],
+        "size": [
+          190,
+          56
+        ],
+        "sources": [
+          {
+            "path": "knowledge/index.md",
+            "anchor": "# Knowledge map"
+          }
+        ]
+      },
+      {
+        "id": "offline",
+        "type": "backend",
+        "label": "Offline examples",
+        "sublabel": "synthetic fixtures + unittest",
+        "pos": [
+          40,
+          160
+        ],
+        "size": [
+          190,
+          60
+        ],
+        "tag": "no service, no key",
+        "sources": [
+          {
+            "path": "examples/validate_fixtures.py",
+            "anchor": "def unique_pairs(items):"
+          }
+        ]
+      },
+      {
+        "id": "owner",
+        "type": "external",
+        "label": "Owner / operator",
+        "sublabel": "browser cockpit",
+        "pos": [
+          40,
+          300
+        ],
+        "size": [
+          130,
+          56
+        ],
+        "sources": [
+          {
+            "path": "AGENTS.md",
+            "anchor": "## Working rules"
+          }
+        ]
+      },
+      {
+        "id": "cockpit",
+        "type": "backend",
+        "label": "Host-native cockpit",
+        "sublabel": "demo/app: policy, lifecycle",
+        "pos": [
+          210,
+          294
+        ],
+        "size": [
+          180,
+          68
+        ],
+        "sources": [
+          {
+            "path": "demo/app/server.py",
+            "anchor": "def report_paths():"
+          }
+        ]
+      },
+      {
+        "id": "relay",
+        "type": "security",
+        "label": "Counting relay",
+        "sublabel": "admission + reservation",
+        "pos": [
+          420,
+          298
+        ],
+        "size": [
+          150,
+          60
+        ],
+        "tag": "300k budget",
+        "sources": [
+          {
+            "path": "demo/app/relay.py",
+            "anchor": "class ContextRelay:"
+          }
+        ]
+      },
+      {
+        "id": "harness",
+        "type": "backend",
+        "label": "Flue + Pi harness",
+        "sublabel": "flue-openshell-v1",
+        "pos": [
+          610,
+          298
+        ],
+        "size": [
+          160,
+          60
+        ],
+        "sources": [
+          {
+            "path": "demo/flue/src/provider.ts",
+            "anchor": "export const PROVIDER_ID = 'opencode-go';"
+          }
+        ]
+      },
+      {
+        "id": "tiers",
+        "type": "security",
+        "label": "Execution tiers",
+        "sublabel": "triage / local / OpenShell",
+        "pos": [
+          610,
+          420
+        ],
+        "size": [
+          160,
+          60
+        ],
+        "sources": [
+          {
+            "path": "demo/app/policy.py",
+            "anchor": "def gate_value(usage, cumulative, metric):"
+          }
+        ]
+      },
+      {
+        "id": "provider",
+        "type": "cloud",
+        "label": "Inference provider",
+        "sublabel": "OpenRouter / DeepInfra / CLI",
+        "pos": [
+          830,
+          294
+        ],
+        "size": [
+          170,
+          60
+        ],
+        "sources": [
+          {
+            "path": "knowledge/references/provider-capabilities.md",
+            "anchor": "# Provider and harness capabilities"
+          }
+        ]
+      },
+      {
+        "id": "observer",
+        "type": "backend",
+        "label": "Metadata-only observer",
+        "sublabel": "telemetry.py",
+        "pos": [
+          420,
+          430
+        ],
+        "size": [
+          160,
+          56
+        ],
+        "sources": [
+          {
+            "path": "demo/app/telemetry.py",
+            "anchor": "class Telemetry:"
+          }
+        ]
+      },
+      {
+        "id": "collector",
+        "type": "backend",
+        "label": "OTel collector",
+        "sublabel": "otel-collector.yaml",
+        "pos": [
+          210,
+          540
+        ],
+        "size": [
+          160,
+          56
+        ],
+        "sources": [
+          {
+            "path": "demo/otel-collector.yaml",
+            "anchor": "extensions: [health_check]"
+          }
+        ]
+      },
+      {
+        "id": "langfuse",
+        "type": "database",
+        "label": "Langfuse",
+        "sublabel": "web + worker",
+        "pos": [
+          420,
+          540
+        ],
+        "size": [
+          150,
+          56
+        ],
+        "sources": [
+          {
+            "path": "demo/compose.yaml",
+            "anchor": "  langfuse-web:"
+          }
+        ]
+      },
+      {
+        "id": "stores",
+        "type": "database",
+        "label": "Postgres / ClickHouse / MinIO",
+        "sublabel": "traces and objects",
+        "pos": [
+          610,
+          540
+        ],
+        "size": [
+          190,
+          56
+        ],
+        "tag": "Redis queue",
+        "sources": [
+          {
+            "path": "demo/compose.yaml",
+            "anchor": "  clickhouse: {condition: service_healthy}"
+          }
+        ]
+      }
+    ],
+    "boundaries": [
+      {
+        "kind": "security-group",
+        "label": "Local Docker pilot (opt-in)",
+        "wraps": [
+          "collector",
+          "langfuse",
+          "stores"
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "id": "owner-cockpit",
+        "from": "owner",
+        "to": "cockpit",
+        "label": "task",
+        "variant": "emphasis"
+      },
+      {
+        "id": "cockpit-relay",
+        "from": "cockpit",
+        "to": "relay",
+        "label": "admit"
+      },
+      {
+        "id": "relay-provider",
+        "from": "relay",
+        "to": "provider",
+        "label": "forwarded request"
+      },
+      {
+        "id": "relay-harness",
+        "from": "relay",
+        "to": "harness",
+        "label": "request"
+      },
+      {
+        "id": "harness-tiers",
+        "from": "harness",
+        "to": "tiers",
+        "label": "dispatch"
+      },
+      {
+        "id": "harness-observer",
+        "from": "harness",
+        "to": "observer",
+        "label": "events, usage",
+        "variant": "dashed"
+      },
+      {
+        "id": "observer-collector",
+        "from": "observer",
+        "to": "collector",
+        "label": "OTLP metadata",
+        "variant": "dashed"
+      },
+      {
+        "id": "collector-langfuse",
+        "from": "collector",
+        "to": "langfuse",
+        "label": "traces"
+      },
+      {
+        "id": "langfuse-stores",
+        "from": "langfuse",
+        "to": "stores",
+        "label": "persist"
+      },
+      {
+        "id": "offline-knowledge",
+        "from": "offline",
+        "to": "knowledge",
+        "label": "evidence",
+        "variant": "dashed",
+        "fromSide": "top",
+        "toSide": "bottom"
+      }
+    ],
+    "cards": [
+      {
+        "dot": "emerald",
+        "title": "What it optimizes",
+        "items": [
+          "cost per verified autonomous success",
+          "elapsed time and corrective work",
+          "bounded recommendations inside fixed authority"
+        ]
+      },
+      {
+        "dot": "cyan",
+        "title": "What it refuses",
+        "items": [
+          "raw prompts or secrets in default telemetry",
+          "widening OPS/CROA permissions or removing review gates",
+          "synthetic examples reported as measured gains"
+        ]
+      },
+      {
+        "dot": "amber",
+        "title": "Evidence limits",
+        "items": [
+          "40-attempt OpenShell matrix: synthetic, real CLI calls",
+          "Flue + Pi harness qualified with fake inference only",
+          "no paid Flue campaign yet"
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 2,
+    "diagram_type": "workflow",
+    "meta": {
+      "title": "Reviewed delivery and mandatory analysis",
+      "quality_profile": "showcase",
+      "output": "workflow.html"
+    },
+    "lanes": [
+      {
+        "id": "delivery",
+        "label": "Authorized delivery"
+      },
+      {
+        "id": "analysis",
+        "label": "Immutable analysis"
+      },
+      {
+        "id": "failure",
+        "label": "Failure and recovery",
+        "variant": "exception"
+      }
+    ],
+    "mainPath": [
+      "review",
+      "merge",
+      "snapshot",
+      "graph",
+      "archify",
+      "receipt"
+    ],
+    "nodes": [
+      {
+        "id": "review",
+        "lane": "delivery",
+        "col": 0,
+        "type": "security",
+        "label": "Review and CI",
+        "sublabel": "verified; owner authorized",
+        "sources": [
+          {
+            "path": ".claude/skills/pr-review/SKILL.md",
+            "anchor": "# Review a change"
+          }
+        ]
+      },
+      {
+        "id": "merge",
+        "lane": "delivery",
+        "col": 1,
+        "type": "backend",
+        "label": "Merge to main",
+        "sublabel": "explicit target SHA",
+        "sources": [
+          {
+            "path": ".github/workflows/architecture-refresh.yml",
+            "anchor": "name: Architecture refresh"
+          }
+        ]
+      },
+      {
+        "id": "snapshot",
+        "lane": "analysis",
+        "col": 2,
+        "type": "backend",
+        "label": "Freeze source",
+        "sublabel": "clean tracked snapshot",
+        "sources": [
+          {
+            "path": "tools/architecture/refresh",
+            "anchor": "manifest, excluded = scope(root, target, config)"
+          }
+        ]
+      },
+      {
+        "id": "graph",
+        "lane": "analysis",
+        "col": 3,
+        "type": "backend",
+        "label": "Graphify",
+        "sublabel": "code and Markdown structure",
+        "sources": [
+          {
+            "path": "tools/architecture/graph.py",
+            "anchor": "extraction = extract("
+          }
+        ]
+      },
+      {
+        "id": "archify",
+        "lane": "analysis",
+        "col": 4,
+        "type": "backend",
+        "label": "Archify",
+        "sublabel": "evidence and browser gates",
+        "sources": [
+          {
+            "path": "tools/architecture/refresh",
+            "anchor": "for view in views:"
+          }
+        ]
+      },
+      {
+        "id": "receipt",
+        "lane": "analysis",
+        "col": 5,
+        "type": "database",
+        "label": "Verified artifact",
+        "sublabel": "hashes and target SHA",
+        "sources": [
+          {
+            "path": "tools/architecture/refresh",
+            "anchor": "os.replace(temporary_receipt, output / \"receipt.json\")"
+          }
+        ]
+      },
+      {
+        "id": "failed",
+        "lane": "failure",
+        "col": 4,
+        "type": "security",
+        "label": "Round incomplete",
+        "sublabel": "correct and retry same SHA",
+        "sources": [
+          {
+            "path": "knowledge/operations/architecture-maintenance.md",
+            "anchor": "A failed post-merge round blocks closure/release"
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "id": "ready",
+        "from": "review",
+        "to": "merge",
+        "label": "approved"
+      },
+      {
+        "id": "trigger",
+        "from": "merge",
+        "to": "snapshot",
+        "label": "main push"
+      },
+      {
+        "id": "extract",
+        "from": "snapshot",
+        "to": "graph",
+        "label": "allowed corpus"
+      },
+      {
+        "id": "views",
+        "from": "graph",
+        "to": "archify",
+        "label": "reviewed spec and sources"
+      },
+      {
+        "id": "pass",
+        "from": "archify",
+        "to": "receipt",
+        "label": "all gates pass",
+        "variant": "emphasis"
+      },
+      {
+        "id": "failure",
+        "from": "archify",
+        "to": "failed",
+        "label": "gate fails",
+        "variant": "security",
+        "role": "error"
+      }
+    ],
+    "cards": [
+      {
+        "dot": "cyan",
+        "title": "Every main update",
+        "items": [
+          "Includes docs-only, squash, rebase and multi-commit pushes",
+          "One artifact per immutable SHA; no generated-source push"
+        ]
+      },
+      {
+        "dot": "rose",
+        "title": "Failure boundary",
+        "items": [
+          "Any extraction, provenance or browser failure refuses PASS",
+          "A failed post-merge round blocks completed-work and release claims"
+        ]
+      }
+    ]
+  },
+  {
+    "schema_version": 3,
+    "diagram_type": "lifecycle",
+    "meta": {
+      "title": "Context checkpoints (Claude, Codex, OpenCode, Pi, dsh)",
+      "quality_profile": "showcase",
+      "output": "lifecycle.html"
+    },
+    "mainPath": [
+      "running",
+      "handover",
+      "checkpoint",
+      "recovering"
+    ],
+    "states": [
+      {
+        "id": "running",
+        "type": "start",
+        "label": "Running",
+        "sublabel": "positive native usage below 250k",
+        "sources": [
+          {
+            "path": "tools/context/budget.py",
+            "anchor": "WARNING = 250_000"
+          }
+        ]
+      },
+      {
+        "id": "handover",
+        "type": "active",
+        "label": "Handover required",
+        "sublabel": "closure work only",
+        "sources": [
+          {
+            "path": "tools/context/budget.py",
+            "anchor": "state[\"state\"] = \"HANDOVER_REQUIRED\""
+          }
+        ]
+      },
+      {
+        "id": "checkpoint",
+        "type": "decision",
+        "label": "Checkpoint verified",
+        "sublabel": "docs and source hashes match",
+        "sources": [
+          {
+            "path": "tools/context/budget.py",
+            "anchor": "def checkpoint(root, session, base):"
+          }
+        ]
+      },
+      {
+        "id": "recovering",
+        "type": "waiting",
+        "label": "Recovering",
+        "sublabel": "compact; restore handover",
+        "sources": [
+          {
+            "path": "tools/context/budget.py",
+            "anchor": "\"state\": \"RECOVERING\", \"warning_pending\""
+          }
+        ]
+      },
+      {
+        "id": "stopped",
+        "type": "active",
+        "label": "Compaction forced",
+        "sublabel": "observed 300k: handover and checkpoint only",
+        "sources": [
+          {
+            "path": "tools/context/budget.py",
+            "anchor": "if usage >= LIMIT and state[\"state\"] != \"COMPACT_REQUIRED\":"
+          }
+        ]
+      }
+    ],
+    "transitions": [
+      {
+        "id": "warn",
+        "from": "running",
+        "to": "handover",
+        "label": "250k observed"
+      },
+      {
+        "id": "verify",
+        "from": "handover",
+        "to": "checkpoint",
+        "label": "checkpoint passes"
+      },
+      {
+        "id": "compact",
+        "from": "checkpoint",
+        "to": "recovering",
+        "label": "compaction"
+      },
+      {
+        "id": "resume",
+        "from": "recovering",
+        "to": "running",
+        "label": "fresh observation"
+      },
+      {
+        "id": "limit",
+        "from": "handover",
+        "to": "stopped",
+        "label": "300k observed",
+        "variant": "security"
+      },
+      {
+        "id": "forced-verify",
+        "from": "stopped",
+        "to": "checkpoint",
+        "label": "checkpoint passes"
+      }
+    ],
+    "cards": [
+      {
+        "dot": "cyan",
+        "title": "Before compaction",
+        "items": [
+          "Create the handover at session start",
+          "Validate docs, current task and exact source state"
+        ]
+      },
+      {
+        "dot": "rose",
+        "title": "Observed boundaries",
+        "items": [
+          "No qualified pre-request callback is available",
+          "Strict launch refuses; this is checkpoint enforcement only"
+        ]
+      }
+    ]
+  }
+]

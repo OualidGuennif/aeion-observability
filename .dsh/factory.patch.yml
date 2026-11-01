@@ -1,0 +1,8 @@
+# Spec: knowledge/operations/agent-compatibility.md
+# Loads the Æion Factory adapter into a dsh profile: dsh web|headless --patch .dsh/factory.patch.yml
+# Web isolates compaction per agent preset, so only the second entry stays pending there.
+- insert:
+    - id: aeion-factory
+      name: ./plugins/factory/index.js
+    - id: aeion-factory-compaction
+      name: ./plugins/factory/compaction.js

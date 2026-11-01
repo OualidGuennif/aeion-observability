@@ -9,6 +9,24 @@ code from both coding tiers is checked in OpenShell. The application under test 
 JavaScript + Hono**. The interface uses Æion's ivory, forest-green and copper palette, locally
 bundled fonts and a native GPT Image illustration.
 
+## Agora factory planning
+
+The [Agora product plan](forum/PLAN.md), [factory contract](forum/ECOSYSTEM.md) and
+[100 feature specs](forum/features/README.md) are revised designs. The [DeepSeek
+handoff](forum/DEEPSEEK_HANDOFF.md) defines the local implementation sequence; [validation](forum/VALIDATION.md)
+separates catalog checks from runtime qualification. This existing cockpit and its Flue harness
+remain trusted infrastructure. Fake inference is the default and live/remote gates remain explicit.
+
+The product itself is now real, not only planned: `demo/forum-app/` is a **Quarkus 3.40.1 / Java
+25.0.4** service built with Gradle, carrying features 001-003 (skeleton and settings, migration
+runner, test harness), the accounts and sessions ahead of their turn, and threads with a Kafka
+producer and consumer behind a transactional outbox, CSRF tokens on every mutation, with 47 JUnit tests.
+`demo/forum-db/` is the guardian service for its SQLite file: WAL, `VACUUM INTO` snapshots, a
+restore drill and one-writer leasing. `demo/forum-mobile/` is the front on React Native 0.88.1
+through Expo SDK 58: it typechecks, bundles for iOS (619 modules) and its API client passes an
+11-step smoke test against the live service, though no simulator has run it. A real Kafka broker
+(`apache/kafka-native` in Docker) carried the event drill.
+
 ## Start and show
 
 From the repository root, with Docker running, Python 3.11+ and Node.js 22.19+. The native
@@ -30,6 +48,11 @@ mounting the original dotenv or displaying its contents. It refuses to overwrite
 credentials. The ignored `demo/.local/stack.env` is owner-only; do not print/commit/share it
 or use `docker compose config` without `--quiet`. `install.py` creates the controller venv,
 fetches the pinned tokenizers and runs `npm ci` for the locked Flue harness.
+
+The factory's GitHub keys are described, with the exact permissions to attach, in the committed
+root [`.env.example`](../.env.example) and in [runbook §5.1](factory/runbook.md#51-the-credentials-one-key-per-capability).
+One key per capability: build, publish and release are three different keys, and no agent process
+may hold more than the one it needs.
 
 | View | Local address | Purpose |
 | --- | --- | --- |

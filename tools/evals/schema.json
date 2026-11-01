@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evaluation record",
+  "description": "One run of one task on one harness, self-reported.",
+  "type": "object",
+  "properties": {
+    "task": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "harness": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "success": {
+      "type": "boolean"
+    },
+    "minutes": {
+      "type": "number",
+      "minimum": 0
+    },
+    "model": {
+      "type": "string"
+    },
+    "factory": {
+      "type": "string"
+    },
+    "tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "cost_usd": {
+      "type": "number",
+      "minimum": 0
+    },
+    "human_interventions": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rework_commits": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "defects_after_done": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "notes": {
+      "type": "string"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": ["task", "harness", "success", "minutes", "factory", "recorded_at"],
+  "additionalProperties": true
+}

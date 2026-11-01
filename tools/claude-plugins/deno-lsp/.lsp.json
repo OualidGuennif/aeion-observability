@@ -1,0 +1,7 @@
+{
+  "deno": {
+    "command": "${CLAUDE_PLUGIN_ROOT}/scripts/deno-lsp",
+    "extensionToLanguage": { ".ts": "typescript", ".tsx": "typescriptreact" },
+    "initializationOptions": { "enable": true, "lint": true }
+  }
+}

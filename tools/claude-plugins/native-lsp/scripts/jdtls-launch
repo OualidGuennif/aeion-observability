@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Eclipse JDT LS for Claude Code on the project's own JDK, its workspace outside the repository;
+# stdout is the protocol, so messages go to stderr. Spec: knowledge/operations/build-and-test.md
+set -euo pipefail
+ROOT="${CLAUDE_PROJECT_DIR:?CLAUDE_PROJECT_DIR is not set}"
+JDTLS_HOME="${JDTLS_HOME:-$HOME/.local/share/jdtls/current}"
+# The JDK: JDTLS_JAVA, else one vendored under .tools/, else JAVA_HOME (JDT LS needs Java 21+).
+JAVA="${JDTLS_JAVA:-}"
+if [[ -z "$JAVA" ]]; then
+    for candidate in "$ROOT"/.tools/jdk-*/Contents/Home/bin/java "$ROOT"/.tools/jdk-*/bin/java; do
+        if [[ -x "$candidate" ]]; then JAVA="$candidate"; break; fi
+    done
+fi
+[[ -n "$JAVA" ]] || JAVA="${JAVA_HOME:+$JAVA_HOME/bin/java}"
+[[ -x "$JAVA" ]] || { echo "jdtls-launch: no JDK (set JDTLS_JAVA or JAVA_HOME)" >&2; exit 1; }
+[[ -f "$JDTLS_HOME/bin/jdtls" ]] || { echo "jdtls-launch: no JDT LS at $JDTLS_HOME (set JDTLS_HOME)" >&2; exit 1; }
+DATA="${XDG_CACHE_HOME:-$HOME/.cache}/jdtls-workspaces/$(printf %s "$ROOT" | shasum | cut -c1-12)"
+mkdir -p "$DATA"
+# Eclipse metadata (.project, .classpath, .settings) goes to the workspace, not the repository.
+exec python3 "$JDTLS_HOME/bin/jdtls" --java-executable "$JAVA" \
+    --jvm-arg=-Djava.import.generatesMetadataFilesAtProjectRoot=false -data "$DATA"

@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""The knowledge base and the files agents read first, against their format and caps.
+
+    tools/knowledge/knowledge-check [--root DIR]
+
+Fails on: a concept without valid frontmatter or a required field; an unknown status; a
+description over 250 characters; a `review_after` that is not a real YYYY-MM-DD date; more than 3
+`verified` entries or one over 300 characters; a body over 600 lines; a broken relative Markdown link; a stable concept missing from its folder index;
+a Component without the eight spec sections; AGENTS.md over 120 lines; CLAUDE.md that is neither a
+link to AGENTS.md nor `@AGENTS.md`; work/current.md over 150 lines or an entry over 10 lines or
+without its five fields. Spec: knowledge/policies/specs-first.md
+"""
+import argparse
+import re
+import sys
+from datetime import date
+from pathlib import Path
+
+FM_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
+LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+REQUIRED = ("type", "title", "description", "status")
+STATUSES = {"draft", "stable", "deprecated"}
+SPEC_SECTIONS = ("## Intent", "## Data sources", "## Inputs", "## Outputs", "## Invariants",
+                 "## Determinism", "## Acceptance checks", "## Out of scope")
+WORK_FIELDS = ("- Owner decision:", "- State:", "- Next:", "- Blocker:", "- Evidence:")
+
+
+def field(block, key):
+    m = re.search(rf'^{key}:\s*"?([^\n"]*?)"?\s*$', block, re.MULTILINE)
+    return m.group(1).strip() if m else ""
+
+
+def check_concept(path, root, problems):
+    rel = path.relative_to(root).as_posix()
+    text = path.read_text(encoding="utf-8")
+    m = FM_RE.match(text)
+    if not m:
+        problems.append(f"{rel}: no frontmatter")
+        return None
+    block, body = m.group(1), text[m.end():]
+    for key in REQUIRED:
+        if not field(block, key):
+            problems.append(f"{rel}: frontmatter lacks '{key}'")
+    if field(block, "status") and field(block, "status") not in STATUSES:
+        problems.append(f"{rel}: status '{field(block, 'status')}' is not one of {sorted(STATUSES)}")
+    # Optional: a volatile doc dates its own review, and a date the other checks cannot parse is a trap.
+    reviewed = field(block, "review_after")
+    if re.search(r"^review_after:", block, re.MULTILINE):
+        try:
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", reviewed):
+                raise ValueError
+            date.fromisoformat(reviewed)
+        except ValueError:
+            problems.append(f"{rel}: review_after '{reviewed}' is not a YYYY-MM-DD date")
+    if len(field(block, "description")) > 250:
+        problems.append(f"{rel}: description over 250 characters")
+    whats = re.findall(r"^\s+what:\s*\"?(.*?)\"?\s*$", block, re.MULTILINE)
+    if len(whats) > 3:
+        problems.append(f"{rel}: {len(whats)} verified entries (max 3); drop the oldest")
+    problems += [f"{rel}: a verified 'what' over 300 characters" for w in whats if len(w) > 300]
+    if body.count("\n") > 600:
+        problems.append(f"{rel}: body over 600 lines; split it along its headings")
+    if field(block, "type") == "Component" and path.name != "_template.md":
+        problems += [f"{rel}: Component lacks '{s}'" for s in SPEC_SECTIONS if s not in body]
+    return field(block, "status")
+
+
+def check_links(path, root, problems):
+    text = path.read_text(encoding="utf-8")
+    for target in LINK_RE.findall(text):
+        target = target.split("#")[0].strip()
+        if not target or "://" in target or target.startswith("mailto:"):
+            continue
+        if not (path.parent / target).exists():
+            problems.append(f"{path.relative_to(root).as_posix()}: broken link {target}")
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--root", default=str(Path(__file__).resolve().parents[2]))
+    root = Path(parser.parse_args(argv).root).resolve()
+    problems = []
+
+    # Every concept, and the index of its folder.
+    kb = root / "knowledge"
+    for path in sorted(kb.rglob("*.md")) if kb.is_dir() else []:
+        check_links(path, root, problems)
+        if path.name == "index.md":
+            continue
+        status = check_concept(path, root, problems)
+        index = path.parent / "index.md"
+        if status == "stable" and index.exists() and path.name not in index.read_text(encoding="utf-8"):
+            problems.append(f"{path.relative_to(root).as_posix()}: stable but missing from {index.relative_to(root).as_posix()}")
+
+    # The files every agent reads first.
+    agents = root / "AGENTS.md"
+    if agents.exists():
+        if agents.read_text(encoding="utf-8").count("\n") > 120:
+            problems.append("AGENTS.md: over 120 lines; route to docs instead of explaining")
+        claude = root / "CLAUDE.md"
+        if claude.exists() and not (claude.is_symlink() and claude.resolve() == agents.resolve()) \
+                and "@AGENTS.md" not in claude.read_text(encoding="utf-8"):
+            problems.append("CLAUDE.md: neither a link to AGENTS.md nor '@AGENTS.md'")
+        check_links(agents, root, problems)
+
+    # Public setup and the portable bundle must not advertise broken relative links.
+    for path in [*root.glob("*.md"), *root.glob("efficiency/*.md"), *root.glob(".codex/*.md"), *root.glob(".opencode/*.md"), *root.glob(".pi/*.md")]:
+        if path.name not in {"AGENTS.md", "CLAUDE.md"}:
+            check_links(path, root, problems)
+
+    # Task state: short, and every entry with its five fields.
+    work = root / "work" / "current.md"
+    if work.exists():
+        text = work.read_text(encoding="utf-8")
+        if text.count("\n") > 150:
+            problems.append("work/current.md: over 150 lines; delete finished tasks")
+        for entry in re.split(r"(?m)^(?=## )", text)[1:]:
+            title = entry.splitlines()[0]
+            if entry.strip().count("\n") + 1 > 11:
+                problems.append(f"work/current.md: '{title}' over 10 lines")
+            problems += [f"work/current.md: '{title}' lacks '{f}'" for f in WORK_FIELDS if f not in entry]
+        # Name the whole shape once, so an agent that never saw a valid entry can write one.
+        if any("' lacks '" in p for p in problems):
+            problems.append("work/current.md: an entry is '## <title> — <STATUS>' then the lines "
+                            + " / ".join(WORK_FIELDS) + " (Next names who: agent or owner)")
+
+    for p in problems:
+        print(f"FAIL {p}")
+    print(f"RESULT: {'FAIL' if problems else 'PASS'} ({len(problems)} problem(s))")
+    return 1 if problems else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

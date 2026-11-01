@@ -1,0 +1,9 @@
+{
+  "name": "deno-lsp",
+  "version": "1.0.0",
+  "description": "Deno's built-in language server (deno lsp), for the dashboard only.",
+  "author": {
+    "name": "\u00c6ion Factory"
+  },
+  "license": "MIT"
+}

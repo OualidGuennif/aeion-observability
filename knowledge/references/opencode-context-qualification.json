@@ -1,0 +1,293 @@
+{
+  "schema": 1,
+  "date_utc": "2026-10-26",
+  "factory_source": "a2edecdf48a25e1451912ca91d959fad62e2c1f7",
+  "cli_version": "2.1.4",
+  "cli_binary_sha256": "d8a65dd253dbea759ae0dd829792ff219b40178c7decffea822430a4d1ccadb3",
+  "model": "opencode-go/deepseek-v4.1-flash",
+  "native_source": "74f8d4860f49c563909e6b039b0cc8b454ebce72",
+  "encoding_commit": "314113f8a7dadb388215396ba5fbee2c610a04d6",
+  "counter_image": "sha256:23c72e63216ad84e4ec815a128a2640224420dd9b7a211bd2874e8e2cde8f502",
+  "profiles": {
+    "probe": {
+      "fixture_sha": "ea13ac187ae34546ecc91143e10e0aa82bc15060",
+      "plugin_sha256": "b7e3025ee6f8db32b29a16a55c799b9c37d53b5d099810795dabc1ecd66a5e12"
+    },
+    "counter": {
+      "fixture_sha": "a0fb054c87a9af8d2921818f85e311ac1eadaf42",
+      "plugin_sha256": "074b10ad4808f1ed8c9c4d6424b520b69fc568d1471f40f7580c2ae4d71af569"
+    },
+    "tool": {
+      "fixture_sha": "63a649faa14b609599036fa0d4417d299de697d6",
+      "plugin_sha256": "aad36058c3602b0617ba9a60cf8cba7d53aeaa39ed8a6e042e58da711d6c8293"
+    }
+  },
+  "provider_calls": 4,
+  "provider_input_total": 577728,
+  "provider_output_total": 158,
+  "strict_factory_enabled": false,
+  "cases": [
+    {
+      "name": "probe",
+      "profile": "probe",
+      "exit": 1,
+      "result_sha256": "f3267c9e53a8ed9495140e33a00ba06c4165a34b5907299033ce6c7bab3fd2bb",
+      "requests": [
+        {
+          "verdict": "deny_sentinel",
+          "ordinal": 1
+        }
+      ],
+      "response_statuses": [],
+      "refusals": [],
+      "tool_completed": false,
+      "unchanged_fixture": true
+    },
+    {
+      "name": "calibration-small",
+      "profile": "counter",
+      "exit": 0,
+      "result_sha256": "745d840c591c4d2d9153368b81092ee06d3123628f2ae340c5bd050a7b4463cc",
+      "requests": [
+        {
+          "input_local": 7958,
+          "max_output": 128,
+          "reserve": 20000,
+          "admission_budget": 28086,
+          "verdict": "allow",
+          "ordinal": 1,
+          "provider_input": 7958,
+          "provider_output": 38,
+          "provider_minus_local": 0
+        }
+      ],
+      "response_statuses": [
+        200
+      ],
+      "refusals": [],
+      "tool_completed": false,
+      "unchanged_fixture": true
+    },
+    {
+      "name": "calibration-slope",
+      "profile": "counter",
+      "exit": 0,
+      "result_sha256": "de2d9f640334fb19d7ec71e249b825806711215a625f28cadd3204ba79db4288",
+      "requests": [
+        {
+          "input_local": 12055,
+          "max_output": 128,
+          "reserve": 20000,
+          "admission_budget": 32183,
+          "verdict": "allow",
+          "ordinal": 1,
+          "provider_input": 12055,
+          "provider_output": 39,
+          "provider_minus_local": 0
+        }
+      ],
+      "response_statuses": [
+        200
+      ],
+      "refusals": [],
+      "tool_completed": false,
+      "unchanged_fixture": true
+    },
+    {
+      "name": "counter-missing",
+      "profile": "counter",
+      "exit": 1,
+      "result_sha256": "5cd66f197ad688b3b493757ea443ec2b581d2213a2322f917d35f5e692fbec7b",
+      "requests": [],
+      "response_statuses": [],
+      "refusals": [
+        "COUNTER_UNAVAILABLE"
+      ],
+      "tool_completed": false,
+      "unchanged_fixture": true
+    },
+    {
+      "name": "unsupported-schema",
+      "profile": "counter",
+      "exit": 1,
+      "result_sha256": "e7d8b275d424e1e45d58ad2ade0978b0ae4822320412e8e52d0696c2abb836df",
+      "requests": [],
+      "response_statuses": [],
+      "refusals": [
+        "REQUEST_UNSUPPORTED"
+      ],
+      "tool_completed": false,
+      "unchanged_fixture": true
+    },
+    {
+      "name": "oversized-input",
+      "profile": "counter",
+      "exit": 1,
+      "result_sha256": "9f068b2e7ff9e8981df06c623e5afc3a247b031155442d58d70cd71b9f7e3af2",
+      "requests": [
+        {
+          "input_local": 317959,
+          "max_output": 128,
+          "reserve": 20000,
+          "admission_budget": 338087,
+          "verdict": "deny",
+          "ordinal": 1
+        }
+      ],
+      "response_statuses": [],
+      "refusals": [
+        "FACTORY_300K_LIMIT"
+      ],
+      "tool_completed": false,
+      "unchanged_fixture": true
+    },
+    {
+      "name": "near-limit-measure",
+      "profile": "counter",
+      "exit": 1,
+      "result_sha256": "b5580b113b7bdfe68b8547508beb0fa3ba81c37b28400ba73c1c251226885cf7",
+      "requests": [
+        {
+          "input_local": 278859,
+          "max_output": 128,
+          "reserve": 20000,
+          "admission_budget": 298987,
+          "verdict": "deny",
+          "ordinal": 1
+        }
+      ],
+      "response_statuses": [],
+      "refusals": [
+        "FACTORY_300K_MEASURE"
+      ],
+      "tool_completed": false,
+      "unchanged_fixture": true
+    },
+    {
+      "name": "near-limit-live",
+      "profile": "counter",
+      "exit": 0,
+      "result_sha256": "9ab53e07d847f846080b1ec88b679d18fc3c8ef97cf06e85b6ca9eb1abdd29e9",
+      "requests": [
+        {
+          "input_local": 278859,
+          "max_output": 128,
+          "reserve": 20000,
+          "admission_budget": 298987,
+          "verdict": "allow",
+          "ordinal": 1,
+          "provider_input": 278859,
+          "provider_output": 7,
+          "provider_minus_local": 0
+        }
+      ],
+      "response_statuses": [
+        200
+      ],
+      "refusals": [],
+      "tool_completed": false,
+      "unchanged_fixture": true
+    },
+    {
+      "name": "exact-limit",
+      "profile": "counter",
+      "exit": 1,
+      "result_sha256": "501444088de70661af61eb9ff4f7c45a0ec1bc5015c04371c5711fd1f77cd8d8",
+      "requests": [
+        {
+          "input_local": 279872,
+          "max_output": 128,
+          "reserve": 20000,
+          "admission_budget": 300000,
+          "verdict": "deny",
+          "ordinal": 1
+        }
+      ],
+      "response_statuses": [],
+      "refusals": [
+        "FACTORY_300K_LIMIT"
+      ],
+      "tool_completed": false,
+      "unchanged_fixture": true
+    },
+    {
+      "name": "one-below-measure",
+      "profile": "counter",
+      "exit": 1,
+      "result_sha256": "d0b99ed1597f21f8f67b5044b09ec3c874ee6855c0d059da70ee66d20b6afc38",
+      "requests": [
+        {
+          "input_local": 279871,
+          "max_output": 128,
+          "reserve": 20000,
+          "admission_budget": 299999,
+          "verdict": "deny",
+          "ordinal": 1
+        }
+      ],
+      "response_statuses": [],
+      "refusals": [
+        "FACTORY_300K_MEASURE"
+      ],
+      "tool_completed": false,
+      "unchanged_fixture": true
+    },
+    {
+      "name": "tool-continuation-measure",
+      "profile": "tool",
+      "exit": 1,
+      "result_sha256": "2558fd0f8042bbdb18c3a77e6a10fe7b077c86a6223f1d79532706d61ff474d1",
+      "requests": [
+        {
+          "input_local": 278861,
+          "max_output": 512,
+          "reserve": 20000,
+          "admission_budget": 299373,
+          "verdict": "deny",
+          "ordinal": 1
+        }
+      ],
+      "response_statuses": [],
+      "refusals": [
+        "FACTORY_300K_MEASURE"
+      ],
+      "tool_completed": false,
+      "unchanged_fixture": true
+    },
+    {
+      "name": "tool-continuation-live",
+      "profile": "tool",
+      "exit": 1,
+      "result_sha256": "54b2af50eb3923cb7a1d825ca054cef925a0a2c330b47e0cb6cc11929d8ec63a",
+      "requests": [
+        {
+          "input_local": 278861,
+          "max_output": 512,
+          "reserve": 20000,
+          "admission_budget": 299373,
+          "verdict": "allow",
+          "ordinal": 1,
+          "provider_input": 278856,
+          "provider_output": 74,
+          "provider_minus_local": -5
+        },
+        {
+          "input_local": 281601,
+          "max_output": 512,
+          "reserve": 20000,
+          "admission_budget": 302113,
+          "verdict": "deny",
+          "ordinal": 2
+        }
+      ],
+      "response_statuses": [
+        200
+      ],
+      "refusals": [
+        "FACTORY_300K_LIMIT"
+      ],
+      "tool_completed": true,
+      "unchanged_fixture": true
+    }
+  ]
+}

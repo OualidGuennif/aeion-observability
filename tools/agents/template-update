@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+# Spec: knowledge/operations/agent-compatibility.md
+"""Move an adopted project from its version to a release, keeping the project's own content.
+
+The project's text wins. This writes only the contract files a project must not edit — the ones a
+harness loads as they are — and names the files it leaves alone, so a local instruction, setting or
+document is never replaced by the factory's. It never writes knowledge/, work/ or CHANGELOG.md.
+
+    tools/agents/template-update --ref v1.8.4 --root ../app
+    tools/agents/template-update --ref main --root ../app --check
+"""
+import argparse
+import re
+import sys
+from pathlib import Path
+
+FACTORY = Path(__file__).resolve().parents[2]
+
+sys.path.insert(0, str(FACTORY / "tools/agents"))
+from connectors import CONTRACT, MERGE  # noqa: E402
+from refs import Refused, ref_bytes, ref_diff, ref_exists, require_repository, tag_exists  # noqa: E402
+
+SEMVER = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+
+
+def version(repo, ref):
+    """The VERSION a reference carries, or None when it carries none."""
+    try:
+        return ref_bytes(repo, ref, "VERSION").decode("utf-8").strip()
+    except Refused:
+        return None
+
+
+def allowed(baseline, target):
+    """Whether baseline to target is an update; None when either name is not SemVer."""
+    old, new = SEMVER.search(baseline or ""), SEMVER.search(target or "")
+    if not old or not new:
+        return None
+    return tuple(map(int, new.groups())) >= tuple(map(int, old.groups()))
+
+
+def merge_needed(repo, baseline, ref):
+    """The project-owned files the factory changed between the project's reference and the target."""
+    if not baseline:
+        return []
+    try:
+        return [name for name in ref_diff(repo, baseline, ref) if name in MERGE]
+    except Refused:
+        return []
+
+
+def update(root, repo, ref, check, force):
+    if root == FACTORY:
+        raise Refused(f"{root} is the factory itself, not a project that adopted it")
+    if not root.is_dir():
+        raise Refused(f"no such project: {root}")
+    if not ref_exists(repo, ref):
+        raise Refused(f"no such reference: {ref}")
+    # The project's VERSION is the baseline an update starts from; without it there is nothing to update.
+    try:
+        baseline = (root / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        raise Refused(f"not an adopted project: no VERSION in {root}")
+    target = version(repo, ref) or "unknown"
+    if allowed(baseline, target) is False and not force:
+        raise Refused(f"refusing to downgrade {baseline} to {target}; pass --force to do it anyway")
+
+    print(f"template-update: {baseline} → {target} at {root}")
+    baseline_ref = f"v{baseline}" if tag_exists(repo, f"v{baseline}") else None
+    if baseline_ref is None:
+        print(f"               no v{baseline} tag here; merge advice is limited to the contract files")
+
+    changed = 0
+    for relative in CONTRACT:
+        try:
+            expected = ref_bytes(repo, ref, relative)
+        except Refused:
+            # A file added after the project's reference has no released bytes to copy.
+            print(f"skipped   {relative} — not in {ref}")
+            continue
+        found = root / relative
+        if found.is_file() and found.read_bytes() == expected:
+            continue
+        changed += 1
+        if check:
+            print(f"DRIFT     {relative}")
+            continue
+        found.parent.mkdir(parents=True, exist_ok=True)
+        found.write_bytes(expected)
+        print(f"written   {relative}")
+
+    # The version marker moves with the contract files, so the next update starts from this release.
+    if (root / "VERSION").read_text(encoding="utf-8").strip() != target:
+        changed += 1
+        if check:
+            print(f"DRIFT     VERSION — {baseline}, target {target}")
+        else:
+            (root / "VERSION").write_text(target + "\n", encoding="utf-8")
+            print(f"written   VERSION → {target}")
+
+    merges = merge_needed(repo, baseline_ref, ref)
+    for relative in merges:
+        print(f"merge     {relative} — the factory changed it between {baseline_ref} and {ref}")
+    print(f"               untouched: knowledge/, work/, CHANGELOG.md and {', '.join(MERGE)}")
+
+    if check:
+        print(f"\n{changed} file(s) differ from {ref}")
+        return 1 if changed else 0
+    print(f"\n{changed} file(s) written" + (f", {len(merges)} to merge" if merges else ""))
+    return 1 if merges else 0
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="template-update",
+        description="Move an adopted project's factory files to a release, keeping the project's own content.",
+    )
+    parser.add_argument("--ref", required=True, help="the release tag, or main/develop for a branch")
+    parser.add_argument("--root", required=True, help="the project that adopted the factory")
+    parser.add_argument("--repo", default=str(FACTORY), help="the repository holding the reference")
+    parser.add_argument("--check", action="store_true", help="report what would change, write nothing")
+    parser.add_argument("--force", action="store_true", help="allow moving to an older release")
+    arguments = parser.parse_args()
+    try:
+        require_repository(Path(arguments.repo))
+        return update(Path(arguments.root).resolve(), Path(arguments.repo).resolve(),
+                      arguments.ref, arguments.check, arguments.force)
+    except Refused as refusal:
+        print(f"template-update: {refusal}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

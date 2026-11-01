@@ -1,0 +1,4 @@
+# Spec: knowledge/policies/security.md
+# Verified false positives: one gitleaks fingerprint per line, with why.
+# A Fresh island key (an idea ULID) in a demo evidence file, not a credential.
+a3f76f74c2b609ee4de10afe93e9d6bdf53843e4:demo/codex/journal/evidence/03-quality-fixed.txt:generic-api-key:82

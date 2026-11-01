@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+# Spec: knowledge/policies/engineering.md
+"""Pre-push: develop moves only with a recorded review of the exact commit, and main only by a release PR.
+
+Git passes one line per ref: <local ref> <local sha> <remote ref> <remote sha>. A push to develop needs
+.aeion/reviews/<local sha>.md starting with "Review: OK" (skill pr-review writes it). Deletions and tags pass.
+Local mode (git config --local aeion.mode local) has no review or release flow: pushing is the user's call."""
+import subprocess
+import sys
+from pathlib import Path
+
+ZERO = "0" * 40
+
+
+def verdict(root, sha):
+    """The first line of the recorded review of this exact commit, or nothing."""
+    review = root / ".aeion/reviews" / f"{sha}.md"
+    if review.is_symlink() or not review.is_file():
+        return ""
+    return review.read_text(encoding="utf-8", errors="replace").split("\n", 1)[0].strip()
+
+
+def on_main(root, sha):
+    """True when the commit is already on origin/main: the release review covered it (develop catching up)."""
+    return subprocess.run(["git", "merge-base", "--is-ancestor", sha, "origin/main"], cwd=root,
+                          capture_output=True, check=False).returncode == 0
+
+
+def main():
+    root = Path(subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True,
+                               check=True).stdout.strip())
+    # Read from this clone's own config only, so an included or global file cannot switch the gate off.
+    mode = subprocess.run(["git", "config", "--local", "--get", "aeion.mode"], cwd=root, capture_output=True,
+                          text=True, check=False).stdout.strip()
+    if mode == "local":
+        return 0
+    refused = []
+    for line in sys.stdin:
+        fields = line.split()
+        if len(fields) != 4:
+            continue
+        local_ref, local_sha, remote_ref, _ = fields
+        # A deletion carries no code to review.
+        if local_sha == ZERO:
+            continue
+        # main changes only through the reviewed release pull request from develop.
+        if remote_ref == "refs/heads/main":
+            refused.append("main is updated only by the release pull request from develop (skill ship).")
+        elif remote_ref == "refs/heads/develop" and verdict(root, local_sha) != "Review: OK" \
+                and not on_main(root, local_sha):
+            refused.append(f"develop at {local_sha[:12]} has no 'Review: OK' in .aeion/reviews/{local_sha}.md: "
+                           "run the skill pr-review on origin/develop..HEAD, fix its findings, then push.")
+    for reason in refused:
+        print(f"pre-push: {reason}", file=sys.stderr)
+    if refused:
+        print("pre-push: push refused; never bypass with --no-verify.", file=sys.stderr)
+    return 1 if refused else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

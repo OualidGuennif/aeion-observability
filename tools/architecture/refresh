@@ -1,0 +1,282 @@
+#!/usr/bin/env python3
+# Spec: knowledge/operations/architecture-maintenance.md
+"""Build/check a source-backed Graphify and Archify baseline for one immutable Git commit."""
+import argparse
+import fcntl
+import fnmatch
+import hashlib
+import html
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import tempfile
+from urllib.parse import urlsplit, urlunsplit
+from process import run
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / ".claude/hooks"))
+from secret_names import is_secret  # noqa: E402
+from project_files import git_active  # noqa: E402
+PLAIN_FOLDER = ("needs its own git repository; in a plain folder run tools/architecture/graph.py and "
+                "archify render directly (knowledge/operations/architecture-maintenance.md)")
+CODE = {".py", ".sh", ".js", ".mjs", ".ts", ".tsx", ".go", ".rs", ".java"}
+
+
+def git(root, *args):
+    return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True).stdout
+
+
+def revision(root, ref):
+    return git(root, "rev-parse", "--verify", "--end-of-options", f"{ref}^{{commit}}").decode().strip()
+
+
+def secret_path(path):
+    return any(is_secret(part) for part in Path(path).parts)
+
+
+def scope(root, target, config):
+    manifest, excluded = [], []
+    for row in git(root, "ls-tree", "-r", "-z", target).split(b"\0"):
+        if not row:
+            continue
+        metadata, raw = row.split(b"\t", 1)
+        mode, kind, object_id = metadata.decode().split()
+        path = os.fsdecode(raw)
+        if secret_path(path):
+            raise ValueError("analysis refuses a repository containing tracked secret paths")
+        if mode not in {"100644", "100755"} or not any(fnmatch.fnmatchcase(path, pattern) for pattern in config["scope"]):
+            excluded.append(path)
+            continue
+        required = Path(path).suffix in CODE | {".md"} or mode == "100755"
+        manifest.append({"path": path, "git_blob": object_id, "required": required})
+    if not manifest:
+        raise ValueError("analysis scope is empty")
+    return manifest, excluded
+
+
+def comparison_base(root, base, target):
+    if not base or base == "0" * 40:
+        return None
+    base = revision(root, base)
+    return git(root, "merge-base", base, target).decode().strip()
+
+
+def changed_paths(root, base, target):
+    base = comparison_base(root, base, target)
+    if base is None:
+        return []
+    return [os.fsdecode(path) for path in git(root, "diff", "--name-only", "--no-renames", "-z", base, target).split(b"\0") if path]
+
+
+def spec_coverage(root, base, target, changed, config):
+    runtime = [path for path in changed if not path.endswith(".md") and "/tests/" not in path and not Path(path).name.startswith("test_")]
+    if not runtime or config["architecture_spec"] in changed:
+        return
+    messages = git(root, "log", "--format=%B", f"{base}..{target}").decode()
+    trailer = re.escape(config["architecture_spec"])
+    if not re.search(rf"(?m)^Docs-Checked: {trailer} -- \S.+$", messages):
+        raise ValueError("runtime/config changed without its architecture spec or a Docs-Checked reason")
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def logged(command, cwd, path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w") as stream:
+        try:
+            run(command, cwd=cwd, timeout=180, stdout=stream, stderr=subprocess.STDOUT)
+        except subprocess.SubprocessError as error:
+            raise ValueError(f"integration command failed; inspect {path}") from error
+
+
+def valid_receipt(folder, target, config):
+    try:
+        receipt = json.loads((folder / "receipt.json").read_text())
+        if receipt.get("schema_version") != 2 or receipt["status"] != "PASS" or receipt["target"] != target or receipt["integrations"] != config:
+            return False
+        artifacts = receipt["artifacts"]
+        required = {"graph/graph.json", "graph/coverage.json", "source-manifest.json"}
+        required |= {f"{name}.{suffix}" for name in ("architecture", "workflow", "lifecycle") for suffix in ("html", "json", "finalize-summary.json")}
+        required |= {f"{name}.delivery.json" for name in ("architecture", "workflow", "lifecycle")}
+        if not required.issubset(artifacts):
+            return False
+        for rel, expected in artifacts.items():
+            path = folder / rel
+            if Path(rel).is_absolute() or ".." in Path(rel).parts or path.is_symlink() or not path.is_file() or digest(path) != expected:
+                return False
+        for name in ("architecture", "workflow", "lifecycle"):
+            summary = json.loads((folder / f"{name}.finalize-summary.json").read_text())
+            if summary.get("status") != "pass" or summary.get("gates") != dict.fromkeys(("validate", "deliver", "check", "browser-check"), "pass"):
+                return False
+        return True
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+
+
+def comparison_receipt(folder, target, base, requested_base, changed):
+    # Graphs are reusable per SHA; diff provenance belongs to the requested comparison.
+    parent = folder.parent / "comparisons" / target
+    parent.mkdir(parents=True, exist_ok=True)
+    path = parent / f"{requested_base or 'initial'}.json"
+    data = {"target": target, "base": base, "requested_base": requested_base, "changed_paths": changed,
+            "baseline_receipt_sha256": digest(folder / "receipt.json")}
+    with tempfile.NamedTemporaryFile(mode="w", dir=parent, delete=False) as stream:
+        json.dump(data, stream, indent=2)
+        stream.write("\n")
+    os.replace(stream.name, path)
+    return path
+
+
+def candidate(view, source, target, origin):
+    # Resolve reviewed anchors against committed bytes; never invent or shift missing evidence.
+    data = json.loads(json.dumps(view))
+    data["meta"]["repository"] = {"url": origin, "revision": target, "link_mode": "web" if origin.startswith("https://github.com/") else "local-only"}
+    for collection in ("components", "nodes", "states"):
+        for node in data.get(collection, []):
+            # Archify's schema accepts one to three source references per node.
+            if "sources" in node and not 1 <= len(node["sources"]) <= 3:
+                raise ValueError(f"diagram node needs one to three sources: {node.get('id')}")
+            for evidence in node.get("sources", []):
+                path = source / evidence["path"]
+                if path.is_symlink() or not path.resolve().is_relative_to(source.resolve()) or secret_path(evidence["path"]):
+                    raise ValueError("unsafe diagram evidence path")
+                lines = path.read_text().splitlines()
+                anchor = evidence.pop("anchor")
+                matches = [i for i, line in enumerate(lines) if anchor in line]
+                if len(matches) != 1:
+                    raise ValueError(f"diagram evidence anchor must resolve once: {evidence['path']}")
+                evidence["line"] = matches[0] + 1
+                evidence["end_line"] = min(len(lines), matches[0] + 9)
+    return data
+
+
+def toolchain(root, config):
+    integrations = root / ".aeion/integrations"
+    python = integrations / "graphify-venv/bin/python"
+    archify = integrations / "archify"
+    if not python.is_file() or not archify.is_dir():
+        raise ValueError("run tools/architecture/setup first")
+    if revision(archify, "HEAD") != config["archify"]["revision"] or git(archify, "status", "--porcelain", "--untracked-files=no").strip():
+        raise ValueError("Archify checkout is not the clean pinned revision")
+    probe = ("import importlib.metadata,json; d=importlib.metadata.distribution('graphifyy'); "
+             "print(json.dumps({'version':d.version,'source':json.loads(d.read_text('direct_url.json') or '{}')}))")
+    metadata = json.loads(subprocess.run([str(python), "-c", probe], check=True, capture_output=True, text=True).stdout)
+    archive_hash = metadata["source"].get("archive_info", {}).get("hashes", {}).get("sha256")
+    if (metadata["version"] != config["graphify"]["version"] or metadata["source"].get("url") != config["graphify"]["archive_url"]
+            or archive_hash != config["graphify"]["archive_sha256"]):
+        raise ValueError("Graphify installation is not the pinned revision/archive hash; rerun setup")
+    return python, archify / "archify/bin/archify.mjs"
+
+
+def refresh(root, target, base=None, check=False):
+    # Nested in another repository, git would answer for the parent and analyse a tree that is not this one.
+    if not git_active(root):
+        raise ValueError(PLAIN_FOLDER)
+    target = revision(root, target)
+    config = json.loads((root / "tools/architecture/integrations.json").read_text())
+    analysis = root / ".aeion/analysis"
+    analysis.mkdir(parents=True, exist_ok=True)
+    destination = analysis / target
+    requested_base = revision(root, base) if base and base != "0" * 40 else None
+    base = comparison_base(root, base, target)
+    changed = changed_paths(root, base, target)
+    spec_coverage(root, base, target, changed, config)
+    with (analysis / f"{target}.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if valid_receipt(destination, target, config):
+            comparison = comparison_receipt(destination, target, base, requested_base, changed)
+            print(f"Architecture baseline: PASS {target} ({destination})")
+            print(f"Current comparison: {comparison}; baseline receipt preserves its original comparison.")
+            return destination
+        if check:
+            raise ValueError("no valid Graphify/Archify baseline for this commit")
+        python, archify = toolchain(root, config)
+        manifest, excluded = scope(root, target, config)
+        with tempfile.TemporaryDirectory(prefix="build-", dir=analysis) as temporary:
+            work = Path(temporary)
+            source, output = work / "source", destination
+            if destination.is_symlink():
+                raise ValueError("analysis destination must not be a symlink")
+            if destination.exists():
+                os.replace(destination, analysis / f"incomplete-{target}-{work.name}")
+            output.mkdir()
+            subprocess.run(["git", "clone", "-q", "--shared", "--no-checkout", str(root), str(source)], check=True, timeout=60)
+            subprocess.run(["git", "-C", str(source), "checkout", "-q", "--detach", target], check=True, timeout=60)
+            origin = git(root, "remote", "get-url", "origin").decode().strip()
+            parsed = urlsplit(origin)
+            if parsed.scheme in {"http", "https"}:
+                origin = urlunsplit((parsed.scheme, parsed.hostname or "", parsed.path, "", ""))
+            subprocess.run(["git", "-C", str(source), "remote", "set-url", "origin", origin], check=True)
+            manifest_file = output / "source-manifest.json"
+            manifest_file.write_text(json.dumps(manifest, indent=2) + "\n")
+            graph_out = output / "graph"
+            graph_out.mkdir()
+            logged([str(python), str(root / "tools/architecture/graph.py"), str(source), str(graph_out), str(manifest_file)],
+                   source, analysis / "logs" / f"{target}-graph.log")
+            views = json.loads((source / "tools/architecture/views.json").read_text())
+            if not isinstance(views, list) or len(views) != 3 or {view.get("diagram_type") for view in views} != {"architecture", "workflow", "lifecycle"}:
+                raise ValueError("maintain exactly the overview, delivery and context views")
+            for view in views:
+                name = view["diagram_type"]
+                diagram = output / f"{name}.json"
+                diagram.write_text(json.dumps(candidate(view, source, target, origin), indent=2) + "\n")
+                logged(["node", str(archify), "finalize", name, str(diagram), str(output / f"{name}.html"),
+                        "--repo-root", str(source), "--quality", "showcase", "--json"],
+                       archify.parents[2], analysis / "logs" / f"{target}-{name}.log")
+            (output / "index.html").write_text('<!doctype html><meta charset="utf-8"><title>Æion Factory architecture</title>'
+                '<h1>Æion Factory architecture</h1><p>Immutable source snapshot; structural graph and reviewed architecture views.</p>'
+                + ''.join(f'<p><a href="{view["diagram_type"]}.html">{html.escape(view["meta"]["title"])}</a></p>' for view in views))
+            artifacts = {path.relative_to(output).as_posix(): digest(path) for path in output.rglob("*") if path.is_file()}
+            receipt = {"schema_version": 2, "status": "PASS", "target": target, "base": base, "requested_base": requested_base, "changed_paths": changed,
+                       "excluded_paths": excluded, "integrations": config, "artifacts": artifacts,
+                       "coverage": "structural code/docs/config; reviewed architecture; no LLM completeness claim"}
+            temporary_receipt = output / ".receipt.tmp"
+            temporary_receipt.write_text(json.dumps(receipt, indent=2) + "\n")
+            os.replace(temporary_receipt, output / "receipt.json")
+        comparison = comparison_receipt(destination, target, base, requested_base, changed)
+    print(f"Architecture baseline: PASS {target} ({destination})")
+    print(f"Current comparison: {comparison}")
+    return destination
+
+
+def write_listing(root, analysis):
+    """`.aeion/analysis/index.html`: one stable page linking every PASS baseline, newest commit first.
+    It is rebuilt from the receipts each time, never moved like a pointer, so a slow older job cannot
+    send a reader back to an older baseline."""
+    rows = []
+    for receipt in analysis.glob("*/receipt.json"):
+        try:
+            data = json.loads(receipt.read_text())
+            when, subject = git(root, "show", "-s", "--format=%cI%x00%s", data["target"]).decode().strip().split("\0", 1)
+        except (ValueError, KeyError, OSError, subprocess.SubprocessError):
+            continue
+        if data.get("status") == "PASS" and data["target"] == receipt.parent.name:
+            rows.append((when, data["target"], subject))
+    links = "".join(f'<li><a href="{sha}/index.html">{sha[:12]}</a> {html.escape(when[:10])} {html.escape(subject)}</li>'
+                    for when, sha, subject in sorted(rows, reverse=True))
+    page = analysis / ".index.tmp"
+    page.write_text('<!doctype html><meta charset="utf-8"><title>Architecture baselines</title>'
+                    f'<h1>Architecture baselines</h1><p>Newest commit first.</p><ul>{links}</ul>\n')
+    os.replace(page, analysis / "index.html")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--target", required=True)
+    parser.add_argument("--base")
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    try:
+        destination = refresh(ROOT, args.target, args.base, args.check)
+        write_listing(ROOT, destination.parent)
+    except (ValueError, OSError, subprocess.SubprocessError) as error:
+        parser.exit(1, f"Architecture refresh: FAILED ({error})\n")
+
+
+if __name__ == "__main__":
+    main()

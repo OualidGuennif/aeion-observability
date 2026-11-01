@@ -1,0 +1,215 @@
+#!/usr/bin/env python3
+# Spec: knowledge/operations/architecture-maintenance.md
+"""Build <render>/index.html: one self-contained gallery with every Archify diagram inlined.
+
+Browsers block iframes of sibling files opened from file:// and macOS protects ~/Desktop, so the page
+inlines each rendered diagram as JSON, sets it as a lazy iframe srcdoc and offers a full-window view.
+No network, no server, no file access beyond the one HTML. The HTML is generated, never tracked.
+
+Usage: gallery <render-dir> [--title T]
+Reads <render-dir>/diagrams/<name>.json (title, type, subtitle) and the rendered <name>.html beside it;
+an optional <render-dir>/catalog.json list of {name, question, group} sets order, questions and groups.
+"""
+import argparse
+import html
+import json
+from pathlib import Path
+import sys
+
+GROUPS = {"architecture": "System", "sequence": "Sequences"}
+OTHER = "Models and delivery"
+
+STYLE = """
+:root{color-scheme:light;--paper:#f7f4ec;--ink:#1d2f2a;--muted:#5a6a63;--line:#d9ded4;--accent:#8a3f1d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 system-ui,sans-serif}
+main{max-width:1320px;margin:auto;padding:56px 24px}
+header{max-width:900px;margin-bottom:48px}
+.eyebrow,.kind{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--accent)}
+h1{font:clamp(38px,6vw,68px)/1.06 Georgia,serif;letter-spacing:-.035em;margin:14px 0 24px}
+h2{font:32px/1.2 Georgia,serif;margin:48px 0 20px}
+h3{font:25px/1.2 Georgia,serif;margin:10px 0}
+p{color:var(--muted)}
+button{font:inherit;color:var(--ink);background:#fffdf8;border:1px solid var(--line);border-radius:999px;padding:6px 14px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+a{color:var(--ink);text-underline-offset:4px}
+a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+article{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fffdf8}
+.preview{position:relative;height:245px;overflow:hidden;background:#eef1ea;border-bottom:1px solid var(--line)}
+.preview iframe{width:1200px;height:500px;transform:scale(.49);transform-origin:top left;border:0;pointer-events:none}
+.preview .empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px}
+.preview[data-ready="true"] .empty{display:none}
+.copy{padding:22px 24px 28px}
+.copy p{margin:10px 0 20px}
+.copy .kind{margin:0}
+.actions{display:flex;align-items:center;gap:14px}
+.source{font-size:13px;color:var(--muted);margin-left:auto}
+footer{border-top:1px solid var(--line);margin-top:56px;padding-top:22px;color:var(--muted)}
+#viewer{position:fixed;inset:0;background:#0d1512;display:none;z-index:10}
+#viewer[data-open="true"]{display:block}
+#viewer iframe{position:absolute;inset:56px 16px 16px;width:calc(100% - 32px);height:calc(100% - 72px);border:1px solid #2a3a34;border-radius:10px;background:#fff}
+#viewer .bar{display:flex;align-items:center;gap:16px;padding:10px 18px;color:#e8efe9}
+#viewer .bar strong{font:20px/1.2 Georgia,serif;font-weight:600}
+#viewer .bar button{background:#16211d;color:#e8efe9;border-color:#33453e}
+#viewer .bar button.close{margin-left:auto}
+@media(max-width:750px){main{padding:32px 18px}.grid{grid-template-columns:1fr}.preview{height:180px}.preview iframe{transform:scale(.31)}}
+"""
+
+SCRIPT = """
+const data = {};
+const titles = {};
+const order = [];
+for (const node of document.querySelectorAll('script[type="application/json"][data-diagram]')) {
+  data[node.dataset.diagram] = JSON.parse(node.textContent);
+  order.push(node.dataset.diagram);
+}
+for (const button of document.querySelectorAll('button[data-open]')) {
+  titles[button.dataset.open] = button.dataset.title;
+}
+const frames = document.querySelectorAll('iframe[data-diagram]');
+const load = (frame) => {
+  if (frame.dataset.loaded === 'true') return;
+  frame.dataset.loaded = 'true';
+  const card = frame.closest('.preview');
+  frame.addEventListener('load', () => { card.dataset.ready = 'true'; }, { once: true });
+  frame.srcdoc = data[frame.dataset.diagram];
+};
+const watcher = new IntersectionObserver((entries) => {
+  for (const entry of entries) if (entry.isIntersecting) { load(entry.target); watcher.unobserve(entry.target); }
+}, { rootMargin: '600px' });
+for (const frame of frames) watcher.observe(frame);
+
+const viewer = document.getElementById('viewer');
+const viewerFrame = viewer.querySelector('iframe');
+const viewerTitle = viewer.querySelector('strong');
+let current = 0;
+const show = (index) => {
+  current = (index + order.length) % order.length;
+  const name = order[current];
+  viewerTitle.textContent = titles[name] || name;
+  viewerFrame.srcdoc = data[name];
+  viewer.dataset.open = 'true';
+  document.body.style.overflow = 'hidden';
+};
+const close = () => {
+  viewer.dataset.open = 'false';
+  viewerFrame.removeAttribute('srcdoc');
+  document.body.style.overflow = '';
+  document.querySelector('button[data-open="' + order[current] + '"]')?.focus();
+};
+for (const button of document.querySelectorAll('button[data-open]')) {
+  button.addEventListener('click', () => show(order.indexOf(button.dataset.open)));
+}
+viewer.querySelector('button.close').addEventListener('click', close);
+viewer.querySelector('button.prev').addEventListener('click', () => show(current - 1));
+viewer.querySelector('button.next').addEventListener('click', () => show(current + 1));
+document.addEventListener('keydown', (event) => {
+  if (viewer.dataset.open !== 'true') return;
+  if (event.key === 'Escape') close();
+  if (event.key === 'ArrowLeft') show(current - 1);
+  if (event.key === 'ArrowRight') show(current + 1);
+});
+"""
+
+
+def diagrams(render):
+    """One entry per diagram JSON, in catalog order then by name; a JSON without its HTML is refused."""
+    folder = render / "diagrams"
+    catalog = render / "catalog.json"
+    extra = {row["name"]: row for row in json.loads(catalog.read_text(encoding="utf-8"))} if catalog.is_file() else {}
+    specs = {path.stem: json.loads(path.read_text(encoding="utf-8")) for path in sorted(folder.glob("*.json"))}
+    # Archify writes receipts (browser-check, finalize) beside the inputs; only inputs name a diagram_type.
+    specs = {name: spec for name, spec in specs.items() if isinstance(spec, dict) and spec.get("diagram_type")}
+    names = [name for name in extra if name in specs] + [name for name in specs if name not in extra]
+    entries, missing = [], []
+    for name in names:
+        page = folder / f"{name}.html"
+        if not page.is_file():
+            missing.append(page)
+            continue
+        spec, row = specs[name], extra.get(name, {})
+        meta, kind = spec.get("meta") or {}, spec["diagram_type"]
+        entries.append({
+            "name": name,
+            "kind": kind,
+            "title": row.get("title") or meta.get("title") or name,
+            "question": row.get("question") or meta.get("subtitle") or "",
+            "group": row.get("group") or GROUPS.get(kind, OTHER),
+            "html": page.read_text(encoding="utf-8"),
+        })
+    return entries, missing
+
+
+def card(entry):
+    name, title = html.escape(entry["name"]), html.escape(entry["title"])
+    return (f'<article><div class="preview"><iframe data-diagram="{name}" title="{title}" loading="lazy"></iframe>'
+            f'<div class="empty" aria-hidden="true">Loading preview…</div></div>'
+            f'<div class="copy"><p class="kind">{html.escape(entry["kind"])}</p><h3>{title}</h3>'
+            f'<p>{html.escape(entry["question"])}</p>'
+            f'<div class="actions"><button data-open="{name}" data-title="{title}">Open full size</button>'
+            f'<a href="diagrams/{name}.html">standalone file</a>'
+            f'<a class="source" href="diagrams/{name}.json">JSON</a></div></div></article>')
+
+
+def page(entries, title):
+    groups = {}
+    for entry in entries:
+        groups.setdefault(entry["group"], []).append(entry)
+    sections = "".join(f'<section><h2>{html.escape(group)}</h2><div class="grid">{"".join(map(card, rows))}</div></section>'
+                       for group, rows in groups.items())
+    # "</" inside a JSON string would close the script element early.
+    payloads = "".join(f'<script type="application/json" data-diagram="{html.escape(entry["name"])}">'
+                       + json.dumps(entry["html"]).replace("</", "<\\/") + "</script>" for entry in entries)
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{html.escape(title)}</title>
+<style>{STYLE}</style>
+</head>
+<body>
+<main>
+<header>
+<p class="eyebrow">{len(entries)} diagrams · one file, no server</p>
+<h1>{html.escape(title)}</h1>
+<p>Every diagram is inlined in this page: the previews and the full-size view work from a single
+<code>file://</code> path, with no server, no network and no access to the other files.</p>
+</header>
+{sections}
+<footer>Rendered with Archify; built by <code>tools/architecture/gallery</code>. Regenerate after
+changing a diagram; this HTML is generated, not tracked.</footer>
+</main>
+<div id="viewer" aria-hidden="false">
+<div class="bar"><strong></strong><button class="prev" aria-label="Previous diagram">‹ Prev</button><button class="next" aria-label="Next diagram">Next ›</button><button class="close">Close (Esc)</button></div>
+<iframe title="Full-size diagram"></iframe>
+</div>
+{payloads}
+<script>{SCRIPT}</script>
+</body>
+</html>
+"""
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("render", type=Path, help="folder holding diagrams/<name>.json and .html")
+    parser.add_argument("--title", default="Architecture atlas")
+    args = parser.parse_args(argv)
+    # Read every diagram first: a missing render fails closed before anything is written.
+    entries, missing = diagrams(args.render)
+    if missing:
+        print("gallery: render these first (archify render): " + ", ".join(map(str, missing)), file=sys.stderr)
+        return 1
+    if not entries:
+        print(f"gallery: no diagrams/*.json under {args.render}", file=sys.stderr)
+        return 1
+    out = args.render / "index.html"
+    out.write_text(page(entries, args.title), encoding="utf-8")
+    print(f"{out}: {out.stat().st_size:,} bytes, {len(entries)} diagrams inlined")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

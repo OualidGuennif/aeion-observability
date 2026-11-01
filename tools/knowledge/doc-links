@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+"""The links between knowledge/ and the code, in both directions, and whether a change kept them true.
+
+    tools/knowledge/doc-links                      every link resolves (L1, L2)
+    tools/knowledge/doc-links --for FILE           the docs that cover FILE, one per line
+    tools/knowledge/doc-links --diff BASE          also L3: code changed since BASE whose doc did not
+    tools/knowledge/doc-links --diff BASE --worktree   the same, counting uncommitted changes too
+
+Doc to code: a concept's frontmatter `sources: - resource: ../../path`. Code to doc: one header line
+`Spec: knowledge/<doc>.md`, whose doc must list the file (or a folder holding it) in its sources (L4). L3 passes when the doc changed too, or when a commit since BASE says
+`Docs-Checked: knowledge/<doc>.md` (with the reason). Directory sources are checked for existence
+only, so one file changing inside them asks for nothing. Spec: knowledge/policies/specs-first.md.
+"""
+import argparse
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / ".claude/hooks"))
+from secret_names import is_secret  # noqa: E402
+from project_files import git_active, project_files, inside, nested_projects  # noqa: E402
+RESOURCE_RE = re.compile(r"^\s*(?:-\s+)?resource:\s*\"?([^\"\n]+?)\"?\s*$", re.MULTILINE)
+FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
+SPEC_RE = re.compile(r"\bSpec:\s*(knowledge/[\w./-]+\.md)")
+CHECKED_RE = re.compile(r"^Docs-Checked:[ \t]*(knowledge/[\w./-]+\.md)[ \t]+--[ \t]+\S[^\n]*$", re.MULTILINE)
+NOT_A_PATH = ("http://", "https://", "git-history:", "owner-", "mailto:")
+HEADER_RE = re.compile(r'\A(?:\s+|\#[^\n]*|//[^\n]*|--[^\n]*|;[^\n]*|/\*.*?\*/|<!--.*?-->|""".*?"""|'
+                       r"'''.*?''')*", re.DOTALL)
+SPEC_LINE_RE = re.compile(r"^\s*(?:\#|//|/\*|\*|--|;|<!--)\s*Spec:\s*knowledge/[\w./-]+\.md\s*(?:\*/|-->)?\s*$")
+HEADER_BYTES = 8192
+EXCLUDED_PARTS = {"vendor", "node_modules", ".aeion", ".venv", "__pycache__", ".git", ".aws", ".ssh"}
+SKIP_PREFIXES = ()
+
+
+def git(*args):
+    try:
+        result = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True,
+                                errors="surrogateescape", check=False)
+    except OSError as error:
+        print(f"FAIL Git {args[0]} could not run: {error.strerror}", file=sys.stderr)
+        sys.exit(1)
+    if result.returncode:
+        print(f"FAIL Git {args[0]} failed (exit {result.returncode}); check the repository and refs.",
+              file=sys.stderr)
+        sys.exit(1)
+    return result.stdout
+
+
+def doc_sources(doc: Path):
+    """(line, repo-relative path) for each source of this doc that points into the repository."""
+    text = doc.read_text(encoding="utf-8", errors="replace")
+    block = FRONTMATTER_RE.match(text)
+    if not block:
+        return []
+    out = []
+    for m in RESOURCE_RE.finditer(block.group(1)):
+        res = m.group(1).strip()
+        # Free text, a bare file name outside the repo, a URL or an absolute host path is not a repo link.
+        if res.startswith(NOT_A_PATH) or res.startswith("/") or ":" in res.split("/")[0] or "/" not in res \
+                or (any(c.isspace() for c in res) and not res.startswith(("./", "../"))):
+            continue
+        target = (doc.parent / res.split("#")[0]).resolve()
+        try:
+            rel = target.relative_to(ROOT).as_posix()
+        except ValueError:
+            continue
+        out.append((text[:block.start(1) + m.start()].count("\n") + 1, rel))
+    return out
+
+
+def tracked_headers():
+    """Yield bounded leading metadata, without reading known secrets or following file symlinks."""
+    try:
+        files = project_files(ROOT)
+    except (OSError, subprocess.SubprocessError) as error:
+        print(f"FAIL Git file listing failed: {error}", file=sys.stderr)
+        sys.exit(1)
+    nested = nested_projects(files)
+    for rel in files:
+        path = ROOT / rel
+        parts = Path(rel).parts
+        if not rel or parts[0] == "knowledge" or path.suffix.lower() == ".md" or EXCLUDED_PARTS.intersection(parts):
+            continue
+        if inside(rel, nested):
+            continue
+        if any(is_secret(part) for part in parts):
+            continue
+        if path.is_symlink() or not path.is_file() or path.resolve() != path:
+            continue
+        with path.open("rb") as stream:
+            data = stream.read(HEADER_BYTES)
+        yield rel, leading_header(data)
+
+
+def leading_header(data):
+    if len(data) == HEADER_BYTES:
+        data = data.rsplit(b"\n", 1)[0] if b"\n" in data else b""
+    if b"\0" in data:
+        return ""
+    try:
+        return HEADER_RE.match(data.decode("utf-8-sig")).group()
+    except UnicodeDecodeError:
+        return ""
+
+
+def base_coverage(base, changed):
+    """Read only bounded regular-file headers from the actual merge base."""
+    commit = git("merge-base", base, "HEAD").strip()
+    coverage = {}
+    rows = [row.split("\t", 1) for row in git("ls-tree", "-r", "-z", commit).split("\0") if row]
+    nested = nested_projects(rel for _, rel in rows)
+    for metadata, rel in rows:
+        mode, kind, object_id = metadata.split()
+        parts = Path(rel).parts
+        if rel not in changed or mode not in {"100644", "100755"} or rel.endswith(".md") or EXCLUDED_PARTS.intersection(parts):
+            continue
+        if inside(rel, nested):
+            continue
+        if any(is_secret(part) for part in parts):
+            continue
+        with subprocess.Popen(["git", "cat-file", "blob", object_id], cwd=ROOT,
+                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL) as process:
+            data = process.stdout.read(HEADER_BYTES)
+            process.stdout.close()
+            if len(data) == HEADER_BYTES and process.poll() is None:
+                process.terminate()
+            result = process.wait(timeout=5)
+        if result and len(data) < HEADER_BYTES:
+            print("FAIL Git could not read base metadata.", file=sys.stderr)
+            sys.exit(1)
+        for match in SPEC_RE.finditer(leading_header(data)):
+            coverage.setdefault(rel, set()).add(match.group(1))
+    return coverage
+
+
+def collect():
+    """The broken links, and coverage: file -> the docs that cover it exactly (no directories)."""
+    problems, coverage, declared = [], {}, {}
+    for doc in sorted((ROOT / "knowledge").rglob("*.md")):
+        rel_doc = doc.relative_to(ROOT).as_posix()
+        if rel_doc.startswith(SKIP_PREFIXES):
+            continue
+        for line, rel in doc_sources(doc):
+            declared.setdefault(rel_doc, set()).add(rel)
+            target = ROOT / rel
+            if not target.exists():
+                problems.append(f"RULE L2 {rel_doc}:{line} source {rel} does not exist; fix the path or drop the source.")
+            elif target.is_file() and not rel.startswith("knowledge/"):
+                coverage.setdefault(rel, set()).add(rel_doc)
+    for path, text in tracked_headers():
+        for m in SPEC_RE.finditer(text):
+            line = text[:m.start()].count("\n") + 1
+            if not (ROOT / m.group(1)).is_file():
+                problems.append(f"RULE L1 {path}:{line} Spec: {m.group(1)} does not exist; point at the current doc.")
+                continue
+            coverage.setdefault(path, set()).add(m.group(1))
+            # The contract runs both ways: a file that names its spec is one of the spec's sources.
+            if not any(path == rel or path.startswith(rel + "/") for rel in declared.get(m.group(1), ())):
+                problems.append(f"RULE L4 {path}:{line} names {m.group(1)} as its spec, but the doc's sources omit it; "
+                                "add it as a `resource:` to that doc's frontmatter.")
+    return problems, coverage
+
+
+def changed_since(base: str, worktree: bool):
+    files = set(git("diff", "--name-only", "-z", f"{base}...HEAD").split("\0")) - {""}
+    if worktree:
+        files |= set(git("diff", "--name-only", "-z", "HEAD").split("\0")) - {""}
+        files |= set(git("ls-files", "--others", "--exclude-standard", "-z").split("\0")) - {""}
+    messages = git("log", "--format=%B", f"{base}..HEAD")
+    return files, set(CHECKED_RE.findall(messages))
+
+
+def only_link_lines(path: str, base: str, worktree: bool) -> bool:
+    """True when the change to `path` only adds or removes Spec: lines and blank lines: no fact moved."""
+    diff = git("diff", "-U0", f"{base}...HEAD", "--", path)
+    if worktree:
+        diff += git("diff", "-U0", "HEAD", "--", path)
+    changed = [l[1:] for l in diff.splitlines() if l[:1] in "+-" and not l.startswith(("+++", "---"))]
+    return bool(changed) and all(not l.strip() or SPEC_LINE_RE.fullmatch(l) for l in changed)
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--for", dest="for_file")
+    parser.add_argument("--diff", dest="base")
+    parser.add_argument("--worktree", action="store_true")
+    parser.add_argument("--root", help="repository root (tests)")
+    args = parser.parse_args(argv)
+    global ROOT
+    if args.root:
+        ROOT = Path(args.root).resolve()
+    problems, coverage = collect()
+
+    # The docs covering one file, for the edit hook.
+    if args.for_file:
+        rel = Path(args.for_file).resolve().relative_to(ROOT).as_posix() if Path(args.for_file).is_absolute() else args.for_file
+        print("\n".join(sorted(coverage.get(rel, ()))))
+        return 0
+
+    # A change whose covering doc neither changed nor was declared checked.
+    if args.base:
+        # L3 compares commits; a plain folder has none, so the edit-time checks above are all it gets.
+        if not git_active(ROOT):
+            print("FAIL --diff needs a git repository; run without it in a plain folder.", file=sys.stderr)
+            return 1
+        files, checked = changed_since(args.base, args.worktree)
+        for path, docs in base_coverage(args.base, files).items():
+            coverage.setdefault(path, set()).update(docs)
+        for path in sorted(files):
+            if path in coverage and only_link_lines(path, args.base, args.worktree):
+                continue
+            for doc in sorted(coverage.get(path, ())):
+                if doc not in files and doc not in checked:
+                    problems.append(f"RULE L3 {path} changed, {doc} did not: update it (skill okf-update), or add "
+                                    f"'Docs-Checked: {doc} -- <why no fact changed>' to a commit message.")
+
+    for p in problems:
+        print(p)
+    if problems:
+        print(f"RESULT: FAIL ({len(problems)})")
+        return 1
+    print(f"RESULT: PASS ({sum(len(d) for d in coverage.values())} links checked)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -11,7 +11,7 @@ import time
 import sys
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'app'))
-from sandbox import BUNDLE_FILES
+from sandbox import BUNDLE_FILES, COLLECT_SCRIPT, MAX_SYNC_BYTES, SANDBOX_OUT, materialize
 
 from openshell import SandboxClient, TlsConfig
 from openshell._proto import openshell_pb2 as api, sandbox_pb2 as pb
@@ -48,28 +48,37 @@ def main():
                    'subpath':str(run.relative_to(work)),'read_only':False}]}},spec.template.driver_config)
         ref=client.create(workspace='default',name=name,spec=spec)
         client.wait_ready(name,workspace='default',timeout_seconds=120)
-        probe='''import os,json,socket,sys
-run=sys.argv[1]
-checks={'uid':os.getuid()==int(sys.argv[2])}
+        probe='''import json,os,socket,sys
+out,watch,uid=sys.argv[1],sys.argv[2],int(sys.argv[3])
+checks={'uid':os.getuid()==uid}
 try:
  open('/etc/aeion-forbidden','w').write('blocked')
  checks['filesystem_denied']=False
 except PermissionError:checks['filesystem_denied']=True
-open(run+'/workspace/src/agent.txt','w').write('from-sandbox')
+os.makedirs(out+'/workspace/src',exist_ok=True)
+open(out+'/workspace/src/agent.txt','w').write('from-sandbox')
+checks['sandbox_write']=open(out+'/workspace/src/agent.txt').read()=='from-sandbox'
 try:
- open(run+'/workspace/HANDOVER.md','w').write('forged')
+ open(watch+'/workspace/HANDOVER.md','w').write('forged')
  checks['workspace_read_only']=False
-except PermissionError:checks['workspace_read_only']=True
-checks['host_outside_invisible']=not os.path.exists(os.path.dirname(run)+'/outside/secret.txt')
+except (PermissionError,OSError):checks['workspace_read_only']=True
+checks['host_outside_invisible']=not os.path.exists(os.path.dirname(watch)+'/outside/secret.txt')
 try:
  s=socket.create_connection(('example.com',443),timeout=3);s.close();checks['network_denied']=False
 except OSError:checks['network_denied']=True
 print(json.dumps(checks))'''
-        result=client.exec(name,['python3','-c',probe,str(run),str(args.uid)],workspace='default',no_login_shell=True,timeout_seconds=15)
+        result=client.exec(name,['python3','-c',probe,SANDBOX_OUT,str(run),str(args.uid)],workspace='default',no_login_shell=True,timeout_seconds=15)
         evidence=json.loads(result.stdout)
-        assert result.exit_code==0 and evidence=={'uid':True,'filesystem_denied':True,'workspace_read_only':True,
-            'host_outside_invisible':True,'network_denied':True},evidence
-        assert (run/'workspace/src/agent.txt').read_text()=='from-sandbox','Bind-mounted writes must reach the host'
+        assert result.exit_code==0 and evidence=={'uid':True,'filesystem_denied':True,'sandbox_write':True,
+            'workspace_read_only':True,'host_outside_invisible':True,'network_denied':True},evidence
+        # Copy-out transport: results leave the sandbox over the exec channel, never through a
+        # host-backed write (which lands but returns EACCES on Docker Desktop).
+        collected=client.exec(name,['python3','-c',COLLECT_SCRIPT,SANDBOX_OUT,str(MAX_SYNC_BYTES)],
+                              workspace='default',no_login_shell=True,timeout_seconds=60)
+        assert collected.exit_code==0,collected.stderr
+        copied=probe_root/'copyout'
+        materialize(json.loads(collected.stdout),copied)
+        assert (copied/'workspace/src/agent.txt').read_text()=='from-sandbox','Copy-out must reach the host'
         script='import hashlib,json,pathlib; paths='+repr(BUNDLE_FILES)+'; print(json.dumps({name:hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest() for name,path in paths.items()}))'
         bundle=client.exec(name,['python3','-c',script],workspace='default',no_login_shell=True,timeout_seconds=15)
         assert bundle.exit_code==0
@@ -84,7 +93,7 @@ print(json.dumps(checks))'''
         assert config['HostConfig']['NetworkMode']=='none'
         assert not any(m['Source'].endswith('docker.sock') for m in config['Mounts'])
         evidence.update(version='0.1.5',telemetry_disabled=True,network_mode='none',sandbox_id=ref.id,agent_uid=args.uid,
-            work_volume=args.volume,work_dir=str(work),
+            work_volume=args.volume,work_dir=str(work),transport='copy-out',sandbox_out=SANDBOX_OUT,
             agent_image=args.image,ca_sha256=hashlib.sha256((tls/'ca.crt').read_bytes()).hexdigest(),
             qualified_ns=time.time_ns(),expires_ns=time.time_ns()+86400000000000)
     finally:

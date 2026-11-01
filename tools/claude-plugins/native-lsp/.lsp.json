@@ -1,0 +1,34 @@
+{
+  "jdtls": {
+    "command": "${CLAUDE_PLUGIN_ROOT}/scripts/jdtls-launch",
+    "extensionToLanguage": {
+      ".java": "java"
+    },
+    "startupTimeout": 180000,
+    "initializationOptions": {
+      "settings": {
+        "java": {
+          "import": {
+            "generatesMetadataFilesAtProjectRoot": false
+          }
+        }
+      }
+    },
+    "settings": {
+      "java": {
+        "import": {
+          "generatesMetadataFilesAtProjectRoot": false
+        }
+      }
+    }
+  },
+  "typescript-native": {
+    "command": "${CLAUDE_PLUGIN_ROOT}/scripts/tsc-lsp",
+    "extensionToLanguage": {
+      ".ts": "typescript",
+      ".mts": "typescript",
+      ".cts": "typescript",
+      ".tsx": "typescriptreact"
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${FACTORY_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/tools/agents/hook.py\" droid SessionStart",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${FACTORY_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/tools/agents/hook.py\" droid PreToolUse",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${FACTORY_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/tools/agents/hook.py\" droid PostToolUse",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${FACTORY_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/tools/agents/hook.py\" droid Stop",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${FACTORY_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/tools/agents/hook.py\" droid PreCompact",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

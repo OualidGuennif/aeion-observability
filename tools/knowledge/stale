@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Knowledge documents whose review date has passed.
+
+    tools/knowledge/stale [--root DIR]
+
+A volatile document carries an optional `review_after: YYYY-MM-DD` key in its frontmatter. A date
+before today fails and names the document; a value that is not a real YYYY-MM-DD date fails too. A
+document without the key is ignored: stable concepts are reviewed, not dated.
+Spec: knowledge/operations/build-and-test.md
+"""
+import argparse
+import re
+import sys
+from datetime import date
+from pathlib import Path
+
+FM_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
+KEY_RE = re.compile(r'^review_after:\s*"?([^"\n]*?)"?\s*$', re.MULTILINE)
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def review_after(path):
+    """The document's date as written, or None when it has no frontmatter and no key."""
+    block = FM_RE.match(path.read_text(encoding="utf-8", errors="replace"))
+    found = KEY_RE.search(block.group(1)) if block else None
+    return found.group(1).strip() if found else None
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("--root", default=str(Path(__file__).resolve().parents[2]))
+    root = Path(parser.parse_args(argv).root).resolve()
+    kb = root / "knowledge"
+    if not kb.is_dir():
+        print(f"FAIL {kb}: knowledge directory not found", file=sys.stderr)
+        return 1
+    today, reviewed, problems = date.today(), 0, []
+    for path in sorted(kb.rglob("*.md")):
+        value = review_after(path)
+        if value is None:
+            continue
+        rel = path.relative_to(root).as_posix()
+        try:
+            if not DATE_RE.match(value):
+                raise ValueError
+            due = date.fromisoformat(value)
+        except ValueError:
+            problems.append(f"FAIL {rel}: review_after '{value}' is not a YYYY-MM-DD date")
+            continue
+        reviewed += 1
+        if due < today:
+            problems.append(f"STALE {rel}: review_after {value} passed, review it and move the date")
+    for problem in problems:
+        print(problem)
+    if problems:
+        return 1
+    print(f"PASS: {reviewed} documents reviewed")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

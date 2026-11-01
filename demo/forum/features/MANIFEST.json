@@ -1,0 +1,1830 @@
+{
+  "schema_version": 2,
+  "generator": "demo/forum/tools/generate_features.py",
+  "plan": "demo/forum/PLAN.md",
+  "count": 100,
+  "features": [
+    {
+      "id": "001",
+      "title": "App skeleton and settings",
+      "area": "foundation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [],
+      "file": "001-app-skeleton-and-settings.md"
+    },
+    {
+      "id": "002",
+      "title": "Postgres schema and migration runner",
+      "area": "foundation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "001"
+      ],
+      "file": "002-postgres-schema-and-migration-runner.md"
+    },
+    {
+      "id": "003",
+      "title": "Test harness with an ephemeral database",
+      "area": "foundation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "002"
+      ],
+      "file": "003-test-harness-with-an-ephemeral-database.md"
+    },
+    {
+      "id": "004",
+      "title": "Accounts and password hashing",
+      "area": "foundation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "002"
+      ],
+      "file": "004-accounts-and-password-hashing.md"
+    },
+    {
+      "id": "005",
+      "title": "Sessions with signed cookies",
+      "area": "foundation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "004"
+      ],
+      "file": "005-sessions-with-signed-cookies.md"
+    },
+    {
+      "id": "006",
+      "title": "CSRF protection on every mutation",
+      "area": "foundation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "005"
+      ],
+      "file": "006-csrf-protection-on-every-mutation.md"
+    },
+    {
+      "id": "007",
+      "title": "Content sanitization for user text",
+      "area": "foundation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "001"
+      ],
+      "file": "007-content-sanitization-for-user-text.md"
+    },
+    {
+      "id": "008",
+      "title": "Rate limiting per identity",
+      "area": "foundation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "002",
+        "005"
+      ],
+      "file": "008-rate-limiting-per-identity.md"
+    },
+    {
+      "id": "009",
+      "title": "Append-only audit log",
+      "area": "foundation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "002"
+      ],
+      "file": "009-append-only-audit-log.md"
+    },
+    {
+      "id": "010",
+      "title": "Uniform error answers",
+      "area": "foundation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "001",
+        "009"
+      ],
+      "file": "010-uniform-error-answers.md"
+    },
+    {
+      "id": "011",
+      "title": "Secrets and environment allowlist",
+      "area": "foundation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "001"
+      ],
+      "file": "011-secrets-and-environment-allowlist.md"
+    },
+    {
+      "id": "012",
+      "title": "Forum telemetry through the collector",
+      "area": "foundation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "001",
+        "011",
+        "009"
+      ],
+      "file": "012-forum-telemetry-through-the-collector.md"
+    },
+    {
+      "id": "013",
+      "title": "Security headers and CSP",
+      "area": "foundation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "001"
+      ],
+      "file": "013-security-headers-and-csp.md"
+    },
+    {
+      "id": "014",
+      "title": "Server-rendered templates",
+      "area": "foundation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "001"
+      ],
+      "file": "014-server-rendered-templates.md"
+    },
+    {
+      "id": "015",
+      "title": "Readiness and dependency probes",
+      "area": "foundation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "002"
+      ],
+      "file": "015-readiness-and-dependency-probes.md"
+    },
+    {
+      "id": "016",
+      "title": "Graceful shutdown",
+      "area": "foundation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "001"
+      ],
+      "file": "016-graceful-shutdown.md"
+    },
+    {
+      "id": "017",
+      "title": "Strict request validation",
+      "area": "foundation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "001"
+      ],
+      "file": "017-strict-request-validation.md"
+    },
+    {
+      "id": "018",
+      "title": "No-JS baseline and accessibility",
+      "area": "foundation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "014",
+        "005",
+        "006",
+        "013"
+      ],
+      "file": "018-no-js-baseline-and-accessibility.md"
+    },
+    {
+      "id": "019",
+      "title": "Channels and their rules",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "002",
+        "004",
+        "006",
+        "009",
+        "014",
+        "041",
+        "043"
+      ],
+      "file": "019-channels-and-their-rules.md"
+    },
+    {
+      "id": "020",
+      "title": "Channel membership and visibility",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "019",
+        "008",
+        "043"
+      ],
+      "file": "020-channel-membership-and-visibility.md"
+    },
+    {
+      "id": "021",
+      "title": "Posts and the composer",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "007",
+        "019",
+        "020",
+        "017"
+      ],
+      "file": "021-posts-and-the-composer.md"
+    },
+    {
+      "id": "022",
+      "title": "Threaded comments",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "020"
+      ],
+      "file": "022-threaded-comments.md"
+    },
+    {
+      "id": "023",
+      "title": "Votes with one identity each",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "004",
+        "059",
+        "020",
+        "009",
+        "043"
+      ],
+      "file": "023-votes-with-one-identity-each.md"
+    },
+    {
+      "id": "024",
+      "title": "Deterministic feed ranking",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "023",
+        "022"
+      ],
+      "file": "024-deterministic-feed-ranking.md"
+    },
+    {
+      "id": "025",
+      "title": "Full-text search",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "020",
+        "007"
+      ],
+      "file": "025-full-text-search.md"
+    },
+    {
+      "id": "026",
+      "title": "Cursor pagination",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "024",
+        "033",
+        "020"
+      ],
+      "file": "026-cursor-pagination.md"
+    },
+    {
+      "id": "027",
+      "title": "Tags and topics",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "020"
+      ],
+      "file": "027-tags-and-topics.md"
+    },
+    {
+      "id": "028",
+      "title": "Reply and mention notifications",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "022",
+        "020"
+      ],
+      "file": "028-reply-and-mention-notifications.md"
+    },
+    {
+      "id": "029",
+      "title": "Link and mention policy",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "022",
+        "007"
+      ],
+      "file": "029-link-and-mention-policy.md"
+    },
+    {
+      "id": "030",
+      "title": "Author edit window and tombstones",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "009",
+        "043"
+      ],
+      "file": "030-author-edit-window-and-tombstones.md"
+    },
+    {
+      "id": "031",
+      "title": "Provenance labels on every post",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "059",
+        "060"
+      ],
+      "file": "031-provenance-labels-on-every-post.md"
+    },
+    {
+      "id": "032",
+      "title": "Content hashing and near-duplicates",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "007"
+      ],
+      "file": "032-content-hashing-and-near-duplicates.md"
+    },
+    {
+      "id": "033",
+      "title": "Feed diversity guard",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "024",
+        "027"
+      ],
+      "file": "033-feed-diversity-guard.md"
+    },
+    {
+      "id": "034",
+      "title": "Query indexes and a budget",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "022",
+        "023",
+        "025"
+      ],
+      "file": "034-query-indexes-and-a-budget.md"
+    },
+    {
+      "id": "035",
+      "title": "Thread export for analysis",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "022",
+        "023",
+        "031",
+        "020",
+        "043"
+      ],
+      "file": "035-thread-export-for-analysis.md"
+    },
+    {
+      "id": "036",
+      "title": "Channel rules displayed with the post",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "019",
+        "021",
+        "041"
+      ],
+      "file": "036-channel-rules-displayed-with-the-post.md"
+    },
+    {
+      "id": "037",
+      "title": "Permalinks and canonical URLs",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "020"
+      ],
+      "file": "037-permalinks-and-canonical-urls.md"
+    },
+    {
+      "id": "038",
+      "title": "Thread subscriptions and digest",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "028",
+        "005",
+        "006"
+      ],
+      "file": "038-thread-subscriptions-and-digest.md"
+    },
+    {
+      "id": "039",
+      "title": "Seed a demonstrable forum",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "019",
+        "022",
+        "023",
+        "031"
+      ],
+      "file": "039-seed-a-demonstrable-forum.md"
+    },
+    {
+      "id": "040",
+      "title": "Forum end-to-end smoke test",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "039",
+        "005",
+        "006",
+        "009",
+        "012",
+        "020",
+        "025",
+        "031",
+        "059",
+        "060"
+      ],
+      "file": "040-forum-end-to-end-smoke-test.md"
+    },
+    {
+      "id": "041",
+      "title": "Rules as versioned data",
+      "area": "moderation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "002",
+        "014"
+      ],
+      "file": "041-rules-as-versioned-data.md"
+    },
+    {
+      "id": "042",
+      "title": "Deterministic rules engine",
+      "area": "moderation",
+      "size": "L",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "007",
+        "032",
+        "041"
+      ],
+      "file": "042-deterministic-rules-engine.md"
+    },
+    {
+      "id": "043",
+      "title": "Roles and one permission matrix",
+      "area": "moderation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P0",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "004",
+        "009"
+      ],
+      "file": "043-roles-and-one-permission-matrix.md"
+    },
+    {
+      "id": "044",
+      "title": "Reports with severity",
+      "area": "moderation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "022",
+        "020",
+        "041",
+        "043"
+      ],
+      "file": "044-reports-with-severity.md"
+    },
+    {
+      "id": "045",
+      "title": "Moderation queue and priority",
+      "area": "moderation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "044",
+        "041",
+        "043"
+      ],
+      "file": "045-moderation-queue-and-priority.md"
+    },
+    {
+      "id": "046",
+      "title": "Moderator actions",
+      "area": "moderation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "042",
+        "045",
+        "009",
+        "043",
+        "020"
+      ],
+      "file": "046-moderator-actions.md"
+    },
+    {
+      "id": "047",
+      "title": "Appeals",
+      "area": "moderation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "046",
+        "008",
+        "043"
+      ],
+      "file": "047-appeals.md"
+    },
+    {
+      "id": "048",
+      "title": "Bans, mutes and cooldowns",
+      "area": "moderation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "043",
+        "009"
+      ],
+      "file": "048-bans-mutes-and-cooldowns.md"
+    },
+    {
+      "id": "049",
+      "title": "Escalation ladder",
+      "area": "moderation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "048"
+      ],
+      "file": "049-escalation-ladder.md"
+    },
+    {
+      "id": "050",
+      "title": "Moderator agent that only triages",
+      "area": "moderation",
+      "size": "L",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "046",
+        "052",
+        "061",
+        "066",
+        "073"
+      ],
+      "file": "050-moderator-agent-that-only-triages.md"
+    },
+    {
+      "id": "051",
+      "title": "Human override console",
+      "area": "moderation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "046",
+        "005",
+        "006",
+        "009",
+        "043"
+      ],
+      "file": "051-human-override-console.md"
+    },
+    {
+      "id": "052",
+      "title": "Injection guard for inbound content",
+      "area": "moderation",
+      "size": "L",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "022",
+        "007"
+      ],
+      "file": "052-injection-guard-for-inbound-content.md"
+    },
+    {
+      "id": "053",
+      "title": "Moderation audit trail",
+      "area": "moderation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "009",
+        "046",
+        "047",
+        "048",
+        "051"
+      ],
+      "file": "053-moderation-audit-trail.md"
+    },
+    {
+      "id": "054",
+      "title": "Moderation KPIs on synthetic labels",
+      "area": "moderation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "046"
+      ],
+      "file": "054-moderation-kpis-on-synthetic-labels.md"
+    },
+    {
+      "id": "055",
+      "title": "Moderation red-team suite",
+      "area": "moderation",
+      "size": "M",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "042"
+      ],
+      "file": "055-moderation-red-team-suite.md"
+    },
+    {
+      "id": "056",
+      "title": "Moderation kill switch",
+      "area": "moderation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "046",
+        "009",
+        "043"
+      ],
+      "file": "056-moderation-kill-switch.md"
+    },
+    {
+      "id": "057",
+      "title": "Rule change review gate",
+      "area": "moderation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "041",
+        "009"
+      ],
+      "file": "057-rule-change-review-gate.md"
+    },
+    {
+      "id": "058",
+      "title": "Transparency page",
+      "area": "moderation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "053",
+        "014"
+      ],
+      "file": "058-transparency-page.md"
+    },
+    {
+      "id": "059",
+      "title": "Agent registry and signed tokens",
+      "area": "agents",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "004",
+        "009",
+        "043"
+      ],
+      "file": "059-agent-registry-and-signed-tokens.md"
+    },
+    {
+      "id": "060",
+      "title": "Persona specification",
+      "area": "agents",
+      "size": "M",
+      "parallel": false,
+      "phase": "P1",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "059"
+      ],
+      "file": "060-persona-specification.md"
+    },
+    {
+      "id": "061",
+      "title": "Per-agent quotas",
+      "area": "agents",
+      "size": "M",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "059",
+        "009",
+        "008"
+      ],
+      "file": "061-per-agent-quotas.md"
+    },
+    {
+      "id": "062",
+      "title": "Cadence scheduler",
+      "area": "agents",
+      "size": "M",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "061",
+        "066",
+        "071",
+        "073"
+      ],
+      "file": "062-cadence-scheduler.md"
+    },
+    {
+      "id": "063",
+      "title": "Posting pipeline from draft to submission",
+      "area": "agents",
+      "size": "L",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "007",
+        "020",
+        "021",
+        "022",
+        "023",
+        "029",
+        "030",
+        "031",
+        "036",
+        "042",
+        "043",
+        "048",
+        "052",
+        "056",
+        "057",
+        "059",
+        "060",
+        "061",
+        "064",
+        "065",
+        "066",
+        "071",
+        "072",
+        "073",
+        "096"
+      ],
+      "file": "063-posting-pipeline-from-draft-to-submission.md"
+    },
+    {
+      "id": "064",
+      "title": "Stance diversity guard",
+      "area": "agents",
+      "size": "M",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "024",
+        "059"
+      ],
+      "file": "064-stance-diversity-guard.md"
+    },
+    {
+      "id": "065",
+      "title": "Reply policy",
+      "area": "agents",
+      "size": "M",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "022",
+        "048",
+        "059"
+      ],
+      "file": "065-reply-policy.md"
+    },
+    {
+      "id": "066",
+      "title": "Sandboxed tool surface for forum bots",
+      "area": "agents",
+      "size": "M",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "059",
+        "052",
+        "020",
+        "011"
+      ],
+      "file": "066-sandboxed-tool-surface-for-forum-bots.md"
+    },
+    {
+      "id": "067",
+      "title": "Duplicate detection between bots",
+      "area": "agents",
+      "size": "M",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "032",
+        "042"
+      ],
+      "file": "067-duplicate-detection-between-bots.md"
+    },
+    {
+      "id": "068",
+      "title": "Public bot profiles",
+      "area": "agents",
+      "size": "S",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "059",
+        "060",
+        "020"
+      ],
+      "file": "068-public-bot-profiles.md"
+    },
+    {
+      "id": "069",
+      "title": "Bot memory checkpoint",
+      "area": "agents",
+      "size": "M",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "059",
+        "011"
+      ],
+      "file": "069-bot-memory-checkpoint.md"
+    },
+    {
+      "id": "070",
+      "title": "Thread summaries in Hindsight",
+      "area": "agents",
+      "size": "M",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "069",
+        "022"
+      ],
+      "file": "070-thread-summaries-in-hindsight.md"
+    },
+    {
+      "id": "071",
+      "title": "Circuit breaker on repeated failure",
+      "area": "agents",
+      "size": "S",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "059",
+        "068",
+        "009"
+      ],
+      "file": "071-circuit-breaker-on-repeated-failure.md"
+    },
+    {
+      "id": "072",
+      "title": "Provenance enforced at submission",
+      "area": "agents",
+      "size": "S",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "031",
+        "059",
+        "060"
+      ],
+      "file": "072-provenance-enforced-at-submission.md"
+    },
+    {
+      "id": "073",
+      "title": "Agent activity audit",
+      "area": "agents",
+      "size": "S",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "009",
+        "012",
+        "059"
+      ],
+      "file": "073-agent-activity-audit.md"
+    },
+    {
+      "id": "074",
+      "title": "Ten-agent dry run",
+      "area": "agents",
+      "size": "M",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "050",
+        "062",
+        "063",
+        "064",
+        "065",
+        "066",
+        "067",
+        "068",
+        "069",
+        "070",
+        "071",
+        "072",
+        "073",
+        "095"
+      ],
+      "file": "074-ten-agent-dry-run.md"
+    },
+    {
+      "id": "075",
+      "title": "Corpus item schema",
+      "area": "corpus",
+      "size": "S",
+      "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "002"
+      ],
+      "file": "075-corpus-item-schema.md",
+      "categories": [
+        "tech",
+        "state",
+        "government"
+      ]
+    },
+    {
+      "id": "076",
+      "title": "Offline corpus loader",
+      "area": "corpus",
+      "size": "M",
+      "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "075",
+        "002",
+        "009"
+      ],
+      "file": "076-offline-corpus-loader.md"
+    },
+    {
+      "id": "077",
+      "title": "Two hundred synthetic French items",
+      "area": "corpus",
+      "size": "M",
+      "parallel": true,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/corpus/items/",
+        "demo/forum/product/docs/corpus-style.md"
+      ],
+      "depends_on": [
+        "075",
+        "052"
+      ],
+      "file": "077-two-hundred-synthetic-french-items.md"
+    },
+    {
+      "id": "078",
+      "title": "Category quotas and mix",
+      "area": "corpus",
+      "size": "S",
+      "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "076"
+      ],
+      "file": "078-category-quotas-and-mix.md"
+    },
+    {
+      "id": "079",
+      "title": "Half-seeded thread rule",
+      "area": "corpus",
+      "size": "M",
+      "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "076",
+        "063",
+        "078"
+      ],
+      "file": "079-half-seeded-thread-rule.md"
+    },
+    {
+      "id": "080",
+      "title": "Corpus citation in posts",
+      "area": "corpus",
+      "size": "S",
+      "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "075",
+        "029",
+        "020",
+        "007"
+      ],
+      "file": "080-corpus-citation-in-posts.md"
+    },
+    {
+      "id": "081",
+      "title": "Refresh from a local drop folder",
+      "area": "corpus",
+      "size": "S",
+      "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "076",
+        "009"
+      ],
+      "file": "081-refresh-from-a-local-drop-folder.md"
+    },
+    {
+      "id": "082",
+      "title": "Licensing and provenance note",
+      "area": "corpus",
+      "size": "S",
+      "parallel": true,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/docs/corpus-license.md"
+      ],
+      "depends_on": [
+        "075"
+      ],
+      "file": "082-licensing-and-provenance-note.md"
+    },
+    {
+      "id": "083",
+      "title": "Topic interest weighting",
+      "area": "corpus",
+      "size": "M",
+      "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "060",
+        "076",
+        "078"
+      ],
+      "file": "083-topic-interest-weighting.md",
+      "required_categories": [
+        "tech",
+        "state",
+        "government"
+      ]
+    },
+    {
+      "id": "084",
+      "title": "Thread generation from an item",
+      "area": "corpus",
+      "size": "M",
+      "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "079",
+        "080",
+        "060",
+        "063"
+      ],
+      "file": "084-thread-generation-from-an-item.md"
+    },
+    {
+      "id": "085",
+      "title": "Diversity metrics across threads",
+      "area": "corpus",
+      "size": "S",
+      "parallel": false,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "084",
+        "062"
+      ],
+      "file": "085-diversity-metrics-across-threads.md"
+    },
+    {
+      "id": "086",
+      "title": "Corpus injection red-team",
+      "area": "corpus",
+      "size": "M",
+      "parallel": true,
+      "phase": "P4",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/tests/fixtures/corpus_injection/",
+        "demo/forum/product/tests/test_corpus_injection.py"
+      ],
+      "depends_on": [
+        "076",
+        "052",
+        "066"
+      ],
+      "file": "086-corpus-injection-red-team.md"
+    },
+    {
+      "id": "087",
+      "title": "Deterministic bot avatars",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "059",
+        "060",
+        "014"
+      ],
+      "file": "087-deterministic-bot-avatars.md"
+    },
+    {
+      "id": "088",
+      "title": "Pinned threads and featured slots",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "024",
+        "020",
+        "043"
+      ],
+      "file": "088-pinned-threads-and-featured-slots.md"
+    },
+    {
+      "id": "089",
+      "title": "Weekly digest thread",
+      "area": "agents",
+      "size": "M",
+      "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "085",
+        "063",
+        "059"
+      ],
+      "file": "089-weekly-digest-thread.md"
+    },
+    {
+      "id": "090",
+      "title": "Quote a comment",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "022",
+        "020",
+        "007",
+        "063"
+      ],
+      "file": "090-quote-a-comment.md"
+    },
+    {
+      "id": "091",
+      "title": "Mute a bot as a reader",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "021",
+        "059",
+        "005",
+        "006",
+        "020"
+      ],
+      "file": "091-mute-a-bot-as-a-reader.md"
+    },
+    {
+      "id": "092",
+      "title": "Public edit history",
+      "area": "forum",
+      "size": "M",
+      "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "030",
+        "014",
+        "020"
+      ],
+      "file": "092-public-edit-history.md"
+    },
+    {
+      "id": "093",
+      "title": "Public forum counters",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "085",
+        "020",
+        "058"
+      ],
+      "file": "093-public-forum-counters.md"
+    },
+    {
+      "id": "094",
+      "title": "French typography and dates",
+      "area": "forum",
+      "size": "S",
+      "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "014"
+      ],
+      "file": "094-french-typography-and-dates.md"
+    },
+    {
+      "id": "095",
+      "title": "Quota and rate-limit messages",
+      "area": "agents",
+      "size": "S",
+      "parallel": false,
+      "phase": "P3",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "061",
+        "008",
+        "014"
+      ],
+      "file": "095-quota-and-rate-limit-messages.md"
+    },
+    {
+      "id": "096",
+      "title": "Thread slow mode and lock",
+      "area": "moderation",
+      "size": "S",
+      "parallel": false,
+      "phase": "P2",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "046",
+        "009",
+        "043"
+      ],
+      "file": "096-thread-slow-mode-and-lock.md"
+    },
+    {
+      "id": "097",
+      "title": "Owner data export",
+      "area": "ops",
+      "size": "S",
+      "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "035",
+        "059",
+        "009",
+        "043"
+      ],
+      "file": "097-owner-data-export.md"
+    },
+    {
+      "id": "098",
+      "title": "Load test with a latency budget",
+      "area": "ops",
+      "size": "S",
+      "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "034",
+        "039",
+        "025",
+        "026"
+      ],
+      "file": "098-load-test-with-a-latency-budget.md"
+    },
+    {
+      "id": "099",
+      "title": "Keyboard and accessibility audit",
+      "area": "ops",
+      "size": "S",
+      "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "018",
+        "040",
+        "063",
+        "094"
+      ],
+      "file": "099-keyboard-and-accessibility-audit.md"
+    },
+    {
+      "id": "100",
+      "title": "Community guidelines page",
+      "area": "ops",
+      "size": "S",
+      "parallel": false,
+      "phase": "P5",
+      "tier": 3,
+      "write_paths": [
+        "demo/forum/product/"
+      ],
+      "depends_on": [
+        "041",
+        "014",
+        "082"
+      ],
+      "file": "100-community-guidelines-page.md"
+    }
+  ]
+}

@@ -17,13 +17,17 @@ from json_input import loads
 from policy import gate_value, native_usage
 from profiles import PROFILES, model_metadata
 from relay import ContextRelay
-from sandbox import Sandbox
+from sandbox import SANDBOX_OUT, Sandbox
 from scenarios import SCENARIOS, SOLUTIONS, contract
 from settings import AGENT_UID, FLUE, HARNESS, SERVICES, WORK
 import triage
 
 CHECKER = "/opt/demo/fixtures/check-scenario.js"
 AGENT_TIMEOUT_SECONDS = 360
+# On Docker Desktop the host-backed work volume accepts a write but returns EACCES, so agent
+# writes happen in a sandbox-owned directory and are collected out over the exec channel.
+SANDBOX_WORKSPACE = SANDBOX_OUT + "/workspace"
+COPYOUT = os.environ.get("AEION_SANDBOX_COPYOUT", "auto") != "0"
 # Execution tier per run runtime. Relay gates, handover, checks, telemetry and memory are shared.
 AGENTS = {"flue-openshell": "src/agents/coder.ts", "flue-local": "src/agents/local-assistant.ts",
           "flue-just-bash": "src/agents/triage.ts"}
@@ -48,14 +52,17 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def acceptance(workspace, sandbox, task_id="pricing-js-v1"):
+def acceptance(workspace, sandbox, task_id="pricing-js-v1", artifact=None):
     path = workspace / "src/pricing.js"
     digest(path)
+    # The artifact the checker reads is the one seeded into the sandbox, not the host mount:
+    # on Docker Desktop the mount reports writes it did not make visible and refuses listings.
+    target = artifact or str(path)
     task = SCENARIOS[task_id]
     # Agent code runs as the sandbox user with read access to the artifact only. Expected
     # results travel on stdin and never exist in the agent's image or workspace.
     result = sandbox.exec(
-        ["deno", "run", "--no-config", "--no-npm", "--no-remote", "--no-prompt", "--allow-read=" + str(path), CHECKER, str(path)],
+        ["deno", "run", "--no-config", "--no-npm", "--no-remote", "--no-prompt", "--allow-read=" + target, CHECKER, target],
         timeout=10, env={"DENO_DIR": "/tmp/deno-checks"},
         stdin=json.dumps({"export": task["export"], "cases": task["cases"]}).encode(),
     )
@@ -160,13 +167,43 @@ class Runner:
                                                "aeion.handover.sha256": run["handover_md_sha256"]})
         return run["handover_md_sha256"]
 
+    @staticmethod
+    def copies_out(run):
+        """Only tier 3 writes inside the sandbox; tier 2 tools act on the host workspace."""
+        return COPYOUT and run.get("runtime") == "flue-openshell"
+
+    def seed_workspace(self, sandbox, workspace):
+        """Send the supervisor's starting files into the sandbox before the agent runs."""
+        files = {}
+        for path in sorted(workspace.rglob("*")):
+            if path.is_file() and not path.is_symlink() and ".git" not in path.parts:
+                files[str(path.relative_to(workspace))] = path.read_bytes()
+        return sandbox.seed_in(files, SANDBOX_WORKSPACE)
+
+    def collect_workspace(self, sandbox, workspace):
+        """Bring the agent's writes back to the host over the exec channel."""
+        copied = sandbox.sync_out(workspace, SANDBOX_WORKSPACE)
+        if AGENT_UID != os.getuid():
+            # Docker Desktop maps a foreign UID; the files must stay readable by it for the
+            # protected check sandbox that runs after the agent has stopped.
+            for path in [workspace, *workspace.rglob("*")]:
+                try:
+                    path.chmod(0o777 if path.is_dir() else 0o666)
+                except OSError:
+                    pass
+        return copied
+
     def verify(self, run, root, workspace):
         if run.get("runtime") == TRIAGE:
             return self.check(run, workspace, None)  # Data comparison only; no generated code runs.
         # Authoritative verdict in a fresh sandbox where no agent process has ever run.
         sandbox = Sandbox(run, root, role="check")
         try:
-            return acceptance(workspace, sandbox, run.get("task_id", "pricing-js-v1"))
+            # The checker reads the artifact from inside the sandbox, never from the mount:
+            # a host-written file is unreadable to the sandbox UID on Docker Desktop.
+            self.seed_workspace(sandbox, workspace)
+            return acceptance(workspace, sandbox, run.get("task_id", "pricing-js-v1"),
+                              artifact=SANDBOX_WORKSPACE + "/src/pricing.js")
         finally:
             sandbox.close()
 
@@ -200,11 +237,27 @@ class Runner:
                 self.active_sandbox = Sandbox(run, root) if isolated else None
                 if self.active_sandbox:
                     self.event(run, "sandbox.ready", **{"aeion.sandbox.id": self.active_sandbox.ref.id})
+                    if self.copies_out(run):
+                        try:
+                            seeded = self.seed_workspace(self.active_sandbox, workspace)
+                        except Exception as error:  # noqa: BLE001 - record the type, fail closed
+                            self.event(run, "sandbox.seed_failed",
+                                       **{"aeion.failure.code": "SANDBOX_SEED_FAILED",
+                                          "aeion.failure.type": type(error).__name__})
+                            raise
+                        self.event(run, "sandbox.seeded", **{"aeion.sandbox.files": seeded})
                 try:
                     outcome = self.simulate(run, workspace, agent) if run["synthetic"] else self.live(run, workspace, handover)
                 finally:
                     sandbox = self.active_sandbox
                     if sandbox:
+                        if self.copies_out(run):
+                            try:
+                                copied = self.collect_workspace(sandbox, workspace)
+                                self.event(run, "sandbox.collected", **{"aeion.sandbox.files": len(copied)})
+                            except ValueError as error:
+                                self.event(run, "sandbox.collect_failed", **{"aeion.failure.code": str(error)})
+                                raise
                         sandbox.close()  # OpenShell deletes the workload and reaps every process in it.
                         self.active_sandbox = None
                         self.event(run, "sandbox.retired", **{"aeion.sandbox.id": sandbox.ref.id})
@@ -246,7 +299,9 @@ class Runner:
             # Never export arbitrary error strings, provider responses or stderr.
             reason = str(error) if str(error) in FAILURES else "RUN_FAILED"
             run.update(status="failed", failure=reason)
-            self.event(run, "task.failed", **{"aeion.failure.code": reason})
+            # Only the exception type and a bounded message: never provider text or a traceback.
+            self.event(run, "task.failed", **{"aeion.failure.code": reason,
+                                              "aeion.failure.type": type(error).__name__})
         finally:
             root_span.set_attribute("aeion.status", run["status"])
             if run["status"] != "passed" and hasattr(root_span, "set_status"):
@@ -351,7 +406,7 @@ class Runner:
             (scratch / "input.json").write_text(triage.agent_input(run["task_id"]))
             env.update(AEION_TRIAGE_INPUT=str(scratch / "input.json"), AEION_RESULT_FILE=str(workspace / triage.ARTIFACT))
         else:
-            env["AEION_WORKSPACE"] = str(workspace)
+            env["AEION_WORKSPACE"] = SANDBOX_WORKSPACE if self.copies_out(run) else str(workspace)
         if bridge:
             env.update(AEION_BRIDGE_URL=bridge.url, AEION_BRIDGE_TOKEN=bridge.token)
         argv = [str(FLUE / "node_modules/.bin/flue"), "run", AGENTS[runtime], "--message", prompt,

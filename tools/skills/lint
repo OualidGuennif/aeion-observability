@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Check the native skills in .agents/skills against the rules a model needs to select one.
+
+    tools/skills/lint
+
+Prints one `FAIL <folder>: <reason>` line per violation and exits 1; prints
+`PASS: <n> skills` and exits 0 when every folder holding a SKILL.md is clean.
+Each description is a single-line YAML scalar today; an indented continuation line,
+should one appear, is joined to it by a space rather than silently dropped.
+Spec: knowledge/operations/skill-selection.md
+"""
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SKILLS = ROOT / ".agents/skills"
+DESCRIPTION_CAP = 1024
+BODY_CAP = 150
+# A description has to name the situation that triggers it. These are the forms the
+# native set uses: a condition, a moment, or a cadence the reader can recognize.
+TRIGGER = re.compile(r"\b(?:when|whenever|before|after|monthly|weekly|periodic)\b|\bat the end\b",
+                     re.IGNORECASE)
+TRIGGER_RULE = ("description does not say when to use it: name the situation that triggers the "
+                "skill - when, whenever, before, after, monthly, weekly, periodic or 'at the end'")
+
+
+def split_front_matter(text):
+    """Return the top-level fields and the body lines, or (None, lines) without a block."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None, lines
+    end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+    if end is None:
+        return None, lines
+    fields, key = {}, None
+    for line in lines[1:end]:
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if line[:1].isspace():
+            if key:
+                fields[key] = f"{fields[key]} {line.strip()}".strip()
+            continue
+        key, _, value = line.partition(":")
+        key = key.strip()
+        fields[key] = value.strip().strip('"').strip("'")
+    return fields, lines[end + 1:]
+
+
+def violations(folder, fields, body, declared):
+    """Name every rule one skill breaks; `declared` maps an already seen name to its folder."""
+    if fields is None:
+        return ["no YAML front matter block"]
+    name = fields.get("name", "")
+    description = fields.get("description", "")
+    problems = []
+    if not name:
+        problems.append("front matter lacks name")
+    if not description:
+        problems.append("front matter lacks description")
+    else:
+        if len(description) > DESCRIPTION_CAP:
+            problems.append(f"description is {len(description)} characters, the cap is {DESCRIPTION_CAP}")
+        if not TRIGGER.search(description):
+            problems.append(TRIGGER_RULE)
+    if name and name != folder.name:
+        problems.append(f"name '{name}' differs from the folder name '{folder.name}'")
+    if name and name in declared:
+        problems.append(f"name '{name}' is already declared by {declared[name]}")
+    if len(body) > BODY_CAP:
+        problems.append(f"body is {len(body)} lines, the cap is {BODY_CAP}")
+    return problems
+
+
+def check(skills=SKILLS):
+    """Lint every skill folder; return the process exit code after printing the report."""
+    folders = sorted((path for path in skills.iterdir() if (path / "SKILL.md").is_file()),
+                     key=lambda path: path.name)
+    problems, declared = [], {}
+    for folder in folders:
+        fields, body = split_front_matter((folder / "SKILL.md").read_text(encoding="utf-8"))
+        found = violations(folder, fields, body, declared)
+        problems += [f"FAIL {folder.name}: {reason}" for reason in found]
+        if fields and fields.get("name"):
+            declared.setdefault(fields["name"], folder.name)
+    for line in problems:
+        print(line)
+    if problems:
+        return 1
+    print(f"PASS: {len(folders)} skills")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(check())

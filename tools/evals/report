@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+# Spec: knowledge/operations/evals.md
+"""Summarize evaluation records by harness: runs, success rate, median minutes, cost and defects."""
+import argparse
+from datetime import datetime
+import json
+import math
+from pathlib import Path
+import re
+import statistics
+import sys
+
+ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_FILE = "tools/evals/results.jsonl"
+COLUMNS = ("Harness", "Runs", "Successes", "Success rate", "Median minutes", "Cost USD",
+           "Human interventions", "Defects after done")
+
+
+def target(value):
+    path = Path(value)
+    return path if path.is_absolute() else ROOT / path
+
+
+def validate(record):
+    """Reject unusable records before they can alter the reported statistics."""
+    if not isinstance(record, dict):
+        raise ValueError("record must be an object")
+    for key in ("task", "harness", "factory", "recorded_at"):
+        if not isinstance(record.get(key), str):
+            raise ValueError(f"{key} must be a string")
+    for key in ("task", "harness"):
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", record[key]):
+            raise ValueError(f"{key} must be a lowercase slug")
+    if type(record.get("success")) is not bool:
+        raise ValueError("success must be a boolean")
+    for key in ("minutes", "cost_usd", "tokens", "human_interventions", "rework_commits", "defects_after_done"):
+        if key != "minutes" and key not in record:
+            continue
+        value = record.get(key)
+        types = (int, float) if key in ("minutes", "cost_usd") else (int,)
+        if type(value) not in types or value < 0 or not math.isfinite(value):
+            raise ValueError(f"{key} must be a finite non-negative {'number' if float in types else 'integer'}")
+    for key in ("model", "notes"):
+        if key in record and not isinstance(record[key], str):
+            raise ValueError(f"{key} must be a string")
+    try:
+        timestamp = datetime.fromisoformat(record["recorded_at"].replace("Z", "+00:00"))
+    except ValueError:
+        raise ValueError("recorded_at must be a valid timestamp") from None
+    if timestamp.tzinfo is None:
+        raise ValueError("recorded_at must include a timezone")
+
+
+def total(rows, key):
+    """A total is known only when every contributing run reports the metric."""
+    return sum(row[key] for row in rows) if rows and all(key in row for row in rows) else None
+
+
+def summarize(name, rows):
+    runs = len(rows)
+    successes = sum(1 for row in rows if row.get("success") is True)
+    minutes = [row["minutes"] for row in rows]
+    cost = total(rows, "cost_usd")
+    return {
+        "harness": name,
+        "runs": runs,
+        "successes": successes,
+        "success_rate": round(100 * successes / runs) if runs else 0,
+        "median_minutes": round(statistics.median(minutes), 1) if minutes else 0.0,
+        "cost_usd": round(cost, 2) if cost is not None else None,
+        "human_interventions": total(rows, "human_interventions"),
+        "defects_after_done": total(rows, "defects_after_done"),
+    }
+
+
+def load(path):
+    if not path.is_file():
+        print(f"FAIL {path}: no evaluation records file; record one first", file=sys.stderr)
+        sys.exit(2)
+    records = []
+    for index, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+            validate(record)
+        except json.JSONDecodeError as error:
+            print(f"FAIL {path}:{index}: malformed JSON record ({error.msg})", file=sys.stderr)
+            sys.exit(2)
+        except (ValueError, OverflowError) as error:
+            print(f"FAIL {path}:{index}: invalid record ({error})", file=sys.stderr)
+            sys.exit(2)
+        records.append(record)
+    return records
+
+
+def grouped(records):
+    names = sorted({row["harness"] for row in records})
+    return [summarize(name, [row for row in records if row["harness"] == name]) for name in names]
+
+
+def cells(row):
+    cost = f"{row['cost_usd']:.2f}" if row["cost_usd"] is not None else "N/A"
+    counts = tuple(str(row[key]) if row[key] is not None else "N/A"
+                   for key in ("human_interventions", "defects_after_done"))
+    return (row["harness"], str(row["runs"]), str(row["successes"]), f"{row['success_rate']}%",
+            f"{row['median_minutes']:.1f}", cost, *counts)
+
+
+def markdown(rows):
+    lines = ["| " + " | ".join(COLUMNS) + " |", "|" + "|".join(" --- " for _ in COLUMNS) + "|"]
+    lines += ["| " + " | ".join(cells(row)) + " |" for row in rows]
+    return "\n".join(lines)
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--file", default=DEFAULT_FILE, help="JSONL file, absolute or from the repository root")
+    parser.add_argument("--json", action="store_true", help="one JSON object instead of the table")
+    args = parser.parse_args(argv)
+
+    records = load(target(args.file))
+    rows = grouped(records)
+    if args.json:
+        print(json.dumps({"harnesses": rows, "all": summarize("All", records)}, indent=2))
+        return 0
+    if not records:
+        print("No evaluation records.")
+        return 0
+    print(markdown([*rows, summarize("All", records)]))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

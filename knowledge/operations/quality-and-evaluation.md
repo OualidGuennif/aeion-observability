@@ -4,6 +4,10 @@ title: "Quality, autonomy and experimental evidence"
 description: "Task-level objectives, human-intervention taxonomy, cost and latency formulas, independent verification and valid policy comparisons."
 status: draft
 sources:
+  - resource: ../../examples/compare_cohorts.py
+    title: "Cohort arithmetic"
+  - resource: ../../tests/test_compare_cohorts.py
+    title: "Cohort regression test"
   - id: sources
     resource: ../references/sources.md
     title: "Evaluation guidance and statistical references"

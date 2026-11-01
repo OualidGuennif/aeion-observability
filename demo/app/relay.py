@@ -1,13 +1,24 @@
 """Credential-owning local inference boundary. The agent never receives the Go key."""
+import hashlib
 import hmac
 import json
 import secrets
+import ssl
 import threading
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from token_budget import TokenBudget, admit, PROVIDER_RESERVE
+
+
+def _tls_context():
+    # This interpreter ships no OS trust store; prefer certifi when it is installed.
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except (ImportError, OSError):
+        return ssl.create_default_context()
 from json_input import loads
 
 
@@ -24,6 +35,10 @@ class ContextRelay:
         self.last_count = None
         self.forwarded_count = 0
         self.last_error_code = None
+        # Harnesses sometimes submit the same turn twice — once as a prompt and once as a
+        # JSON payload. An identical body with no new conversation state is a duplicate and
+        # would be paid twice, so it is refused instead of forwarded.
+        self.last_body_sha256 = None
         # Called before every forward; returns a stop code once the supervisor has accounted
         # the previous response and found the budget or native context gate reached.
         self.admission = admission
@@ -59,6 +74,13 @@ class ContextRelay:
                         raise ValueError("CONTEXT_UNKNOWN")
                     if payload.get("n", 1) != 1 or any(k in payload for k in ("previous_response_id", "conversation", "session_id")):
                         raise ValueError("CONTEXT_UNKNOWN")
+                    digest = hashlib.sha256(body).hexdigest()
+                    if digest == relay.last_body_sha256:
+                        # Same bytes, no new state: a duplicate submission, never a new turn.
+                        relay.event("context.duplicate_refused",
+                                    **{"aeion.failure.code": "DUPLICATE_REQUEST"})
+                        return self.deny(409, "DUPLICATE_REQUEST")
+                    relay.last_body_sha256 = digest
                     maximum = payload.get("max_tokens", payload.get("max_completion_tokens"))
                     for key in ("max_tokens", "max_completion_tokens"):
                         if key in payload and (type(payload[key]) is not int or not 1 <= payload[key] <= 4096):
@@ -96,7 +118,8 @@ class ContextRelay:
                     class NoRedirect(urllib.request.HTTPRedirectHandler):
                         def redirect_request(self, *_args, **_kwargs):
                             return None
-                    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+                    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect(),
+                                                         urllib.request.HTTPSHandler(context=_tls_context()))
                     relay.forwarded_count += 1
                     with opener.open(request, timeout=45) as response:
                         relay.responses.append(response)

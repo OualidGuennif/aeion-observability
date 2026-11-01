@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+# Spec: knowledge/policies/engineering.md
+"""Cut a SemVer release from CHANGELOG.md's Unreleased section; works with or without git.
+
+    tools/release/release minor            bump VERSION, date the Unreleased lines, print the release PR body
+    tools/release/release --notes 1.3.0    print one version's section (the GitHub release notes)
+    tools/release/release --new-project    reset VERSION, CHANGELOG.md and work/current.md in a fresh copy
+
+The tag and the GitHub release come after the release pull request merges (skill ship)."""
+import argparse
+import datetime
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SEMVER = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+UNRELEASED = "## [Unreleased]"
+ADAPT = "## Adapt Æion Factory to this project"
+FACTORY_ORIGIN = re.compile(r"[/:]OualidGuennif/aeion-factory(\.git)?$")
+
+
+def factory_clone(root):
+    """Whether root is Æion Factory's own clone, whose task state and history are the factory's to keep."""
+    def git(*args):
+        done = subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True, timeout=10)
+        return done.stdout.strip() if done.returncode == 0 else ""
+    # A copy nested in another repository (a demo workspace) is a plain folder of its own.
+    if Path(git("rev-parse", "--show-toplevel") or "/nonexistent").resolve() != root:
+        return False
+    return bool(FACTORY_ORIGIN.search(git("remote", "get-url", "origin")))
+
+
+def new_project(root, date):
+    """A copy of the factory starts as a new project: version 0.1.0, no history, one task (adapt it)."""
+    if factory_clone(root):
+        print("FAIL this is Æion Factory's own clone; --new-project runs in a copy made from it", file=sys.stderr)
+        return 1
+    tasks_file, changelog_file = root / "work/current.md", root / "CHANGELOG.md"
+    tasks, changelog = tasks_file.read_text(encoding="utf-8"), changelog_file.read_text(encoding="utf-8")
+    if UNRELEASED not in changelog or ADAPT not in tasks:
+        print(f"FAIL CHANGELOG.md needs {UNRELEASED} and work/current.md the '{ADAPT}' entry", file=sys.stderr)
+        return 1
+    # The header up to the first entry stays; only the adapt entry follows, dated the first time.
+    header = tasks[:tasks.index("\n## ") + 1]
+    entry = next(line for line in tasks.splitlines() if line.startswith(ADAPT))
+    tasks_file.write_text(f"{header}{entry}\n{section(tasks, entry).replace('<date>', date)}\n", encoding="utf-8")
+    changelog_file.write_text(changelog[:changelog.index(UNRELEASED)] + UNRELEASED + "\n", encoding="utf-8")
+    (root / "VERSION").write_text("0.1.0\n", encoding="utf-8")
+    print("New project: VERSION 0.1.0, CHANGELOG.md restarted at Unreleased, work/current.md holds the adapt task.")
+    return 0
+
+
+def bump(version, part):
+    major, minor, patch = (int(n) for n in SEMVER.fullmatch(version).groups())
+    if part == "major":
+        return f"{major + 1}.0.0"
+    if part == "minor":
+        return f"{major}.{minor + 1}.0"
+    return f"{major}.{minor}.{patch + 1}"
+
+
+def section(changelog, heading):
+    """The lines under one '## ' heading, up to the next one."""
+    start = changelog.index(heading) + len(heading)
+    following = changelog.find("\n## ", start)
+    return changelog[start:following if following != -1 else len(changelog)].strip("\n")
+
+
+def main(argv):
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("part", nargs="?", choices=["major", "minor", "patch"])
+    parser.add_argument("--notes", metavar="VERSION")
+    parser.add_argument("--new-project", action="store_true")
+    parser.add_argument("--date", default=datetime.date.today().isoformat())
+    parser.add_argument("--root", help="project root (tests, or a copy such as a demo workspace)")
+    args = parser.parse_args(argv)
+    root = Path(args.root).resolve() if args.root else ROOT
+    version_file, changelog_file = root / "VERSION", root / "CHANGELOG.md"
+    if not version_file.is_file() or not changelog_file.is_file():
+        print("FAIL VERSION and CHANGELOG.md must both exist at the project root", file=sys.stderr)
+        return 1
+    changelog = changelog_file.read_text(encoding="utf-8")
+
+    # A fresh copy of the factory becomes a new project.
+    if args.new_project:
+        return new_project(root, args.date)
+
+    # Release notes of a version already cut.
+    if args.notes:
+        heading = next((line for line in changelog.splitlines() if line.startswith(f"## [{args.notes}]")), None)
+        if heading is None:
+            print(f"FAIL CHANGELOG.md has no section for {args.notes}", file=sys.stderr)
+            return 1
+        print(section(changelog, heading))
+        return 0
+    if not args.part:
+        parser.error("name the part to bump (major, minor, patch) or pass --notes VERSION")
+
+    # The version to cut, from a well-formed VERSION file.
+    current = version_file.read_text(encoding="utf-8").strip()
+    if not SEMVER.fullmatch(current):
+        print(f"FAIL VERSION holds '{current}', not MAJOR.MINOR.PATCH", file=sys.stderr)
+        return 1
+    version = bump(current, args.part)
+    # A version already in the changelog (a reverted or repeated run) is never cut twice.
+    if any(line.startswith(f"## [{version}]") for line in changelog.splitlines()):
+        print(f"FAIL CHANGELOG.md already has a section for {version}", file=sys.stderr)
+        return 1
+
+    # A release with nothing under Unreleased has nothing to say.
+    if UNRELEASED not in changelog or not section(changelog, UNRELEASED).strip():
+        print(f"FAIL CHANGELOG.md has no lines under {UNRELEASED}; add what changed first", file=sys.stderr)
+        return 1
+    # Unreleased stays as an empty heading; its lines move under the new version, older ones follow.
+    notes = section(changelog, UNRELEASED)
+    start = changelog.index(UNRELEASED)
+    older = changelog.find("\n## ", start + len(UNRELEASED))
+    rest = changelog[older:].lstrip("\n") if older != -1 else ""
+    dated = f"{UNRELEASED}\n\n## [{version}] - {args.date}\n\n{notes}\n" + (f"\n{rest}" if rest else "")
+    changelog_file.write_text(changelog[:start] + dated, encoding="utf-8")
+    version_file.write_text(version + "\n", encoding="utf-8")
+
+    # The release pull request body.
+    print(f"Release v{version}\n\n{notes}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

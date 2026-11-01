@@ -379,3 +379,191 @@ harness receives only events and labels; the frozen answers in `demo/fixtures/tr
   verdict) and tier 1 (5 requests, 1 conversation, 8/8), all with complete usage.
 
 Not verified: any paid Go request in any tier.
+
+## Local stack end to end, and Langfuse v4 — 2026-11-01
+
+Fresh start: `demo/.local` was regenerated (new random credentials), the old Compose volumes were
+removed, the images rebuilt, and the ten services came up healthy on Docker 29.9.2
+(`langfuse-web` 4.49.0, worker, Postgres 17, ClickHouse 25.12, MinIO, Redis 7, OTel collector
+0.163.2, Deno playground, Hindsight 1.1.0, claude-mem). `GET /api/public/health` answers 200 and
+the cockpit reports `5/5` integrations connected.
+
+- **Supervisor spans reach Langfuse.** One synthetic triage replay (`flue-just-bash`, handover
+  through the 250k gate) wrote 22 observations in `environment=default`: `demo.task`,
+  `agent.started`, `gen_ai.request` ×5, `gate.closed`, `handover.prepared` ×3, `agent.handover`,
+  `artifact.checked` ×2, `session.wiped` ×2, `memory.checkpoint` ×2, `memory.retained`,
+  `quality.scored`, plus one playground `GET`. The run passed 8/8 checks.
+- **Scores are accepted.** `POST /api/public/scores` returned both deterministic ids
+  (`demo_verified_checks`, `demo_autonomous_success`) for that run.
+- **claude-mem** saved and read back checkpoint `#2`; **Hindsight** retained the analysis in
+  `aeion-demo-synthetic`. Both are real services, not stand-ins.
+- **Pi → Langfuse, verified.** The `@langfuse/pi-observability-plugin` 0.1.2 ran from the ignored
+  `.tmp/pi-agent` agent directory (`PI_CODING_AGENT_DIR`), against a local OpenAI-compatible
+  fixture, never a paid provider and never `~/.pi/agent`. Three sessions produced three
+  `Conversational Turn` spans and three `LLM Call` generations in `environment=development`,
+  with `input=1234`, `output=56`, latency, time-to-first-token, session id and trace id, and with
+  the raw prompt (58 chars) and output (35 chars) attached.
+- **Langfuse v4 events_only changes the API surface.** `GET /api/public/traces`,
+  `GET /api/public/sessions` and `GET /api/public/scores` answer 404 with
+  *"not available on deployments running in Langfuse v4 events_only mode"*. Reads go through
+  `GET /api/public/v2/observations` and `GET /api/public/v2/metrics`; score creation still works.
+  Any read-back procedure that still calls the v1 resources is dead on this instance.
+- **Flue harness re-qualified** with `qualify_flue.py --local-sandbox` (real Flue 2.3.0 + Pi 1.4.0,
+  fake inference): tier 3 6 requests / 2 fresh conversations / 12 checks, tier 2 5 requests /
+  12 checks, tier 1 5 requests / 8 checks, all complete usage.
+
+**OpenShell on macOS is not qualified and does not run.** `openshell/setup.py` builds the agent
+image and starts the gateway, then fails in `qualify.py` because the probe's `exec` returns an
+empty stdout. Measured cause, not a guess: on the host-backed work volume, writes are *performed*
+(the files appear on the host) while the syscall returns `EACCES` — `open(..., "w")`, `: > file`
+and `echo > file` fail this way, `touch` sometimes succeeds, and repeated probes disagree with each
+other. The same write succeeds in a plain container on a Docker volume-subpath mount and on the
+same bind mount, `os.access(..., W_OK)` is `True`, and `/tmp`, `/sandbox` and a tmpfs mounted
+inside the sandbox all accept writes normally. Host bind mounts are refused by admission
+(*"host bind or image mount cannot be attached while resource admission is enabled: no trusted
+label resolver"*), so the volume path is the only admitted one. The qualification therefore fails
+closed, as designed, and tier 3 stays unavailable locally.
+
+Not verified: any paid Go request; tier 3 in a real OpenShell sandbox on this machine.
+
+## Factory v1.8.3 import completed — 2026-11-01
+
+The template import was missing the `loops/` payload its own tools already named, so
+`tools/factory-tests` stopped at `tools/loops/tests/test_loops.py` with
+`FileNotFoundError: .../loops`. Fixed by importing `loops/` from the sibling Factory checkout at
+tag `v1.8.3` (15 files: `orchestrator.sh`, six job prompts, schedules, model routing, issue
+protocol, Decisions API client), without `.DS_Store` and without editing the sibling.
+
+- **`env.local` is now ignored**, as in Factory: the orchestrator reads loop settings from it and
+  the file may also carry the Decisions API secret. Only the template is tracked.
+- **doc-links rule L4 caught the new spec headers**: `loops/orchestrator.sh` and
+  `loops/decisions-api/client.sh` name `knowledge/operations/loops.md` as their spec, so that
+  runbook now lists them as `sources:`.
+- **`repo-health` counts nine top-level folders**, the cap, once `loops/` is tracked. The imported
+  `skills/` pool would have made ten: it is generated and verified by its own integrity check, so
+  the scorecard now counts it with the sources instead of the hand-made folders (one line plus a
+  comment, and the policy sentence in `knowledge/policies/engineering.md`). This is a deliberate
+  deviation from the byte-identical upstream tool, which Factory's own eleven-folder repository
+  would otherwise fail; no other rule changed.
+- **Checks re-run on the staged tree**: `tools/factory-tests` PASS with all 25 suites,
+  `tools/knowledge/knowledge-check` PASS, `tools/knowledge/doc-links` PASS (93 links),
+  `tools/repo-health/repo-health` OK (AGENTS.md 84 lines, 9 folders, 0 big files),
+  `examples/compare_cohorts.py` and `validate_fixtures.py` exit 0, offline suite 33 tests OK.
+- **`python3 -m unittest discover -s demo/tests`**: 39 pass, 8 skipped, one error:
+  `test_real_long_named_process_is_detected` cannot spawn `ps` (`Operation not permitted`) under
+  this session's sandbox. Environmental, independent of the change; it runs from a normal shell.
+
+Not verified: no loop job was executed (`LOOPS_ENABLED` unset, no paid or headless run); the
+`loops/` payload is imported and inventoried, not exercised.
+
+## Factory v1.8.4 update applied — 2026-11-01
+
+The owner asked for the 1.8.4 fix after a dsh session failed to reload (`session event at seq 29
+message must have role "user"`). The release moves the 250k/300k gate to advisory on a harness the
+plugin cannot reach a compaction service for, so the session is no longer held waiting for a human
+to type `/compact`; it also drops Pi's refusal of its own window compaction.
+
+- **Written by `tools/agents/template-update --ref v1.8.4` from the tagged checkout** (`fac8bcb`):
+  the 27 contract files and `VERSION`; `--check` afterwards reports `0 file(s) differ from v1.8.4`.
+- **New connector tools**: `tools/agents/connectors.py` (one contract/merge file list),
+  `refs.py` (git-reference reader), `dsh-install` (tag-pinned desktop plugin) and
+  `template-update`; the `.agents/skills/template-update` skill and the 1.8.4 knowledge sentences
+  for architecture, compatibility, context safety and build-and-test.
+- **Checks**: `tools/agents/adapter-check --self` PASS (27 connectors: 27 matching, 0 drifted,
+  0 absent, 0 unwired, 0 invalid, 0 unidentified); `tools/factory-tests` PASS with all 27 suites,
+  including the new `test_dsh_install.py` and `test_template_update.py`.
+- **Live profile**: the desktop dsh profile already loads a 1.8.4 copy of the plugin at
+  `~/.dsh/profiles/desktop/aeion-factory/`; the repository now matches that release.
+
+Not verified: no dsh session was replayed from the new plugin in this run; the corrupt transcripts
+(`session-2d8481df…`, `session-8accced1…`) stay on disk and were read for recovery, not repaired.
+
+## Agora factory: safe circuit, capability keys, protected branches — 2026-11-01
+
+The local factory that builds the forum from 100 Markdown specs grew the parts the owner asked
+for after "comment se protéger des rogue AI".
+
+- **Review circuit** (`demo/factory/review_circuit.py`): the author model and its family are
+  excluded, vote 1 comes from a second family, vote 2 from a third; any reject, transport error or
+  malformed answer holds the feature. The publisher now refuses a receipt with no circuit, an
+  unapproved one, or fewer than two votes (`verified_receipt`, 8 tests in
+  `test_factory_pipeline.py`).
+- **Credential roles** (`demo/factory/keys.py`): `GH_BUILD_KEY` (read), `GH_API_KEY` (publish),
+  `GH_RELEASE_KEY` (human release), `OPENCODE_API_KEY` (inference); `assert_only`,
+  `assert_worker_isolated`, publisher refusal and start-up scrubbing. 18 tests in
+  `test_factory_keys.py`, including a drift test against the committed root `.env.example`.
+- **Stop-on-branch hand-off** (`demo/factory/boundary.py`): five written rules, the same five
+  copied into `demo/flue/src/agents/coder.ts`, the brief written to `TASK.md` outside the clone,
+  and `test_factory_boundary.py` proving both copies agree.
+- **Product repository**: `.github/scripts/check_product.py` plus a `Product artifacts` job,
+  merged as `develop@e79080ab` through PR #2 with green CI. `main` and `develop` now require a
+  pull request, those five checks, linear history and resolved conversations, with force-push and
+  deletion refused and admins included; a probe push to each branch was rejected by the server.
+  PR #1, the simulated transport artifact, was closed and its branch deleted.
+- **Checks**: 171 factory tests, then 232 in `demo/tests` with the one known macOS `ps`
+  `PermissionError` in `test_openshell_setup`; `knowledge-check`, `doc-links`, `repo-health`,
+  `factory-tests` (PASS, 27 suites) in the product clone; `git diff --check` clean.
+
+Not verified: no live publish ran through the new publisher, and no model call was made for the
+circuit — the OpenCode endpoint still has to accept the four model identifiers. The key roles are
+enforced in code, not by GitHub: a token whose real permissions are wider than the table would not
+be detected.
+
+## Factory v1.9.0 update applied — 2026-11-01
+
+Owner request: "make sure everyone is using the latest aeion factory template
+<https://github.com/OualidGuennif/aeion-factory/releases/tag/v1.9.0>".
+
+What v1.9.0 changes for a project: the 250k latch lets go. A verified handover releases the hard gate
+instead of leaving every call denied, a handover that went stale can still be compacted, the receipt
+survives the settlement, and the dsh plugin keeps its pending request when `PreCompact` refuses. For
+this repository that is harness behaviour only: no product or knowledge document changes.
+
+| Step | Command | Result |
+| --- | --- | --- |
+| What the release changes | `git show v1.9.0:CHANGELOG.md` (factory checkout) | compaction-latch fixes, no connector or policy change |
+| Dry run, three groups | `tools/agents/template-update --ref v1.9.0 --root <repo> --check` | `1.8.9 → 1.9.0`, **one** differing file (`VERSION`); nothing to merge |
+| Apply | `tools/agents/template-update --ref v1.9.0 --root <repo>` | `written VERSION → 1.9.0`; `knowledge/`, `work/`, `CHANGELOG.md`, `AGENTS.md` and the three settings files untouched |
+| Connectors | `tools/agents/adapter-check --root <repo> --ref v1.9.0` | `27 connectors: 27 matching, 0 drifted, 0 absent, 0 unwired, 0 invalid, 0 unidentified, 0 unroled` → **PASS** |
+| The repo's own checks | `tools/factory-tests`, `doc-links`, `knowledge-check`, `repo-health`, `git diff --check` | `14 tests OK`, 97 links, 0 problems, clean |
+
+**A red check was fixed by the update, not by a local patch.** `tools/factory-tests` had been failing
+on `test_a_steering_copy_fails_the_check`: the vendored test replaced the literal
+`agent.steer({ id: globalThis.crypto.randomUUID(), content:` while the 1.9.0 plugin writes
+`agent.steer({ id: ..., role: 'user', content:`, so the replacement was a no-op and the check exited 0.
+Five factory-owned tool files were a release behind and were refreshed from the tag byte for byte:
+`tools/agents/adapter-check`, `tools/agents/tests/{test_adapter_check.py, test_hooks.py, test_dsh.mjs}`
+and `tools/context/tests/test_budget.py`. No project text was rewritten; the only project line edited
+is the version in `AGENTS.md`, which named 1.8.4 and was therefore false.
+
+Kept deliberately: this repository's own diagram in `tools/architecture/views.json` — which broke the
+refresh contract and is repaired in the entry below — and the three-line local adaptation in
+`tools/repo-health/repo-health` that keeps the generated passive `skills/` pool out of the hand-made
+folder count.
+
+## Release PR #9: the two red checks fixed at their cause — 2026-11-02
+
+`offline-examples` failed with seven `AttributeError`s inside one test:
+`demo/tests/test_sandbox.py` patched `openshell.SandboxClient`, but once another test module puts
+`demo` on `sys.path` — the factory tests do, with `sys.path.insert(0, parents[1])` — `import openshell`
+resolves to the `demo/openshell/` directory as a namespace package. The `skipUnless(openshell)` guard
+was satisfied by that namespace package, so the test ran and then could not find the attribute; it
+passed only while no such module had run first. The test now installs an inert stub module in
+`sys.modules` whose constructor raises `AssertionError`: the refusal must happen before any client
+object exists, and the test no longer depends on whether the SDK is installed. Local:
+`python3 -m unittest discover -s demo/tests` → 341 tests, 1 error (the pre-existing macOS `ps`
+limitation), 9 skipped; CI `offline-examples`: PASS.
+
+`Graphify and Archify` failed before rendering anything: `tools/architecture/refresh` requires exactly
+three views in `tools/architecture/views.json` — `architecture`, `workflow`, `lifecycle` — and the
+v1.8.3 adoption had replaced them with a single custom view, so every refresh since then stopped at
+"maintain exactly the overview, delivery and context views". The file now carries this repository's
+overview (its twelve components each citing a source anchor that resolves exactly once) followed by
+the v1.9.0 delivery and context views, whose anchors resolve unchanged in this tree. Local:
+`refresh --target e4ed339 --base origin/main` → `validate: pass`, `deliver: pass`, `check: pass`;
+`browser-check` cannot run inside the DSH macOS file sandbox (Chrome refuses to initialize its own
+sandbox there). CI `Graphify and Archify`: PASS.
+
+Both failures pre-date the v1.9.0 update and were invisible until this branch ran them: the workflow
+had never executed against the single-view file, and the sandbox test had always been the first module
+in a fresh interpreter.

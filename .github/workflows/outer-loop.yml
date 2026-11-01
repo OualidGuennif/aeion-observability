@@ -1,0 +1,31 @@
+# Optional: the outer loop on GitHub's schedule. Off until the repository variable
+# OUTER_LOOP_ENABLED is "true" and the secret CLAUDE_CODE_OAUTH_TOKEN exists. Read-only by design:
+# the prompts in loops/prompts/ only open issues.
+name: Outer loop
+on:
+  schedule:
+    - cron: "15 5 * * *"     # daily health and docs
+    - cron: "0 6 * * 1"      # weekly security
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+  id-token: write  # claude-code-action's default GitHub App authentication uses OIDC
+jobs:
+  outer:
+    if: vars.OUTER_LOOP_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Prepare mandatory architecture baseline
+        run: tools/architecture/setup && tools/architecture/refresh --target HEAD
+      - uses: anthropics/claude-code-action@a5a423f75c251dcbff8a74e99f83b2cb03c72bfa # v1
+        env:
+          AEION_LOOP_READ_ONLY: '1'
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: ${{ github.event.schedule == '0 6 * * 1' && 'Follow loops/prompts/security.md.' || 'Follow loops/prompts/outer.md, then loops/prompts/docs.md.' }}
+          claude_args: '--max-turns 30 --permission-mode dontAsk --allowedTools "Read,Grep,Glob,Write(.aeion/loop-bodies/**),Agent,Skill,Bash(git log -5 --oneline),Bash(tools/knowledge/knowledge-check),Bash(tools/knowledge/doc-links),Bash(tools/knowledge/doc-links --for *),Bash(tools/repo-health/repo-health),Bash(gh issue list *),Bash(gh issue view *),Bash(gh issue create *),Bash(gh issue comment *),Bash(gh run list *)"'
