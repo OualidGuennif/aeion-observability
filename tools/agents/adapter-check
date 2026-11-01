@@ -71,13 +71,16 @@ def references(text, relative):
     return sorted(set(pattern.findall(text)))
 
 
-# A steered message with no identity is persisted as history the harness cannot reopen, so the whole
-# session stops loading. Every steer call must carry an id in its own literal, not one nested below.
-STEER = re.compile(r"\.steer\s*\(\s*\{")
+# A steered or injected message with no identity, or no role, is persisted as history the harness
+# cannot reopen, so the whole session stops loading. Every steer/inject/followup call must carry an id
+# and a role in its own literal, not nested below.
+STEER = re.compile(r"\.(?:steer|inject|followup)\s*\(\s*\{")
+FIELDS = {"id": r"\bid\s*:", "role": r"\brole\s*:"}
 
 
-def identified(body):
-    """Whether an object literal names a top-level `id`, scanning braces a literal way."""
+def fielded(body, field):
+    """Whether an object literal names one top-level field, scanning braces a literal way."""
+    pattern = FIELDS[field]
     depth = 0
     index = 0
     while index < len(body):
@@ -86,17 +89,17 @@ def identified(body):
             depth += 1
         elif character in "}])":
             depth -= 1
-        elif depth == 0 and re.match(r"\bid\s*:", body[index:]):
+        elif depth == 0 and re.match(pattern, body[index:]):
             return True
         index += 1
     return False
 
 
-def unidentified(text):
-    """The 1-based lines of every steer call whose object literal has no top-level id."""
+def unfielded(text, field):
+    """The 1-based lines of every steer/inject/followup call whose object literal lacks the top-level field."""
     lines = []
     for match in STEER.finditer(text):
-        opening = text.find("{", match.start() + len(".steer"))
+        opening = text.find("{", match.start())
         depth, index = 0, opening
         while index < len(text):
             if text[index] == "{":
@@ -106,9 +109,19 @@ def unidentified(text):
                 if depth == 0:
                     break
             index += 1
-        if not identified(text[opening + 1:index]):
+        if not fielded(text[opening + 1:index], field):
             lines.append(text.count("\n", 0, match.start()) + 1)
     return lines
+
+
+def unidentified(text):
+    """The 1-based lines of every steer/inject/followup call whose object literal has no top-level id."""
+    return unfielded(text, "id")
+
+
+def unroled(text):
+    """The 1-based lines of every steer/inject/followup call whose object literal has no top-level role."""
+    return unfielded(text, "role")
 
 
 def wiring(root):
@@ -174,12 +187,15 @@ def main():
 
     drifted, missing, clean = compare(root, read)
     unwired, broken = wiring(root)
-    unmanaged = []
+    unmanaged, unroled_calls = [], []
     for relative in VENDORED:
         if not relative.endswith(".js") or not (root / relative).is_file():
             continue
-        for line in unidentified((root / relative).read_text(encoding="utf-8", errors="replace")):
+        text = (root / relative).read_text(encoding="utf-8", errors="replace")
+        for line in unidentified(text):
             unmanaged.append((relative, line))
+        for line in unroled(text):
+            unroled_calls.append((relative, line))
 
     print(f"adapter-check: factory {factory_version(repo, reference)} at {repo}")
     print(f"               against {root}")
@@ -198,8 +214,10 @@ def main():
         print(f"invalid   {relative} — {error}")
     for relative, line in unmanaged:
         print(f"UNIDENTIFIED {relative} — steer() without an id at line {line}")
+    for relative, line in unroled_calls:
+        print(f"UNROLED {relative} — steer()/inject()/followup() without a role at line {line}")
 
-    failed = bool(drifted or unwired or broken or unmanaged)
+    failed = bool(drifted or unwired or broken or unmanaged or unroled_calls)
     if arguments.strict and missing:
         failed = True
     if drifted and reference:
@@ -216,7 +234,7 @@ def main():
     print(
         f"\n{len(VENDORED)} connectors: {len(clean)} matching, {len(drifted)} drifted, "
         f"{len(missing)} absent, {len(unwired)} unwired, {len(broken)} invalid, "
-        f"{len(unmanaged)} unidentified"
+        f"{len(unmanaged)} unidentified, {len(unroled_calls)} unroled"
     )
     print("adapter-check: PASS" if not failed else "adapter-check: FAIL")
     return 1 if failed else 0

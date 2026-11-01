@@ -12,18 +12,29 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const sessionID = `factory-dsh-plugin-test-${process.pid}`;
 
 // A stand-in for the dsh Cordis context: it records the guard, the listeners and compactions. `meter.tokens`
-// can change between calls; `root: false` is a profile without a root compaction service (web).
+// can change between calls; `root: false` is the web profile, which isolates its compaction service inside the
+// agent preset, so the plugin runs the `/compact` command instead of calling the service.
 function load(cwd, totalTokens = 1000, { root: service = true } = {}) {
   const meter = { tokens: totalTokens };
   const handlers = {};
   const guards = [];
   const compactions = [];
+  const compact = { compactIfNeeded: async (agent, trigger) => compactions.push(trigger) };
+  // The root commands service resolves /compact for an agent; running it records the line it received.
+  const registry = {
+    find: (agent, name) => (name === 'compact' ? { name: 'compact' } : undefined),
+    execute: async (agent, line) => {
+      compactions.push(line);
+      return { result: { kind: 'success' } };
+    },
+  };
   const ctx = {
     tools: { guard: (guard) => guards.push(guard) },
     tokenMeter: { measure: () => ({ totalTokens: meter.tokens }) },
     // The session works in `cwd`, whatever folder the server was launched from.
     workingDirectory: { get: () => cwd },
-    compaction: { compactIfNeeded: async (agent, trigger) => compactions.push(trigger) },
+    compaction: compact,
+    get: (name) => (name === 'commands' ? registry : undefined),
     on: (name, handler) => { handlers[name] = handler; },
     logger: { warn: () => {} },
   };
@@ -37,13 +48,14 @@ function load(cwd, totalTokens = 1000, { root: service = true } = {}) {
 
 const call = (agent, name, args) => ({ name, arguments: args, agent, callId: 'call-1' });
 
-test('dsh registers one guard and the step and result listeners', () => {
+test('dsh registers one guard and the step, status and result listeners', () => {
   const { handlers, guard } = load(root);
   // The guards wait for no compaction service: dsh web keeps it inside each agent preset.
   assert.deepEqual(inject, ['tools', 'tokenMeter', 'workingDirectory']);
   assert.deepEqual(compaction.inject, ['compaction']);
   assert.equal(typeof guard, 'function');
-  assert.deepEqual(Object.keys(handlers).sort(), ['agent/pre-step', 'agent/turn-stopping', 'tools/post-execute']);
+  assert.deepEqual(Object.keys(handlers).sort(),
+    ['agent/pre-step', 'agent/status', 'agent/turn-stopping', 'tools/post-execute']);
 });
 
 test('dsh tool calls that read a secret are denied before execution', () => {
@@ -117,37 +129,44 @@ function recorder() {
   return { folder, events };
 }
 
-test('dsh without a root compaction service keeps working and never asks for /compact', async () => {
+test('dsh web compacts through the /compact command on idle, then resumes', async () => {
+  // The web profile isolates its compaction service inside the agent preset, out of the plugin's reach, so
+  // the plugin crosses that boundary with the /compact command once the turn has ended, then resumes.
   const { folder, events } = recorder();
   const { handlers, compactions, agent, steered } = load(folder, 260000, { root: false });
-  agent.session.id = `${sessionID}-web`;
+  agent.session.id = `${sessionID}-web-compact`;
   await handlers['tools/post-execute'](call(agent, 'bash', { command: 'true' }), {}, async () => ({}));
   let stepped = 0;
+  // The step cannot compact (the service is isolated), so it keeps its due for the idle listener.
   await handlers['agent/pre-step']({ agent, signal: new AbortController().signal }, async () => { stepped += 1; });
+  assert.deepEqual(compactions, []);
+  await handlers['agent/status']({ agent, status: 'idle' });
   const recorded = events();
   rmSync(folder, { recursive: true, force: true });
-  assert.deepEqual(compactions, []);
   assert.equal(stepped, 1);
-  // The shared rule is told the truth, so it stops gating work the plugin cannot finish.
-  assert.ok(recorded.filter((event) => event.hook_event_name !== 'SessionStart')
-    .every((event) => event.compaction_unavailable === true));
+  assert.deepEqual(compactions, ['/compact']);
+  // It runs the command itself; it never orders the user to type /compact.
   assert.ok(!steered.some((message) => /type \/compact|ask them to/i.test(message.content[0].text)));
-  assert.match(steered[0].content[0].text, /compacts on its own/);
+  assert.match(steered[0].content[0].text, /handover/);
+  // The shared rule is told compaction is available, so the 250k/300k gate holds instead of staying advisory.
+  assert.ok(recorded.filter((event) => event.hook_event_name !== 'SessionStart')
+    .every((event) => event.compaction_unavailable === false));
 });
 
 test('dsh never tells the user to type /compact, verified or owed (dsh FB-004)', async () => {
-  // The 300k stopgap allows a compaction the checkpoint did not verify. In a profile with no compaction service
-  // the plugin must not order a human command either way: the harness compacts on its own.
+  // The 300k stopgap allows a compaction the checkpoint did not verify. The plugin runs /compact itself on
+  // idle and resumes; it never orders a human /compact command either way.
   const owed = answering({
     PostToolUse: { aeion: { compact: true } },
     PreCompact: { systemMessage: 'Æion Factory 300k: compacting before a verified checkpoint' },
   });
   const first = load(owed, 300000, { root: false });
   await first.handlers['tools/post-execute'](call(first.agent, 'bash', { command: 'true' }), {}, async () => ({}));
-  await first.handlers['agent/pre-step']({ agent: first.agent, signal: new AbortController().signal }, async () => {});
+  await first.handlers['agent/status']({ agent: first.agent, status: 'idle' });
   rmSync(owed, { recursive: true, force: true });
+  assert.deepEqual(first.compactions, ['/compact']);
   assert.equal(first.steered.length, 1);
-  assert.match(first.steered[0].content[0].text, /compacts on its own/);
+  assert.match(first.steered[0].content[0].text, /handover/);
   assert.doesNotMatch(first.steered[0].content[0].text, /type \/compact|ask them to/i);
 });
 
@@ -225,9 +244,10 @@ test('dsh forwards a fetched result and steers the prompt-defense warning', asyn
   assert.deepEqual(shell, {});
 });
 
-test('dsh gives every steered message its own id', async () => {
+test('dsh gives every steered message its own id and role', async () => {
   // dsh queued one message per turn by id: without one, its own start context and a later warning collide
-  // and the second steer throws ("already pending"), silently dropping it.
+  // and the second steer throws ("already pending"), silently dropping it. A message without role is
+  // persisted as user/message the harness refuses to reopen, so every steer carries role: "user" too.
   const { guard, handlers, agent, steered } = load(root);
   agent.session.id = `${sessionID}-ids`;
   guard(call(agent, 'bash', { command: 'git status --short' }));
@@ -236,6 +256,7 @@ test('dsh gives every steered message its own id', async () => {
   assert.equal(steered.length, 2);
   assert.ok(steered.every((message) => typeof message.id === 'string' && message.id.length >= 8));
   assert.notEqual(steered[0].id, steered[1].id);
+  assert.ok(steered.every((message) => message.role === 'user'));
 });
 
 test('dsh forwards a tool result but never a local file read', async () => {

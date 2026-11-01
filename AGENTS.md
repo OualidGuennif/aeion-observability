@@ -2,7 +2,7 @@
 
 Research and design workspace with an opt-in local Docker demo. Read [README](README.md) and the
 [framework specification](knowledge/components/observability.md) before extending it. The
-repository follows the [Æion Factory](https://github.com/OualidGuennif/aeion-factory) v1.8.4
+repository follows the [Æion Factory](https://github.com/OualidGuennif/aeion-factory) v1.9.0
 development template: `tools/`, `efficiency/` and the native harness folders come from it.
 
 ## Working rules

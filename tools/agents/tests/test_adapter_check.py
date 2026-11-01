@@ -104,15 +104,34 @@ class AdapterCheckTests(unittest.TestCase):
         self.assertEqual(check.unidentified("  agent.steer({ content: [], source: { kind: 'x' } });\n"), [1])
         self.assertEqual(check.unidentified("  agent.steer({ id: randomUUID(), content: [] });\n"), [])
 
+    def test_steer_without_role_is_unroled(self):
+        self.assertEqual(check.unroled("  agent.steer({ id: randomUUID(), content: [] });\n"), [1])
+        self.assertEqual(check.unroled("  agent.steer({ id: randomUUID(), role: 'user', content: [] });\n"), [])
+        # inject and followup share the message shape, so their object literals owe a role too.
+        self.assertEqual(check.unroled("  agent.inject({ id: randomUUID(), content: [] });\n"), [1])
+        self.assertEqual(check.unroled("  agent.followup({ id: randomUUID(), content: [] });\n"), [1])
+        self.assertEqual(check.unroled("  agent.inject({ id: randomUUID(), role: 'user' });\n"), [])
+
     def test_a_steering_copy_fails_the_check(self):
         # A steered message with no id is persisted as history dsh cannot reopen.
         target = self.project / '.dsh/plugins/factory/index.js'
         target.write_text(target.read_text().replace(
-            'agent.steer({ id: globalThis.crypto.randomUUID(), content:',
-            'agent.steer({ content:'))
+            "agent.steer({ id: globalThis.crypto.randomUUID(), role:",
+            'agent.steer({ role:'))
         code, output = self.run_check()
         self.assertEqual(code, 1, output)
         self.assertIn('UNIDENTIFIED .dsh/plugins/factory/index.js — steer() without an id at line', output)
+        self.assertIn('adapter-check: FAIL', output)
+
+    def test_a_roled_steering_copy_fails_the_check(self):
+        # A steered message without a role is persisted as history dsh cannot reopen either.
+        target = self.project / '.dsh/plugins/factory/index.js'
+        target.write_text(target.read_text().replace(
+            "role: 'user', content:",
+            'content:'))
+        code, output = self.run_check()
+        self.assertEqual(code, 1, output)
+        self.assertIn('UNROLED .dsh/plugins/factory/index.js — steer()/inject()/followup() without a role at line', output)
         self.assertIn('adapter-check: FAIL', output)
 
     def tagged_factory(self):
@@ -165,6 +184,7 @@ class AdapterCheckTests(unittest.TestCase):
             if relative.endswith('.js'):
                 text = (ROOT / relative).read_text(encoding='utf-8')
                 self.assertEqual(check.unidentified(text), [], relative)
+                self.assertEqual(check.unroled(text), [], relative)
 
 
 if __name__ == '__main__':

@@ -278,6 +278,44 @@ class HookTests(unittest.TestCase):
             self.assertFalse(denied(self.measure(provider, 1_000, **edit)), provider)
             self.assertEqual(json.loads(state_file.read_text())['state'], 'RUNNING')
 
+    def test_a_verified_handover_releases_the_hard_gate(self):
+        # The regression: a hard gate that kept denying after the receipt verified held every dsh session at 250k
+        # until a compaction the plugin cannot guarantee actually landed. The gate owes one verified handover, so
+        # once it exists the session works while the compaction is on its way.
+        session = hook.key('dsh', {'session_id': 'context-dsh'})
+        state_file = self.root / '.aeion/context' / f'{session}.json'
+        handover = hook.budget.handover_path(self.root, session)
+        edit = {'tool_name': 'Edit', 'tool_input': {'file_path': str(self.root / 'src.py')}}
+        denied = lambda result: result.get('hookSpecificOutput', {}).get('permissionDecision') == 'deny'
+        # The exit command is admitted whatever session token it carries: the CLI refuses a key that names no
+        # session, and `ready` alone opens the gate, so a raw identifier cannot lock a session out of its own exit.
+        exit_call = {'tool_name': 'Bash', 'tool_input': {'command': 'python3 tools/context/budget.py checkpoint '
+                                                                    '--session raw-id --base origin/develop --verify'}}
+        for tokens in (250_000, 300_000):
+            self.assertTrue(denied(self.measure('dsh', tokens, **edit)), tokens)
+            self.assertFalse(denied(self.measure('dsh', tokens, **exit_call)), tokens)
+            state = json.loads(state_file.read_text())
+            state['checkpoint'] = {'tree': hook.budget.fingerprint(self.root),
+                                   'handover': hook.budget.hashlib.sha256(handover.read_bytes()).hexdigest()}
+            hook.budget.atomic(state_file, json.dumps(state))
+            self.assertFalse(denied(self.measure('dsh', tokens, **edit)), tokens)
+            # The next level starts from a closed gate again.
+            state = json.loads(state_file.read_text())
+            state.pop('checkpoint', None)
+            hook.budget.atomic(state_file, json.dumps(state))
+
+    def test_a_compaction_the_adapter_never_saw_releases_the_latch(self):
+        # dsh compacts on its own, so no compact SessionStart reaches the adapter and the 250k latch survived:
+        # a session back at 127k stayed gated forever. Falling under the threshold ends the closure.
+        session = hook.key('dsh', {'session_id': 'context-dsh'})
+        state_file = self.root / '.aeion/context' / f'{session}.json'
+        edit = {'tool_name': 'Edit', 'tool_input': {'file_path': str(self.root / 'src.py')}}
+        denied = lambda result: result.get('hookSpecificOutput', {}).get('permissionDecision') == 'deny'
+        self.assertTrue(denied(self.measure('dsh', 250_000, **edit)))
+        self.assertEqual(json.loads(state_file.read_text())['state'], 'HANDOVER_REQUIRED')
+        self.assertFalse(denied(self.measure('dsh', 127_416, **edit)))
+        self.assertEqual(json.loads(state_file.read_text())['state'], 'RUNNING')
+
     def test_300k_stopgap_compacts_and_keeps_the_closure_owed(self):
         # The incident: a check that failed before the session froze code at 300k, and the checkpoint that would
         # release it failed on that same check. The compaction runs, the epoch stays editable, the debt stays owed.
@@ -356,6 +394,30 @@ class HookTests(unittest.TestCase):
         self.assertEqual(json.loads(state_file.read_text())['state'], 'RUNNING')
         # Every other harness still refuses a compaction without a verified handover.
         self.assertFalse(self.measure('opencode', 231_000, hook_event_name='PreCompact')['continue'])
+
+    def test_a_verified_handover_above_250k_keeps_its_receipt_for_the_compaction(self):
+        session = hook.key('dsh', {'session_id': 'context-dsh'})
+        handover = hook.budget.handover_path(self.root, session)
+        state_file = self.root / '.aeion/context' / f'{session}.json'
+        edit = {'tool_name': 'Edit', 'tool_input': {'file_path': str(self.root / 'src.py')}}
+        denied = lambda result: result.get('hookSpecificOutput', {}).get('permissionDecision') == 'deny'
+        # Latch, compact unseen (dsh does), climb again: the debt is owed and the alert is back.
+        self.measure('dsh', 260_000, **edit)
+        self.measure('dsh', 100, **edit)
+        self.assertTrue(denied(self.measure('dsh', 260_000, **edit)))
+        handover.write_text('## Scope\nx\n## Completed\nx\n## Remaining\nx\n## Constraints\nx\n## Evidence\nx\n')
+        state = json.loads(state_file.read_text())
+        state['checkpoint'] = {'tree': hook.budget.fingerprint(self.root),
+                               'handover': hook.budget.hashlib.sha256(handover.read_bytes()).hexdigest()}
+        hook.budget.atomic(state_file, json.dumps(state))
+        # Settling the debt above the threshold must leave the receipt: dropping it would close the gate on
+        # the same event that re-latches the alert, with the compaction still owed.
+        self.assertFalse(denied(self.measure('dsh', 260_000, **edit)))
+        state = json.loads(state_file.read_text())
+        self.assertNotIn('closure_owed', state)
+        self.assertIn('checkpoint', state)
+        self.assertTrue(hook.budget.ready(self.root, session, state))
+        self.assertEqual(state['state'], 'HANDOVER_REQUIRED')
 
     def test_codex_usage_restarts_at_compaction_and_refuses_a_foreign_rollout(self):
         rollout = self.root / 'rollout-2026-10-28T00-00-00-native-fixture.jsonl'
