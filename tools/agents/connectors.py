@@ -8,6 +8,23 @@ which is the failure both tools exist to catch.
 
     from connectors import CONTRACT, MERGE, WIRING
 """
+from pathlib import Path
+
+
+def linked(root, relative):
+    """The first path component below root that is a symlink, or None; never follows it."""
+    path = root
+    for part in Path(relative).parts:
+        path = path / part
+        if path.is_symlink():
+            return path.relative_to(root).as_posix()
+    return None
+
+
+def executable(mode):
+    """Whether a git file mode string or a stat mode carries an executable bit."""
+    return bool((int(mode, 8) if isinstance(mode, str) else mode) & 0o111)
+
 
 # The shared readers travel with the connectors: a project's check imports them.
 CONTRACT = (

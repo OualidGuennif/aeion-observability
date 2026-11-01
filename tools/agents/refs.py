@@ -56,6 +56,16 @@ def ref_bytes(repo, ref, relative):
     return git(repo, "show", f"{ref}:{relative}")
 
 
+def ref_mode(repo, ref, relative):
+    """One file's git mode at one reference ('100644', '100755'), or None when the reference lacks it."""
+    listing = git(repo, "ls-tree", "-z", ref, "--", relative)
+    for record in listing.split(b"\0"):
+        metadata, separator, path = record.partition(b"\t")
+        if separator and path.decode("utf-8", "surrogateescape") == relative:
+            return metadata.split(b" ", 1)[0].decode("ascii")
+    return None
+
+
 def ref_diff(repo, before, after):
     """The paths that differ between two references, each resolvable."""
     listing = git(repo, "diff", "--name-only", before, after, text=True)

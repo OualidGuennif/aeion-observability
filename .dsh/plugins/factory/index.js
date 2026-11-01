@@ -229,7 +229,7 @@ export function apply(ctx) {
       }
       if (settled?.result?.kind !== 'success') {
         due.delete(agent);
-        say(agent, 'Æion Factory: the /compact command did not run, so the 250k gate stays closed; run /compact yourself once.');
+        say(agent, 'Æion Factory: the /compact command did not run, so the 250k gate stays closed. Once the handover, work/current.md and checkpoint verify, stop this session and start a new one from the handover; compaction is not guaranteed here.');
         return;
       }
       due.delete(agent);

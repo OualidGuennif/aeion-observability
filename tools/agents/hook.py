@@ -214,6 +214,23 @@ def antigravity_event(event):
 
 # Harnesses that report their context usage share Claude's 250k/300k rule (tools/context/budget.py).
 MEASURED = {'codex', 'opencode', 'pi', 'dsh'}
+# dsh compaction is not dependable in every profile. A verified handover is enough to recover, so the user is
+# told to end the session instead of working past the gate waiting for a compaction that may never run.
+DSH_STOP = ('After the handover, work/current.md and the checkpoint verify, stop this dsh session and start a new '
+            'one from the handover if compaction does not start; do not keep working past 250k.')
+
+
+def dsh_advice(result):
+    """Append the stop-after-verified instruction to a dsh gate message, without duplicating it."""
+    for field in ('systemMessage', 'stopReason'):
+        if result.get(field) and DSH_STOP not in result[field]:
+            result[field] = f"{result[field]} {DSH_STOP}"
+    decision = result.get('hookSpecificOutput')
+    if isinstance(decision, dict):
+        for field in ('permissionDecisionReason', 'additionalContext'):
+            if decision.get(field) and DSH_STOP not in decision[field]:
+                decision[field] = f"{decision[field]} {DSH_STOP}"
+    return result
 
 
 def codex_usage(event):
@@ -346,8 +363,27 @@ def handle(root, provider, event):
                                              f'stays owed until the failing check is fixed and '
                                              f'{handover.relative_to(root)} is verified: '
                                              + budget.checkpoint_command(root, session)}
-                return fail(provider, name, f'Fill {handover.relative_to(root)} and verify the docs before compaction: '
-                            + budget.checkpoint_command(root, session))
+                if state.get('checkpoint') and not budget.handover_faults(handover):
+                    # The shared rule makes this same decision: the handover was verified, then an edit moved the
+                    # tree. The gate admits only the checkpoint command that could refresh the receipt, so refusing
+                    # here left a routine edit blocking compaction. Compact, keep the debt, and let Stop refuse
+                    # until a fresh receipt settles it; an incomplete handover still refuses below.
+                    state['closure_owed'] = 'due'
+                    # OpenCode sends no compact SessionStart, so this allowed compaction starts its own epoch.
+                    if provider == 'opencode':
+                        state.pop('checkpoint', None)
+                        state.pop('observed_tokens', None)
+                        state['epoch'] += 1
+                        state['state'] = 'RECOVERING'
+                    budget.atomic(file, json.dumps(state, sort_keys=True) + '\n')
+                    return {'systemMessage': f'Æion Factory 250k: {handover.relative_to(root)} was verified and the '
+                                             f'tree moved since; compacting now, and the closure stays owed until a '
+                                             f'fresh checkpoint: ' + budget.checkpoint_command(root, session)}
+                refusal = fail(provider, name, f'Fill {handover.relative_to(root)} and verify the docs before '
+                                               f'compaction: ' + budget.checkpoint_command(root, session))
+                # A refused compaction is where a dsh user is left with nothing to retry, so the refusal carries the
+                # same instruction to stop once the handover and the tree are in order.
+                return dsh_advice(refusal) if provider == 'dsh' else refusal
             # A verified compaction owes no closure after it.
             if state.pop('closure_owed', None):
                 budget.atomic(file, json.dumps(state, sort_keys=True) + '\n')
@@ -384,6 +420,8 @@ def handle(root, provider, event):
                 target = str(root / paths[0]) if len(paths) == 1 else ''
                 call = {**normalized, 'tool_name': 'Edit', 'tool_input': {'file_path': target}}
             measured = budget.apply_usage(root, session, state, name, call, usage)
+            if provider == 'dsh':
+                measured = dsh_advice(measured)
             budget.atomic(file, json.dumps(state, sort_keys=True) + '\n')
             reason = measured.get('stopReason') or measured.get('hookSpecificOutput', {}).get('permissionDecisionReason')
             # Pi compacts from a settlement too: a verified checkpoint at Stop signals it instead of refusing
@@ -411,6 +449,8 @@ def handle(root, provider, event):
             context = (f'Æion Factory droid profile: shared guards and edit feedback; no 250k alert. Before compacting, fill '
                        f'{handover.relative_to(root)}, update work/current.md and verify: {budget.checkpoint_command(root, session)}. '
                        f'A compaction without it owes that closure right after.')
+        if provider == 'dsh':
+            context += f' {DSH_STOP}'
         context += '\n' + result.get('hookSpecificOutput', {}).get('additionalContext', '')
         result['hookSpecificOutput'] = {'hookEventName': name, 'additionalContext': context}
         return result
