@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Make the host-only bootstrap path importable without the model toolchain.
+  `token_budget` loads `jinja2` and `tokenizers` only when `TokenBudget` is constructed, the
+  runtime counting tests require the pinned wheels before they run, and the runner tolerates a
+  host without the OpenTelemetry SDK when marking a failed span. The Docker-free CI job can run
+  the teardown and settlement regressions again; the demo venv behavior is unchanged.
+
 - Budget each model review vote as its own paid action. `DispatchWorker` reserves `$0.05`
   from the product purse before every vote and settles only that call's measured usage;
   `LiveReview` keeps the provider usage surface the wrapper needs, the wrapper clears any

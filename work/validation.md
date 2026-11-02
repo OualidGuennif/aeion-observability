@@ -971,3 +971,15 @@ only in `work/current.md` and `work/validation.md`, and no code changed in the m
 suite is 500 tests OK and the cockpit runs in `live` mode at `http://127.0.0.1:8088/factory`
 (`/factory` 200, catalog 401 unauthenticated); the owner logs in with the private token file,
 which the agent did not read.
+
+## Host-only CI can import the teardown path — 2026-11-02
+
+PR #14's `offline-examples` job failed on `ModuleNotFoundError: tokenizers` while importing
+`app.runner` for `test_runner_teardown`. The dependency was imported at module scope in
+`token_budget.py`, although only `TokenBudget` construction needs it. Both `jinja2` and
+`tokenizers` now load inside `TokenBudget.__init__`; the runtime counting tests check that the
+pinned wheels are importable before they run; and the runner's failed-span status tolerates a
+host without the OpenTelemetry SDK instead of failing the run after the verdict. Evidence:
+`python3 -m unittest discover -s demo/tests` on the bare system interpreter (no jinja2, no
+tokenizers, no opentelemetry) -> 500 tests OK, 12 skipped; the demo venv -> 500 tests OK, no
+errors. This is the host-only job's environment, so the check should go green on the next push.

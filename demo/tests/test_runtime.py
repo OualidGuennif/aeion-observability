@@ -12,6 +12,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 try:
     from token_budget import TokenBudget, admit
     from relay import ContextRelay
+    # The launcher keeps these imports lazy, so the pinned wheels must exist for these
+    # counting tests to mean anything; otherwise the host-only job skips them.
+    from jinja2.sandbox import ImmutableSandboxedEnvironment  # noqa: F401
+    from tokenizers import Tokenizer  # noqa: F401
     IMPORTABLE = True
     AVAILABLE = (Path(__file__).resolve().parents[1] / "tokenizers/glm/tokenizer.json").exists()
 except ModuleNotFoundError:

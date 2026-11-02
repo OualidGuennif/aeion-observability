@@ -356,8 +356,14 @@ class Runner:
         finally:
             root_span.set_attribute("aeion.status", run["status"])
             if run["status"] != "passed" and hasattr(root_span, "set_status"):
-                from opentelemetry.trace import Status, StatusCode
-                root_span.set_status(Status(StatusCode.ERROR, run.get("failure", run["status"])))
+                try:
+                    from opentelemetry.trace import Status, StatusCode
+                except ImportError:
+                    # Telemetry is optional: a host without the SDK still records the run.
+                    pass
+                else:
+                    root_span.set_status(
+                        Status(StatusCode.ERROR, run.get("failure", run["status"])))
             root_span.end()
             run["ended_ns"] = time.time_ns()
             self._settle(run, reservation)
