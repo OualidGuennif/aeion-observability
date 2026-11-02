@@ -983,3 +983,14 @@ host without the OpenTelemetry SDK instead of failing the run after the verdict.
 `python3 -m unittest discover -s demo/tests` on the bare system interpreter (no jinja2, no
 tokenizers, no opentelemetry) -> 500 tests OK, 12 skipped; the demo venv -> 500 tests OK, no
 errors. This is the host-only job's environment, so the check should go green on the next push.
+
+## Release PR #14 merged to main — 2026-11-02
+
+`develop` head `7c6a775` passed `docker-demo`, `offline-examples`, `Graphify and Archify` and
+`Knowledge, links and repository health` on [PR #14](https://github.com/OualidGuennif/aeion-observability/pull/14).
+The release review (`.aeion/loop-bodies/review-14.md`) recorded `Review: OK` for that exact head
+and was posted on the pull request; the squash merge is `main` `6d76c99555fef3f90ce951b4bd516083c921d2e3`.
+`origin/main` was merged back into `develop` as `2f04111` with no conflict, and
+`git diff origin/main..HEAD` is empty: the two branches carry the same tree. The PR body and
+the review name what is not in this release: OpenShell reaper lease reconciliation,
+repository/spec ownership separation, and browser acceptance with the owner's session.
