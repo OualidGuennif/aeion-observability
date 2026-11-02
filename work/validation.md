@@ -680,3 +680,28 @@ request or a production deployment. The target's `QuarkusTestDatabase` remains i
 candidate test scope; a change to it would appear in the reviewed diff, and the deterministic
 reviewer runs before the check. Moving the pin to a new base and one paid live run still need
 the owner's decision.
+
+## Product repo, two daily purses and local Docker — 2026-11-02
+
+The runnable forum now has one canonical source, the separate
+`OualidGuennif/aeion-autonomous-forum` checkout. The factory target was repointed, and the
+local publish path was exercised without a paid model, a registry push or a VPS.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| Product source is canonical | `demo/.local/factory/agents/aeion-autonomous-forum` at `37417ab`; commits `1224d03` (feature-013 filter) and `4e27f73` (Docker) | clean `develop`, local commits only, remote not pushed |
+| The target clones the product repo | `demo/forum/targets/forum-app-013.json`: `target_repo = OualidGuennif/aeion-autonomous-forum`, base `37417ab` | `test_forum_target_profile.py` 5/5 pass |
+| The offline build still passes from the product repo | qualification build `311a5ac3f4d74e1f8e7a3b2603d0b7b4`, attempt `95312667492045808ac9aa83baa79b5b`, artifact `6b78a27a…41b1`, base `37417ab` | Gradle return 0 in 28,292 ms; trace `94563192e3b5a34ecc6d8c421c3c173e`; Langfuse read-back PASS |
+| Requalified after the product commits | build `b14c4283c3b14cce8684fdb94216f1e2`, base `37417ab` | gate passed, Gradle return 0 in 50,097 ms; same artifact digest |
+| Feature 013 is in the product | offline qualification build `4e40fcff…` produced `SecurityHeadersFilter.java`; product test with the external contract | `gradle test` return 0 in 37 s, including `SecurityHeadersContractTest` |
+| Two independent $15.00 purses | `demo/factory/budget.py`; `test_factory_budget.py` | reserve before, settle after; open reservations count; corrupt ledger fails closed; one scope cannot borrow from the other |
+| Worker refusal is real | `test_factory_target_dispatch.py::test_an_exhausted_purse_holds_before_a_session_or_builder` | `HELD` / `budget_unavailable`; no session, builder or work directory |
+| Cockpit refusal is real | `test_triage.py::test_a_live_run_without_a_purse_fails_closed` (venv) | `failed` / `BUDGET_STOP`; no ledger entry |
+| Full demo suite stays green | `demo/.local/venv/bin/python -m unittest discover -s demo/tests -v` | 412 tests, OK, 0 skipped |
+| Docker image runs non-root | `aeion-autonomous-forum:local`, UID/GID `10001`, `eclipse-temurin:25-jre` | healthy on `127.0.0.1:8081` |
+| Health and headers | `docker compose -f demo/forum-app/compose.yaml up --build -d`; `curl /healthz` and `/api/threads/not-a-number` | `{"status":"ok","release":"local-docker",…}`; 404; CSP `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`, `nosniff`, `no-referrer`, HSTS on both; report-only absent |
+| No remote or paid action | fake builder and fake forge; no `docker push`, no provider call, no VPS command | confirmed; the image is local-only |
+
+Honest scope: the feature-013 Java bytes come from the injected offline builder, not a paid model
+run. The protected Gradle check is real and passed, but model quality and a real PR remain
+unproven. The container is published only to loopback on this PC.

@@ -2,17 +2,25 @@
 
 ## Unreleased
 
-- Pin and build one forum feature end to end, offline. `demo/forum/targets/forum-app-013.json`
-  names feature 013, the exact base commit `753ba3e`, the Quarkus main/test write scopes, an
-  adapted brief and a protected Gradle check whose contract test lives outside the candidate
-  tree. `DispatchWorker` clones the base, runs an injected builder, validates the artifact and
-  runs the real `gradle test` suite; a missing base holds as `base_unavailable`, and a builder
-  or check failure never reaches the publisher. Receipts carry `build_id`, `feature_id`,
-  `attempt_id` and `artifact_digest`; one metadata-only `factory.build` span reaches Langfuse
-  through the Collector, and the cockpit shows the ids and links the trace. The qualification
-  script proved it with an injected fake model and fake forge: feature 013 passed the protected
-  check (27.6 s) and all four identifiers plus the trace came back from Langfuse. No paid
-  inference, publication or deployment ran.
+- Move the runnable forum to the separate
+  [`aeion-autonomous-forum`](https://github.com/OualidGuennif/aeion-autonomous-forum) checkout as
+  the canonical product source, because autonomous workers only hold a GitHub key there.
+  `demo/forum/targets/forum-app-013.json` now names that repository, its import commit
+  `37417ab`, the Quarkus main/test scopes, an adapted brief and an external protected Gradle
+  check; `DispatchWorker` clones the product checkout, and the qualification passed from it
+  (build `311a5ac3…`, 28.3 s, trace `94563192…`, Langfuse readback PASS). The product repo also
+  carries commit `1224d03`, which publishes the offline-qualified feature-013 header filter, and
+  `4e27f73`, the local Docker packaging. The container was verified healthy on
+  `127.0.0.1:8081`, with CSP, `nosniff`, `no-referrer` and HSTS on `/healthz` and on a 404, and
+  no report-only header. No paid inference, registry push, VPS deployment or remote publication
+  ran. The main repository's `demo/forum-app/` is now a reading mirror.
+- Enforce two independent daily purses of **$15.00**: `aeion-observability` for the cockpit and
+  `aeion-autonomous-forum` for the factory workers. `demo/factory/budget.py` journals a
+  reservation before any live work and settles the actual cost after it; an open reservation
+  counts against the day, a corrupt ledger fails closed, one purse cannot borrow from the other,
+  the cockpit stops a live run with `BUDGET_STOP` and a worker holds `budget_unavailable`.
+  `FactoryApp` and the cockpit `Runner` share one journal and pass their own scope. No paid
+  inference was authorised or run.
 - Remove the obsolete Deno/Hono demo: `demo/playground/` and its Compose service, cockpit
   integration dot, hero link, `Runner.probe` and the Deno-span read-back are gone; `/factory`
   is the operator entry and the forum is the only product demonstration. The cockpit links the

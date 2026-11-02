@@ -6,9 +6,11 @@ host**; the agent harness is **Flue 2.3.0 on Pi 1.4.0** in [three execution tier
 triage in an emulated in-memory shell, a guided local assistant with folder-confined file tools,
 and autonomous coding whose every tool call runs inside **NVIDIA OpenShell 0.1.5**. Generated
 code from both coding tiers is checked in OpenShell. The product under test is the **Agora
-forum** (`demo/forum-app/`, Quarkus/Java); the old Deno/Hono playground is gone. The interface
-uses Æion's ivory, forest-green and copper palette, locally bundled fonts and a native GPT Image
-illustration.
+forum** (Quarkus/Java); the old Deno/Hono playground is gone. The canonical product source is the
+separate `aeion-autonomous-forum` checkout at
+`demo/.local/factory/agents/aeion-autonomous-forum`; `demo/forum-app/` is a reading mirror. The
+interface uses Æion's ivory, forest-green and copper palette, locally bundled fonts and a native
+GPT Image illustration.
 
 ## Agora factory planning
 
@@ -29,6 +31,12 @@ through Expo SDK 58: it typechecks, bundles for iOS (619 modules) and its API cl
 renders in a browser through `react-native-web` (`npx expo start --port 8082` →
 `http://127.0.0.1:8082`), which is how the forum is shown without a phone. A real Kafka broker
 (`apache/kafka-native` in Docker) carried the event drill.
+
+For a **local-only** container, the product repository now carries a multi-stage Dockerfile and
+Compose service (`demo/forum-app/DOCKER.md` in that checkout). It publishes only
+`127.0.0.1:8081`, stores SQLite in a named volume and refuses to start without an ephemeral
+`AGORA_SESSION_SECRET`; health and feature-013 security headers are verified on a success and a
+404. The image is never pushed; a VPS or any remote publication remains a separate owner decision.
 
 ## Start and show
 
@@ -199,6 +207,28 @@ rates (DeepSeek at its peak rate) and are not invoices. Go quota and Extra Usage
 provider-account settings; the demo does not change them. Missing native usage/cost remains
 unresolved, never a zero-cost winner. Failed attempts count. Infrastructure and memory CPU costs
 are not included in the model estimate. The four small contracts support exploratory comparisons only.
+
+### Two independent daily purses ($15.00 each)
+
+`demo/factory/budget.py` keeps one append-only JSONL journal with two scopes. The cockpit's live
+runs spend from `aeion-observability`; the forum workers spend from `aeion-autonomous-forum`.
+Each scope is capped at **$15.00 per local day** and one scope can never borrow from the other.
+A run journals a reservation before it can call a model, then settles the actual cost; an open
+reservation counts against the day, so two runs cannot spend the same last dollar. A missing,
+corrupt or unreadable journal fails closed. The cockpit stops a live run with `BUDGET_STOP` and
+the factory holds a build with `budget_unavailable` before opening a session or builder.
+
+The default journal is `demo/.local/budget/ledger.jsonl` (mode `0600`); `AEION_BUDGET_LEDGER`
+overrides it. Inspect the current day without spending:
+
+```bash
+python3 -m demo.factory.budget --ledger demo/.local/budget/ledger.jsonl
+```
+
+Only scope, day, USD amount, an opaque reservation id and a bounded note are stored: no prompt,
+source, credential or provider response. The $15.00 limits are an owner decision; this ledger
+does not grant permission for paid inference, and no paid call may run without a new explicit
+owner approval.
 
 ## Markdown before reset: 230k → 250k → 300k
 
