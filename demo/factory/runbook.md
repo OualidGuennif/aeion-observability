@@ -250,10 +250,12 @@ demo/.local/venv/bin/python demo/tests/qualify_forum_build.py
 demo/.local/venv/bin/python demo/tests/qualify_forum_build.py --no-telemetry
 ```
 
-It clones `753ba3e`, runs an injected fake-model builder (no inference, no cost), validates the
-artifact, runs the real `gradle test --offline` suite with the external contract copied in, takes
-two fake review votes, records the fake-forge PR shape and emits one metadata-only
-`factory.build` span. The script then reads the trace back from Langfuse and fails if the build,
-feature, attempt, artifact or session identity differs. The build appears on `/factory`; its
-receipt shows the four ids and links the trace. This is an offline qualification: it does not
-authorise a paid model run, a real pull request or a deployment.
+It clones the product repository at `37417ab` (`demo/.local/factory/agents/aeion-autonomous-forum`),
+runs an injected fake-model builder (no inference, no cost), validates the artifact, runs the real
+`gradle test --offline` suite with the external contract copied in, takes two fake review votes,
+records the fake-forge PR shape and emits one metadata-only `factory.build` span. The script then
+reads the trace back from Langfuse and fails if the build, feature, attempt, artifact or session
+identity differs. The build appears on `/factory`; its receipt shows the four ids and links the
+trace. This is an offline qualification: it does not authorise a paid model run, a real pull
+request or a deployment. The local Docker image is documented in the product repository at
+`demo/forum-app/DOCKER.md`.

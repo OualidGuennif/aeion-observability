@@ -2,7 +2,10 @@
 
 The 100-feature manifest remains the canonical plan and still points at the planned
 `demo/forum/product/` tree. A target profile binds **one** catalog feature to the runnable
-forum in `demo/forum-app/` without rewriting the other 99 specs.
+forum without rewriting the other 99 specs. The product source is the separate
+[`aeion-autonomous-forum`](https://github.com/OualidGuennif/aeion-autonomous-forum) checkout at
+`demo/.local/factory/agents/aeion-autonomous-forum`; the files under `demo/forum-app/` are a
+reading mirror, not the build source.
 
 `forum-app-013.json` is the first profile:
 
@@ -14,9 +17,12 @@ forum in `demo/forum-app/` without rewriting the other 99 specs.
 | `brief` | the adapted feature brief the worker freezes and copies next to the clone |
 | `protected_check` | the command, toolchain home, external contract test and timeout |
 
-The base is `753ba3e`, the commit before the adapter itself. The worker clones that commit
-into `demo/.local/factory/work/<build_id>/repo`, verifies `HEAD` and a clean tree, and never
-edits the controller checkout.
+The base is `37417ab`, the product repository's import commit, before the offline-qualified
+feature-013 filter was applied locally (`1224d03`). The worker clones that commit from the
+product checkout into `demo/.local/factory/work/<build_id>/repo`, verifies `HEAD` and a clean
+tree, and never edits the controller checkout. The pin deliberately stays at the pre-feature
+base so the profile keeps proving that a build can produce feature 013; it is not the product's
+current `HEAD`.
 
 ## What the check proves
 

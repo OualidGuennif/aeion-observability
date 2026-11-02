@@ -2,10 +2,10 @@
   "schema_version": 1,
   "id": "forum-app-013",
   "feature_id": "013",
-  "target_repo": "OualidGuennif/aeion-observability",
+  "target_repo": "OualidGuennif/aeion-autonomous-forum",
   "base": {
-    "source": ".",
-    "sha": "753ba3ed239560f2854921efb10530916dcc57ab"
+    "source": "demo/.local/factory/agents/aeion-autonomous-forum",
+    "sha": "37417ab16d192a91f9c5c87a30febea2488a40b9"
   },
   "allowed_scope_prefix": "demo/forum-app/src/",
   "write_paths": [

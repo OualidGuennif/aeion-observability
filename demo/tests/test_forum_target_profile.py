@@ -15,23 +15,25 @@ PROFILE = REPO / "demo/forum/targets/forum-app-013.json"
 class ForumTargetProfileTests(unittest.TestCase):
     def setUp(self):
         self.target = load_target(PROFILE, REPO)
+        self.product = self.target.base_source
         self.catalog = load_manifest(REPO / "demo/forum/features/MANIFEST.json")
 
-    def test_it_names_catalog_feature_013(self):
+    def test_it_names_catalog_feature_013_and_the_autonomous_product_repo(self):
         self.assertEqual(self.target.feature_id, "013")
+        self.assertEqual(self.target.target_repo, "OualidGuennif/aeion-autonomous-forum")
         self.assertEqual(self.catalog.by_id["013"]["title"], "Security headers and CSP")
 
     def test_the_base_is_an_ancestor_with_the_runnable_app(self):
         ancestor = subprocess.run(
-            ["git", "-C", str(REPO), "merge-base", "--is-ancestor", self.target.base_sha, "HEAD"],
-            capture_output=True, text=True)
+            ["git", "-C", str(self.product), "merge-base", "--is-ancestor",
+             self.target.base_sha, "HEAD"], capture_output=True, text=True)
         self.assertEqual(ancestor.returncode, 0)
         for path in ("demo/forum-app/build.gradle",
                      "demo/forum-app/src/main/java/local/aeion/forum/ForumHealth.java",
                      "demo/forum-app/src/test/java/local/aeion/forum/QuarkusTestDatabase.java"):
             shown = subprocess.run(
-                ["git", "-C", str(REPO), "cat-file", "-e", f"{self.target.base_sha}:{path}"],
-                capture_output=True, text=True)
+                ["git", "-C", str(self.product), "cat-file", "-e",
+                 f"{self.target.base_sha}:{path}"], capture_output=True, text=True)
             self.assertEqual(shown.returncode, 0, path)
 
     def test_the_scopes_are_the_quarkus_source_and_test_trees(self):
@@ -44,9 +46,9 @@ class ForumTargetProfileTests(unittest.TestCase):
     def test_the_contract_is_outside_the_scopes_and_untracked_at_the_base(self):
         for scope in self.target.write_paths:
             self.assertFalse(self.target.protected_check.contract_test.is_relative_to(
-                REPO / scope))
+                self.product / scope))
         shown = subprocess.run(
-            ["git", "-C", str(REPO), "cat-file", "-e",
+            ["git", "-C", str(self.product), "cat-file", "-e",
              f"{self.target.base_sha}:{self.target.protected_check.contract_destination}"],
             capture_output=True, text=True)
         self.assertNotEqual(shown.returncode, 0)
