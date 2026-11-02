@@ -7,13 +7,6 @@
 - Blocker: none; the brief itself withholds spend and publication until a later owner authorization.
 - Evidence: the brief path above; [publication](validation.md#publication-to-main-through-pr-11--2026-11-02); [first slice](validation.md#review-coverage-trace-delivery-and-the-budget-day--2026-11-02).
 
-## Æion Factory v1.9.2 update for observability and forum — ACTIVE
-- Owner decision: 2026-11-02, update both adopted projects to Factory v1.9.2 through `template-update`; this repository and `demo/.local/factory/agents/aeion-autonomous-forum`.
-- State: the factory source is clean at v1.9.2; both projects reference v1.9.1. No update file has been written yet.
-- Next: run `--check` on both projects, show the merge list, copy contract files, merge by hand, verify with `adapter-check --ref v1.9.2` plus tests, then commit locally (who: agent).
-- Blocker: none; queued behind the lifecycle brief. No push or remote action is approved.
-- Evidence: `work/handovers/dsh-bf34ca833083aa10e9a11af5fa4bc89c4bae6eb9.md`; factory tag `v1.9.2`; factory `CHANGELOG.md` section 1.9.2.
-
 ## Agora forum, and the factory that builds it
 - Owner decision: the AI builds the ecosystem around the product — a front where the 100 Markdown features are selected and launched, one or ten at a time — and never writes the forum by hand; agents build the forum from those specs. Requested in chat, 2026-11-01.
 - State: the product runs. `demo/forum-app/` is a Quarkus 3.40.1 / **Java 25.0.4** service built with Gradle, Hibernate over a SQLite file owned by `demo/forum-db/` (WAL, `VACUUM INTO` snapshots, restore drill, one-writer lease), 47 JUnit tests: features 001-003, accounts and sessions, threads with a transactional outbox, a real Kafka producer/consumer, and CSRF tokens on every mutation. `demo/forum-mobile/` is the front on React Native 0.88.1 / Expo 58: it typechecks, bundles, and its client passes a 12-step smoke test. No simulator run.

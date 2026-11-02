@@ -779,3 +779,17 @@ did run its real Gradle check and a bounded Langfuse read-back: the exporter sti
 `exported_unconfirmed`, and the separate read-back supplied the confirmation. The cockpit does not
 yet show that confirmation; the next slice wires it. The check environment still executes
 candidate Gradle tests on the host (B6), so Live stays held.
+
+## Factory v1.9.2 applied to both projects — 2026-11-02
+
+The factory checkout was clean at v1.9.2 (`4417c68`). Both adopted projects moved from v1.9.1
+with the factory's own `template-update` (the vendored 1.9.1 copy cannot update itself).
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| Only one contract file drifted | `template-update --from-ref v1.9.1 --ref v1.9.2 --root <project> --check` on both | `.pi/extensions/factory/index.js`, nothing else |
+| Both write only that file | same command without `--check` | `written .pi/extensions/factory/index.js`; VERSION, knowledge/, work/, CHANGELOG.md, AGENTS.md and the other harness settings untouched |
+| Connectors match the release | `adapter-check --ref v1.9.2` on both roots | 27/27 matching, 0 drifted, PASS on each |
+| The 1.9.2 behavior is the new one | diff: the `tool_result` compaction block is gone; `Stop` now receives `observed_tokens` at `agent_before_settle`; a one-shot print run ends with a pointer to the verified handover | matches the factory 1.9.2 changelog |
+| The application version is separate | root `VERSION` still `1.9.0`; adopted contracts are v1.9.2 | not overwritten, as the brief requires |
+| Forum change is local | `ab72692` in `demo/.local/factory/agents/aeion-autonomous-forum` | committed, not pushed |

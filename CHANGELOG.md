@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Update this project and the canonical forum checkout to Æion Factory **v1.9.2** with the
+  factory's `template-update`: one contract file changed in each
+  (`.pi/extensions/factory/index.js`), and `adapter-check --ref v1.9.2` reports 27/27 connectors
+  matching on both. The 250k decision now happens at settlement with a live context measure
+  instead of starting a compaction from a tool result, and a one-shot print run ends by pointing
+  at the verified handover. The application `VERSION` stays `1.9.0`; the forum change is local
+  commit `ab72692`, not pushed.
+
 - Refuse an incomplete review instead of approving an excerpt. `review_circuit.py` now builds the
   complete changed bytes into one bounded envelope; an oversized input holds with
   `review_input_too_large` before any model is called, an unknown author holds with
