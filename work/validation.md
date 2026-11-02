@@ -734,3 +734,19 @@ The safety window is one hour: a normal agent is bounded to 360 seconds × at mo
 and the harness qualification is shorter, so only abandoned pairs are eligible. The reaper is
 host-side and never runs inside an agent sandbox; it only removes containers carrying OpenShell's
 `managed-by` and `sandbox-namespace=aeion-observability` labels.
+
+## Publication to main through PR #11 — 2026-11-02
+
+The reviewed `develop` head was released to protected `main` through
+[PR #11](https://github.com/OualidGuennif/aeion-observability/pull/11), never a direct push.
+`main` requires linear history, so the release was a squash.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| Released head is exactly the reviewed one | PR #11 `headRefOid` `0afe95bde6dc1ec4f15175d17128a0ba0b452f1d`; `.aeion/reviews/0afe95b….md` | `Review: OK`, also posted as a commit comment |
+| Every check is green on that head | runs 41434142607 (`docker-demo`, `offline-examples`, knowledge health) and 41434142552 (`Graphify and Archify`) | all four `pass`; the `review` workflow skipped because it is not armed for this PR |
+| The PR was mergeable | `gh pr view 11`: `mergeable=MERGEABLE`, `mergeStateStatus=CLEAN` | no unresolved threads, base up to date |
+| Merge is a squash, not a merge commit | `gh pr merge 11 --squash` | `main` = `3d9ae70abf78229414f3aed73fcc08f14897205e` |
+| `main` carries exactly the released tree | `git rev-parse 0afe95b^{tree} origin/main^{tree}` | both `97285ec054dcbe8ca660e3555577060a4ed6739e` |
+| `develop` does not diverge after the squash | `git merge origin/main` on `develop` | merge `fc795e3`; no content change |
+| CI reached the local-only tests at their cause | `demo/tests/test_forum_target_profile.py` `setUp` skip | five profile tests skipped when the product checkout is absent; 426 tests OK, 12 skipped locally |
