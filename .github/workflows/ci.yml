@@ -62,3 +62,4 @@ jobs:
       - run: tools/knowledge/knowledge-check
       - run: tools/knowledge/doc-links
       - run: tools/repo-health/repo-health
+      - run: python3 demo/forum/source.py --check

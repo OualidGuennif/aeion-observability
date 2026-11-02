@@ -1,0 +1,10 @@
+{
+  "repo": "https://github.com/OualidGuennif/aeion-autonomous-forum",
+  "commit": "37417ab16d192a91f9c5c87a30febea2488a40b9",
+  "paths": [
+    "demo/forum-app",
+    "demo/forum-db",
+    "demo/forum-mobile"
+  ],
+  "note": "Read-only snapshot of the product repository at the pinned base commit. Edit the product repository, then run demo/forum/source.py --refresh; never hand-edit these files here."
+}

@@ -130,8 +130,10 @@ sandbox_pids_limit = 192
         if process.poll() is not None:raise SystemExit('OpenShell gateway failed; inspect its private local log')
     active.write_text(configuration_hash)
     # A killed qualification or a gateway restart can leave supervisor/sandbox pairs running with
-    # nothing tracking them. Reap only OpenShell-labeled containers older than the safety window;
-    # the real sandbox lifetime is bounded by the 360-second agent deadline and three agents.
+    # nothing tracking them. Reap only OpenShell-labeled containers older than the safety window,
+    # and only while no factory build lease is active: a live build's sandbox may legitimately
+    # outlive the window. The real sandbox lifetime is bounded by the 360-second agent deadline
+    # and three agents.
     try:
         removed=reap(older_than=3600,execute=True)
         if removed:print(f"Reaped {len(removed)} stale OpenShell container(s).")

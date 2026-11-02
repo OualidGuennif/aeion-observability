@@ -983,3 +983,75 @@ host without the OpenTelemetry SDK instead of failing the run after the verdict.
 `python3 -m unittest discover -s demo/tests` on the bare system interpreter (no jinja2, no
 tokenizers, no opentelemetry) -> 500 tests OK, 12 skipped; the demo venv -> 500 tests OK, no
 errors. This is the host-only job's environment, so the check should go green on the next push.
+
+## Release PR #14 merged to main — 2026-11-02
+
+`develop` head `7c6a775` passed `docker-demo`, `offline-examples`, `Graphify and Archify` and
+`Knowledge, links and repository health` on [PR #14](https://github.com/OualidGuennif/aeion-observability/pull/14).
+The release review (`.aeion/loop-bodies/review-14.md`) recorded `Review: OK` for that exact head
+and was posted on the pull request; the squash merge is `main` `6d76c99555fef3f90ce951b4bd516083c921d2e3`.
+`origin/main` was merged back into `develop` as `2f04111` with no conflict, and
+`git diff origin/main..HEAD` is empty: the two branches carry the same tree. The PR body and
+the review name what is not in this release: OpenShell reaper lease reconciliation,
+repository/spec ownership separation, and browser acceptance with the owner's session.
+
+## The OpenShell reaper waits for confirmed absent leases — 2026-11-02
+
+The reaper selected orphan candidates from the two OpenShell labels and the age window alone. A
+live build's sandbox can legitimately outlive that window, so a bootstrap sweep could remove a
+running sandbox; and a store that could not be read was indistinguishable from "nothing runs".
+`demo/openshell/reap.py` now reads the factory store (`demo/.local/factory/factory.db`, read-only
+SQLite URI) and holds the sweep while any dispatched build lease is still live, or while the store
+exists but cannot be queried. Four states decide it: `absent` (the factory never initialized, so no
+build can hold a lease, and the sweep proceeds), `idle` (no dispatched lease, sweep proceeds),
+`active` and `unknown` (blocked with `build_lease_active` / `build_lease_unknown`). Containers are
+listed before the lease is read, so a lease claimed in between is seen by the gate, while a sandbox
+started after the listing cannot be in the removal set; removal runs only after that read.
+`--execute` exits 1 when the gate held, and the bootstrap prints only what it removed. The store
+path follows the file location (the demo tree), so the automatic bootstrap sweep keeps working,
+and `--store` names a different state directory.
+
+Evidence: `demo/tests/test_openshell_reap.py` (9 tests) covers the four lease states, the boundary
+where `lease_until_ns == now` is expired, a held execute with zero `docker rm`, an unreadable
+store and a directory in place of the store refusing execute, an absent store proceeding, and the
+untouched dry-run/staleness behaviour. Full demo suite in the demo venv: 504 tests OK.
+`python3 demo/openshell/reap.py --older-than 3600` against the real store reports
+`leases.state: idle`, zero candidates, exit 0.
+
+An independent model review of the exact code diff (`glm-5.3-flash`, a different family) returned
+`OK` with no findings. Re-reading before committing still found one fail-open path: `Path.is_file()`
+returns false on a stat error, so a store present but not stat-able would have been reported
+`absent` and the sweep would have proceeded. Presence now uses `stat()`: `FileNotFoundError` is
+absent, any other `OSError` is unknown. That is the difference between "the factory never ran" and
+"I cannot read the lease store", and the directory regression above pins it.
+
+Limit, stated rather than hidden: the gate is global because check containers carry no attempt
+label, so one live dispatch holds the whole sweep instead of protecting only its own sandbox. That
+is fail-closed for cleanup; per-container reconciliation needs the attempt identity on the
+container, which the isolation runner does not pass yet.
+
+## The product snapshot has one owner and a drift check — 2026-11-02
+
+`demo/forum-app`, `demo/forum-db` and `demo/forum-mobile` are the input of the factory's baseline
+hash, the feature-013 target and the Compose packaging, but the canonical source is the separate
+`aeion-autonomous-forum` repository. The 53 tracked files were byte-identical to that repository's
+`37417ab` (`git show 37417ab:<path>` compared to the working tree for every file), yet nothing
+stopped a hand edit from silently becoming this repository's product.
+
+They are now declared as a read-only snapshot: `demo/forum/source.json` pins the repository and
+commit, `demo/forum/source.lock.json` records a SHA-256 per file, and `demo/forum/source.py` is the
+contract. `--check` (the default, and a step of the knowledge CI job) compares the tracked working
+tree to the lock and fails on a missing, changed or extra tracked file; it needs only this
+checkout. `--refresh --product <checkout>` re-copies the pinned commit after refusing a dirty
+snapshot, and reads blobs with `git ls-tree`/`git cat-file` rather than `git archive` because the
+product repository marks `/demo` `export-ignore` (an archive-based copy silently produced no
+files). The product checkout may be ahead: refresh reads the pinned commit object, never a
+checkout or branch, and never pushes.
+
+Evidence: `demo/tests/test_forum_source.py` (7 tests) covers the repository snapshot matching its
+lock, a hand edit, an extra tracked file, refresh restoring the pinned bytes while dropping a stale
+file, a dirty snapshot refused (`mirror_dirty`), a product checkout without the pinned commit
+(`product_commit_missing`), and a symlink in the product snapshot refused
+(`product_entry_not_a_file`). `python3 demo/forum/source.py --check` reports `ok: true`, 53 files.
+Full demo suite: 511 tests OK. The five local product commits (`ab72692` head) are untouched and
+unpushed; publishing them remains the owner's decision.

@@ -8,7 +8,11 @@ and autonomous coding whose every tool call runs inside **NVIDIA OpenShell 0.1.5
 code from both coding tiers is checked in OpenShell. The product under test is the **Agora
 forum** (Quarkus/Java); the old Deno/Hono playground is gone. The canonical product source is the
 separate `aeion-autonomous-forum` checkout at
-`demo/.local/factory/agents/aeion-autonomous-forum`; `demo/forum-app/` is a reading mirror. The
+`demo/.local/factory/agents/aeion-autonomous-forum`; `demo/forum-app/` is a read-only snapshot of
+that repository at the commit pinned in `demo/forum/source.json`, with every file digest in
+`demo/forum/source.lock.json`. `python3 demo/forum/source.py --check` refuses a hand edit or an
+extra tracked file, and `--refresh --product <checkout>` re-copies the pinned commit; product
+changes belong in the product repository. The
 interface uses Æion's ivory, forest-green and copper palette, locally bundled fonts and a native
 GPT Image illustration.
 
@@ -302,8 +306,12 @@ it. Rerun bootstrap and harness qualification after changes/expiry. Cleanup fail
 `demo/.local/data/sandbox.blocked`; verify owned sandbox deletion and requalify before clearing it.
 A killed qualification or a gateway restart can leave an OpenShell supervisor/sandbox pair running
 with nothing tracking it. `demo/openshell/reap.py --older-than 3600` is a dry run of the cleanup;
-add `--execute` to remove only containers carrying both OpenShell labels after that safety window.
-Bootstrap also runs that sweep automatically, so a stale pair cannot survive the next install.
+add `--execute` to remove only containers carrying both OpenShell labels after that safety window,
+and only while no factory build lease is active: the reaper reads `demo/.local/factory/factory.db`
+read-only and holds the sweep when a dispatched lease is still live or when the store cannot be
+read, because a long build's sandbox may outlive the window and an unreadable store is not proof
+that nothing runs. Bootstrap also runs that sweep automatically, so a stale pair cannot survive
+the next install.
 The gateway, Docker daemon and supervisor are trusted. OpenShell's local container driver is not
 a microVM boundary or a production hostile-code qualification. After acceptance, the supervisor
 keeps the checked artifact under `demo/.local/work/published/` as evidence; nothing serves it as
