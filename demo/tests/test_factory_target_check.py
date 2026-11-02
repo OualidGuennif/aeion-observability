@@ -81,6 +81,17 @@ class TargetCheckTests(unittest.TestCase):
         self.assertFalse(passed)
         self.assertEqual(detail["reason"], "repository_missing")
 
+    def test_an_absent_or_relative_repository_is_refused_before_any_effect(self):
+        called = []
+        for verdict in ({}, {"repo": ""}, {"repo": "relative/repo"}):
+            passed, detail = target_check(
+                self.target, runner=lambda *args, **kwargs: called.append(args))(
+                    object(), verdict)
+            self.assertFalse(passed)
+            self.assertEqual(detail["reason"], "repository_missing")
+        self.assertEqual(called, [])
+        self.assertFalse((self.root / "demo").exists())
+
     def test_a_preexisting_destination_is_restored(self):
         self.destination.parent.mkdir(parents=True)
         self.destination.write_text("// candidate copy\n")

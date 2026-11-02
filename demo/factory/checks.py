@@ -79,8 +79,12 @@ def target_check(target, runner=None):
     runner = runner or subprocess.run
 
     def check(frozen, artifact_verdict):
-        repo = Path(artifact_verdict.get("repo") or "")
-        if not repo.is_dir():
+        # An absent or relative path must never resolve to the controller's own directory.
+        raw_repo = artifact_verdict.get("repo")
+        if not isinstance(raw_repo, str) or not raw_repo:
+            return False, {"reason": "repository_missing"}
+        repo = Path(raw_repo)
+        if not repo.is_absolute() or not repo.is_dir():
             return False, {"reason": "repository_missing"}
         spec = target.protected_check
         destination = repo / spec.contract_destination
