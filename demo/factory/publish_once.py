@@ -7,17 +7,43 @@ turn that request into a branch and a pull request.
 import argparse
 import json
 import sys
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from factory.api import S2_CONFIG
+from factory.budget import DailyBudget
 from factory.dispatch import DispatchWorker
 from factory.keys import assert_worker_isolated
 from factory.manifest import load_manifest
 from factory.store import Store
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def positive_reservation(value):
+    """A paid worker may not reserve zero; the purse would never see the review spend."""
+    try:
+        amount = Decimal(str(value))
+    except (InvalidOperation, ValueError):
+        raise ValueError("invalid_cost_reservation") from None
+    if not amount.is_finite() or amount <= 0:
+        raise ValueError("invalid_cost_reservation")
+    return format(amount, "f")
+
+
+def build_worker(store, catalog, spec_dir, state, target_repo, author_model,
+                 review_complete, cost_reservation_usd):
+    """Wire the paid publish worker to its own forum purse before it can reach a model."""
+    config = {**S2_CONFIG, "cost_reservation_usd": cost_reservation_usd}
+    return DispatchWorker(
+        store, catalog, Path(spec_dir), Path(state) / "work", config,
+        target_repo=target_repo, defer_to=Path(state),
+        review_complete=review_complete, author_model=author_model,
+        budget=DailyBudget(Path(state) / "budget" / "ledger.jsonl"),
+        budget_scope="aeion-autonomous-forum",
+    )
 
 
 def main(argv=None):
@@ -29,7 +55,13 @@ def main(argv=None):
     parser.add_argument("--manifest", default=str(ROOT / "demo/forum/features/MANIFEST.json"))
     parser.add_argument("--specs", default=str(ROOT / "demo/forum/features"))
     parser.add_argument("--author-model", default="deepseek-4.1-flash")
+    parser.add_argument("--cost-reservation-usd", default="0.10",
+                        help="positive per-build reservation charged to aeion-autonomous-forum")
     args = parser.parse_args(argv)
+    try:
+        reservation = positive_reservation(args.cost_reservation_usd)
+    except ValueError:
+        parser.error("--cost-reservation-usd must be a positive finite amount")
 
     # A worker must not hold the credential that can publish or merge.
     try:
@@ -43,9 +75,8 @@ def main(argv=None):
     catalog = load_manifest(Path(args.manifest))
     state = Path(args.state)
     store = Store(state / "factory.db")
-    worker = DispatchWorker(store, catalog, Path(args.specs), state / "work", S2_CONFIG,
-                            target_repo=args.repo, defer_to=state,
-                            review_complete=open_code_complete, author_model=args.author_model)
+    worker = build_worker(store, catalog, Path(args.specs), state, args.repo,
+                          args.author_model, open_code_complete, reservation)
     out = {"repo": args.repo, "base": args.base, "feature": args.feature, "mode": "deferred",
            "author_model": args.author_model}
     admission = store.admit([args.feature], f"defer-{args.feature}-{args.base}", catalog)

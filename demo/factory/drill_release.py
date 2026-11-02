@@ -22,6 +22,7 @@ sys.path.insert(0, str(DEMO))
 from deploy.cache import connect  # noqa: E402
 from deploy.playground import Playground  # noqa: E402
 from factory import canary, release  # noqa: E402
+from factory.budget import DailyBudget  # noqa: E402
 from factory.dispatch import DispatchWorker  # noqa: E402
 from factory.manifest import Catalog  # noqa: E402
 from factory.releases import ReleaseService  # noqa: E402
@@ -70,7 +71,9 @@ def main(argv=None):
 
     worker = DispatchWorker(store, catalog, manifest.parent, state_dir / "work", config=CONFIG,
                             defer_to=state_dir, review_complete=deterministic_answer,
-                            require_circuit=True)
+                            require_circuit=True,
+                            budget=DailyBudget(state_dir / "budget" / "ledger.jsonl"),
+                            budget_scope="aeion-autonomous-forum")
     for feature_id in args.features:
         store.admit([feature_id], f"drill-{feature_id}", catalog, actor="operator")
         worker.run_once()

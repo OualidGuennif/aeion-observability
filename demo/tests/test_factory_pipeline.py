@@ -42,7 +42,7 @@ class PipelineTests(unittest.TestCase):
         return DispatchWorker(self.store, self.cat, self.specs, self.state / "work", config(),
                               target_repo="o/r", defer_to=self.state if defer else None,
                               review_complete=complete, require_circuit=require_circuit,
-                              author_model="deepseek-4.1-flash")
+                              author_model="deepseek-4.1-flash", allow_unbudgeted=True)
 
     def test_worker_queues_instead_of_publishing(self):
         self.store.admit(["001"], "k1", self.cat)

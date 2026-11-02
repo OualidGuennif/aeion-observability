@@ -96,7 +96,7 @@ class TargetDispatchTests(unittest.TestCase):
         self.store = Store(self.root / "factory.db")
 
     def worker(self, builder, target=None, checks_command=None, require_circuit=True,
-               budget=None):
+               budget=None, allow_unbudgeted=None):
         target = target or self.target
         if checks_command is not None:
             target = dataclasses.replace(
@@ -109,6 +109,7 @@ class TargetDispatchTests(unittest.TestCase):
             target=target, builder=builder, forge=FakeForge(),
             review_complete=approve, require_circuit=require_circuit,
             author_model="deepseek-4.1-flash", budget=budget,
+            allow_unbudgeted=budget is None if allow_unbudgeted is None else allow_unbudgeted,
         )
 
     def builder(self, repo, frozen, feature, brief):
@@ -192,6 +193,16 @@ class TargetDispatchTests(unittest.TestCase):
                    (self.root / "ledger.jsonl").read_text().splitlines()]
         self.assertEqual([entry["kind"] for entry in entries], ["reserve", "settle"])
         self.assertEqual({entry["scope"] for entry in entries}, {"aeion-autonomous-forum"})
+
+    def test_a_worker_without_a_purse_holds_before_any_work(self):
+        self.store.admit(["013"], "k6a", self.catalog)
+        worker = self.worker(self.builder, allow_unbudgeted=False)
+        result = worker.run_once()
+        build = self.store.board()[0]
+        self.assertEqual(result["result"], {"status": "held", "reason": "budget_unavailable"})
+        self.assertEqual(build["status"], HELD)
+        self.assertEqual(build["hold_reason"], "budget_unavailable")
+        self.assertFalse((self.root / "work").exists())
 
     def test_an_exhausted_purse_holds_before_a_session_or_builder(self):
         budget = DailyBudget(

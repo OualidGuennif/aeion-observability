@@ -45,7 +45,8 @@ class S3GateTests(unittest.TestCase):
                             "features": [feat("001", write)]})
         self.store = Store(self.root / f"factory-{id(self)}.db")
         return DispatchWorker(self.store, self.cat, self.spec_dir, self.root / "work",
-                              config(), checks=checks, required_checks=required, forge=forge)
+                              config(), checks=checks, required_checks=required, forge=forge,
+                              allow_unbudgeted=True)
 
     def test_happy_path_records_gate_and_publisher_evidence(self):
         worker = self._worker()

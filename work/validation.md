@@ -696,8 +696,10 @@ local publish path was exercised without a paid model, a registry push or a VPS.
 | Feature 013 is in the product | offline qualification build `4e40fcff…` produced `SecurityHeadersFilter.java`; product test with the external contract | `gradle test` return 0 in 37 s, including `SecurityHeadersContractTest` |
 | Two independent $15.00 purses | `demo/factory/budget.py`; `test_factory_budget.py` | reserve before, settle after; open reservations count; corrupt ledger fails closed; one scope cannot borrow from the other |
 | Worker refusal is real | `test_factory_target_dispatch.py::test_an_exhausted_purse_holds_before_a_session_or_builder` | `HELD` / `budget_unavailable`; no session, builder or work directory |
+| A worker without a purse also holds | `test_factory_target_dispatch.py::test_a_worker_without_a_purse_holds_before_any_work` | `HELD` / `budget_unavailable`; no work directory |
+| The paid publish worker is pursed | `publish_once.build_worker`; `test_factory_publish_once.py` | forum purse, positive $0.10 reservation, unbudgeted path refused |
 | Cockpit refusal is real | `test_triage.py::test_a_live_run_without_a_purse_fails_closed` (venv) | `failed` / `BUDGET_STOP`; no ledger entry |
-| Full demo suite stays green | `demo/.local/venv/bin/python -m unittest discover -s demo/tests -v` | 416 tests, OK, 0 skipped |
+| Full demo suite stays green | `demo/.local/venv/bin/python -m unittest discover -s demo/tests -v` | 421 tests, OK, 0 skipped |
 | Docker image runs non-root | `aeion-autonomous-forum:local`, UID/GID `10001`, `eclipse-temurin:25-jre` | healthy on `127.0.0.1:8081` |
 | Health and headers | `docker compose -f demo/forum-app/compose.yaml up --build -d`; `curl /healthz` and `/api/threads/not-a-number` | `{"status":"ok","release":"local-docker",…}`; 404; CSP `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`, `nosniff`, `no-referrer`, HSTS on both; report-only absent |
 | No remote or paid action | fake builder and fake forge; no `docker push`, no provider call, no VPS command | confirmed; the image is local-only |

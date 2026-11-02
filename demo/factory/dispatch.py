@@ -40,7 +40,7 @@ class DispatchWorker:
                  trusted_issuer="gate", review_complete=None, author_model="deepseek-4.1-flash",
                  require_circuit=None, defer_to=None, gateway=None, agent_id=None,
                  target=None, builder=None, telemetry=None, budget=None,
-                 budget_scope="aeion-autonomous-forum"):
+                 budget_scope="aeion-autonomous-forum", allow_unbudgeted=False):
         self.store = store
         self.catalog = catalog
         self.spec_dir = Path(spec_dir)
@@ -51,6 +51,7 @@ class DispatchWorker:
         self.telemetry = telemetry
         self.budget = budget
         self.budget_scope = budget_scope
+        self.allow_unbudgeted = bool(allow_unbudgeted)
         if checks is not None:
             self.checks = checks
         else:
@@ -157,7 +158,10 @@ class DispatchWorker:
     def _reserve(self, build):
         """Journal the attempt's spending cap before any model or tool can spend."""
         if self.budget is None:
-            return None
+            if self.allow_unbudgeted:
+                return None
+            # No purse means no paid work; a fake-only caller must opt in explicitly.
+            raise BudgetError("budget_unavailable")
         return self.budget.admit(
             self.budget_scope, self._budget_estimate(),
             note=f"{build['build_id']}:{build['feature_id']}",

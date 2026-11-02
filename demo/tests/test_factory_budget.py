@@ -89,6 +89,18 @@ class BudgetTests(unittest.TestCase):
         with self.assertRaisesRegex(BudgetError, "budget_ledger_corrupt"):
             budget(self.root).spent("aeion-observability")
 
+    def test_a_line_missing_its_day_or_reservation_fails_closed(self):
+        for line in (
+            {"version": 1, "kind": "reserve", "scope": "aeion-observability",
+             "reservation": "a" * 32, "usd": "0.00"},
+            {"version": 1, "kind": "reserve", "scope": "aeion-observability",
+             "day": DAY, "usd": "0.00"},
+        ):
+            with self.subTest(line=line):
+                (self.root / "ledger.jsonl").write_text(json.dumps(line) + "\n")
+                with self.assertRaisesRegex(BudgetError, "budget_ledger_corrupt"):
+                    budget(self.root).spent("aeion-observability")
+
     def test_summary_reports_both_purses(self):
         b = budget(self.root)
         b.admit("aeion-observability", "0.25")

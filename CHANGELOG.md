@@ -26,8 +26,10 @@
   reservation before any live work and settles the actual cost after it; an open reservation
   counts against the day, a corrupt ledger fails closed, one purse cannot borrow from the other,
   the cockpit stops a live run with `BUDGET_STOP` and a worker holds `budget_unavailable`.
-  `FactoryApp` and the cockpit `Runner` share one journal and pass their own scope. No paid
-  inference was authorised or run.
+  `FactoryApp` and the cockpit `Runner` share one journal and pass their own scope. The paid
+  publish worker now holds its own forum purse and reserves a positive $0.10 before it can call a
+  reviewer; an entry point without a purse holds `budget_unavailable` instead of spending freely.
+  No paid inference was authorised or run.
 - Remove the obsolete Deno/Hono demo: `demo/playground/` and its Compose service, cockpit
   integration dot, hero link, `Runner.probe` and the Deno-span read-back are gone; `/factory`
   is the operator entry and the forum is the only product demonstration. The cockpit links the

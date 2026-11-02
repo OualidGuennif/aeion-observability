@@ -75,9 +75,13 @@ class DailyBudget:
                     if not line.strip():
                         continue
                     entry = json.loads(line)
-                    if (entry.get("version") != _LEDGER_VERSION
+                    if (not isinstance(entry, dict)
+                            or entry.get("version") != _LEDGER_VERSION
                             or entry.get("kind") not in {"reserve", "settle"}
-                            or entry.get("scope") not in self.limits):
+                            or entry.get("scope") not in self.limits
+                            or not isinstance(entry.get("day"), str) or not entry["day"]
+                            or not isinstance(entry.get("reservation"), str)
+                            or not entry["reservation"]):
                         raise ValueError("shape")
                     entry["usd"] = _money(entry.get("usd"), "ledger_amount")
                     entries.append(entry)

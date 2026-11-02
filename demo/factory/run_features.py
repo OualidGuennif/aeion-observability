@@ -20,6 +20,7 @@ sys.path.insert(0, str(DEMO))
 
 from deploy.cache import connect  # noqa: E402
 from deploy.playground import Playground  # noqa: E402
+from factory.budget import DailyBudget  # noqa: E402
 from factory.dispatch import DispatchWorker  # noqa: E402
 from factory.manifest import Catalog  # noqa: E402
 from factory.model_client import complete  # noqa: E402
@@ -28,6 +29,7 @@ from factory.store import SIMULATED_COMPLETE, Store  # noqa: E402
 
 CONFIG = {"profile": "fake", "mode": "fake", "deadline_ns": 300 * 1_000_000_000,
           "step_cap": 200, "context_limit": 250_000, "cost_reservation_usd": "0.00"}
+LIVE_RESERVATION_USD = "0.10"
 
 
 def deterministic_answer(model, prompt):
@@ -39,10 +41,15 @@ def live_answer(model, prompt):
     return complete(model, prompt)
 
 
-def build(store, catalog, spec_dir, state_dir, features, review_complete):
-    worker = DispatchWorker(store, catalog, spec_dir, state_dir / "work", config=CONFIG,
+def build(store, catalog, spec_dir, state_dir, features, review_complete, live=False):
+    config = dict(CONFIG)
+    if live:
+        config["cost_reservation_usd"] = LIVE_RESERVATION_USD
+    worker = DispatchWorker(store, catalog, spec_dir, state_dir / "work", config=config,
                             defer_to=state_dir, review_complete=review_complete,
-                            require_circuit=True)
+                            require_circuit=True,
+                            budget=DailyBudget(state_dir / "budget" / "ledger.jsonl"),
+                            budget_scope="aeion-autonomous-forum")
     results = []
     for feature_id in features:
         built_already = [row for row in store.board()
@@ -85,7 +92,8 @@ def main(argv=None):
     store = Store(state_dir / "factory.db", simulated_dependencies=True)
 
     review_complete = live_answer if args.live else deterministic_answer
-    results = build(store, catalog, manifest.parent, state_dir, args.features, review_complete)
+    results = build(store, catalog, manifest.parent, state_dir, args.features,
+                    review_complete, live=args.live)
     built = staged_features(store, catalog, args.features)
 
     cache, backend = connect(None, state_dir / "cache", ttl=60)

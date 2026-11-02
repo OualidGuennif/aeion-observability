@@ -33,7 +33,8 @@ class DispatchWorkerTests(unittest.TestCase):
         self.spec_dir.mkdir()
         (self.spec_dir / "001.md").write_text("# 001\n")
         self.store = Store(Path(self.tmp.name) / "factory.db")
-        self.worker = DispatchWorker(self.store, self.cat, self.spec_dir, Path(self.tmp.name) / "work", config())
+        self.worker = DispatchWorker(self.store, self.cat, self.spec_dir, Path(self.tmp.name) / "work",
+                                     config(), allow_unbudgeted=True)
 
     def test_run_once_freezes_and_completes_simulated(self):
         self.store.admit(["001"], "k1", self.cat)
@@ -74,7 +75,7 @@ class DispatchSessionTests(unittest.TestCase):
         self.gateway = Gateway(self.store, lambda *a: (200, {}), "OualidGuennif/aeion-autonomous-forum",
                                clock=lambda: 1_700_000_000_000_000_000, audit_path=self.audit)
         self.worker = DispatchWorker(self.store, self.cat, self.spec_dir, root / "work", config(),
-                                     gateway=self.gateway)
+                                     gateway=self.gateway, allow_unbudgeted=True)
 
     def test_the_attempt_gets_a_session_that_is_recorded_and_revoked(self):
         self.store.admit(["001"], "k1", self.cat)
@@ -98,7 +99,8 @@ class DispatchSessionTests(unittest.TestCase):
 
         worker = DispatchWorker(self.store, self.cat, self.spec_dir, Path(self.tmp.name) / "work",
                                 config(), gateway=BrokenGateway(
-                                    self.store, lambda *a: (200, {}), "repo/x"))
+                                    self.store, lambda *a: (200, {}), "repo/x"),
+                                allow_unbudgeted=True)
         self.store.admit(["001"], "k2", self.cat)
         result = worker.run_once()
         self.assertEqual(result["result"]["status"], "held")
