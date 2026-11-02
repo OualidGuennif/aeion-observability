@@ -52,6 +52,20 @@ def spec_unchanged_check(frozen, artifact_verdict):
 
 DEFAULT_CHECKS = {"scope": scope_check, "spec_unchanged": spec_unchanged_check}
 
+# The check runner is handed a toolchain environment, not the controller's environment:
+# provider keys, gateway credentials and harness settings must never reach candidate code.
+CHECK_ENV_ALLOWLIST = (
+    "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "LANGUAGE",
+    "JAVA_HOME", "GRADLE_USER_HOME", "GRADLE_OPTS", "JAVA_TOOL_OPTIONS",
+    "SYSTEMROOT", "USERPROFILE",
+)
+
+
+def check_environment(spec, repo, target):
+    env = {name: os.environ[name] for name in CHECK_ENV_ALLOWLIST if name in os.environ}
+    env.update(spec.env_for(repo, target.controller))
+    return env
+
 
 def _failed_tests(output, limit=20):
     """Extract bounded test identifiers, never the raw build output."""
@@ -72,9 +86,12 @@ def _failed_tests(output, limit=20):
 def target_check(target, runner=None, work_root=None):
     """Run the profile's protected check against the materialised candidate tree.
 
-    The contract test is copied in from outside the candidate's write scopes, runs with
-    the host toolchain, and is restored afterwards. Only a bounded failure summary is
-    recorded: no raw output, no candidate-controlled evaluator.
+    The contract test is copied in from outside the candidate's write scopes, runs with a
+    toolchain-only environment (never the controller's), and is restored afterwards. This
+    confines the environment and repository path; it is not yet an isolation boundary, so
+    untrusted candidate code remains held until a qualified isolated runner is supplied.
+    Only a bounded failure summary is recorded: no raw output, no candidate-controlled
+    evaluator.
     """
     runner = runner or subprocess.run
     allowed_root = Path(work_root).resolve() if work_root is not None else None
@@ -100,7 +117,7 @@ def target_check(target, runner=None, work_root=None):
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(spec.contract_test, destination)
             command = spec.command_for(repo, target.controller)
-            env = {**os.environ, **spec.env_for(repo, target.controller)}
+            env = check_environment(spec, repo, target)
             completed = runner(command, cwd=str(repo), env=env, capture_output=True,
                                text=True, timeout=spec.timeout_seconds)
         except subprocess.TimeoutExpired:

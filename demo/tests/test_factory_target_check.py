@@ -1,9 +1,11 @@
 """The protected target check: external contract, host toolchain, bounded evidence."""
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory.checks import target_check
@@ -110,6 +112,25 @@ class TargetCheckTests(unittest.TestCase):
             object(), {"repo": str(self.repo)})
         self.assertTrue(passed)
         self.assertEqual(self.destination.read_text(), "// candidate copy\n")
+
+    def test_controller_secrets_do_not_reach_the_check_environment(self):
+        calls = []
+
+        def runner(command, **kwargs):
+            calls.append(kwargs["env"])
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        with mock.patch.dict(os.environ, {
+                "OPENCODE_API_KEY": "fixture-sentinel",
+                "AEION_REVIEW_ENDPOINT": "fixture-sentinel"}, clear=False):
+            passed, _ = target_check(self.target, runner=runner)(
+                object(), {"repo": str(self.repo)})
+
+        self.assertTrue(passed)
+        self.assertNotIn("OPENCODE_API_KEY", calls[0])
+        self.assertNotIn("AEION_REVIEW_ENDPOINT", calls[0])
+        self.assertIn("PATH", calls[0])
+        self.assertTrue(calls[0]["GRADLE_USER_HOME"].endswith("/gradle-home"))
 
 
 if __name__ == "__main__":

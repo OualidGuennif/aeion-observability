@@ -122,6 +122,12 @@ class Runner:
     def _settle(self, run, reservation):
         if reservation is None:
             return
+        # A zero default is not evidence of a free run. Only complete, trusted usage (or an
+        # explicitly proven no-transport outcome) may close the reservation; otherwise it stays
+        # open and keeps its estimate counted against the purse.
+        if run.get("usage_complete") is not True and run.get("budget_release") != "proven_no_transport":
+            run["budget"]["settled_usd"] = "unsettled"
+            return
         try:
             actual = Decimal(str(run.get("native_cost_usd", "0")))
             self.budget.settle(reservation, actual)
@@ -240,6 +246,9 @@ class Runner:
         workspace = root / "workspace"
         source = workspace / artifact_name(run)
         isolated = run.get("runtime") != TRIAGE
+        if run.get("synthetic"):
+            # The simulator makes no provider call: zero usage is measured, not a default.
+            run["usage_complete"] = True
         # On Linux the sandbox runs as this user; Docker Desktop maps a foreign UID instead.
         foreign = isolated and AGENT_UID != os.getuid()
         reservation = None
@@ -266,32 +275,39 @@ class Runner:
                 self.event(run, "agent.started", **{"aeion.agent.number": agent})
                 # Tier 2 tools never reach this sandbox; it serves the supervisor's interim checks.
                 self.active_sandbox = Sandbox(run, root) if isolated else None
-                if self.active_sandbox:
-                    self.event(run, "sandbox.ready", **{"aeion.sandbox.id": self.active_sandbox.ref.id})
-                    if self.copies_out(run):
-                        try:
-                            seeded = self.seed_workspace(self.active_sandbox, workspace)
-                        except Exception as error:  # noqa: BLE001 - record the type, fail closed
-                            self.event(run, "sandbox.seed_failed",
-                                       **{"aeion.failure.code": "SANDBOX_SEED_FAILED",
-                                          "aeion.failure.type": type(error).__name__})
-                            raise
-                        self.event(run, "sandbox.seeded", **{"aeion.sandbox.files": seeded})
+                sandbox = self.active_sandbox
+                entered = False
                 try:
-                    outcome = self.simulate(run, workspace, agent) if run["synthetic"] else self.live(run, workspace, handover)
-                finally:
-                    sandbox = self.active_sandbox
                     if sandbox:
+                        self.event(run, "sandbox.ready", **{"aeion.sandbox.id": sandbox.ref.id})
                         if self.copies_out(run):
                             try:
-                                copied = self.collect_workspace(sandbox, workspace)
-                                self.event(run, "sandbox.collected", **{"aeion.sandbox.files": len(copied)})
-                            except ValueError as error:
-                                self.event(run, "sandbox.collect_failed", **{"aeion.failure.code": str(error)})
+                                seeded = self.seed_workspace(sandbox, workspace)
+                            except Exception as error:  # noqa: BLE001 - record the type, fail closed
+                                self.event(run, "sandbox.seed_failed",
+                                           **{"aeion.failure.code": "SANDBOX_SEED_FAILED",
+                                              "aeion.failure.type": type(error).__name__})
                                 raise
-                        sandbox.close()  # OpenShell deletes the workload and reaps every process in it.
-                        self.active_sandbox = None
-                        self.event(run, "sandbox.retired", **{"aeion.sandbox.id": sandbox.ref.id})
+                            self.event(run, "sandbox.seeded", **{"aeion.sandbox.files": seeded})
+                    entered = True
+                    outcome = self.simulate(run, workspace, agent) if run["synthetic"] else self.live(run, workspace, handover)
+                finally:
+                    if sandbox:
+                        try:
+                            if entered and self.copies_out(run):
+                                try:
+                                    copied = self.collect_workspace(sandbox, workspace)
+                                    self.event(run, "sandbox.collected", **{"aeion.sandbox.files": len(copied)})
+                                except ValueError as error:
+                                    self.event(run, "sandbox.collect_failed", **{"aeion.failure.code": str(error)})
+                                    raise
+                        finally:
+                            # Close runs even when seeding, collection or the agent raised.
+                            try:
+                                sandbox.close()  # OpenShell deletes the workload and reaps every process in it.
+                            finally:
+                                self.active_sandbox = None
+                                self.event(run, "sandbox.retired", **{"aeion.sandbox.id": sandbox.ref.id})
                     self.event(run, "session.wiped", **{"aeion.agent.number": agent})
                 check = self.verify(run, root, workspace)
                 changed = digest(source) != original
@@ -539,4 +555,4 @@ class Runner:
             if bridge:
                 bridge.close()
             shutil.rmtree(scratch, ignore_errors=True)
-            run["usage_complete"] = run.get("usage_complete", True) and state["steps"] == relay.forwarded_count
+            run["usage_complete"] = run.get("usage_complete", False) and state["steps"] == relay.forwarded_count

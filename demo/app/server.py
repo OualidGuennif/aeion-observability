@@ -56,7 +56,7 @@ def new_run(mode,profile,task_id,objective="balanced",campaign_id=None,runtime="
     key=decision["profile"]
     if not available(key): raise ValueError("profile_requires_requalification")
     return {"id":uuid.uuid4().hex,"status":"running","synthetic":mode=="simulation","started_ns":time.time_ns(),
-        "events":[],"sessions":[],"agents":0,"human_interventions":0,"postprocessing":True,"usage_complete":True,
+        "events":[],"sessions":[],"agents":0,"human_interventions":0,"postprocessing":True,"usage_complete":False,
         "task_id":task_id,"profile_version":PROFILE_VERSION,"native_cost_usd":"0","model":PROFILES[key]["model"],
         "limit":int(os.environ.get("DEMO_CONTEXT_LIMIT","250000")),"metric":os.environ.get("DEMO_CONTEXT_METRIC","active_context"),
         "runtime":runtime,"selection":decision,"campaign_id":campaign_id}
