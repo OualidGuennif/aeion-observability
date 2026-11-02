@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Pin and build one forum feature end to end, offline. `demo/forum/targets/forum-app-013.json`
+  names feature 013, the exact base commit `753ba3e`, the Quarkus main/test write scopes, an
+  adapted brief and a protected Gradle check whose contract test lives outside the candidate
+  tree. `DispatchWorker` clones the base, runs an injected builder, validates the artifact and
+  runs the real `gradle test` suite; a missing base holds as `base_unavailable`, and a builder
+  or check failure never reaches the publisher. Receipts carry `build_id`, `feature_id`,
+  `attempt_id` and `artifact_digest`; one metadata-only `factory.build` span reaches Langfuse
+  through the Collector, and the cockpit shows the ids and links the trace. The qualification
+  script proved it with an injected fake model and fake forge: feature 013 passed the protected
+  check (27.6 s) and all four identifiers plus the trace came back from Langfuse. No paid
+  inference, publication or deployment ran.
 - Remove the obsolete Deno/Hono demo: `demo/playground/` and its Compose service, cockpit
   integration dot, hero link, `Runner.probe` and the Deno-span read-back are gone; `/factory`
   is the operator entry and the forum is the only product demonstration. The cockpit links the

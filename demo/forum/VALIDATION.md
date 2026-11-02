@@ -799,3 +799,24 @@ Why a derived token rather than a stored one: it needs no table, it cannot drift
 dies when the session dies, and a leak of the database grants neither half. The exemption is explicit
 and narrow: **no cookie means no CSRF check**, which is exactly `register` and `login` — the credential
 exchange itself — and an unusable cookie is answered 401 by the resource, which says more than a 403.
+
+## Plan C: one pinned feature, the real check and a Langfuse trace — 2026-11-02
+
+The first feature built through a pinned target is **013 Security headers**, adapted to the
+runnable Quarkus JSON API. `demo/forum/targets/forum-app-013.json` pins base
+`753ba3ed239560f2854921efb10530916dcc57ab`, the `demo/forum-app/src/` main and test scopes, the
+adapted brief and the protected contract test. The 100-feature manifest is unchanged.
+
+| Claim | Evidence |
+| --- | --- |
+| One real build, no paid model | injected fake builder writes `SecurityHeadersFilter.java` and its test; `cost_reservation_usd = 0.00` |
+| The real suite judges it | `gradle -p <clone>/demo/forum-app test --offline --no-daemon` → return 0, 27,596 ms; contract SHA-256 `23706825…a07d` |
+| The contract is outside the candidate | `demo/forum/targets/forum-app-013/SecurityHeadersContractTest.java`, copied into the clone and removed after the run; not tracked at the base |
+| The receipt has the identity | build `26b29b2f9fb34083b0a737fc92ec4766`, attempt `5518a5d638d34a848fcaf1df9915fa92`, artifact `6b78a27a…41b1`, feature `013`, base `753ba3e` |
+| Langfuse has the trace | trace `0ea7e7625fc2109a535817c6f7eeabdd`; `factory.build` read back with build/feature/attempt/artifact/session matching |
+| The cockpit sees it | the build is in `demo/.local/factory/factory.db`; the receipt line links `/trace/<id>` |
+| Safe refusals | missing base → `base_unavailable`; builder error or failed check → `FAILED`, no publisher |
+
+Run: `demo/.local/venv/bin/python demo/tests/qualify_forum_build.py`. The fake forge records a
+PR shape but never contacts GitHub; no branch, pull request, deployment or paid inference exists.
+The model is fake, so this validates the adapter, check and telemetry path, not model quality.

@@ -647,3 +647,36 @@ The fix-verification script is temporary and lives at
 `F1 forged_content`, `F2 ran`, `F3 success_rate 1.0`, `F4 attempted_server_start false` and the
 F5 statuses above. These are local mechanism checks, not a live harness, provider or Langfuse
 ingestion proof.
+
+## One pinned forum build through the real check and Langfuse — 2026-11-02
+
+Plan C was implemented offline against the runnable Quarkus forum, not the planned
+`demo/forum/product/` tree. The target profile names feature 013, base commit
+`753ba3ed239560f2854921efb10530916dcc57ab`, the main/test write scopes, an adapted brief and a
+protected Gradle check. The builder was an injected fake model and the forge was the fake forge:
+no paid inference, publication, deployment or credential read occurred.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| The base is exact and isolated | `target.materialize` clones `753ba3e`, verifies `HEAD` and a clean tree; `test_factory_target.py` | pass; clone under `demo/.local/factory/work/<build_id>/repo` |
+| Scopes and brief come from the profile, not the 100-feature plan | `test_factory_target_dispatch.py`: catalog feature still says `demo/forum/product/`, artifact is accepted in the two Quarkus scopes | pass |
+| The protected check is external | contract test lives in `demo/forum/targets/forum-app-013/`, outside both scopes; copied in, run, then removed | pass |
+| The real Gradle suite passes | `gradle test --offline --console=plain --no-daemon` with `GRADLE_USER_HOME=demo/.local/gradle-home` | return code 0, 27,596 ms; contract SHA-256 `23706825…a07d` |
+| A missing base holds | target replaced with a missing source | `base_unavailable`; no artifact, no publisher |
+| A builder or check failure never publishes | injected exception / `exit 1` check | `FAILED`; no `publisher` field in the receipt |
+| Identity reaches the receipt | live build `26b29b2f9fb34083b0a737fc92ec4766`, attempt `5518a5d638d34a848fcaf1df9915fa92`, artifact `6b78a27a…41b1` | all four ids plus `base_sha` present |
+| Review circuit ran | two injected `approve` answers from different families; deterministic rules first | `approved`; publisher `published` (fake PR, no GitHub call) |
+| Telemetry reaches Langfuse | `factory.build` span, trace `0ea7e7625fc2109a535817c6f7eeabdd` | read back with build, feature, attempt, artifact and session all matching |
+| The cockpit can show it | live build is in `demo/.local/factory/factory.db`; `demo/app/factory.js` renders build/attempt ids and links `/trace/<id>` | `test_factory_board_link.py`; board row present |
+| No paid run | injected builder and injected reviewer, `cost_reservation_usd = 0.00` | no model endpoint and no credential used |
+
+Run: `demo/.local/venv/bin/python demo/tests/qualify_forum_build.py` → exit 0, `status:
+completed`, `langfuse.status: PASS`. The same command with `--no-telemetry` passed earlier
+(build `076aa7455c044f54a2f7ca2534d5d7e4`, 26,641 ms).
+
+Honest scope: the model is fake by construction, so this proves the adapter, the protected
+check, the identity plumbing and the Langfuse read-back — not model quality, a real pull
+request or a production deployment. The target's `QuarkusTestDatabase` remains inside the
+candidate test scope; a change to it would appear in the reviewed diff, and the deterministic
+reviewer runs before the check. Moving the pin to a new base and one paid live run still need
+the owner's decision.
