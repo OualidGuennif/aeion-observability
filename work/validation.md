@@ -619,3 +619,31 @@ Not verified here: the review's receipt-forgery fixture was not replayed end to 
 write and no secret read were attempted, and the cleanup and real-executor plans were not started.
 The claim that `demo/forum/product/` is absent from the tree and that the 100 features still point
 at it was not rechecked in this run.
+
+## Plan A and B executed and verified — 2026-11-02
+
+The owner approved plan v1 A/B/C and explicitly required the old Deno/Hono demo to be deleted.
+This run removed it, repaired the five reproduced defects and verified each repair against the
+live checkout. Plan C (one real forum feature build) was designed but not implemented; no paid
+inference, publication, deployment or credential read occurred.
+
+| Change | Check | Result |
+| --- | --- | --- |
+| A, old demo removed | `git ls-files demo/playground`; `grep 8090` in active app/config/docs | no tracked file, no service, no link or probe; `demo/tests/test_playground_removed.py` passes |
+| A, running container | `docker ps` then stop/remove `aeion-observability-demo-playground-1` | removed; `http://127.0.0.1:8090/` returns `URLError` |
+| A, operator entry | cockpit `index.html` | hero and nav link `/factory`; forum API/web rows in the demo runbook |
+| F1, content binding | pipeline fixture: approve, then change one queued byte, keep all receipt fields | `verified_receipt` returns `None`; `Publisher` refuses `forged_content`; fake forge receives nothing |
+| F1, unsupported effects | artifact tests | rename/delete/binary/unreadable held with `unsupported_effect:*` or `binary_content`; digest changes with bytes |
+| F2, loader | empty secret loader, no publish key / fixture key | `CredentialError:credential_missing:publish` / token returned; CLI exits 2 without traceback |
+| F3, vote labels | complete two-approve circuit | `n=1, success_rate=1.0` for both models; a malformed answer remains 0.0 |
+| F4, readiness | `runpy` the diagnostic with `ThreadingHTTPServer` substituted | report produced, no server constructor call, `server` not imported |
+| F5, proxy scope | fake upstream, direct vs proxy | direct cookie 200; proxy cookie 400; proxy POST 405; upstream saw only the direct cookie |
+| Full suite | `python3 -m unittest discover -s demo/tests -v` | **366 passed, 9 skipped** |
+| Knowledge | `tools/knowledge/knowledge-check`, `doc-links`, `repo-health` | PASS, PASS (97 links), PASS |
+| Template | `template-update --from-ref v1.9.0 --ref v1.9.1 --check`, `adapter-check --ref v1.9.1` | 0 files differ; 27/27 connectors match; demo product checkout moved v1.8.6 → v1.9.1 and matches too |
+
+The fix-verification script is temporary and lives at
+`/private/tmp/aeion-observability-review-20261102-6lixqiw6/verify-fixes.py`; its output recorded
+`F1 forged_content`, `F2 ran`, `F3 success_rate 1.0`, `F4 attempted_server_start false` and the
+F5 statuses above. These are local mechanism checks, not a live harness, provider or Langfuse
+ingestion proof.
