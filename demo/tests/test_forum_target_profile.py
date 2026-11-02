@@ -1,4 +1,5 @@
 """The real pinned profile: one feature, the runnable app, and a check outside the diff."""
+import json
 import subprocess
 import sys
 import unittest
@@ -14,6 +15,11 @@ PROFILE = REPO / "demo/forum/targets/forum-app-013.json"
 
 class ForumTargetProfileTests(unittest.TestCase):
     def setUp(self):
+        profile = json.loads(PROFILE.read_text())
+        source = REPO / profile["base"]["source"]
+        if not source.is_dir():
+            # The canonical product checkout lives under the git-ignored demo/.local tree.
+            self.skipTest("canonical product checkout is local-only")
         self.target = load_target(PROFILE, REPO)
         self.product = self.target.base_source
         self.catalog = load_manifest(REPO / "demo/forum/features/MANIFEST.json")
