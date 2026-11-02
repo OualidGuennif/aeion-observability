@@ -31,6 +31,13 @@ the **Agora forum** (`demo/forum-app/`, Quarkus/Java). Nine observation services
 private native mTLS gateway owns OpenShell sandboxes through its Docker compute driver. This is an
 explicitly authorized local pilot, not a production OPS boundary or general model benchmark.
 
+The same host cockpit serves the feature-factory board at `/factory`. It resolves one explicit
+execution instead of silently simulating: `simulator`, or `offline` with the pinned forum profile
+and the shared deterministic builder. A missing profile or product checkout holds every build as
+`execution_unavailable`; a pinned target refuses another feature with `target_feature_mismatch`;
+Live is reported as `live_builder_unqualified` until a qualified real builder exists. Dependency
+holds stay real: no simulated receipt satisfies a product dependency.
+
 ## Data sources
 
 Flue runtime events reduced to a metadata-only stream, independent Deno checks, artifact/Markdown
