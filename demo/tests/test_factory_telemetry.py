@@ -74,7 +74,8 @@ class EmitTests(unittest.TestCase):
                 artifact_digest="d" * 64, base_sha="f" * 40,
                 gate_status="passed", publisher_decision="published",
             )
-        self.assertEqual(evidence["status"], "emitted")
+        self.assertEqual(evidence["status"], "exported_unconfirmed")
+        self.assertEqual(evidence["confirmation"], "not_read_back")
         self.assertEqual(len(evidence["trace_id"]), 32)
         self.assertEqual(len(captured), 1)
         span = captured[0]
@@ -83,6 +84,60 @@ class EmitTests(unittest.TestCase):
         self.assertEqual(span.attributes["aeion.feature.id"], "013")
         self.assertEqual(span.attributes["aeion.artifact.digest"], "d" * 64)
         self.assertEqual(format(span.context.trace_id, "032x"), evidence["trace_id"])
+
+    def _emit_with(self, exporter_class):
+        try:
+            from opentelemetry.sdk.trace.export import SpanExportResult  # noqa: F401
+        except ImportError:
+            self.skipTest("opentelemetry sdk not installed")
+        real = telemetry._load_otel()
+        fake_loader = lambda: (real[0], real[1], real[2], real[3], exporter_class)
+        with mock.patch.object(telemetry, "_load_otel", side_effect=fake_loader):
+            return telemetry.FactoryTelemetry(endpoint="http://collector.invalid/v1/traces").emit(
+                build_id="b" * 32, feature_id="013", attempt_id="a" * 32)
+
+    def test_an_exporter_failure_is_not_reported_as_emitted(self):
+        try:
+            from opentelemetry.sdk.trace.export import SpanExportResult
+        except ImportError:
+            self.skipTest("opentelemetry sdk not installed")
+
+        class FailingExporter:
+            def __init__(self, endpoint=None, timeout=None):
+                pass
+
+            def export(self, spans):
+                return SpanExportResult.FAILURE
+
+            def shutdown(self):
+                return None
+
+            def force_flush(self, timeout_millis=None):
+                return True
+
+        evidence = self._emit_with(FailingExporter)
+        self.assertEqual(evidence["status"], "export_failed")
+        self.assertEqual(evidence["reason"], "exporter_returned_failure")
+        self.assertEqual(len(evidence["trace_id"]), 32)
+        self.assertNotIn("confirmation", evidence)
+
+    def test_an_exporter_exception_is_recorded_as_a_failure(self):
+        class RaisingExporter:
+            def __init__(self, endpoint=None, timeout=None):
+                pass
+
+            def export(self, spans):
+                raise ConnectionError("collector down")
+
+            def shutdown(self):
+                return None
+
+            def force_flush(self, timeout_millis=None):
+                return True
+
+        evidence = self._emit_with(RaisingExporter)
+        self.assertEqual(evidence["status"], "export_failed")
+        self.assertEqual(evidence["reason"], "ConnectionError")
 
 
 if __name__ == "__main__":

@@ -40,7 +40,8 @@ class DispatchWorker:
                  trusted_issuer="gate", review_complete=None, author_model="deepseek-4.1-flash",
                  require_circuit=None, defer_to=None, gateway=None, agent_id=None,
                  target=None, builder=None, telemetry=None, budget=None,
-                 budget_scope="aeion-autonomous-forum", allow_unbudgeted=False):
+                 budget_scope="aeion-autonomous-forum", allow_unbudgeted=False,
+                 startup_hold=None):
         self.store = store
         self.catalog = catalog
         self.spec_dir = Path(spec_dir)
@@ -52,6 +53,7 @@ class DispatchWorker:
         self.budget = budget
         self.budget_scope = budget_scope
         self.allow_unbudgeted = bool(allow_unbudgeted)
+        self.startup_hold = startup_hold
         if checks is not None:
             self.checks = checks
         else:
@@ -183,6 +185,11 @@ class DispatchWorker:
         build = self.store.claim_next(self.catalog)
         if build is None:
             return None
+        if self.startup_hold:
+            # The configured execution is unavailable (or unknown): hold before any spend.
+            self.store.hold_dispatched(build["build_id"], self.startup_hold)
+            return {"build_id": build["build_id"],
+                    "result": {"status": "held", "reason": self.startup_hold}}
         try:
             reservation = self._reserve(build)
         except BudgetError:
@@ -233,6 +240,12 @@ class DispatchWorker:
                 "capabilities": list(session["capabilities"]), "repo": session["repo"]}
 
     def _run(self, build, session):
+        feature = self.catalog.by_id[build["feature_id"]]
+        if self.target is not None and feature["id"] != self.target.feature_id:
+            # A pinned profile belongs to one feature; it must never freeze another one.
+            self.store.hold_dispatched(build["build_id"], "target_feature_mismatch")
+            return {"build_id": build["build_id"],
+                    "result": {"status": "held", "reason": "target_feature_mismatch"}}
         try:
             if self.target is None:
                 repo, base_sha = self._make_repo(build["build_id"])
@@ -253,7 +266,6 @@ class DispatchWorker:
             self.store.hold_dispatched(build["build_id"], "qualification_missing")
             return {"build_id": build["build_id"], "result": {"status": "held", "reason": str(exc)}}
 
-        feature = self.catalog.by_id[build["feature_id"]]
         # The build brief lives outside the clone: the agent reads where it stops, the artifact
         # validator never sees it, and the branch it names is the one the publisher will push.
         branch = f"aeion/build-{build['attempt_id'][:24]}"

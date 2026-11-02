@@ -17,12 +17,14 @@ import sys
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import datetime
 from decimal import Decimal, InvalidOperation, ROUND_CEILING
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 DEFAULT_LIMIT_USD = Decimal("15.00")
 SCOPES = ("aeion-observability", "aeion-autonomous-forum")
+BUDGET_ZONE = "Europe/Paris"
 _LEDGER_VERSION = 1
 
 
@@ -58,6 +60,22 @@ def _cents_up(value, label="amount"):
     return _money(value, label).quantize(Decimal("0.01"), rounding=ROUND_CEILING)
 
 
+def paris_day(now=None):
+    """The budget day is explicit Europe/Paris, never the host's local zone.
+
+    A reservation carries the day it was opened; a restart after midnight reads the same
+    journal and cannot move that reservation into a fresh purse.
+    """
+    try:
+        zone = ZoneInfo(BUDGET_ZONE)
+    except Exception:  # noqa: BLE001 - a missing tz database must fail closed
+        raise BudgetError("budget_zone_unavailable") from None
+    moment = now if now is not None else datetime.now(zone)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=zone)
+    return moment.astimezone(zone).date().isoformat()
+
+
 class DailyBudget:
     def __init__(self, path, limits=None, today=None):
         self.path = Path(path)
@@ -67,7 +85,7 @@ class DailyBudget:
         self.limits = {str(scope): _money(limit, "limit") for scope, limit in configured.items()}
         if not self.limits or any(not scope or "/" in scope for scope in self.limits):
             raise BudgetError("invalid_budget_scopes")
-        self._today = today or (lambda: date.today().isoformat())
+        self._today = today or paris_day
 
     # ---------------------------------------------------------------- journal
     def _read(self):

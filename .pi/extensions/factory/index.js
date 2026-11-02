@@ -83,14 +83,9 @@ export default function (pi) {
   pi.on('tool_result', async (event, ctx) => {
     if (event.isError) return undefined;
     const { reason, output } = invoke(projectRoot(ctx.cwd), toolEvent(event, ctx, 'PostToolUse', { content: event.content }));
-    // A verified handover past 250k compacts now, not at Pi's own threshold near the model window.
-    // Compacting aborts the running turn, so the session is told to resume from its handover once it is done.
-    if (output.aeion?.compact) {
-      ctx.compact({
-        onComplete: () => pi.sendUserMessage(RESUME),
-        onError: (error) => ctx.ui.notify(error.message || UNAVAILABLE, 'error'),
-      });
-    }
+    // Compaction is never started from a tool result: Pi's manual compaction aborts the running turn,
+    // and print mode exits on that abort before the summary is written. The settlement boundary is the
+    // safe place, and the Stop payload now carries the context measure that asks for it.
     const message = reason || output.hookSpecificOutput?.additionalContext;
     if (!message) return undefined;
     return { content: [...event.content, { type: 'text', text: `Æion Factory feedback: ${message}` }], structuredContent: event.structuredContent };
@@ -102,13 +97,27 @@ export default function (pi) {
   pi.on('agent_before_settle', async (event, ctx) => {
     const session = ctx.sessionManager.getSessionId();
     try {
-      const { output, reason } = invoke(projectRoot(ctx.cwd), { session_id: session, hook_event_name: 'Stop' });
+      const { output, reason } = invoke(projectRoot(ctx.cwd), {
+        session_id: session, hook_event_name: 'Stop',
+        // Settlement is where the 250k decision is made now; without this measure Stop falls back to a stale count.
+        observed_tokens: ctx.getContextUsage?.()?.tokens ?? null,
+      });
       // A verified checkpoint past 250k compacts at settlement instead of spinning on continuation.
       if (output.aeion?.compact) {
         settles.delete(session);
+        // A one-shot print/json run ends at this settlement, so a compaction started here is disposed
+        // before the summary is written. End cleanly and send the user to the verified handover instead.
+        if (!ctx.hasUI) {
+          console.error('Æion Factory: the 250k gate is reached and the handover is verified. This one-shot run '
+            + 'cannot finish a compaction; start a new session from work/handovers/ to continue.');
+          return undefined;
+        }
+        // Compaction replaces the extension context; read the mode now and never touch ctx from a callback.
         ctx.compact({
+          // An interactive run stays alive to take the resume message itself.
           onComplete: () => pi.sendUserMessage(RESUME),
-          onError: (error) => ctx.ui.notify(error.message || UNAVAILABLE, 'error'),
+          // A stale ctx after replacement must not turn a compaction error into a process crash.
+          onError: (error) => { try { ctx.ui.notify(error.message || UNAVAILABLE, 'error'); } catch { /* stale ctx */ } },
         });
         return undefined;
       }

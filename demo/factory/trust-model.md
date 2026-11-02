@@ -86,9 +86,17 @@ review vote, and the second vote must not come from either of the first two mode
   not just distinct names;
 - any reject, any transport error and any malformed answer yields `held`; there is no retry that
   turns a failure into an approval;
-- the prompt is hard-capped at 6000 characters and the answer at 120 tokens, and the answer is
-  parsed as data (fenced JSON), never executed;
+- the complete changed bytes must fit the 6000-character review envelope. If they do not, the
+  circuit holds (`review_input_too_large`) instead of sending an excerpt: a voter that never
+  received the tail cannot approve the artifact. An unknown author holds before any vote because
+  its family cannot be excluded;
+- an approval records whole-file coverage and a content digest alongside the two votes; the
+  answer is parsed as data (fenced JSON), never executed;
 - the votes and their digests are bound into the receipt.
+
+A trace id is not a delivery receipt. The exporter reports `exported_unconfirmed` after the
+local transport accepts the span, `export_failed` when it refuses or raises, and never
+`confirmed` without a Langfuse read-back.
 
 `demo/factory/publisher.py::verified_receipt` refuses a receipt whose gate is not passed, whose
 review is not approved, whose circuit is missing, unapproved or carries fewer than two votes, or

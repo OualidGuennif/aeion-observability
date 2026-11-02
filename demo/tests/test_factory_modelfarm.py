@@ -115,16 +115,60 @@ class CircuitTests(unittest.TestCase):
         b = two_vote_review("claude-haiku-5.5", "001", FILES, Router(Telemetry()), approving)
         self.assertEqual(a["digest"], b["digest"])
 
-    def test_prompt_is_bounded(self):
+    def test_oversized_single_file_is_held_without_calling_a_model(self):
         big = {"demo/forum/product/x.js": "a" * 20000}
-        seen = {}
+        calls = []
 
         def capture(model, prompt):
-            seen["len"] = len(prompt)
+            calls.append(model)
             return {"verdict": "approve", "reason": "ok"}
 
-        two_vote_review("glm-5.3-flash", "001", big, self.router, capture)
-        self.assertLessEqual(seen["len"], 6200)
+        result = two_vote_review("glm-5.3-flash", "001", big, self.router, capture)
+        self.assertEqual(result["status"], "held")
+        self.assertEqual(result["reason"], "review_input_too_large")
+        self.assertEqual(calls, [])
+        self.assertFalse(result["coverage"]["complete"])
+        self.assertGreater(result["coverage"]["chars"], result["coverage"]["limit_chars"])
+
+    def test_a_tail_file_never_disappears_from_the_review_envelope(self):
+        files = {
+            "demo/forum/product/a.txt": "a" * 7000,
+            "demo/forum/product/z.txt": "TAIL_COVERAGE_FIXTURE",
+        }
+        seen = []
+
+        def capture(model, prompt):
+            seen.append(prompt)
+            return {"verdict": "approve", "reason": "ok"}
+
+        result = two_vote_review("glm-5.3-flash", "001", files, self.router, capture)
+        self.assertEqual(result["status"], "held")
+        self.assertEqual(result["reason"], "review_input_too_large")
+        self.assertEqual(seen, [])
+        self.assertEqual(result["coverage"]["files"], sorted(files))
+
+    def test_an_unknown_author_cannot_start_a_review(self):
+        calls = []
+        result = two_vote_review("mystery-model", "001", FILES, self.router,
+                                 lambda model, prompt: calls.append(model) or {"verdict": "approve"})
+        self.assertEqual(result["status"], "held")
+        self.assertEqual(result["reason"], "author_identity_unknown")
+        self.assertEqual(calls, [])
+
+    def test_an_approved_circuit_records_complete_coverage(self):
+        result = two_vote_review("claude-haiku-5.5", "001", FILES, self.router, approving)
+        self.assertEqual(result["status"], "approved")
+        self.assertTrue(result["coverage"]["complete"])
+        self.assertEqual(result["coverage"]["files"], sorted(FILES))
+        self.assertEqual(len(result["content_digest"]), 64)
+
+    def test_a_timeout_holds_the_circuit(self):
+        def timing_out(model, prompt):
+            raise TimeoutError("provider timeout")
+
+        result = two_vote_review("glm-5.3-flash", "001", FILES, self.router, timing_out)
+        self.assertEqual(result["status"], "held")
+        self.assertEqual(result["reason"], "reviewer_failed")
 
 
 if __name__ == "__main__":

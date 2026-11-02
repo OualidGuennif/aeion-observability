@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+- Give the operator front one explicit execution path instead of a silent fake fallback.
+  `demo/factory/execution.py` resolves `simulator` or `offline`, loads the pinned forum
+  profile and the shared deterministic offline builder, and returns a visible
+  `execution_unavailable` hold when the profile or product checkout is missing. `FactoryApp`
+  forwards those components to its worker, a pinned target now holds `target_feature_mismatch`
+  rather than freezing another feature, and the catalog response plus the front badge show the
+  mode, the hold and the `live_builder_unqualified` reason. Queuing feature 013 on the live
+  store is honestly held at `dependency_missing` until dependency 001 has merged evidence;
+  the offline completion was proven with a fixture catalog, not a simulation receipt.
+
+- Update this project and the canonical forum checkout to Æion Factory **v1.9.2** with the
+  factory's `template-update`: one contract file changed in each
+  (`.pi/extensions/factory/index.js`), and the factory's `adapter-check --ref v1.9.2 --root
+  <project>` reports 27/27 connectors matching on both. The adopted checkout has no v1.9.2 tag,
+  so the reference is resolved from the factory repository. The 250k decision now happens at settlement with a live context measure
+  instead of starting a compaction from a tool result, and a one-shot print run ends by pointing
+  at the verified handover. The factory-owned `tools/agents/tests/test_pi.mjs` and `.pi/README.md`
+  were refreshed from the same tag so `tools/factory-tests` no longer asserts the 1.9.1
+  tool-result compaction. The application `VERSION` stays `1.9.0`; the forum change is local
+  commit `ab72692`, not pushed.
+
+- Refuse an incomplete review instead of approving an excerpt. `review_circuit.py` now builds the
+  complete changed bytes into one bounded envelope; an oversized input holds with
+  `review_input_too_large` before any model is called, an unknown author holds with
+  `author_identity_unknown` because its family cannot be excluded, and an approval records
+  whole-file coverage plus a content digest. The factory exporter no longer reports a created
+  span as `emitted`: it returns `exported_unconfirmed` only when the local transport accepted the
+  span, `export_failed` when it refused or raised, and reserves "confirmed" for a Langfuse
+  read-back. The daily budget day is explicit `Europe/Paris`, not the host's local zone.
+
 - Reap orphaned OpenShell containers instead of letting them burn CPU forever. Nine
   supervisor/sandbox pairs from an interrupted 2026-11-01 qualification were still running 14
   hours later (each supervisor used 5–22% CPU); the gateway had no records for them.

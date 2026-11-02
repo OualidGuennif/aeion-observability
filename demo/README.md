@@ -85,6 +85,14 @@ The cockpit, counting relay and Flue harness run on the host; there is no contro
 agent CLI image or Docker socket in this code path. A private native mTLS gateway owns OpenShell's
 Docker compute driver. No user repository, host transcript or global agent setting is mounted.
 
+Factory execution is explicit. The default `simulator` keeps the fake Markdown builder and says so
+on the board. `AEION_FACTORY_EXECUTION=offline` loads the pinned forum profile and the shared
+deterministic offline builder (real base, real write scopes, real protected check, no model call);
+if the profile or the product checkout is absent, every build holds `execution_unavailable` instead
+of falling back. Live has no qualified real builder yet and is reported as
+`live_builder_unqualified`. A pinned target refuses any other feature with
+`target_feature_mismatch`.
+
 A useful presentation sequence:
 
 1. **Play the handover demo**: synthetic usage crosses 230k/250k, a Markdown checkpoint appears,

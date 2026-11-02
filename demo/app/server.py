@@ -27,6 +27,10 @@ _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from factory.api import FactoryApp, ApiError, COOKIE
 from factory.auth import host_origin_ok
 from factory.budget import DailyBudget
+from factory.execution import resolve as resolve_execution
+
+REPO = Path(__file__).resolve().parents[2]
+EXECUTION = resolve_execution(REPO, os.environ.get("AEION_FACTORY_EXECUTION") or "simulator")
 
 DATA.mkdir(mode=0o700, parents=True, exist_ok=True)
 WORK.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -118,7 +122,8 @@ BUDGET = DailyBudget(os.environ.get("AEION_BUDGET_LEDGER") or LOCAL / "budget/le
 runner = Runner(Telemetry(), save, memory=memory, audit=Audit(DATA), budget=BUDGET,
                 budget_scope="aeion-observability")
 
-factory = FactoryApp(FACTORY_MANIFEST, FACTORY_STATE, spec_dir=FACTORY_SPEC_DIR, budget=BUDGET)
+factory = FactoryApp(FACTORY_MANIFEST, FACTORY_STATE, spec_dir=FACTORY_SPEC_DIR, budget=BUDGET,
+                     execution=EXECUTION)
 
 
 def _factory_tick_loop():

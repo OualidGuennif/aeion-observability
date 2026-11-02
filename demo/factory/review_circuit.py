@@ -11,6 +11,7 @@ import json
 import time
 
 from .models import Router, RoutingError, family, known
+from .review import content_digest
 
 MAX_PROMPT_CHARS = 6000
 SYSTEM = (
@@ -29,18 +30,24 @@ class CircuitError(ValueError):
 _OUTCOME = {"approve": "approved", "reject": "rejected"}
 
 
-def _prompt(feature_id, files, max_chars=MAX_PROMPT_CHARS):
-    budget = max_chars
+def _review_input(feature_id, files, max_chars=MAX_PROMPT_CHARS):
+    """Build the complete review envelope, or refuse rather than send a truncated one.
+
+    A reviewer that saw only the first bytes of a file cannot approve the whole artifact, so
+    the circuit holds when the complete changed bytes do not fit. Coverage is returned either
+    way, and a caller can record it with the verdict.
+    """
     parts = [SYSTEM, "", f"FEATURE: {feature_id}", "FILES:"]
     for path in sorted(files):
-        text = files[path]
-        room = max(0, budget - len(path) - 32)
-        if room <= 0:
-            break
-        excerpt = text[:room]
-        budget -= len(excerpt) + len(path)
-        parts.append(f"--- {path} ---\n{excerpt}")
-    return "\n".join(parts)[:max_chars]
+        parts.append(f"--- {path} ---\n{files[path]}")
+    prompt = "\n".join(parts)
+    coverage = {
+        "complete": len(prompt) <= max_chars,
+        "files": sorted(files),
+        "chars": len(prompt),
+        "limit_chars": max_chars,
+    }
+    return (prompt if coverage["complete"] else None), coverage
 
 
 def _normalise(answer):
@@ -57,15 +64,19 @@ def two_vote_review(author_model, feature_id, files, router, complete, telemetry
     """Return an approved/held verdict from two independent model votes."""
     if not files:
         return {"status": "held", "reason": "empty_diff", "votes": []}
+    if not author_model or not known(author_model):
+        # An unknown author cannot be excluded by family, so it cannot start a review either.
+        return {"status": "held", "reason": "author_identity_unknown", "votes": [],
+                "author_model": author_model}
     telemetry = telemetry if telemetry is not None else router.telemetry
-    author_family = family(author_model) if author_model and known(author_model) else None
-    prompt = _prompt(feature_id, files)
+    prompt, coverage = _review_input(feature_id, files)
+    if prompt is None:
+        # The complete bytes do not fit: two votes on an excerpt never approve the artifact.
+        return {"status": "held", "reason": "review_input_too_large", "votes": [],
+                "coverage": coverage, "content_digest": content_digest(files)}
+    author_family = family(author_model)
     votes = []
-    used_models, used_families = [], []
-    if author_model:
-        used_models.append(author_model)
-    if author_family:
-        used_families.append(author_family)
+    used_models, used_families = [author_model], [author_family]
     for index in (1, 2):
         try:
             model = router.select("review", exclude_models=used_models, exclude_families=used_families)
@@ -91,7 +102,8 @@ def two_vote_review(author_model, feature_id, files, router, complete, telemetry
         used_families.append(family(model))
         if answer["verdict"] != "approve":
             return {"status": "held", "reason": "reviewer_rejected", "votes": votes}
-    body = {"status": "approved", "votes": votes, "author_model": author_model}
+    body = {"status": "approved", "votes": votes, "author_model": author_model,
+            "coverage": coverage, "content_digest": content_digest(files)}
     body["digest"] = hashlib.sha256(
         json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()

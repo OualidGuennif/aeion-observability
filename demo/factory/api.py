@@ -40,20 +40,28 @@ class ApiError(Exception):
 
 class FactoryApp:
     def __init__(self, manifest_path, state_dir, spec_dir=None, bootstrap_token=None, active_concurrency=1,
-                 config=None, budget=None):
+                 config=None, budget=None, execution=None):
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         self.catalog = load_manifest(manifest_path)
         self.store = Store(self.state_dir / "factory.db", active_concurrency=active_concurrency)
         self.hub = SseHub()
         spec_dir = Path(spec_dir) if spec_dir else Path(manifest_path).resolve().parent
+        self.execution = dict(execution) if execution else {"mode": "simulator"}
+        self.execution_mode = self.execution.get("mode", "simulator")
+        self.execution_hold = self.execution.get("hold_reason")
         # The worker's purse is separate from the cockpit's: autonomous-forum money never pays
         # for the observability demo, and an exhausted purse holds the build before any work.
         self.budget = budget if budget is not None else DailyBudget(
             self.state_dir / "budget" / "ledger.jsonl")
         self.worker = DispatchWorker(self.store, self.catalog, spec_dir, self.state_dir / "work",
                                      config=config if config is not None else S2_CONFIG,
-                                     budget=self.budget, budget_scope="aeion-autonomous-forum")
+                                     budget=self.budget, budget_scope="aeion-autonomous-forum",
+                                     target=self.execution.get("target"),
+                                     builder=self.execution.get("builder"),
+                                     telemetry=self.execution.get("telemetry"),
+                                     review_complete=self.execution.get("review_complete"),
+                                     startup_hold=self.execution_hold)
         self.observer = Observer(self.store)
         self.token_path = self.state_dir / "admin.token"
         token = bootstrap_token if bootstrap_token is not None else self._load_or_create_token()
@@ -141,6 +149,13 @@ class FactoryApp:
             "schema_version": self.catalog.schema_version,
             "count": len(self.catalog.features),
             "features": self.catalog.features,
+            "execution": {
+                "mode": self.execution_mode,
+                "hold_reason": self.execution_hold,
+                "target_feature": (self.execution.get("target").feature_id
+                                   if self.execution.get("target") is not None else None),
+                "live_hold_reason": "live_builder_unqualified",
+            },
         }, {}
 
     def board(self, session):

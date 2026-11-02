@@ -36,6 +36,12 @@ HOLD_REASONS = {
     "base_unavailable",
     # No usable gateway session: an agent that cannot authenticate does not start building.
     "credential_unavailable",
+    # The configured execution (target, builder or mode) is unavailable or unknown.
+    "execution_unavailable", "execution_mode_unknown",
+    # A pinned target profile belongs to one feature and cannot freeze another.
+    "target_feature_mismatch",
+    # Live was requested without a qualified builder; the request is held, never simulated.
+    "live_builder_unqualified",
 }
 
 SCHEMA = """

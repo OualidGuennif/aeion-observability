@@ -3,11 +3,14 @@ import json
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from factory.budget import BudgetError, DailyBudget
+from factory import budget as budget_module
+from factory.budget import BudgetError, DailyBudget, paris_day
 
 DAY = "2026-11-02"
 
@@ -122,6 +125,23 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(summary["aeion-observability"]["limit_usd"], "15.00")
         self.assertEqual(summary["aeion-observability"]["spent_usd"], "0.25")
         self.assertEqual(summary["aeion-autonomous-forum"]["spent_usd"], "0.00")
+
+
+class BudgetDayTests(unittest.TestCase):
+    def test_the_budget_day_is_europe_paris_across_midnight(self):
+        self.assertEqual(
+            paris_day(datetime(2026, 11, 2, 23, 30, tzinfo=timezone.utc)), "2026-11-03")
+        self.assertEqual(
+            paris_day(datetime(2026, 11, 2, 10, 0, tzinfo=timezone.utc)), "2026-11-02")
+
+    def test_a_default_budget_uses_the_paris_day(self):
+        fixed = datetime(2026, 11, 2, 23, 30, tzinfo=timezone.utc)
+        with mock.patch.object(budget_module, "datetime") as clock:
+            clock.now.return_value = fixed
+            with tempfile.TemporaryDirectory() as root:
+                b = DailyBudget(Path(root) / "ledger.jsonl")
+                b.admit("aeion-observability", "0.10")
+                self.assertEqual(b.summary()["aeion-observability"]["day"], "2026-11-03")
 
 
 if __name__ == "__main__":

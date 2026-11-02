@@ -734,3 +734,94 @@ The safety window is one hour: a normal agent is bounded to 360 seconds × at mo
 and the harness qualification is shorter, so only abandoned pairs are eligible. The reaper is
 host-side and never runs inside an agent sandbox; it only removes containers carrying OpenShell's
 `managed-by` and `sandbox-namespace=aeion-observability` labels.
+
+## Publication to main through PR #11 — 2026-11-02
+
+The reviewed `develop` head was released to protected `main` through
+[PR #11](https://github.com/OualidGuennif/aeion-observability/pull/11), never a direct push.
+`main` requires linear history, so the release was a squash.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| Released head is exactly the reviewed one | PR #11 `headRefOid` `0afe95bde6dc1ec4f15175d17128a0ba0b452f1d`; `.aeion/reviews/0afe95b….md` | `Review: OK`, also posted as a commit comment |
+| Every check is green on that head | runs 41434142607 (`docker-demo`, `offline-examples`, knowledge health) and 41434142552 (`Graphify and Archify`) | all four `pass`; the `review` workflow skipped because it is not armed for this PR |
+| The PR was mergeable | `gh pr view 11`: `mergeable=MERGEABLE`, `mergeStateStatus=CLEAN` | no unresolved threads, base up to date |
+| Merge is a squash, not a merge commit | `gh pr merge 11 --squash` | `main` = `3d9ae70abf78229414f3aed73fcc08f14897205e` |
+| `main` carries exactly the released tree | `git rev-parse 0afe95b^{tree} origin/main^{tree}` | both `97285ec054dcbe8ca660e3555577060a4ed6739e` |
+| `develop` does not diverge after the squash | `git merge origin/main` on `develop` | merge `fc795e3`; no content change |
+| CI reached the local-only tests at their cause | `demo/tests/test_forum_target_profile.py` `setUp` skip | five profile tests skipped when the product checkout is absent; 426 tests OK, 12 skipped locally |
+
+## Review coverage, trace delivery and the budget day — 2026-11-02
+
+The first offline slice of the DeepSeek cockpit brief closes two truthfulness gaps that the
+owner journey depends on: a review must never approve bytes its voters did not receive, and a
+trace id must never be displayed as a delivered record. The budget day is now explicit.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| An oversized review is held, not truncated | `test_factory_modelfarm.py::test_oversized_single_file_is_held_without_calling_a_model`; 20,000-char file | `held` / `review_input_too_large`; no model call |
+| A tail file can no longer disappear | `test_factory_modelfarm.py::test_a_tail_file_never_disappears_from_the_review_envelope` | held before any vote; coverage lists both paths |
+| An unknown author cannot start a review | `test_factory_modelfarm.py::test_an_unknown_author_cannot_start_a_review` | `held` / `author_identity_unknown`; no vote |
+| An approval records complete coverage | `test_an_approved_circuit_records_complete_coverage` | `coverage.complete` true, files, 64-char content digest |
+| A timeout holds the circuit | `test_a_timeout_holds_the_circuit` | `held` / `reviewer_failed` |
+| A failed export is not "emitted" | `test_factory_telemetry.py::test_an_exporter_failure_is_not_reported_as_emitted` | `export_failed` / `exporter_returned_failure` |
+| An exporter exception is evidence | `test_an_exporter_exception_is_recorded_as_a_failure` | `export_failed` / `ConnectionError` |
+| A successful local export claims only that | `test_a_span_is_created_with_the_expected_attributes` | `exported_unconfirmed`, `confirmation=not_read_back` |
+| The offline qualification still passes after the change | `demo/tests/qualify_forum_build.py`; build `1f5e916a…`, attempt `03e32bd7…`, artifact `6b78a27a…` | gate passed, Gradle 0 in 19.3 s, review approved, `exported_unconfirmed` |
+| The read-back confirms that trace | Langfuse `GET /api/public/v2/observations?traceId=e0d6b3cc…` | PASS on build, feature, attempt, artifact and session |
+| The budget day is Europe/Paris | `test_factory_budget.py::test_the_budget_day_is_europe_paris_across_midnight` | 23:30 UTC is the next Paris day |
+| A default budget uses that day | `test_a_default_budget_uses_the_paris_day` | reservation recorded on `2026-11-03` |
+| Full demo suite | `demo/.local/venv/bin/python -m unittest discover -s demo/tests` | 434 tests OK |
+| Documentation | `tools/knowledge/doc-links`; `tools/knowledge/knowledge-check`; `tools/repo-health/repo-health` | PASS |
+
+Honest scope: no real provider or browser acceptance ran for this slice. The offline qualification
+did run its real Gradle check and a bounded Langfuse read-back: the exporter still reported
+`exported_unconfirmed`, and the separate read-back supplied the confirmation. The cockpit does not
+yet show that confirmation; the next slice wires it. The check environment still executes
+candidate Gradle tests on the host (B6), so Live stays held.
+
+## Factory v1.9.2 applied to both projects — 2026-11-02
+
+The factory checkout was clean at v1.9.2 (`4417c68`). Both adopted projects moved from v1.9.1
+with the factory's own `template-update` (the vendored 1.9.1 copy cannot update itself).
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| Only one contract file drifted | `template-update --from-ref v1.9.1 --ref v1.9.2 --root <project> --check` on both | `.pi/extensions/factory/index.js`, nothing else |
+| Both write only that file | same command without `--check` | `written .pi/extensions/factory/index.js`; VERSION, knowledge/, work/, CHANGELOG.md, AGENTS.md and the other harness settings untouched |
+| Connectors match the release | `/Users/wallseven/Desktop/AEion./aeion-factory/tools/agents/adapter-check --ref v1.9.2 --root <project>` on both roots. The adopted checkout has no `v1.9.2` tag, so the reference must be resolved from the factory repository; its vendored copy refuses the tag | 27/27 matching, 0 drifted, PASS on each |
+| The 1.9.2 behavior is the new one | diff: the `tool_result` compaction block is gone; `Stop` now receives `observed_tokens` at `agent_before_settle`; a one-shot print run ends with a pointer to the verified handover | matches the factory 1.9.2 changelog |
+| The vendored Pi test matches the connector | `tools/agents/tests/test_pi.mjs` refreshed from tag `v1.9.2`; it was byte-identical to `v1.9.1` before | `tools/factory-tests: PASS`, including the two settlement-compaction tests |
+| The Pi README documents the new boundary | `.pi/README.md` refreshed from `v1.9.2` | states the clean one-shot stop and interactive settlement compaction |
+| The application version is separate | root `VERSION` still `1.9.0`; adopted contracts are v1.9.2 | not overwritten, as the brief requires |
+| Forum change is local | `ab72692` in `demo/.local/factory/agents/aeion-autonomous-forum` | committed, not pushed |
+
+## One execution path for the browser — 2026-11-02
+
+The front no longer has to fall back to the fake Markdown builder. `demo/factory/execution.py`
+resolves an explicit mode, `FactoryApp` forwards the components to its worker, and the catalog
+response tells the operator which execution is active.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| Simulator is explicit, not a fallback | `test_factory_execution.py::test_simulator_is_explicit_and_has_no_target` | `{"mode": "simulator"}` |
+| An unknown mode holds | `test_an_unknown_mode_holds_instead_of_guessing` | `execution_mode_unknown`, no builder |
+| Offline without a profile or checkout holds | `test_offline_without_a_profile_holds_and_never_simulates` | `execution_unavailable`, no target or builder |
+| A real pinned profile resolves | resolve over this repository: `offline`, target feature 013 | no hold |
+| A pinned target cannot freeze another feature | `test_factory_target_dispatch.py::test_a_target_for_one_feature_never_freezes_another` | `target_feature_mismatch`; no work directory |
+| The app holds every build when its execution is unavailable | `test_an_unavailable_offline_execution_holds_every_build` | `held`; no work directory |
+| `FactoryApp` runs the real offline builder and check | `test_offline_execution_runs_the_real_builder_and_check` | `simulated_complete`, gate passed, Java files, no fake Markdown |
+| The catalog reports mode, hold and the Live reason | `test_the_catalog_reports_the_hold_and_the_live_reason`; `factory.js renderExecution` | `offline`, hold, `live_builder_unqualified` |
+| Full demo suite | `demo/.local/venv/bin/python -m unittest discover -s demo/tests` | 445 tests OK |
+
+Browser entrypoint check: the server was started with `AEION_FACTORY_EXECUTION=offline` and the
+API returned `{"mode": "offline", "target_feature": "013", "live_hold_reason":
+"live_builder_unqualified"}`. Queuing feature 013 through `/api/factory/queue` was **held at
+admission with `dependency_missing`**: the live store has no merged evidence for dependency 001,
+and this change deliberately does not satisfy it with a simulation receipt. The offline
+completion above ran through `FactoryApp.tick` with a fixture catalog whose dependency list was
+empty; it is not evidence that the live dependency is satisfied.
+
+Honest scope: no browser rendering, Live execution or dependency-baseline import is claimed. The
+next step is a verified baseline for the product features already present at the pinned commit,
+then the cockpit trace confirmation.
