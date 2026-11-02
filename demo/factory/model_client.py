@@ -13,7 +13,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from .models import wire_id
+from .models import eligibility, wire_id
 
 DEFAULT_ENDPOINT = "https://opencode.ai/inference/go/openai/v1/chat/completions"
 MAX_OUTPUT_TOKENS = 120
@@ -102,6 +102,10 @@ def _parse(text):
 
 def complete_with_usage(model, prompt, transport=None, max_tokens=MAX_OUTPUT_TOKENS, session=None):
     """Ask one model once; return its answer, canonical wire id and reported usage."""
+    allowed, reason = eligibility(model)
+    if not allowed:
+        # The same catalog the router and the app profiles read: never call an expired profile.
+        raise ModelClientError(f"model_ineligible:{reason}")
     load_environment()
     token = os.environ.get("OPENCODE_API_KEY")
     if not token:

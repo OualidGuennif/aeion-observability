@@ -9,10 +9,11 @@ from types import SimpleNamespace
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from app.profiles import available as profile_available
 from factory.dispatch import DispatchWorker
 from factory.live import BuilderError, LiveBuilder, parse_files
-from factory.model_client import complete_with_usage
-from factory.models import MODELS, Router, author_model, wire_id
+from factory.model_client import ModelClientError, complete_with_usage
+from factory.models import MODELS, Router, author_model, eligibility, eligible, wire_id
 
 
 class ModelPolicyTests(unittest.TestCase):
@@ -36,6 +37,28 @@ class ModelPolicyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             wire_id("made-up-model")
 
+    def test_the_app_and_the_factory_read_one_eligibility_verdict(self):
+        # The app's DeepSeek profile expired on 2026-10-31; the owner's spend authorization on
+        # 2026-11-02 does not requalify it, so both mechanisms must say no.
+        self.assertEqual(eligibility("deepseek-4.1-flash"), (False, "profile_expired"))
+        self.assertFalse(profile_available("deepseek"))
+        self.assertTrue(profile_available("glm"))
+        self.assertEqual(profile_available("glm"), eligibility("glm-5.3-flash")[0])
+        self.assertNotIn("deepseek-4.1-flash", eligible())
+        self.assertNotEqual(Router().select("review"), "deepseek-4.1-flash")
+
+    def test_an_ineligible_model_is_refused_before_transport(self):
+        calls = []
+
+        def transport(url, payload, headers):
+            calls.append(payload)
+            return 200, {"choices": [{"message": {"content": '{"verdict":"approve"}'}}]}
+
+        with self.assertRaises(ModelClientError) as caught:
+            complete_with_usage("deepseek-4.1-flash", "prompt", transport=transport)
+        self.assertIn("model_ineligible:profile_expired", str(caught.exception))
+        self.assertEqual(calls, [])
+
 
 class ModelClientTests(unittest.TestCase):
     def setUp(self):
@@ -53,9 +76,9 @@ class ModelClientTests(unittest.TestCase):
     def test_the_wire_id_is_sent_and_usage_is_returned(self):
         with mock.patch.dict("os.environ", {"OPENCODE_API_KEY": "fixture"}, clear=False), \
                 mock.patch("factory.model_client.load_environment", return_value=[]):
-            result = complete_with_usage("deepseek-4.1-flash", "prompt", transport=self.transport())
+            result = complete_with_usage("glm-5.3-flash", "prompt", transport=self.transport())
         call = self.transport_calls[0]
-        self.assertEqual(call["payload"]["model"], "deepseek-v4.1-flash")
+        self.assertEqual(call["payload"]["model"], "glm-5.3-flash")
         self.assertEqual(call["headers"]["User-Agent"], "aeion-factory/1.0")
         self.assertTrue(call["headers"]["x-opencode-session"])
         self.assertEqual(result["answer"], {"verdict": "approve"})

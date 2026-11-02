@@ -8,14 +8,23 @@ import datetime
 PROFILE_VERSION='flue-openshell-v1'
 PROFILES={
  'glm':{'model':'opencode-go/glm-5.3-flash','name':'GLM 5.3 Flash','tokenizer':'glm','input':0.15,'output':0.50,'cache_read':0.03,'context':1000000},
- 'deepseek':{'model':'opencode-go/deepseek-v4.1-flash','name':'DeepSeek V4.1 Flash','tokenizer':'deepseek','input':0.30,'output':1.20,'cache_read':0.006,'context':1000000,'valid_until':'2026-10-31'},
+ 'deepseek':{'model':'opencode-go/deepseek-v4.1-flash','name':'DeepSeek V4.1 Flash','tokenizer':'deepseek','input':0.30,'output':1.20,'cache_read':0.006,'context':1000000},
  'glm-full':{'model':'opencode-go/glm-5.3','name':'GLM 5.3','tokenizer':'glm-full','input':1.40,'output':4.40,'cache_read':0.26,'context':1000000},
  'glm52':{'model':'opencode-go/glm-5.2','name':'GLM 5.2','tokenizer':'glm52','input':1.40,'output':4.40,'cache_read':0.26,'context':1000000},
  'minimax':{'model':'opencode-go/minimax-m3.1-flash','name':'MiniMax M3.1 Flash','tokenizer':'minimax','input':0.15,'output':0.60,'cache_read':0.015,'context':1000000},
 }
 
 
+# The four owner-authorized workers are keyed by the factory catalog, which is the one
+# eligibility authority: this module must not keep a second expiry for them.
+SHARED_MODELS = {'glm': 'glm-5.3-flash', 'deepseek': 'deepseek-4.1-flash'}
+
+
 def available(key):
+    shared = SHARED_MODELS.get(key)
+    if shared is not None:
+        from factory.models import eligibility
+        return eligibility(shared)[0]
     p=PROFILES[key]
     return not p.get('valid_until') or datetime.date.today().isoformat()<=p['valid_until']
 

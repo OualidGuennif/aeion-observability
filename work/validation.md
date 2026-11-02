@@ -891,3 +891,25 @@ scope prefix check (`.GIT` included), `LiveBuilder` resets `last_usage` before e
 `_take_builder_state` refreshes the author (and paid usage) before a `builder_error` receipt. The
 suite is 489 tests OK. A fresh independent review of the new exact head is still required before
 any push.
+
+## One eligibility authority for the four workers — 2026-11-02
+
+`demo/factory/models.py` now owns the eligibility facts for the four owner-authorized workers
+(authorization date `2026-11-02`, recorded profile name and expiry), and
+`demo/app/profiles.py` asks that catalog instead of keeping its own `valid_until`.
+DeepSeek's harness profile expired on 2026-10-31; the owner's spend authorization on 2026-11-02
+does not renew a provider qualification, so the router, the builder and the app all refuse it
+until it is requalified and dated forward. GLM, Qwen and Haiku stay eligible under the recorded
+authorization.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| The app and the factory agree on DeepSeek | `profile_available('deepseek')`; `eligibility('deepseek-4.1-flash')` | both false, reason `profile_expired` |
+| The router never selects it | `Router().select('review')`; `eligible()` | absent from both |
+| The live client refuses it before transport | `test_an_ineligible_model_is_refused_before_transport` | `model_ineligible:profile_expired`, zero transport calls |
+| The other three remain eligible | `test_the_app_and_the_factory_read_one_eligibility_verdict` | GLM, Qwen, Haiku selectable |
+| Full demo suite | `demo/.local/venv/bin/python -m unittest discover -s demo/tests` | 491 tests OK |
+
+Honest scope: Qwen and Haiku have no harness profile record; their eligibility basis is the
+dated owner authorization, not a provider requalification. DeepSeek needs a fresh profile
+verification (account, region, protocol) before it can be enabled again.

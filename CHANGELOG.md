@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Give the builder and the operator profiles one eligibility authority. The four
+  owner-authorized workers now carry their authorization date and recorded profile expiry in
+  `demo/factory/models.py`; `demo/app/profiles.py` asks that catalog instead of keeping a second
+  `valid_until`. DeepSeek's harness profile expired on 2026-10-31, so the owner's spend
+  authorization on 2026-11-02 does not silently requalify it: the router no longer selects it and
+  `complete_with_usage` refuses it before transport, while GLM, Qwen and Haiku stay eligible.
+
 - Run protected candidate checks in a qualified Docker boundary and make paid authoring real.
   `demo/factory/isolation.py` runs the Gradle contract in a disposable non-root container with
   `--network none`, no Docker socket, no host home or controller mount, a fixed environment,

@@ -29,9 +29,9 @@ class RegistryTests(unittest.TestCase):
     def test_eligible_excludes_models_and_families(self):
         remaining = eligible(exclude_models=["glm-5.3-flash"])
         self.assertNotIn("glm-5.3-flash", remaining)
-        self.assertEqual(len(remaining), 3)
+        self.assertEqual(len(remaining), 2)
         self.assertEqual(eligible(exclude_families=["anthropic"]),
-                         ["deepseek-4.1-flash", "glm-5.3-flash", "qwen-3.8-flash"])
+                         ["glm-5.3-flash", "qwen-3.8-flash"])
 
     def test_router_prefers_efficiency_then_is_deterministic(self):
         router = Router()
