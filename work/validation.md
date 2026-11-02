@@ -789,7 +789,7 @@ with the factory's own `template-update` (the vendored 1.9.1 copy cannot update 
 | --- | --- | --- |
 | Only one contract file drifted | `template-update --from-ref v1.9.1 --ref v1.9.2 --root <project> --check` on both | `.pi/extensions/factory/index.js`, nothing else |
 | Both write only that file | same command without `--check` | `written .pi/extensions/factory/index.js`; VERSION, knowledge/, work/, CHANGELOG.md, AGENTS.md and the other harness settings untouched |
-| Connectors match the release | `adapter-check --ref v1.9.2` on both roots | 27/27 matching, 0 drifted, PASS on each |
+| Connectors match the release | `/Users/wallseven/Desktop/AEion./aeion-factory/tools/agents/adapter-check --ref v1.9.2 --root <project>` on both roots. The adopted checkout has no `v1.9.2` tag, so the reference must be resolved from the factory repository; its vendored copy refuses the tag | 27/27 matching, 0 drifted, PASS on each |
 | The 1.9.2 behavior is the new one | diff: the `tool_result` compaction block is gone; `Stop` now receives `observed_tokens` at `agent_before_settle`; a one-shot print run ends with a pointer to the verified handover | matches the factory 1.9.2 changelog |
 | The vendored Pi test matches the connector | `tools/agents/tests/test_pi.mjs` refreshed from tag `v1.9.2`; it was byte-identical to `v1.9.1` before | `tools/factory-tests: PASS`, including the two settlement-compaction tests |
 | The Pi README documents the new boundary | `.pi/README.md` refreshed from `v1.9.2` | states the clean one-shot stop and interactive settlement compaction |

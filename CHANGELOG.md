@@ -14,8 +14,9 @@
 
 - Update this project and the canonical forum checkout to Æion Factory **v1.9.2** with the
   factory's `template-update`: one contract file changed in each
-  (`.pi/extensions/factory/index.js`), and `adapter-check --ref v1.9.2` reports 27/27 connectors
-  matching on both. The 250k decision now happens at settlement with a live context measure
+  (`.pi/extensions/factory/index.js`), and the factory's `adapter-check --ref v1.9.2 --root
+  <project>` reports 27/27 connectors matching on both. The adopted checkout has no v1.9.2 tag,
+  so the reference is resolved from the factory repository. The 250k decision now happens at settlement with a live context measure
   instead of starting a compaction from a tool result, and a one-shot print run ends by pointing
   at the verified handover. The factory-owned `tools/agents/tests/test_pi.mjs` and `.pi/README.md`
   were refreshed from the same tag so `tools/factory-tests` no longer asserts the 1.9.1
