@@ -8,7 +8,11 @@ and autonomous coding whose every tool call runs inside **NVIDIA OpenShell 0.1.5
 code from both coding tiers is checked in OpenShell. The product under test is the **Agora
 forum** (Quarkus/Java); the old Deno/Hono playground is gone. The canonical product source is the
 separate `aeion-autonomous-forum` checkout at
-`demo/.local/factory/agents/aeion-autonomous-forum`; `demo/forum-app/` is a reading mirror. The
+`demo/.local/factory/agents/aeion-autonomous-forum`; `demo/forum-app/` is a read-only snapshot of
+that repository at the commit pinned in `demo/forum/source.json`, with every file digest in
+`demo/forum/source.lock.json`. `python3 demo/forum/source.py --check` refuses a hand edit or an
+extra tracked file, and `--refresh --product <checkout>` re-copies the pinned commit; product
+changes belong in the product repository. The
 interface uses Æion's ivory, forest-green and copper palette, locally bundled fonts and a native
 GPT Image illustration.
 

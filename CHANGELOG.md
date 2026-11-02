@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Give the demo's product snapshot one owner and a drift check. `demo/forum-app`,
+  `demo/forum-db` and `demo/forum-mobile` are byte-identical to `aeion-autonomous-forum` at the
+  base commit the feature targets pin; they are now a read-only snapshot named by
+  `demo/forum/source.json` and locked per file in `demo/forum/source.lock.json`.
+  `demo/forum/source.py --check` fails on a hand edit, a deletion or an extra tracked file, and
+  `--refresh --product <checkout>` re-copies the pinned commit (reading the product's object
+  store, because the product marks `/demo` export-ignore) after refusing a dirty snapshot. The
+  knowledge CI job runs the check, so the snapshot cannot drift silently.
+
 - Reconcile the OpenShell reaper with the factory's build leases. `demo/openshell/reap.py` reads
   `demo/.local/factory/factory.db` read-only and holds the sweep while a dispatched lease is
   still live, or when the store exists but cannot be read: the age window alone could remove a

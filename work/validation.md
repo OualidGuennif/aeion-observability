@@ -1029,3 +1029,29 @@ Limit, stated rather than hidden: the gate is global because check containers ca
 label, so one live dispatch holds the whole sweep instead of protecting only its own sandbox. That
 is fail-closed for cleanup; per-container reconciliation needs the attempt identity on the
 container, which the isolation runner does not pass yet.
+
+## The product snapshot has one owner and a drift check — 2026-11-02
+
+`demo/forum-app`, `demo/forum-db` and `demo/forum-mobile` are the input of the factory's baseline
+hash, the feature-013 target and the Compose packaging, but the canonical source is the separate
+`aeion-autonomous-forum` repository. The 53 tracked files were byte-identical to that repository's
+`37417ab` (`git show 37417ab:<path>` compared to the working tree for every file), yet nothing
+stopped a hand edit from silently becoming this repository's product.
+
+They are now declared as a read-only snapshot: `demo/forum/source.json` pins the repository and
+commit, `demo/forum/source.lock.json` records a SHA-256 per file, and `demo/forum/source.py` is the
+contract. `--check` (the default, and a step of the knowledge CI job) compares the tracked working
+tree to the lock and fails on a missing, changed or extra tracked file; it needs only this
+checkout. `--refresh --product <checkout>` re-copies the pinned commit after refusing a dirty
+snapshot, and reads blobs with `git ls-tree`/`git cat-file` rather than `git archive` because the
+product repository marks `/demo` `export-ignore` (an archive-based copy silently produced no
+files). The product checkout may be ahead: refresh reads the pinned commit object, never a
+checkout or branch, and never pushes.
+
+Evidence: `demo/tests/test_forum_source.py` (7 tests) covers the repository snapshot matching its
+lock, a hand edit, an extra tracked file, refresh restoring the pinned bytes while dropping a stale
+file, a dirty snapshot refused (`mirror_dirty`), a product checkout without the pinned commit
+(`product_commit_missing`), and a symlink in the product snapshot refused
+(`product_entry_not_a_file`). `python3 demo/forum/source.py --check` reports `ok: true`, 53 files.
+Full demo suite: 511 tests OK. The five local product commits (`ab72692` head) are untouched and
+unpushed; publishing them remains the owner's decision.
