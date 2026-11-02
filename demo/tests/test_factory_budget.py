@@ -101,6 +101,20 @@ class BudgetTests(unittest.TestCase):
                 with self.assertRaisesRegex(BudgetError, "budget_ledger_corrupt"):
                     budget(self.root).spent("aeion-observability")
 
+    def test_a_positive_sub_cent_reservation_is_rounded_up_not_free(self):
+        b = budget(self.root)
+        reservation = b.admit("aeion-observability", "0.001")
+        self.assertEqual(reservation.estimate_usd, Decimal("0.01"))
+        self.assertEqual(b.spent("aeion-observability"), Decimal("0.01"))
+        self.assertEqual(b.settle(reservation, "0.001"), Decimal("0.01"))
+
+    def test_a_zero_reservation_cannot_settle_a_positive_cost(self):
+        b = budget(self.root)
+        reservation = b.admit("aeion-observability", "0.00")
+        with self.assertRaisesRegex(BudgetError, "settlement_exceeds_reservation"):
+            b.settle(reservation, "0.01")
+        self.assertEqual(b.spent("aeion-observability"), Decimal("0.00"))
+
     def test_summary_reports_both_purses(self):
         b = budget(self.root)
         b.admit("aeion-observability", "0.25")

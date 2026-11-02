@@ -46,6 +46,21 @@ def _request_digest(request):
         return None
 
 
+def independent_circuit(circuit):
+    """A circuit is approved only by at least two votes from distinct model families."""
+    if not isinstance(circuit, dict):
+        return False
+    votes = circuit.get("votes")
+    if not isinstance(votes, list) or len(votes) < 2:
+        return False
+    families = []
+    for vote in votes:
+        if not isinstance(vote, dict) or not isinstance(vote.get("family"), str) or not vote["family"]:
+            return False
+        families.append(vote["family"])
+    return len(set(families)) == len(families)
+
+
 def verified_receipt(store, request):
     """Cross-check the queued request, including its bytes, against the worker's stored receipt."""
     row = store.by_attempt(request.get("attempt_id"))
@@ -60,9 +75,7 @@ def verified_receipt(store, request):
         return None
     # The circuit is mandatory: a receipt without two distinct approving families is not publishable.
     circuit = receipt.get("circuit") or {}
-    if circuit.get("status") != "approved":
-        return None
-    if len(circuit.get("votes") or []) < 2:
+    if circuit.get("status") != "approved" or not independent_circuit(circuit):
         return None
     digest = _request_digest(request)
     if digest is None:

@@ -30,6 +30,9 @@
   publish worker now holds its own forum purse and reserves a positive $0.10 before it can call a
   reviewer; an entry point without a purse holds `budget_unavailable` instead of spending freely.
   No paid inference was authorised or run.
+- Confine the protected check to the worker's materialised tree, so a manifest or forged verdict
+  cannot point it at the controller or another host directory. A verified publish receipt now also
+  requires at least two approved votes from distinct model families, not just two vote objects.
 - Remove the obsolete Deno/Hono demo: `demo/playground/` and its Compose service, cockpit
   integration dot, hero link, `Runner.probe` and the Deno-span read-back are gone; `/factory`
   is the operator entry and the forum is the only product demonstration. The cockpit links the

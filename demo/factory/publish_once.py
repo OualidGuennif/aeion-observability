@@ -6,6 +6,7 @@ turn that request into a branch and a pull request.
 """
 import argparse
 import json
+import os
 import sys
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -20,6 +21,8 @@ from factory.manifest import load_manifest
 from factory.store import Store
 
 ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_LEDGER = Path(os.environ.get("AEION_BUDGET_LEDGER")
+                      or ROOT / "demo/.local/budget/ledger.jsonl")
 
 
 def positive_reservation(value):
@@ -28,20 +31,20 @@ def positive_reservation(value):
         amount = Decimal(str(value))
     except (InvalidOperation, ValueError):
         raise ValueError("invalid_cost_reservation") from None
-    if not amount.is_finite() or amount <= 0:
+    if not amount.is_finite() or amount < Decimal("0.01"):
         raise ValueError("invalid_cost_reservation")
     return format(amount, "f")
 
 
 def build_worker(store, catalog, spec_dir, state, target_repo, author_model,
-                 review_complete, cost_reservation_usd):
-    """Wire the paid publish worker to its own forum purse before it can reach a model."""
+                 review_complete, cost_reservation_usd, ledger=None):
+    """Wire the paid publish worker to the shared forum purse before it can reach a model."""
     config = {**S2_CONFIG, "cost_reservation_usd": cost_reservation_usd}
     return DispatchWorker(
         store, catalog, Path(spec_dir), Path(state) / "work", config,
         target_repo=target_repo, defer_to=Path(state),
         review_complete=review_complete, author_model=author_model,
-        budget=DailyBudget(Path(state) / "budget" / "ledger.jsonl"),
+        budget=DailyBudget(Path(ledger) if ledger is not None else DEFAULT_LEDGER),
         budget_scope="aeion-autonomous-forum",
     )
 
@@ -55,6 +58,8 @@ def main(argv=None):
     parser.add_argument("--manifest", default=str(ROOT / "demo/forum/features/MANIFEST.json"))
     parser.add_argument("--specs", default=str(ROOT / "demo/forum/features"))
     parser.add_argument("--author-model", default="deepseek-4.1-flash")
+    parser.add_argument("--ledger", default=str(DEFAULT_LEDGER),
+                        help="the shared daily budget journal")
     parser.add_argument("--cost-reservation-usd", default="0.10",
                         help="positive per-build reservation charged to aeion-autonomous-forum")
     args = parser.parse_args(argv)
@@ -76,7 +81,7 @@ def main(argv=None):
     state = Path(args.state)
     store = Store(state / "factory.db")
     worker = build_worker(store, catalog, Path(args.specs), state, args.repo,
-                          args.author_model, open_code_complete, reservation)
+                          args.author_model, open_code_complete, reservation, args.ledger)
     out = {"repo": args.repo, "base": args.base, "feature": args.feature, "mode": "deferred",
            "author_model": args.author_model}
     admission = store.admit([args.feature], f"defer-{args.feature}-{args.base}", catalog)

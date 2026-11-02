@@ -18,7 +18,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_CEILING
 from pathlib import Path
 
 DEFAULT_LIMIT_USD = Decimal("15.00")
@@ -51,6 +51,11 @@ def _money(value, label="amount"):
     if not amount.is_finite() or amount < 0:
         raise BudgetError(f"invalid_{label}")
     return amount
+
+
+def _cents_up(value, label="amount"):
+    """A positive amount never becomes free when the journal records cents."""
+    return _money(value, label).quantize(Decimal("0.01"), rounding=ROUND_CEILING)
 
 
 class DailyBudget:
@@ -130,7 +135,7 @@ class DailyBudget:
     def admit(self, scope, estimate_usd, note=""):
         """Journal a reservation before a paid action; refuse past the daily limit."""
         self._check_scope(scope)
-        estimate = _money(estimate_usd, "estimate")
+        estimate = _cents_up(estimate_usd, "estimate")
         day = self._today()
         with self._locked():
             entries = self._read()
@@ -147,7 +152,7 @@ class DailyBudget:
 
     def settle(self, reservation, actual_usd):
         """Close a reservation with the actual (or conservatively estimated) cost."""
-        actual = _money(actual_usd, "actual")
+        actual = _cents_up(actual_usd, "actual")
         with self._locked():
             entries = self._read()
             if any(e["kind"] == "settle" and e["reservation"] == reservation.id for e in entries):
@@ -155,6 +160,9 @@ class DailyBudget:
             if not any(e["kind"] == "reserve" and e["reservation"] == reservation.id
                        and e["scope"] == reservation.scope for e in entries):
                 raise BudgetError("unknown_reservation")
+            # A free reservation cannot be turned into a paid one after the fact.
+            if actual > 0 and reservation.estimate_usd == 0:
+                raise BudgetError("settlement_exceeds_reservation")
             self._append({
                 "version": _LEDGER_VERSION, "kind": "settle", "scope": reservation.scope,
                 "day": reservation.day, "reservation": reservation.id,

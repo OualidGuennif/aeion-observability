@@ -4,6 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory.publish import FakeForge, Publisher, is_sensitive_path
+from factory.publisher import independent_circuit
 from factory.review import content_digest
 
 FILES = {"demo/forum/product/x.md": "reviewed bytes\n"}
@@ -36,6 +37,20 @@ class SensitivePathTests(unittest.TestCase):
         self.assertTrue(is_sensitive_path("package.json"))
         self.assertTrue(is_sensitive_path("demo/forum/product/poetry.lock"))
         self.assertFalse(is_sensitive_path("demo/forum/product/app/views.py"))
+
+
+class CircuitIndependenceTests(unittest.TestCase):
+    def test_two_votes_from_one_family_are_not_independent(self):
+        circuit = {"status": "approved", "votes": [
+            {"model": "a", "family": "one"}, {"model": "b", "family": "one"}]}
+        self.assertFalse(independent_circuit(circuit))
+        circuit["votes"][1]["family"] = "two"
+        self.assertTrue(independent_circuit(circuit))
+
+    def test_missing_family_or_two_votes_is_not_independent(self):
+        self.assertFalse(independent_circuit({"status": "approved", "votes": []}))
+        self.assertFalse(independent_circuit({"status": "approved", "votes": [
+            {"model": "a"}, {"model": "b", "family": "two"}]}))
 
 
 class PublisherTests(unittest.TestCase):

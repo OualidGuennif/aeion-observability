@@ -92,6 +92,13 @@ class TargetCheckTests(unittest.TestCase):
         self.assertEqual(called, [])
         self.assertFalse((self.root / "demo").exists())
 
+    def test_a_repository_outside_the_allowed_workspace_is_refused(self):
+        passed, detail = target_check(self.target, work_root=self.root / "workspace")(
+            object(), {"repo": str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(detail["reason"], "repository_outside_workspace")
+        self.assertFalse(self.destination.exists())
+
     def test_a_preexisting_destination_is_restored(self):
         self.destination.parent.mkdir(parents=True)
         self.destination.write_text("// candidate copy\n")

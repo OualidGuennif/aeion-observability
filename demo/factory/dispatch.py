@@ -57,7 +57,8 @@ class DispatchWorker:
         else:
             registered = dict(DEFAULT_CHECKS)
             if target is not None:
-                registered[target.protected_check.id] = target_check(target)
+                registered[target.protected_check.id] = target_check(
+                    target, work_root=self.work_root)
             self.checks = ProtectedChecks(registered)
         if required_checks is not None:
             self.required_checks = list(required_checks)

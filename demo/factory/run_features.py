@@ -12,6 +12,7 @@ this script is never evidence that a model reviewed anything — only that the m
 """
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -30,6 +31,8 @@ from factory.store import SIMULATED_COMPLETE, Store  # noqa: E402
 CONFIG = {"profile": "fake", "mode": "fake", "deadline_ns": 300 * 1_000_000_000,
           "step_cap": 200, "context_limit": 250_000, "cost_reservation_usd": "0.00"}
 LIVE_RESERVATION_USD = "0.10"
+DEFAULT_LEDGER = Path(os.environ.get("AEION_BUDGET_LEDGER")
+                      or DEMO / ".local/budget/ledger.jsonl")
 
 
 def deterministic_answer(model, prompt):
@@ -41,14 +44,15 @@ def live_answer(model, prompt):
     return complete(model, prompt)
 
 
-def build(store, catalog, spec_dir, state_dir, features, review_complete, live=False):
+def build(store, catalog, spec_dir, state_dir, features, review_complete, live=False,
+          ledger=None):
     config = dict(CONFIG)
     if live:
         config["cost_reservation_usd"] = LIVE_RESERVATION_USD
     worker = DispatchWorker(store, catalog, spec_dir, state_dir / "work", config=config,
                             defer_to=state_dir, review_complete=review_complete,
                             require_circuit=True,
-                            budget=DailyBudget(state_dir / "budget" / "ledger.jsonl"),
+                            budget=DailyBudget(Path(ledger) if ledger is not None else DEFAULT_LEDGER),
                             budget_scope="aeion-autonomous-forum")
     results = []
     for feature_id in features:
@@ -83,6 +87,8 @@ def main(argv=None):
     parser.add_argument("--features", nargs="+", default=["001", "002", "003"])
     parser.add_argument("--state", default=str(DEMO / ".local/factory"))
     parser.add_argument("--live", action="store_true", help="use the real review endpoint")
+    parser.add_argument("--ledger", default=str(DEFAULT_LEDGER),
+                        help="the shared daily budget journal")
     parser.add_argument("--flags", default='{"dark_mode": {"enabled": true, "rollout": 20}}')
     args = parser.parse_args(argv)
 
@@ -93,7 +99,7 @@ def main(argv=None):
 
     review_complete = live_answer if args.live else deterministic_answer
     results = build(store, catalog, manifest.parent, state_dir, args.features,
-                    review_complete, live=args.live)
+                    review_complete, live=args.live, ledger=args.ledger)
     built = staged_features(store, catalog, args.features)
 
     cache, backend = connect(None, state_dir / "cache", ttl=60)

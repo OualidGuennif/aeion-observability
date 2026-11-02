@@ -23,17 +23,19 @@ class PublishWorkerBudgetTests(unittest.TestCase):
 
     def test_positive_reservation_refuses_zero_and_invalid_amounts(self):
         self.assertEqual(positive_reservation("0.10"), "0.10")
-        for value in ("0", "-0.01", "not-a-number"):
+        for value in ("0", "0.001", "-0.01", "not-a-number"):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
                     positive_reservation(value)
 
     def test_the_worker_is_wired_to_the_forum_purse(self):
+        ledger = self.root / "shared" / "ledger.jsonl"
         worker = build_worker(Store(self.root / "factory.db"), self.catalog,
                               self.root / "specs", self.root, "o/r", "model",
-                              lambda model, prompt: {"verdict": "approve"}, "0.10")
+                              lambda model, prompt: {"verdict": "approve"}, "0.10", ledger)
         self.assertEqual(worker.budget_scope, "aeion-autonomous-forum")
         self.assertIsNotNone(worker.budget)
+        self.assertEqual(worker.budget.path, ledger)
         self.assertEqual(worker.config["cost_reservation_usd"], "0.10")
         self.assertFalse(worker.allow_unbudgeted)
 

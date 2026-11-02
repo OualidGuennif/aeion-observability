@@ -69,7 +69,7 @@ def _failed_tests(output, limit=20):
     return found
 
 
-def target_check(target, runner=None):
+def target_check(target, runner=None, work_root=None):
     """Run the profile's protected check against the materialised candidate tree.
 
     The contract test is copied in from outside the candidate's write scopes, runs with
@@ -77,6 +77,7 @@ def target_check(target, runner=None):
     recorded: no raw output, no candidate-controlled evaluator.
     """
     runner = runner or subprocess.run
+    allowed_root = Path(work_root).resolve() if work_root is not None else None
 
     def check(frozen, artifact_verdict):
         # An absent or relative path must never resolve to the controller's own directory.
@@ -86,6 +87,11 @@ def target_check(target, runner=None):
         repo = Path(raw_repo)
         if not repo.is_absolute() or not repo.is_dir():
             return False, {"reason": "repository_missing"}
+        if allowed_root is not None:
+            try:
+                repo.resolve().relative_to(allowed_root)
+            except ValueError:
+                return False, {"reason": "repository_outside_workspace"}
         spec = target.protected_check
         destination = repo / spec.contract_destination
         original = destination.read_bytes() if destination.is_file() else None
