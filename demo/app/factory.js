@@ -1,6 +1,7 @@
 /* Factory board client: admin login, catalog cards, queue, cancel and bounded SSE. */
 "use strict";
 const TERMINAL = ["merged", "failed", "cancelled", "simulated_complete"];
+const LANGFUSE_UI = "http://localhost:3300";
 const state = { csrf: null, selected: new Set(), catalog: [], builds: [], events: [], lastSeq: 0 };
 
 const $ = (id) => document.getElementById(id);
@@ -82,9 +83,13 @@ function receiptSummary(raw) {
   if (r.publisher && r.publisher.decision) bits.push(`publisher ${esc(r.publisher.decision)}`);
   const pr = r.publisher && r.publisher.forge && r.publisher.forge.pr;
   if (pr && pr.pr_number) bits.push(`fake PR #${esc(pr.pr_number)}`);
+  if (r.build_id) bits.push(`build ${esc(String(r.build_id).slice(0, 8))}`);
+  if (r.attempt_id) bits.push(`attempt ${esc(String(r.attempt_id).slice(0, 8))}`);
   if (r.artifact_digest) bits.push(`artifact ${esc(String(r.artifact_digest).slice(0, 12))}`);
   if (r.frozen_digest) bits.push(`frozen ${esc(String(r.frozen_digest).slice(0, 12))}`);
   if (r.base_sha) bits.push(`base ${esc(String(r.base_sha).slice(0, 8))}`);
+  const trace = r.telemetry && r.telemetry.trace_id;
+  if (trace) bits.push(`<a href="${LANGFUSE_UI}/trace/${encodeURIComponent(trace)}" target="_blank" rel="noreferrer">trace ${esc(String(trace).slice(0, 8))}</a>`);
   return bits.length ? `<p class="fineprint">${bits.join(" · ")}</p>` : "";
 }
 
