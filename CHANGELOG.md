@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Remove the obsolete Deno/Hono demo: `demo/playground/` and its Compose service, cockpit
+  integration dot, hero link, `Runner.probe` and the Deno-span read-back are gone; `/factory`
+  is the operator entry and the forum is the only product demonstration. The cockpit links the
+  forum API and web front, and `demo/tests/test_playground_removed.py` keeps the old surface
+  from returning.
+- Confirm the Æion Factory v1.9.1 template: `template-update --from-ref v1.9.0 --ref v1.9.1`
+  reports no contract file differing and `adapter-check --ref v1.9.1` matches all 27 connectors;
+  the four readers changed in v1.9.1 were already adopted in `10ded60`.
 - Run the forum's React Native front in a browser through `react-native-web`
   (`npx expo start --port 8082`): the API allows exactly `http://127.0.0.1:8082` and
   `http://localhost:8082` with credentials, `src/api.ts` lets the browser's cookie jar own the session

@@ -218,7 +218,7 @@ def main():
                                 upstream=f"http://127.0.0.1:{server.server_port}/v1/chat/completions", counter=FixtureCounter())
 
         profile = {"model": "fixture/mock", "name": "Fixture", "context": 1000000, "input": 0, "output": 0, "cache_read": 0}
-        with patch.dict(os.environ, {"OPENCODE_API_KEY": "synthetic", "DEMO_MAX_COST_USD": "0", "PLAYGROUND_URL": ""}), \
+        with patch.dict(os.environ, {"OPENCODE_API_KEY": "synthetic", "DEMO_MAX_COST_USD": "0"}), \
                 patch.dict(runner.PROFILES, {"fixture": profile}), patch("runner.ContextRelay", side_effect=local_relay):
             for runtime in RUNS:
                 qualify(runtime, root, args.local_sandbox)

@@ -5,9 +5,10 @@ A local showcase connecting **OpenTelemetry, Langfuse, Hindsight and claude-mem*
 host**; the agent harness is **Flue 2.3.0 on Pi 1.4.0** in [three execution tiers](#three-execution-tiers):
 triage in an emulated in-memory shell, a guided local assistant with folder-confined file tools,
 and autonomous coding whose every tool call runs inside **NVIDIA OpenShell 0.1.5**. Generated
-code from both coding tiers is checked in OpenShell. The application under test is **Deno
-JavaScript + Hono**. The interface uses Æion's ivory, forest-green and copper palette, locally
-bundled fonts and a native GPT Image illustration.
+code from both coding tiers is checked in OpenShell. The product under test is the **Agora
+forum** (`demo/forum-app/`, Quarkus/Java); the old Deno/Hono playground is gone. The interface
+uses Æion's ivory, forest-green and copper palette, locally bundled fonts and a native GPT Image
+illustration.
 
 ## Agora factory planning
 
@@ -32,8 +33,8 @@ renders in a browser through `react-native-web` (`npx expo start --port 8082` �
 ## Start and show
 
 From the repository root, with Docker running, Python 3.11+ and Node.js 22.19+. The native
-gateway bootstrap supports macOS arm64 and Linux x86_64/arm64. Reserve memory for the ten
-observation/application services plus transient sandboxes; the local machine used an 8 GB Docker
+gateway bootstrap supports macOS arm64 and Linux x86_64/arm64. Reserve memory for the nine
+observation services plus transient sandboxes; the local machine used an 8 GB Docker
 VM shared with other projects, which caused startup delays under load:
 
 ```sh
@@ -59,7 +60,9 @@ may hold more than the one it needs.
 | View | Local address | Purpose |
 | --- | --- | --- |
 | Python cockpit | [localhost:8088](http://localhost:8088) | Session timeline, context, model KPIs, memory, MD and logs |
-| Deno/Hono playground | [localhost:8090](http://localhost:8090) | Quote API running the independently verified JS artifact |
+| Feature factory | [localhost:8088/factory](http://localhost:8088/factory) | Select, queue and watch forum feature builds |
+| Forum API | [localhost:8081](http://127.0.0.1:8081/healthz) | Quarkus service: threads, accounts, health |
+| Forum web front | [localhost:8082](http://127.0.0.1:8082) | React Native Web client (`npx expo start --port 8082`) |
 | Langfuse | [localhost:3300](http://localhost:3300) | Real traces, generations, usage, estimated cost and boolean scores |
 | Hindsight | [localhost:9999](http://localhost:9999) | Session-analysis memory banks and semantic recall |
 
@@ -68,7 +71,8 @@ both in the private configuration (`demo/.local/stack.env`, written by `python3 
 Open it locally in an editor; never paste the password into chat/logs.
 claude-mem and the OTel collector publish on loopback only for the native controller.
 The first build downloads upstream runtimes and Hindsight's bundled local models, not model
-weights for coding inference. Compose runs only the observation services and the playground.
+weights for coding inference. Compose runs only the observation services; the forum, the
+feature factory and the Flue harness run on the host.
 The cockpit, counting relay and Flue harness run on the host; there is no controller container,
 agent CLI image or Docker socket in this code path. A private native mTLS gateway owns OpenShell's
 Docker compute driver. No user repository, host transcript or global agent setting is mounted.
@@ -79,8 +83,8 @@ A useful presentation sequence:
    a fresh agent continues, and the four real local services capture/remember the task.
 2. **Run Flue build**: choose an execution tier, then Auto or one of five paid Go profiles.
    Coding tiers edit `src/pricing.js` (through OpenShell in tier 3); 12 or 14 protected Deno
-   checks run for the selected task in a fresh sandbox, then its Hono API is probed. Triage
-   submits one labeled result per event, checked by the supervisor.
+   checks run for the selected task in a fresh sandbox, then the supervisor records the result.
+   Triage submits one labeled result per event, checked by the supervisor.
 3. Compare the **same tier, task, gate and method version** in the model lab. Read cost/latency/autonomy
    together; declare human assistance when applicable rather than inferring independence.
 4. **Recall session analyses**; inspect the checkpoint, correlated JSONL logs and Langfuse trace.
@@ -249,9 +253,9 @@ relay/bridge/runner/harness sources plus `package-lock.json`; live execution is 
 it. Rerun bootstrap and harness qualification after changes/expiry. Cleanup failure writes
 `demo/.local/data/sandbox.blocked`; verify owned sandbox deletion and requalify before clearing it.
 The gateway, Docker daemon and supervisor are trusted. OpenShell's local container driver is not
-a microVM boundary or a production hostile-code qualification. After acceptance, the Hono
-playground imports the published artifact in its read-only Docker container; Deno permissions
-limit it to `/work/published` and the collector. That is not an OpenShell boundary.
+a microVM boundary or a production hostile-code qualification. After acceptance, the supervisor
+keeps the checked artifact under `demo/.local/work/published/` as evidence; nothing serves it as
+a second application, and that directory is not an OpenShell boundary.
 
 ## Evidence and logs
 

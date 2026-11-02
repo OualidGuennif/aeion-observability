@@ -144,25 +144,6 @@ services:
     security_opt: [no-new-privileges:true]
     mem_limit: 128m
 
-  playground:
-    logging: *bounded-logging
-    build: ./playground
-    ports: ["127.0.0.1:8090:8000"]
-    environment:
-      OTEL_DENO: "true"
-      OTEL_SERVICE_NAME: aeion-deno-playground
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_DENO_CONSOLE: ignore
-      OTEL_LOGS_EXPORTER: none
-      OTEL_METRICS_EXPORTER: none
-    # Only supervisor-published artifacts; never run workspaces or handover documents.
-    volumes: ["./.local/work/published:/work/published:ro"]
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    mem_limit: 256m
-    depends_on: [otel-collector]
-
   hindsight:
     logging: *bounded-logging
     image: ghcr.io/vectorize-io/hindsight:1.1.0@sha256:50311d02b4d5d2b7c5242bd336edf8735df8374eaad496a92f49c83b37d2aa06

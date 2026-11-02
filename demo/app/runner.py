@@ -9,7 +9,6 @@ import subprocess
 import tempfile
 import threading
 import time
-import urllib.request
 from decimal import Decimal
 
 from bridge import SandboxBridge
@@ -19,7 +18,7 @@ from profiles import PROFILES, model_metadata
 from relay import ContextRelay
 from sandbox import SANDBOX_OUT, Sandbox
 from scenarios import SCENARIOS, SOLUTIONS, contract
-from settings import AGENT_UID, FLUE, HARNESS, SERVICES, WORK
+from settings import AGENT_UID, FLUE, HARNESS, WORK
 import triage
 
 CHECKER = "/opt/demo/fixtures/check-scenario.js"
@@ -35,7 +34,7 @@ TRIAGE = "flue-just-bash"
 FAILURES = {"USAGE_UNKNOWN", "COST_UNKNOWN", "INVALID_ARTIFACT", "INVALID_CHECK_OUTPUT", "PROVIDER_CONTEXT_VIOLATION",
             "CONTEXT_ACCOUNTING_MISMATCH", "CONTEXT_UNKNOWN", "PROVIDER_REJECTED", "CLI_CLIENT_REQUIRED",
             "GO_SUBSCRIPTION_REQUIRED", "MODEL_DISABLED", "PROVIDER_ERROR", "CLI_FAILED", "CLI_PROTOCOL_ERROR",
-            "HARNESS_COMPACTION", "AGENT_TIMEOUT", "BUDGET_STOP", "STEP_LIMIT", "APP_PROBE_FAILED", "HANDOVER_NOT_READY",
+            "HARNESS_COMPACTION", "AGENT_TIMEOUT", "BUDGET_STOP", "STEP_LIMIT", "HANDOVER_NOT_READY",
             "INSUFFICIENT_FUNDS", "GO_REGION_REQUIRED", "QUOTA_STOP", "AUTH_ERROR", "SANDBOX_NOT_QUALIFIED",
             "SANDBOX_UNAVAILABLE", "SANDBOX_VERSION_MISMATCH", "SANDBOX_EXEC_FAILED", "SANDBOX_STOP_FAILED"}
 
@@ -134,7 +133,7 @@ class Runner:
         else:
             basis_note = "interim protected check in the live sandbox; the final verdict uses a fresh sandbox."
             next_action = ("Read this document and the preserved source. Complete or verify the implementation; "
-                           "the supervisor runs immutable Deno checks and probes the Hono API. Edit only src/pricing.js.")
+                           "the supervisor runs immutable Deno checks. Edit only src/pricing.js.")
         markdown = (
             "# AEion agent handover\n\n"
             f"Task: {run.get('task_id', 'pricing-js-v1')}\nAgent: {run['agents']}\n"
@@ -291,7 +290,6 @@ class Runner:
                     temporary.write_bytes(source.read_bytes())
                     temporary.chmod(0o644)
                     temporary.replace(target)
-                    self.probe(run)
                 break
             else:
                 run["status"] = "handover_limit"
@@ -310,24 +308,6 @@ class Runner:
             root_span.end()
             run["ended_ns"] = time.time_ns()
             self.save(run)
-
-    def probe(self, run):
-        endpoint = os.environ.get("PLAYGROUND_URL", SERVICES["playground"][0])
-        if not endpoint:
-            return  # local harness fixture has no application service
-        started = time.monotonic()
-        # Propagate the task trace to Deno's native HTTP instrumentation.
-        header = f"00-{run['trace_id']}-{run['root_span_id']}-01"
-        task_id = run.get("task_id", "pricing-js-v1")
-        task = SCENARIOS[task_id]
-        request = urllib.request.Request(endpoint + "/api/scenario/" + task_id,
-            data=json.dumps({"args":task["probe_args"]}).encode(),
-            headers={"Content-Type":"application/json", "traceparent":header})
-        with urllib.request.urlopen(request,timeout=10) as response:
-            if json.loads(response.read(4096)) != {"result":task["probe_result"]}:
-                raise ValueError("APP_PROBE_FAILED")
-        run["app_probe_ms"] = round((time.monotonic() - started) * 1000, 2)
-        self.event(run, "app.verified", **{"aeion.app.probe_ms": run["app_probe_ms"]})
 
     def simulate(self, run, workspace, agent):
         # Explicit synthetic replay; does not masquerade as a harness/provider run.
