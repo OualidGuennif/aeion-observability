@@ -864,7 +864,7 @@ was loaded by the application from the existing dotenv files.
 | Its check used the isolated boundary | receipt `gradle_test.detail.isolation` | `qualified`, image digest above, probe denied network and socket |
 | Its trace reached Langfuse | trace `5d926786bd644df61b4e0fd97b349079`, observation `6a1becec6aeb6ef9` | `confirmed` via authenticated readback |
 | Budget stayed bounded | shared ledger summary | 6 reservations, 6 settled, 0 open, provider-reported spend $0.00 |
-| Full demo suite | `demo/.local/venv/bin/python -m unittest discover -s demo/tests` | 480 tests OK |
+| Full demo suite | `demo/.local/venv/bin/python -m unittest discover -s demo/tests` | 482 tests OK |
 
 The first two live attempts failed the protected check on candidate-authored tests (an
 absent-header matcher and a missing `@WithTestResource`), not on the contract; their receipts are
