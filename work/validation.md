@@ -793,3 +793,33 @@ with the factory's own `template-update` (the vendored 1.9.1 copy cannot update 
 | The 1.9.2 behavior is the new one | diff: the `tool_result` compaction block is gone; `Stop` now receives `observed_tokens` at `agent_before_settle`; a one-shot print run ends with a pointer to the verified handover | matches the factory 1.9.2 changelog |
 | The application version is separate | root `VERSION` still `1.9.0`; adopted contracts are v1.9.2 | not overwritten, as the brief requires |
 | Forum change is local | `ab72692` in `demo/.local/factory/agents/aeion-autonomous-forum` | committed, not pushed |
+
+## One execution path for the browser — 2026-11-02
+
+The front no longer has to fall back to the fake Markdown builder. `demo/factory/execution.py`
+resolves an explicit mode, `FactoryApp` forwards the components to its worker, and the catalog
+response tells the operator which execution is active.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| Simulator is explicit, not a fallback | `test_factory_execution.py::test_simulator_is_explicit_and_has_no_target` | `{"mode": "simulator"}` |
+| An unknown mode holds | `test_an_unknown_mode_holds_instead_of_guessing` | `execution_mode_unknown`, no builder |
+| Offline without a profile or checkout holds | `test_offline_without_a_profile_holds_and_never_simulates` | `execution_unavailable`, no target or builder |
+| A real pinned profile resolves | resolve over this repository: `offline`, target feature 013 | no hold |
+| A pinned target cannot freeze another feature | `test_factory_target_dispatch.py::test_a_target_for_one_feature_never_freezes_another` | `target_feature_mismatch`; no work directory |
+| The app holds every build when its execution is unavailable | `test_an_unavailable_offline_execution_holds_every_build` | `held`; no work directory |
+| `FactoryApp` runs the real offline builder and check | `test_offline_execution_runs_the_real_builder_and_check` | `simulated_complete`, gate passed, Java files, no fake Markdown |
+| The catalog reports mode, hold and the Live reason | `test_the_catalog_reports_the_hold_and_the_live_reason`; `factory.js renderExecution` | `offline`, hold, `live_builder_unqualified` |
+| Full demo suite | `demo/.local/venv/bin/python -m unittest discover -s demo/tests` | 445 tests OK |
+
+Browser entrypoint check: the server was started with `AEION_FACTORY_EXECUTION=offline` and the
+API returned `{"mode": "offline", "target_feature": "013", "live_hold_reason":
+"live_builder_unqualified"}`. Queuing feature 013 through `/api/factory/queue` was **held at
+admission with `dependency_missing`**: the live store has no merged evidence for dependency 001,
+and this change deliberately does not satisfy it with a simulation receipt. The offline
+completion above ran through `FactoryApp.tick` with a fixture catalog whose dependency list was
+empty; it is not evidence that the live dependency is satisfied.
+
+Honest scope: no browser rendering, Live execution or dependency-baseline import is claimed. The
+next step is a verified baseline for the product features already present at the pinned commit,
+then the cockpit trace confirmation.

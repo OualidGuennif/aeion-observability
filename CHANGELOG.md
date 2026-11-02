@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Give the operator front one explicit execution path instead of a silent fake fallback.
+  `demo/factory/execution.py` resolves `simulator` or `offline`, loads the pinned forum
+  profile and the shared deterministic offline builder, and returns a visible
+  `execution_unavailable` hold when the profile or product checkout is missing. `FactoryApp`
+  forwards those components to its worker, a pinned target now holds `target_feature_mismatch`
+  rather than freezing another feature, and the catalog response plus the front badge show the
+  mode, the hold and the `live_builder_unqualified` reason. Queuing feature 013 on the live
+  store is honestly held at `dependency_missing` until dependency 001 has merged evidence;
+  the offline completion was proven with a fixture catalog, not a simulation receipt.
+
 - Update this project and the canonical forum checkout to Æion Factory **v1.9.2** with the
   factory's `template-update`: one contract file changed in each
   (`.pi/extensions/factory/index.js`), and `adapter-check --ref v1.9.2` reports 27/27 connectors

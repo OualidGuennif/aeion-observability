@@ -27,81 +27,12 @@ REPO = DEMO.parent
 sys.path.insert(0, str(DEMO))
 from factory.budget import DailyBudget
 from factory.dispatch import DispatchWorker
+from factory.execution import offline_builder
 from factory.manifest import load_manifest
 from factory.publish import FakeForge
 from factory.store import SIMULATED_COMPLETE, Store
 from factory.target import load_target
 from factory.telemetry import FactoryTelemetry
-
-FILTER = """package local.aeion.forum;
-
-import jakarta.annotation.Priority;
-import jakarta.ws.rs.Priorities;
-import jakarta.ws.rs.container.ContainerRequestContext;
-import jakarta.ws.rs.container.ContainerResponseContext;
-import jakarta.ws.rs.container.ContainerResponseFilter;
-import jakarta.ws.rs.ext.Provider;
-
-/** Feature 013: every forum response carries an enforcing, non-report-only policy. */
-@Provider
-@Priority(Priorities.HEADER_DECORATOR)
-public class SecurityHeadersFilter implements ContainerResponseFilter {
-
-    static final String CSP =
-            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
-
-    @Override
-    public void filter(ContainerRequestContext request, ContainerResponseContext response) {
-        var headers = response.getHeaders();
-        headers.putSingle("Content-Security-Policy", CSP);
-        headers.putSingle("X-Content-Type-Options", "nosniff");
-        headers.putSingle("Referrer-Policy", "no-referrer");
-        headers.putSingle("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-        headers.putSingle("X-Frame-Options", "DENY");
-        headers.remove("Content-Security-Policy-Report-Only");
-    }
-}
-"""
-
-TEST = """package local.aeion.forum;
-
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.nullValue;
-
-import io.quarkus.test.common.WithTestResource;
-import io.quarkus.test.junit.QuarkusTest;
-import org.junit.jupiter.api.Test;
-
-@QuarkusTest
-@WithTestResource(QuarkusTestDatabase.class)
-class SecurityHeadersTest {
-
-    @Test
-    void healthCarriesTheEnforcingPolicy() {
-        given()
-                .when().get("/healthz")
-                .then().statusCode(200)
-                .header("Content-Security-Policy", containsString("default-src 'none'"))
-                .header("Content-Security-Policy-Report-Only", nullValue())
-                .header("X-Content-Type-Options", "nosniff")
-                .header("Referrer-Policy", "no-referrer");
-    }
-}
-"""
-
-
-def build_feature(repo, frozen, feature, brief):
-    """The injected fake model: deterministic Java, no network, no paid call."""
-    main = repo / frozen.write_scopes[0]
-    test = repo / frozen.write_scopes[1]
-    main.mkdir(parents=True, exist_ok=True)
-    test.mkdir(parents=True, exist_ok=True)
-    (main / "SecurityHeadersFilter.java").write_text(FILTER)
-    (test / "SecurityHeadersTest.java").write_text(TEST)
-    if feature["id"] != "013" or "security headers" not in brief.read_text().lower():
-        raise RuntimeError("brief_does_not_name_this_feature")
-
 
 def fake_reviewer(model, prompt):
     """Two independent fake votes; the receipt marks the whole attempt simulated."""
@@ -165,7 +96,7 @@ def main():
         store, catalog, REPO / "demo/forum/features", state / "work",
         config={"profile": "offline-injected", "mode": "fake", "deadline_ns": 3_600_000_000_000,
                 "step_cap": 200, "context_limit": 250_000, "cost_reservation_usd": "0.00"},
-        target=target, builder=build_feature, telemetry=telemetry, forge=FakeForge(),
+        target=target, builder=offline_builder, telemetry=telemetry, forge=FakeForge(),
         review_complete=fake_reviewer, require_circuit=True,
         author_model="deepseek-4.1-flash",
         budget=DailyBudget(state / "budget" / "ledger.jsonl"),

@@ -2,7 +2,8 @@
 "use strict";
 const TERMINAL = ["merged", "failed", "cancelled", "simulated_complete"];
 const LANGFUSE_UI = "http://localhost:3300";
-const state = { csrf: null, selected: new Set(), catalog: [], builds: [], events: [], lastSeq: 0 };
+const state = { csrf: null, selected: new Set(), catalog: [], builds: [], events: [], lastSeq: 0,
+  execution: { mode: "simulator", hold_reason: null } };
 
 const $ = (id) => document.getElementById(id);
 
@@ -33,6 +34,15 @@ function renderEvents() {
     : '<p class="muted">Waiting for events.</p>';
 }
 
+function renderExecution() {
+  const e = state.execution || {};
+  const target = e.target_feature ? ` · feature ${e.target_feature}` : "";
+  const held = e.hold_reason ? ` · held: ${e.hold_reason}` : "";
+  $("execution-mode").textContent = `${e.mode || "simulator"}${target}${held}`;
+  $("execution-mode").title = e.live_hold_reason
+    ? `Live held: ${e.live_hold_reason}` : "Execution mode";
+}
+
 function renderCards() {
   const phase = $("phase-filter").value;
   const area = $("area-filter").value;
@@ -56,8 +66,9 @@ function renderCards() {
   }
   $("catalog-count").textContent = `${count} features`;
   $("selection-count").textContent = `${state.selected.size} / 10 selected`;
-  $("build-one").disabled = state.selected.size !== 1;
-  $("queue-ten").disabled = state.selected.size < 1 || state.selected.size > 10;
+  $("build-one").disabled = state.selected.size !== 1 || Boolean(state.execution.hold_reason);
+  $("queue-ten").disabled = state.selected.size < 1 || state.selected.size > 10
+    || Boolean(state.execution.hold_reason);
 }
 
 function toggleSelection(input, id) {
@@ -192,6 +203,8 @@ async function loadCatalog() {
   const { ok, body } = await api("/api/factory/catalog");
   if (!ok) { showLogin(); return; }
   state.catalog = body.features || [];
+  state.execution = body.execution || { mode: "simulator", hold_reason: null };
+  renderExecution();
   const phases = [...new Set(state.catalog.map((f) => f.phase))].sort();
   const areas = [...new Set(state.catalog.map((f) => f.area))].sort();
   $("phase-filter").innerHTML = '<option value="">All phases</option>' + phases.map((p) => `<option>${esc(p)}</option>`).join("");

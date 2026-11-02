@@ -223,5 +223,25 @@ class TargetDispatchTests(unittest.TestCase):
         self.assertFalse((self.root / "ledger.jsonl").exists())
 
 
+    def test_a_target_for_one_feature_never_freezes_another(self):
+        other = feature()
+        other["id"] = "014"
+        other["file"] = "014.md"
+        catalog = Catalog({"schema_version": 2, "count": 1, "features": [other]})
+        self.store.admit(["014"], "k7", catalog)
+        worker = DispatchWorker(
+            self.store, catalog, self.specs, self.root / "work", config(),
+            target=self.target, builder=self.builder, forge=FakeForge(),
+            require_circuit=False, allow_unbudgeted=True,
+        )
+        result = worker.run_once()
+        build = self.store.board()[0]
+        self.assertEqual(result["result"], {"status": "held",
+                                            "reason": "target_feature_mismatch"})
+        self.assertEqual(build["status"], HELD)
+        self.assertEqual(build["hold_reason"], "target_feature_mismatch")
+        self.assertFalse((self.root / "work").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
