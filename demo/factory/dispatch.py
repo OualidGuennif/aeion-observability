@@ -249,6 +249,10 @@ class DispatchWorker:
         return {"session": session["session"], "expires_ns": session["expires_ns"],
                 "capabilities": list(session["capabilities"]), "repo": session["repo"]}
 
+    def _zero_transport_proven(self):
+        """Only a build with no paid builder and no model review can prove zero spend."""
+        return not self.paid and self.review_complete is None
+
     def _run(self, build, session):
         feature = self.catalog.by_id[build["feature_id"]]
         if self.target is not None and feature["id"] != self.target.feature_id:
@@ -285,8 +289,10 @@ class DispatchWorker:
             brief += ("\nSpecification: BRIEF.md, outside the repository and read-only.\n"
                       "Write scopes: " + ", ".join(self.target.write_paths) + ".\n")
         (repo.parent / "TASK.md").write_text(brief + "\n")
-        self.last_usage = (None if self.paid else
-                           {"cost_usd": "0", "complete": True, "basis": "no_paid_transport"})
+        # A configured review circuit may make paid calls even when the builder is fake. Only
+        # a path with neither a paid builder nor any model review can prove zero transport.
+        self.last_usage = ({"cost_usd": "0", "complete": True, "basis": "no_paid_transport"}
+                           if self._zero_transport_proven() else None)
         try:
             if self.builder is None:
                 self._write_simulated_impl(repo, frozen, feature)
@@ -301,8 +307,9 @@ class DispatchWorker:
                 self.last_usage = getattr(self.builder, "last_usage", None)
             result = self.store.complete_attempt(
                 build["attempt_id"], build["attempt_generation"],
-                {"simulated": not self.paid, "build_id": build["build_id"],
-                 "feature_id": feature["id"], "attempt_id": build["attempt_id"],
+                {"simulated": not self.paid, "author_model": self.author_model if self.paid else None,
+                 "build_id": build["build_id"], "feature_id": feature["id"],
+                 "attempt_id": build["attempt_id"],
                  "reason": "builder_error", "detail": type(exc).__name__},
                 terminal=FAILED,
             )
@@ -315,7 +322,9 @@ class DispatchWorker:
         if not verdict["accepted"]:
             result = self.store.complete_attempt(
                 build["attempt_id"], build["attempt_generation"],
-                {"simulated": True, "verdict": verdict}, terminal=FAILED,
+                {"simulated": not self.paid, "author_model": self.author_model if self.paid else None,
+                 "build_id": build["build_id"], "feature_id": feature["id"],
+                 "attempt_id": build["attempt_id"], "verdict": verdict}, terminal=FAILED,
             )
             return {"build_id": build["build_id"], "result": result}
 
@@ -353,7 +362,10 @@ class DispatchWorker:
         if review_verdict["status"] == "refused":
             result = self.store.complete_attempt(
                 build["attempt_id"], build["attempt_generation"],
-                {"simulated": True, "gate": gate, "review": review_verdict}, terminal=FAILED,
+                {"simulated": not self.paid, "author_model": self.author_model if self.paid else None,
+                 "build_id": build["build_id"], "feature_id": feature["id"],
+                 "attempt_id": build["attempt_id"], "gate": gate,
+                 "review": review_verdict}, terminal=FAILED,
             )
             return {"build_id": build["build_id"], "result": result}
         if review_verdict["status"] == "held":

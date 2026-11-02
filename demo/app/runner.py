@@ -81,6 +81,11 @@ def acceptance(workspace, sandbox, task_id="pricing-js-v1", artifact=None):
     return check
 
 
+def usage_is_complete(steps, forwarded_count, error=None):
+    """Complete accounting needs at least one request and one accounted response per relay."""
+    return bool(steps) and steps == forwarded_count and error is None
+
+
 def artifact_name(run):
     return triage.ARTIFACT if run.get("runtime") == TRIAGE else "src/pricing.js"
 
@@ -555,4 +560,5 @@ class Runner:
             if bridge:
                 bridge.close()
             shutil.rmtree(scratch, ignore_errors=True)
-            run["usage_complete"] = run.get("usage_complete", False) and state["steps"] == relay.forwarded_count
+            run["usage_complete"] = usage_is_complete(
+                state["steps"], relay.forwarded_count, relay.last_error_code)

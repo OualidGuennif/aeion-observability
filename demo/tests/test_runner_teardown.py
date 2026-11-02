@@ -12,7 +12,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 from app import runner as runner_module
-from app.runner import Runner
+from app.runner import Runner, usage_is_complete
 
 
 class FakeSpan:
@@ -144,6 +144,12 @@ class RunnerTeardownTests(unittest.TestCase):
 
 
 class RunnerSettlementTests(unittest.TestCase):
+    def test_usage_completeness_requires_every_forwarded_request(self):
+        self.assertTrue(usage_is_complete(2, 2))
+        self.assertFalse(usage_is_complete(0, 0))
+        self.assertFalse(usage_is_complete(1, 2))
+        self.assertFalse(usage_is_complete(2, 2, error="UPSTREAM"))
+
     def setUp(self):
         self.runner = Runner(FakeTelemetry(), lambda run: None)
         self.runner.budget = FakeBudget()

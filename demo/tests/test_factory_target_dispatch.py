@@ -107,7 +107,8 @@ class TargetDispatchTests(unittest.TestCase):
         return DispatchWorker(
             self.store, self.catalog, self.specs, self.root / "work", config(),
             target=target, builder=builder, forge=FakeForge(),
-            review_complete=approve, require_circuit=require_circuit,
+            review_complete=approve if require_circuit else None,
+            require_circuit=require_circuit,
             author_model="deepseek-4.1-flash", budget=budget,
             allow_unbudgeted=budget is None if allow_unbudgeted is None else allow_unbudgeted,
         )
@@ -185,7 +186,7 @@ class TargetDispatchTests(unittest.TestCase):
             today=lambda: "2026-11-02",
         )
         self.store.admit(["013"], "k5", self.catalog)
-        result = self.worker(self.builder, budget=budget).run_once()
+        result = self.worker(self.builder, budget=budget, require_circuit=False).run_once()
         self.assertEqual(result["result"]["status"], "completed")
         self.assertEqual(budget.spent("aeion-autonomous-forum"), Decimal("0.00"))
         self.assertEqual(budget.spent("aeion-observability"), Decimal("0.00"))
@@ -193,6 +194,20 @@ class TargetDispatchTests(unittest.TestCase):
                    (self.root / "ledger.jsonl").read_text().splitlines()]
         self.assertEqual([entry["kind"] for entry in entries], ["reserve", "settle"])
         self.assertEqual({entry["scope"] for entry in entries}, {"aeion-autonomous-forum"})
+
+    def test_a_configured_review_circuit_keeps_the_reservation_open(self):
+        budget = DailyBudget(
+            self.root / "ledger.jsonl",
+            limits={"aeion-observability": Decimal("15.00"),
+                    "aeion-autonomous-forum": Decimal("15.00")},
+            today=lambda: "2026-11-02",
+        )
+        self.store.admit(["013"], "k5b", self.catalog)
+        self.worker(self.builder, budget=budget).run_once()
+        entries = [json.loads(line) for line in
+                   (self.root / "ledger.jsonl").read_text().splitlines()]
+        self.assertEqual([entry["kind"] for entry in entries], ["reserve"])
+        self.assertEqual(budget.spent("aeion-autonomous-forum"), Decimal("0.00"))
 
     def test_a_worker_without_a_purse_holds_before_any_work(self):
         self.store.admit(["013"], "k6a", self.catalog)

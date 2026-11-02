@@ -140,6 +140,16 @@ class LiveBuilderTests(unittest.TestCase):
 
 
 class WorkerSettlementTests(unittest.TestCase):
+    def test_a_review_circuit_means_zero_transport_is_not_proven(self):
+        worker = DispatchWorker.__new__(DispatchWorker)
+        worker.paid = False
+        worker.review_complete = lambda model, prompt: {"verdict": "approve"}
+        self.assertFalse(worker._zero_transport_proven())
+        worker.review_complete = None
+        self.assertTrue(worker._zero_transport_proven())
+        worker.paid = True
+        self.assertFalse(worker._zero_transport_proven())
+
     def setUp(self):
         self.worker = DispatchWorker.__new__(DispatchWorker)
         self.worker.budget = mock.Mock()
