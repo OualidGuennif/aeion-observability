@@ -32,6 +32,8 @@ ACTIVE = {DISPATCHED}
 HOLD_REASONS = {
     "dependency_missing", "profile_expired", "sandbox_unqualified", "budget_unavailable",
     "qualification_missing", "owner_review_required", "reconciliation_needed",
+    # The pinned base cannot be cloned, checked out or matched exactly.
+    "base_unavailable",
     # No usable gateway session: an agent that cannot authenticate does not start building.
     "credential_unavailable",
 }

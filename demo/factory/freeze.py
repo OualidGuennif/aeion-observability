@@ -45,15 +45,19 @@ def _require(value, label):
     return value
 
 
-def spec_digest(spec_dir, feature):
-    path = Path(spec_dir) / feature["file"]
+def spec_digest(spec_dir, feature, spec_path=None):
+    path = Path(spec_path) if spec_path is not None else Path(spec_dir) / feature["file"]
     if not path.is_file():
         raise FreezeError(f"missing_spec:{feature['id']}")
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def freeze_build(build, catalog, spec_dir, base_sha, config):
-    """Freeze a store build dict into a FrozenBuild, validating every required bound."""
+def freeze_build(build, catalog, spec_dir, base_sha, config, write_scopes=None, spec_path=None):
+    """Freeze a store build dict into a FrozenBuild, validating every required bound.
+
+    A pinned target may supply the adapted brief and its own literal scopes; the
+    catalog stays the canonical plan and is never mutated in place.
+    """
     feature_id = build["feature_id"]
     feature = catalog.by_id[feature_id]
     config = config or {}
@@ -61,9 +65,9 @@ def freeze_build(build, catalog, spec_dir, base_sha, config):
         build_id=build["build_id"],
         feature_id=feature_id,
         manifest_digest=catalog.digest,
-        spec_digest=spec_digest(spec_dir, feature),
+        spec_digest=spec_digest(spec_dir, feature, spec_path),
         base_sha=_require(base_sha, "base_sha"),
-        write_scopes=list(feature["write_paths"]),
+        write_scopes=list(write_scopes if write_scopes is not None else feature["write_paths"]),
         tier=_require(feature.get("tier"), "tier"),
         parallel=bool(feature.get("parallel")),
         dependencies=list(feature.get("depends_on", [])),
