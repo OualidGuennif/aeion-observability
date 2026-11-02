@@ -1055,3 +1055,17 @@ file, a dirty snapshot refused (`mirror_dirty`), a product checkout without the 
 (`product_entry_not_a_file`). `python3 demo/forum/source.py --check` reports `ok: true`, 53 files.
 Full demo suite: 511 tests OK. The five local product commits (`ab72692` head) are untouched and
 unpushed; publishing them remains the owner's decision.
+
+## PR #15 merged to main — 2026-11-02
+
+[PR #15](https://github.com/OualidGuennif/aeion-observability/pull/15) carried `cc671e4` (the
+reaper lease gate), `ae42ed9` (the pinned product snapshot) and `3660d09` (the task record) from
+`develop`. Its head `3660d09e1d13ba07b16575e4d6c9c998ee2ba482` passed `docker-demo` (2m11s),
+`offline-examples` (21s), `Graphify and Archify` (34s) and `Knowledge, links and repository
+health` (7s, including the new `demo/forum/source.py --check` step); the `review` check is a
+skipped template job. The squash merge is `main`
+`0098c04f4570da731c520d518c3053ee101b59a3`; `origin/main` was merged back into `develop` as
+`0d49c9f`, so the two branches carry the same tree. The pull request body names what it does not
+include: browser acceptance with the owner's session, and publishing the product checkout's five
+local commits. Post-merge `CI` (run `41471821925`) and `Architecture refresh` (run
+`41471822171`) both succeeded on `0098c04`.
