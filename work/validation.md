@@ -1067,4 +1067,5 @@ skipped template job. The squash merge is `main`
 `0098c04f4570da731c520d518c3053ee101b59a3`; `origin/main` was merged back into `develop` as
 `0d49c9f`, so the two branches carry the same tree. The pull request body names what it does not
 include: browser acceptance with the owner's session, and publishing the product checkout's five
-local commits.
+local commits. Post-merge `CI` (run `41471821925`) and `Architecture refresh` (run
+`41471822171`) both succeeded on `0098c04`.
