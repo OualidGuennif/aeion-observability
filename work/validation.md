@@ -959,3 +959,15 @@ Evidence: `test_each_vote_reserves_and_settles_its_own_usage` (reserve + settle 
 none free), and `test_a_raising_callback_cannot_settle_the_previous_votes_usage` (the wrapper
 clears `last_usage` before each call, so a failure keeps its own reservation open instead of
 settling the previous vote's cost). Full demo suite: 500 tests OK.
+
+## Develop publication and the release pull request — 2026-11-02
+
+`develop` was pushed at `f677e1a` with an exact-head `Review: OK` receipt for the full delta
+and at `3069ad1` with the per-vote review budget receipt; both receipts are posted as commit
+comments. [PR #14](https://github.com/OualidGuennif/aeion-observability/pull/14) is open against
+`main`. GitHub reported it `DIRTY` because the squashed PR #13 changed the same two work files,
+so `origin/main` was merged into `develop` keeping this branch's newer entry; the conflict was
+only in `work/current.md` and `work/validation.md`, and no code changed in the merge. The demo
+suite is 500 tests OK and the cockpit runs in `live` mode at `http://127.0.0.1:8088/factory`
+(`/factory` 200, catalog 401 unauthenticated); the owner logs in with the private token file,
+which the agent did not read.
