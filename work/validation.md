@@ -994,3 +994,38 @@ and was posted on the pull request; the squash merge is `main` `6d76c99555fef3f9
 `git diff origin/main..HEAD` is empty: the two branches carry the same tree. The PR body and
 the review name what is not in this release: OpenShell reaper lease reconciliation,
 repository/spec ownership separation, and browser acceptance with the owner's session.
+
+## The OpenShell reaper waits for confirmed absent leases — 2026-11-02
+
+The reaper selected orphan candidates from the two OpenShell labels and the age window alone. A
+live build's sandbox can legitimately outlive that window, so a bootstrap sweep could remove a
+running sandbox; and a store that could not be read was indistinguishable from "nothing runs".
+`demo/openshell/reap.py` now reads the factory store (`demo/.local/factory/factory.db`, read-only
+SQLite URI) and holds the sweep while any dispatched build lease is still live, or while the store
+exists but cannot be queried. Four states decide it: `absent` (the factory never initialized, so no
+build can hold a lease, and the sweep proceeds), `idle` (no dispatched lease, sweep proceeds),
+`active` and `unknown` (blocked with `build_lease_active` / `build_lease_unknown`). Containers are
+listed before the lease is read, so a lease claimed in between is seen by the gate, while a sandbox
+started after the listing cannot be in the removal set; removal runs only after that read.
+`--execute` exits 1 when the gate held, and the bootstrap prints only what it removed. The store
+path follows the file location (the demo tree), so the automatic bootstrap sweep keeps working,
+and `--store` names a different state directory.
+
+Evidence: `demo/tests/test_openshell_reap.py` (9 tests) covers the four lease states, the boundary
+where `lease_until_ns == now` is expired, a held execute with zero `docker rm`, an unreadable
+store and a directory in place of the store refusing execute, an absent store proceeding, and the
+untouched dry-run/staleness behaviour. Full demo suite in the demo venv: 504 tests OK.
+`python3 demo/openshell/reap.py --older-than 3600` against the real store reports
+`leases.state: idle`, zero candidates, exit 0.
+
+An independent model review of the exact code diff (`glm-5.3-flash`, a different family) returned
+`OK` with no findings. Re-reading before committing still found one fail-open path: `Path.is_file()`
+returns false on a stat error, so a store present but not stat-able would have been reported
+`absent` and the sweep would have proceeded. Presence now uses `stat()`: `FileNotFoundError` is
+absent, any other `OSError` is unknown. That is the difference between "the factory never ran" and
+"I cannot read the lease store", and the directory regression above pins it.
+
+Limit, stated rather than hidden: the gate is global because check containers carry no attempt
+label, so one live dispatch holds the whole sweep instead of protecting only its own sandbox. That
+is fail-closed for cleanup; per-container reconciliation needs the attempt identity on the
+container, which the isolation runner does not pass yet.

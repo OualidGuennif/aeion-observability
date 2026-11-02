@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Reconcile the OpenShell reaper with the factory's build leases. `demo/openshell/reap.py` reads
+  `demo/.local/factory/factory.db` read-only and holds the sweep while a dispatched lease is
+  still live, or when the store exists but cannot be read: the age window alone could remove a
+  long build's sandbox, and an unreadable store is not proof that nothing runs. Containers are
+  listed before the lease is read, so a lease claimed in between is seen; an absent store still
+  allows the bootstrap sweep because no factory build can exist. `--execute` exits 1 when the
+  gate held, and the bootstrap reports only what it removed.
+
 - Make the host-only bootstrap path importable without the model toolchain.
   `token_budget` loads `jinja2` and `tokenizers` only when `TokenBudget` is constructed, the
   runtime counting tests require the pinned wheels before they run, and the runner tolerates a

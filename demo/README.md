@@ -302,8 +302,12 @@ it. Rerun bootstrap and harness qualification after changes/expiry. Cleanup fail
 `demo/.local/data/sandbox.blocked`; verify owned sandbox deletion and requalify before clearing it.
 A killed qualification or a gateway restart can leave an OpenShell supervisor/sandbox pair running
 with nothing tracking it. `demo/openshell/reap.py --older-than 3600` is a dry run of the cleanup;
-add `--execute` to remove only containers carrying both OpenShell labels after that safety window.
-Bootstrap also runs that sweep automatically, so a stale pair cannot survive the next install.
+add `--execute` to remove only containers carrying both OpenShell labels after that safety window,
+and only while no factory build lease is active: the reaper reads `demo/.local/factory/factory.db`
+read-only and holds the sweep when a dispatched lease is still live or when the store cannot be
+read, because a long build's sandbox may outlive the window and an unreadable store is not proof
+that nothing runs. Bootstrap also runs that sweep automatically, so a stale pair cannot survive
+the next install.
 The gateway, Docker daemon and supervisor are trusted. OpenShell's local container driver is not
 a microVM boundary or a production hostile-code qualification. After acceptance, the supervisor
 keeps the checked artifact under `demo/.local/work/published/` as evidence; nothing serves it as
