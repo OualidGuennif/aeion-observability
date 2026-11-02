@@ -12,6 +12,14 @@ import sys
 import tarfile
 import time
 
+HERE=Path(__file__).resolve().parent
+if str(HERE) not in sys.path:
+    sys.path.insert(0,str(HERE))
+try:
+    from .reap import reap
+except ImportError:  # setup.py is also a script or loaded by file path
+    from reap import reap
+
 ROOT=Path(__file__).resolve().parents[1]
 STATE=ROOT/'.local/openshell'
 VERSION='0.1.5'
@@ -121,6 +129,14 @@ sandbox_pids_limit = 192
         time.sleep(2)
         if process.poll() is not None:raise SystemExit('OpenShell gateway failed; inspect its private local log')
     active.write_text(configuration_hash)
+    # A killed qualification or a gateway restart can leave supervisor/sandbox pairs running with
+    # nothing tracking them. Reap only OpenShell-labeled containers older than the safety window;
+    # the real sandbox lifetime is bounded by the 360-second agent deadline and three agents.
+    try:
+        removed=reap(older_than=3600,execute=True)
+        if removed:print(f"Reaped {len(removed)} stale OpenShell container(s).")
+    except (OSError,subprocess.CalledProcessError):
+        pass
     # Linux sandboxes run as the host user so bind-mounted files stay owned by it; Docker Desktop
     # maps ownership itself, so macOS keeps a dedicated UID. Never root.
     agent_uid=os.getuid() if platform.system()=='Linux' else 10001

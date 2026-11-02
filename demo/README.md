@@ -282,6 +282,10 @@ Security qualification expires in 24 hours. A separate harness qualification
 relay/bridge/runner/harness sources plus `package-lock.json`; live execution is blocked without
 it. Rerun bootstrap and harness qualification after changes/expiry. Cleanup failure writes
 `demo/.local/data/sandbox.blocked`; verify owned sandbox deletion and requalify before clearing it.
+A killed qualification or a gateway restart can leave an OpenShell supervisor/sandbox pair running
+with nothing tracking it. `demo/openshell/reap.py --older-than 3600` is a dry run of the cleanup;
+add `--execute` to remove only containers carrying both OpenShell labels after that safety window.
+Bootstrap also runs that sweep automatically, so a stale pair cannot survive the next install.
 The gateway, Docker daemon and supervisor are trusted. OpenShell's local container driver is not
 a microVM boundary or a production hostile-code qualification. After acceptance, the supervisor
 keeps the checked artifact under `demo/.local/work/published/` as evidence; nothing serves it as

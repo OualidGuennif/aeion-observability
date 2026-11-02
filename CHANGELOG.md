@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Reap orphaned OpenShell containers instead of letting them burn CPU forever. Nine
+  supervisor/sandbox pairs from an interrupted 2026-11-01 qualification were still running 14
+  hours later (each supervisor used 5–22% CPU); the gateway had no records for them.
+  All 18 labeled containers were removed. `demo/openshell/reap.py` now selects only
+  OpenShell-labeled sandbox containers older than a 3,600-second safety window, dry-run by
+  default and `--execute` to remove; bootstrap runs the same sweep before qualification. The
+  reaper is covered by `demo/tests/test_openshell_reap.py`.
 - Move the runnable forum to the separate
   [`aeion-autonomous-forum`](https://github.com/OualidGuennif/aeion-autonomous-forum) checkout as
   the canonical product source, because autonomous workers only hold a GitHub key there.

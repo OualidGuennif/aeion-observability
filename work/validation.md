@@ -697,7 +697,7 @@ local publish path was exercised without a paid model, a registry push or a VPS.
 | Two independent $15.00 purses | `demo/factory/budget.py`; `test_factory_budget.py` | reserve before, settle after; open reservations count; corrupt ledger fails closed; one scope cannot borrow from the other |
 | Worker refusal is real | `test_factory_target_dispatch.py::test_an_exhausted_purse_holds_before_a_session_or_builder` | `HELD` / `budget_unavailable`; no session, builder or work directory |
 | Cockpit refusal is real | `test_triage.py::test_a_live_run_without_a_purse_fails_closed` (venv) | `failed` / `BUDGET_STOP`; no ledger entry |
-| Full demo suite stays green | `demo/.local/venv/bin/python -m unittest discover -s demo/tests -v` | 412 tests, OK, 0 skipped |
+| Full demo suite stays green | `demo/.local/venv/bin/python -m unittest discover -s demo/tests -v` | 416 tests, OK, 0 skipped |
 | Docker image runs non-root | `aeion-autonomous-forum:local`, UID/GID `10001`, `eclipse-temurin:25-jre` | healthy on `127.0.0.1:8081` |
 | Health and headers | `docker compose -f demo/forum-app/compose.yaml up --build -d`; `curl /healthz` and `/api/threads/not-a-number` | `{"status":"ok","release":"local-docker",…}`; 404; CSP `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`, `nosniff`, `no-referrer`, HSTS on both; report-only absent |
 | No remote or paid action | fake builder and fake forge; no `docker push`, no provider call, no VPS command | confirmed; the image is local-only |
@@ -705,3 +705,26 @@ local publish path was exercised without a paid model, a registry push or a VPS.
 Honest scope: the feature-013 Java bytes come from the injected offline builder, not a paid model
 run. The protected Gradle check is real and passed, but model quality and a real PR remain
 unproven. The container is published only to loopback on this PC.
+
+## Orphaned OpenShell sandboxes removed — 2026-11-02
+
+The owner reported a large number of OpenShell sessions still running in Docker and consuming
+CPU. The host had **nine sandbox pairs** (18 containers) created between 20:13 and 20:27 on
+2026-11-01, all still up 14 hours later. The gateway's own record list was empty: these workloads
+were orphaned, not active. The qualification that created them had no corresponding
+`DeleteSandbox` requests for the leaked names, so the exact interruption point is not in the
+gateway log; the observable failure is a cleanup path that did not run or did not finish.
+
+| Check | Evidence | Result |
+| --- | --- | --- |
+| Orphans identified | `docker ps` with `openshell.ai/managed-by=openshell`; created timestamps 2026-11-01 20:13–20:27 | 18 containers (9 sandbox pairs); CPU 5–22% per supervisor |
+| No gateway records | Python `SandboxClient.list(workspace="default")` through the qualified local client | empty page; removing the containers did not delete live state |
+| Removal | `docker rm -f` on the 18 labeled containers only | 0 OpenShell containers remain; forum and Langfuse stack untouched |
+| CPU after removal | `docker stats --no-stream` | OpenShell supervisors gone; remaining stack dominated by ClickHouse's normal background work, forum ~0.4–3.6% |
+| Reaper selection | `demo/openshell/reap.py --older-than 3600` | dry run selects 0 now; test fixtures prove old-only selection and dry-run safety |
+| Bootstrap hardening | `demo/openshell/setup.py` imports `reap` and sweeps older-than-1-hour labeled containers | `test_openshell_setup` and `test_openshell_reap` pass |
+
+The safety window is one hour: a normal agent is bounded to 360 seconds × at most three agents,
+and the harness qualification is shorter, so only abandoned pairs are eligible. The reaper is
+host-side and never runs inside an agent sandbox; it only removes containers carrying OpenShell's
+`managed-by` and `sandbox-namespace=aeion-observability` labels.
