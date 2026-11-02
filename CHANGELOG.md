@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Update the harness connectors to Æion Factory **v1.9.3**. The factory added
+  `tools/agents/pi-rpc`, the headless Pi RPC runner behind `tools/agents/run pi rpc`, and made it
+  part of the connector set; `tools/agents/run` now dispatches `pi rpc` to it and
+  `tools/agents/connectors.py` lists it. The factory changed no merge file in this release, so
+  `AGENTS.md` and the harness settings keep this project's text. `adapter-check --ref v1.9.3`
+  reports 28/28 matching with 0 drifted; the project's `factory-tests`, demo suite, doc-links,
+  knowledge-check and repo-health pass.
+
 - Give the demo's product snapshot one owner and a drift check. `demo/forum-app`,
   `demo/forum-db` and `demo/forum-mobile` are byte-identical to `aeion-autonomous-forum` at the
   base commit the feature targets pin; they are now a read-only snapshot named by

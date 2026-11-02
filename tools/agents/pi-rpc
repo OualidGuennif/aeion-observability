@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+# Spec: knowledge/operations/agent-compatibility.md
+"""Headless Pi through the RPC protocol: one live process, compaction, and resume.
+
+Print mode disposes at settlement, so an asynchronous compaction started there is lost. RPC keeps
+the process alive; the factory extension (unchanged) compacts at settlement and sends the resume
+message, and this client waits for the compaction (`compaction_end`), the resumed run and the final
+settlement.
+"""
+from __future__ import annotations
+
+import json
+import queue
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+EXTENSION = ROOT / '.pi/extensions/factory/index.js'
+GRACE = 2.0
+COMPACTION_WAIT = 10.0
+
+
+def usage() -> None:
+    print(
+        'usage: tools/agents/pi-rpc [client options] [pi options] -- <prompt>\n'
+        '       tools/agents/pi-rpc [client options] [pi options] --prompt-file PATH\n\n'
+        'client options:\n'
+        '  --prompt-file PATH   read the prompt from PATH (use with --)\n'
+        '  --timeout SECONDS    whole-run deadline (default 1800)\n'
+        '  --grace SECONDS      quiet time after a normal settlement (default 2)\n'
+        '  --compaction-wait SECONDS  wait after an aborted settlement for the compaction Pi starts\n'
+        '                       after it (default 10)\n'
+        '  --pi-executable PATH  Pi binary (default "pi"; tests use a fake)\n'
+        '  -h, --help           show this help\n\n'
+        'Pi options go before `--`: --provider, --model, --session-id, --session-dir, ...\n'
+        'The runner adds --mode rpc and the factory extension.\n',
+        file=sys.stderr,
+    )
+
+
+def parse(argv: list[str]) -> tuple[list[str], str, str, float, float, float]:
+    prompt_file = None
+    timeout = 1800.0
+    grace = GRACE
+    compaction_wait = COMPACTION_WAIT
+    pi_executable = 'pi'
+    pi_options: list[str] = []
+    prompt_parts: list[str] = []
+    index = 0
+    while index < len(argv):
+        arg = argv[index]
+        if arg == '--':
+            prompt_parts = argv[index + 1:]
+            break
+        if arg in {'-h', '--help'}:
+            usage()
+            raise SystemExit(0)
+        if arg == '--prompt-file':
+            index += 1
+            if index >= len(argv):
+                raise ValueError('--prompt-file needs a path')
+            prompt_file = argv[index]
+        elif arg == '--timeout':
+            index += 1
+            if index >= len(argv):
+                raise ValueError('--timeout needs seconds')
+            timeout = float(argv[index])
+        elif arg == '--grace':
+            index += 1
+            if index >= len(argv):
+                raise ValueError('--grace needs seconds')
+            grace = float(argv[index])
+        elif arg == '--compaction-wait':
+            index += 1
+            if index >= len(argv):
+                raise ValueError('--compaction-wait needs seconds')
+            compaction_wait = float(argv[index])
+        elif arg == '--pi-executable':
+            index += 1
+            if index >= len(argv):
+                raise ValueError('--pi-executable needs a path')
+            pi_executable = argv[index]
+        else:
+            pi_options.append(arg)
+        index += 1
+    else:
+        prompt_parts = []
+    if prompt_file and prompt_parts:
+        raise ValueError('give a prompt as arguments or with --prompt-file, not both')
+    if prompt_file:
+        prompt = Path(prompt_file).read_text(encoding='utf-8')
+    elif prompt_parts:
+        prompt = ' '.join(prompt_parts)
+    else:
+        raise ValueError('a prompt is required after -- or with --prompt-file')
+    if not prompt.strip():
+        raise ValueError('the prompt is empty')
+    return pi_options, prompt, pi_executable, timeout, grace, compaction_wait
+
+
+def main(argv: list[str]) -> int:
+    try:
+        pi_options, prompt, pi_executable, timeout, grace, compaction_wait = parse(argv)
+    except (ValueError, OSError) as error:
+        print(f'pi-rpc: {error}', file=sys.stderr)
+        usage()
+        return 2
+
+    # The runner owns the RPC mode; reject a conflicting or repeated --mode and drop a redundant rpc one.
+    if '--mode' in pi_options:
+        position = pi_options.index('--mode')
+        if position + 1 >= len(pi_options) or pi_options[position + 1] != 'rpc':
+            print('pi-rpc: --mode is owned by the runner and must be rpc', file=sys.stderr)
+            return 2
+        del pi_options[position:position + 2]
+    if '--mode' in pi_options:
+        print('pi-rpc: --mode may be given only once and must be rpc', file=sys.stderr)
+        return 2
+    command = [pi_executable, '--mode', 'rpc', '-e', str(EXTENSION), *pi_options]
+
+    try:
+        process = subprocess.Popen(
+            command, cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            text=True, encoding='utf-8', errors='replace', bufsize=1,
+        )
+    except OSError as error:
+        print(f'pi-rpc: cannot start {pi_executable}: {error}', file=sys.stderr)
+        return 1
+
+    lines: queue.Queue[str | None] = queue.Queue()
+
+    def read_stdout() -> None:
+        assert process.stdout is not None
+        for line in process.stdout:
+            lines.put(line)
+        lines.put(None)
+
+    threading.Thread(target=read_stdout, daemon=True).start()
+
+    def send(record: dict) -> None:
+        assert process.stdin is not None
+        process.stdin.write(json.dumps(record) + '\n')
+        process.stdin.flush()
+
+    send({'id': 'prompt-1', 'type': 'prompt', 'message': prompt})
+
+    deadline = time.monotonic() + timeout
+    accepted = False
+    handled = False
+    prompt_failed = False
+    settled_at: float | None = None
+    saw_settle = False
+    compacting = False
+    compacted = False
+    compaction_failed = False
+    aborted_settle = False
+    wrote_text = False
+    exited_early = False
+
+    def finish() -> int:
+        nonlocal wrote_text
+        if wrote_text:
+            sys.stdout.write('\n')
+            sys.stdout.flush()
+        try:
+            assert process.stdin is not None
+            process.stdin.close()
+        except OSError:
+            pass
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+        if prompt_failed:
+            return 1
+        if compaction_failed and not compacted:
+            return 1
+        if not accepted and not handled:
+            return 1
+        if exited_early and not handled:
+            print('pi-rpc: Pi exited before the run settled', file=sys.stderr)
+            return 1
+        if not saw_settle and not handled:
+            print('pi-rpc: Pi never settled', file=sys.stderr)
+            return 1
+        return 0
+
+    while True:
+        # The deadline bounds a run that keeps streaming records, not only an idle queue.
+        if time.monotonic() >= deadline:
+            print(f'pi-rpc: timed out after {timeout:g}s', file=sys.stderr)
+            process.kill()
+            return 1
+        try:
+            line = lines.get(timeout=0.2)
+        except queue.Empty:
+            now = time.monotonic()
+            if settled_at is not None and not compacting:
+                window = compaction_wait if aborted_settle else grace
+                if now - settled_at >= window:
+                    return finish()
+            continue
+
+        if line is None:
+            exited_early = True
+            break
+        try:
+            record = json.loads(line)
+        except ValueError:
+            print(f'pi-rpc: ignored a non-JSON record: {line[:120].rstrip()}', file=sys.stderr)
+            continue
+        if not isinstance(record, dict):
+            continue
+
+        kind = record.get('type')
+        if kind == 'response' and record.get('id') == 'prompt-1':
+            if not record.get('success'):
+                print(f"pi-rpc: prompt refused: {record.get('error', 'unknown error')}", file=sys.stderr)
+                prompt_failed = True
+                break
+            disposition = (record.get('data') or {}).get('disposition')
+            if disposition == 'handled':
+                handled = True
+            else:
+                accepted = True
+        elif kind == 'message_update':
+            update = record.get('assistantMessageEvent') or {}
+            if update.get('type') == 'text_delta' and update.get('delta'):
+                sys.stdout.write(update['delta'])
+                sys.stdout.flush()
+                wrote_text = True
+        elif kind in {'agent_start', 'turn_start', 'message_start', 'tool_execution_start'}:
+            if settled_at is not None:
+                settled_at = None
+            if kind == 'message_start' and (record.get('message') or {}).get('role') == 'user':
+                settled_at = None
+        elif kind == 'compaction_start':
+            compacting = True
+            settled_at = None
+        elif kind in {'session_compact', 'compaction_end'}:
+            compacting = False
+            result = record.get('result')
+            if kind == 'session_compact' or (result is not None and not record.get('aborted')):
+                compacted = True
+                # A successful compaction is followed by the extension's resume message and a new run.
+                settled_at = None
+            else:
+                compaction_failed = True
+                detail = record.get('errorMessage') or 'aborted'
+                print(f'pi-rpc: compaction failed: {detail}', file=sys.stderr)
+                return finish()
+        elif kind == 'session_compact_failed':
+            compaction_failed = True
+            print('pi-rpc: compaction failed', file=sys.stderr)
+            return finish()
+        elif kind == 'agent_settled':
+            saw_settle = True
+            settled_at = time.monotonic()
+            # Pi starts a manual compaction only after settlement (compact() awaits the run's abort), so
+            # an aborted settlement is the one signal that a compaction may still be on its way.
+            aborted_settle = record.get('aborted') is True
+
+        if settled_at is not None and not compacting:
+            window = compaction_wait if aborted_settle else grace
+            if time.monotonic() - settled_at >= window:
+                return finish()
+
+    if prompt_failed:
+        return finish()
+    return finish()
+
+
+if __name__ == '__main__':
+    try:
+        raise SystemExit(main(sys.argv[1:]))
+    except KeyboardInterrupt:
+        raise SystemExit(130)

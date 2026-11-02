@@ -30,6 +30,7 @@ def executable(mode):
 CONTRACT = (
     "tools/agents/hook.py",
     "tools/agents/run",
+    "tools/agents/pi-rpc",
     "tools/context/budget.py",
     "tools/context/run",
     ".claude/hooks/after-edit.py",
