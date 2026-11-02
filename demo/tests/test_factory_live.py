@@ -115,6 +115,23 @@ class LiveBuilderTests(unittest.TestCase):
             with self.assertRaises(BuilderError):
                 parse_files({"files": files}, self.frozen.write_scopes, repo=self.repo)
 
+    def test_a_sibling_prefix_is_not_inside_a_scope_without_a_trailing_slash(self):
+        with self.assertRaises(BuilderError):
+            parse_files({"files": [{"path": "src/main/java/local/aeion/forumX/A.java",
+                                    "content": "x"}]},
+                        ["src/main/java/local/aeion/forum"], repo=self.repo)
+
+    def test_a_symlinked_write_target_is_refused(self):
+        outside_tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(outside_tmp.cleanup)
+        outside = Path(outside_tmp.name)
+        (self.repo / "src/main/java/local/aeion/forum").mkdir(parents=True)
+        (self.repo / "src/main/java/local/aeion/forum/link").symlink_to(outside, target_is_directory=True)
+        with self.assertRaises(BuilderError):
+            parse_files({"files": [{"path": "src/main/java/local/aeion/forum/link/A.java",
+                                    "content": "x"}]},
+                        self.frozen.write_scopes, repo=self.repo)
+
     def test_an_empty_answer_is_refused(self):
         with self.assertRaises(BuilderError):
             parse_files({"files": []}, self.frozen.write_scopes, repo=self.repo)

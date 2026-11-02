@@ -61,8 +61,11 @@ def parse_files(answer, scopes, repo=None):
         normalized = str(PurePosixPath(path))
         if normalized.startswith("../") or normalized == ".." or normalized.startswith("./"):
             raise BuilderError("builder_path_escape")
-        if not any(normalized == scope.rstrip("/") or normalized.startswith(scope)
-                   for scope in scopes):
+        prefix_ok = any(
+            normalized == scope.rstrip("/")
+            or normalized.startswith(scope if scope.endswith("/") else scope + "/")
+            for scope in scopes)
+        if not prefix_ok:
             raise BuilderError("builder_path_out_of_scope")
         if normalized in seen:
             raise BuilderError("builder_path_duplicate")
@@ -99,6 +102,11 @@ class LiveBuilder:
         root = Path(repo)
         for relative, content in files.items():
             target = root / relative
+            resolved = target.resolve()
+            if root.resolve() != resolved and root.resolve() not in resolved.parents:
+                raise BuilderError("builder_path_escape")
+            if target.is_symlink():
+                raise BuilderError("builder_path_escape")
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8")
         return sorted(files)
