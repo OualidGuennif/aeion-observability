@@ -12,6 +12,7 @@ the digest reported at qualification time. Nothing is pulled: an absent image is
 import os
 import subprocess
 import tempfile
+import uuid
 from pathlib import Path
 
 DEFAULT_IMAGE = "maven:3.9-eclipse-temurin-25"
@@ -56,8 +57,8 @@ class DockerCheckRunner:
             raise IsolationError("image_unavailable")
         return image_id
 
-    def _flags(self, workspace, image=None):
-        return [
+    def _flags(self, workspace, image=None, name=None):
+        flags = [
             self.docker, "run", "--rm", "--network", "none", "--read-only",
             "--user", self.user, "--cap-drop", "ALL",
             "--security-opt", "no-new-privileges",
@@ -69,8 +70,23 @@ class DockerCheckRunner:
             "-e", "HOME=/tmp", "-e", "TMPDIR=/tmp",
             "-e", "GRADLE_USER_HOME=/tmp/gradle", "-e", "GRADLE_RO_DEP_CACHE=/ro-cache",
             "-e", f"JAVA_HOME={CONTAINER_JAVA_HOME}", "-e", f"PATH={CONTAINER_PATH}",
-            "-e", f"{PROBE_SENTINEL}=", "-w", "/workspace", image or self.image,
+            "-w", "/workspace",
         ]
+        if name:
+            # A name lets a timed-out or interrupted client be killed with its container.
+            flags[2:2] = ["--name", name]
+        return flags + [image or self.image]
+
+    def _kill(self, name):
+        """Remove a container whose client was killed; a missing container is fine."""
+        if not name:
+            return
+        try:
+            subprocess.run([self.docker, "rm", "-f", name], capture_output=True,
+                           timeout=60,
+                           env={"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin")})
+        except (OSError, subprocess.TimeoutExpired):
+            pass
 
     def qualification(self, refresh=False):
         """Prove the boundary once per runner: non-root, no socket, no network, no host env."""
@@ -90,13 +106,20 @@ class DockerCheckRunner:
         )
         try:
             with tempfile.TemporaryDirectory(prefix="aeion-isolation-probe-") as workspace:
+                name = f"aeion-probe-{uuid.uuid4().hex[:12]}"
                 completed = subprocess.run(
                     # Probe the same digest execution will use: a tag re-pointed between the
                     # inspect and this run must not qualify different bytes than it records.
-                    self._flags(workspace, image=image_id) + ["bash", "-c", script],
+                    self._flags(workspace, image=image_id, name=name) + ["bash", "-c", script],
                     capture_output=True, text=True, timeout=60,
-                    env={"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin")})
+                    # The sentinel is deliberately present in the client's environment. If a
+                    # future change forwarded the controller environment, the container would
+                    # see it and the probe would fail instead of claiming "host_environment:
+                    # absent" without a test.
+                    env={"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+                         PROBE_SENTINEL: "controller-environment-leak"})
         except (OSError, subprocess.TimeoutExpired):
+            self._kill(locals().get("name"))
             raise IsolationError("probe_did_not_run") from None
         if completed.returncode != 0 or "probe=ok" not in (completed.stdout or ""):
             raise IsolationError("probe_failed")
@@ -139,9 +162,16 @@ class DockerCheckRunner:
             raise
         # Run the digest the probe qualified, not the mutable tag: a re-tagged or re-pulled
         # tag after qualification must not silently execute different bytes.
-        argv = self._flags(repo, image=qualification["image_id"]) + translated
-        completed = subprocess.run(
-            argv, capture_output=True, text=True, timeout=timeout,
-            env={"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin")})
+        name = f"aeion-check-{uuid.uuid4().hex[:12]}"
+        argv = self._flags(repo, image=qualification["image_id"], name=name) + translated
+        try:
+            completed = subprocess.run(
+                argv, capture_output=True, text=True, timeout=timeout,
+                env={"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin")})
+        except BaseException:
+            # A killed `docker run` client does not stop its container: remove it before the
+            # timeout or cancellation reaches the caller. BaseException covers interrupts.
+            self._kill(name)
+            raise
         completed.qualification = qualification
         return completed

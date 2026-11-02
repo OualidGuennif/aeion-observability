@@ -22,8 +22,10 @@
   the reservation open. A failed paid builder still names its own author model in the receipt.
   The qualified image digest, not the mutable tag, is what both the probe and the check run, so
   a re-tagged or re-pulled tag cannot execute unqualified bytes; a symlinked parent cannot
-  redirect a write outside its matched scope; and deleting the contract during a check is
-  tampering, not a missing toolchain.
+  redirect a write outside its matched scope; deleting the contract during a check is
+  tampering, not a missing toolchain; a timed-out or interrupted check removes its named
+  container; and the probe carries a host sentinel it asserts absent in the container instead
+  of forcing it empty.
   A completed paid attempt
   is `live_complete` with `simulated: false`, and only measured complete usage settles its
   reservation. The cockpit shows the trace state, and a backend readback is what turns

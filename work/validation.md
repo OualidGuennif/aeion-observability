@@ -933,3 +933,16 @@ reservations were opened for the four independent-review attempts; the attempt t
 the verdict and the attempt whose provider-reported cost was measured `0` are settled, the two
 whose usage is unknown stay open. `aeion-observability` shows `$0.50` outstanding and `$14.50`
 remaining for 2026-11-02; that is journal liability, not an invoice.
+
+## Re-review at 13a1470 and the container/probe fixes — 2026-11-02
+
+The independent model re-review of `13a1470` verified the digest, symlink and contract fixes
+and returned NOT OK with four findings. Two were false on inspection: `dispatch.py` already
+imports `Decimal` and `InvalidOperation`, and `app/relay.py` defines and sets
+`last_error_code`. Two were confirmed: a timed-out `docker run` client left its container
+running with the workspace mounted, and the probe passed `-e SENTINEL=` itself, so its
+`host_environment: absent` claim was untested. The runner now names every check container and
+removes it on timeout or interruption, and the probe carries the sentinel only in the client
+environment and asserts it is absent inside the container. 496 demo tests OK; the review call
+settled at the provider-reported `0`. Outstanding review liability remains `$0.50` from the two
+calls whose usage is unknown.

@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from factory.isolation import DockerCheckRunner, IsolationError
+from factory.isolation import DockerCheckRunner, IsolationError, PROBE_SENTINEL
 
 
 class TranslationTests(unittest.TestCase):
@@ -55,6 +55,39 @@ class TranslationTests(unittest.TestCase):
             self.runner(["true"], cwd=self.repo)
         self.assertIn(digest, calls[0])
         self.assertNotIn(self.runner.image, calls[0])
+
+    def test_a_timed_out_check_removes_its_container(self):
+        self.runner._qualification = {"status": "qualified", "image": self.runner.image,
+                                      "image_id": "sha256:" + "b" * 64}
+        calls = []
+
+        def fake_run(argv, **kwargs):
+            calls.append(argv)
+            if argv[1] == "run":
+                raise subprocess.TimeoutExpired(argv, 1)
+            return subprocess.CompletedProcess(argv, 0, "", "")
+
+        with mock.patch("factory.isolation.subprocess.run", side_effect=fake_run):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                self.runner(["true"], cwd=self.repo)
+        container = calls[0][calls[0].index("--name") + 1]
+        self.assertTrue(any(call[1:3] == ["rm", "-f"] and container in call
+                            for call in calls[1:]))
+
+    def test_the_probe_sentinel_is_client_environment_only(self):
+        captured = {}
+
+        def fake_run(argv, **kwargs):
+            captured["argv"], captured["env"] = argv, kwargs["env"]
+            return subprocess.CompletedProcess(argv, 0, "probe=ok\nnetwork=denied\n", "")
+
+        with mock.patch("factory.isolation.subprocess.run", side_effect=fake_run), \
+                mock.patch.object(self.runner, "image_id",
+                                  return_value="sha256:" + "c" * 64):
+            self.runner.qualification(refresh=True)
+        self.assertEqual(captured["env"].get(PROBE_SENTINEL), "controller-environment-leak")
+        self.assertFalse(any(str(part).startswith(PROBE_SENTINEL + "=")
+                             for part in captured["argv"]))
 
 
 if __name__ == "__main__":
