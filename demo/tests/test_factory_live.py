@@ -186,6 +186,18 @@ class LiveBuilderTests(unittest.TestCase):
                                     "content": "x"}]},
                         self.frozen.write_scopes, repo=self.repo)
 
+    def test_an_intermediate_symlink_cannot_redirect_a_write_outside_the_scope(self):
+        scope = self.repo / "src/main/java/local/aeion/forum"
+        outside = self.repo / ".git/hooks"
+        scope.mkdir(parents=True)
+        outside.mkdir(parents=True)
+        (scope / "redirect").symlink_to(outside, target_is_directory=True)
+        with self.assertRaises(BuilderError):
+            parse_files({"files": [{"path": "src/main/java/local/aeion/forum/redirect/pre-push",
+                                    "content": "x"}]},
+                        self.frozen.write_scopes, repo=self.repo)
+        self.assertFalse((outside / "pre-push").exists())
+
     def test_an_empty_answer_is_refused(self):
         with self.assertRaises(BuilderError):
             parse_files({"files": []}, self.frozen.write_scopes, repo=self.repo)

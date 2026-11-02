@@ -154,6 +154,17 @@ class TargetCheckTests(unittest.TestCase):
         self.assertEqual(detail["reason"], "contract_modified")
         self.assertFalse(self.destination.exists())
 
+    def test_a_deleted_contract_is_tampering_not_a_missing_toolchain(self):
+        def runner(command, **kwargs):
+            self.destination.unlink()
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        passed, detail = target_check(self.target, runner=runner)(
+            object(), {"repo": str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(detail["reason"], "contract_modified")
+        self.assertFalse(self.destination.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

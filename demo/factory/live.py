@@ -70,11 +70,13 @@ def parse_files(answer, scopes, repo=None):
         normalized = str(PurePosixPath(path))
         if normalized.startswith("../") or normalized == ".." or normalized.startswith("./"):
             raise BuilderError("builder_path_escape")
-        prefix_ok = any(
-            normalized == scope.rstrip("/")
-            or normalized.startswith(scope if scope.endswith("/") else scope + "/")
-            for scope in scopes)
-        if not prefix_ok:
+        matched = None
+        for scope in scopes:
+            if (normalized == scope.rstrip("/")
+                    or normalized.startswith(scope if scope.endswith("/") else scope + "/")):
+                matched = scope
+                break
+        if matched is None:
             raise BuilderError("builder_path_out_of_scope")
         if normalized in seen:
             raise BuilderError("builder_path_duplicate")
@@ -88,6 +90,11 @@ def parse_files(answer, scopes, repo=None):
             root = Path(repo).resolve()
             target = (root / normalized).resolve()
             if root != target and root not in target.parents:
+                raise BuilderError("builder_path_escape")
+            # The resolved path must stay in the scope that matched textually, so a symlinked
+            # parent cannot redirect the write into `.git` or another unreviewed directory.
+            scope_root = (root / matched).resolve()
+            if target != scope_root and scope_root not in target.parents:
                 raise BuilderError("builder_path_escape")
         seen.add(normalized)
         accepted[normalized] = content

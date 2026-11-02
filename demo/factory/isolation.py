@@ -56,7 +56,7 @@ class DockerCheckRunner:
             raise IsolationError("image_unavailable")
         return image_id
 
-    def _flags(self, workspace):
+    def _flags(self, workspace, image=None):
         return [
             self.docker, "run", "--rm", "--network", "none", "--read-only",
             "--user", self.user, "--cap-drop", "ALL",
@@ -69,7 +69,7 @@ class DockerCheckRunner:
             "-e", "HOME=/tmp", "-e", "TMPDIR=/tmp",
             "-e", "GRADLE_USER_HOME=/tmp/gradle", "-e", "GRADLE_RO_DEP_CACHE=/ro-cache",
             "-e", f"JAVA_HOME={CONTAINER_JAVA_HOME}", "-e", f"PATH={CONTAINER_PATH}",
-            "-e", f"{PROBE_SENTINEL}=", "-w", "/workspace", self.image,
+            "-e", f"{PROBE_SENTINEL}=", "-w", "/workspace", image or self.image,
         ]
 
     def qualification(self, refresh=False):
@@ -91,7 +91,9 @@ class DockerCheckRunner:
         try:
             with tempfile.TemporaryDirectory(prefix="aeion-isolation-probe-") as workspace:
                 completed = subprocess.run(
-                    self._flags(workspace) + ["bash", "-c", script],
+                    # Probe the same digest execution will use: a tag re-pointed between the
+                    # inspect and this run must not qualify different bytes than it records.
+                    self._flags(workspace, image=image_id) + ["bash", "-c", script],
                     capture_output=True, text=True, timeout=60,
                     env={"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin")})
         except (OSError, subprocess.TimeoutExpired):
@@ -135,7 +137,9 @@ class DockerCheckRunner:
             translated = [self.translate(part, repo) for part in command]
         except IsolationError:
             raise
-        argv = self._flags(repo) + translated
+        # Run the digest the probe qualified, not the mutable tag: a re-tagged or re-pulled
+        # tag after qualification must not silently execute different bytes.
+        argv = self._flags(repo, image=qualification["image_id"]) + translated
         completed = subprocess.run(
             argv, capture_output=True, text=True, timeout=timeout,
             env={"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin")})

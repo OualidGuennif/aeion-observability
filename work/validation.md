@@ -913,3 +913,23 @@ authorization.
 Honest scope: Qwen and Haiku have no harness profile record; their eligibility basis is the
 dated owner authorization, not a provider requalification. DeepSeek needs a fresh profile
 verification (account, region, protocol) before it can be enabled again.
+
+## Second independent review and the boundary fixes — 2026-11-02
+
+An independent model review (`glm-5.3-flash`, a different family from the implementer, given
+the exact `origin/develop..HEAD` diff and the review checklist) returned **NOT OK** for
+`eaca6d2`. No raw prompt or answer was retained or printed. I verified every finding:
+
+| Finding | Verdict | Correction |
+| --- | --- | --- |
+| The Docker runner qualified an image digest but executed the mutable tag (`isolation.py:137`) | **Confirmed** | The probe and every check now run `image_id`; a re-tagged or re-pulled tag cannot execute bytes the probe did not qualify. `test_execution_runs_the_qualified_digest_not_the_mutable_tag` |
+| An intermediate symlink inside a scope could redirect a write to `.git` (`live.py:110`) | **Confirmed** | A resolved target must stay inside the *resolved matched scope*, not only inside the repository. `test_an_intermediate_symlink_cannot_redirect_a_write_outside_the_scope` |
+| A deleted contract surfaced as `toolchain_missing` (`checks.py:127`) | **Confirmed, lower impact** | A missing destination is now `contract_modified`; the outer handler already prevented a stranded build. `test_a_deleted_contract_is_tampering_not_a_missing_toolchain` |
+| `app.profiles.available` could raise `ImportError` (`profiles.py:20`) | **Not confirmed** | `server.py` inserts `demo/` into `sys.path` before any request can call `available`; no path reaches the deferred import without `factory` importable |
+| Unreported cost keeps a reservation open forever (`dispatch.py:190`) | **By design** | The brief requires unknown usage to remain an outstanding liability and forbids settling it as zero; the provider reported `cost: 0` for the calls used here |
+
+Full demo suite after the fixes: 494 tests OK. Review-call budgeting: four `$0.25`
+reservations were opened for the four independent-review attempts; the attempt that returned
+the verdict and the attempt whose provider-reported cost was measured `0` are settled, the two
+whose usage is unknown stay open. `aeion-observability` shows `$0.50` outstanding and `$14.50`
+remaining for 2026-11-02; that is journal liability, not an invoice.

@@ -126,7 +126,10 @@ def target_check(target, runner=None, work_root=None, sandbox=None):
             except IsolationError as exc:
                 return False, {"check": spec.id, "reason": "isolation_unqualified",
                                "detail": str(exc)[:120]}
-            if destination.read_bytes() != spec.contract_test.read_bytes():
+            # Deletion is tampering too; without this guard the read raises and the check is
+            # misreported as a missing toolchain instead of a modified contract.
+            if (not destination.is_file()
+                    or destination.read_bytes() != spec.contract_test.read_bytes()):
                 return False, {"check": spec.id, "reason": "contract_modified"}
         except subprocess.TimeoutExpired:
             return False, {"check": spec.id, "reason": "timeout",
