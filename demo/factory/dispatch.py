@@ -34,6 +34,17 @@ HOLD_REASON_MAP = {
 }
 
 
+def _isolation_unqualified(result):
+    """A lost check boundary is a hold, never a failed build: the candidate never ran.
+
+    ``ProtectedChecks`` nests whatever a check returned under ``detail``; older receipts
+    carried the reason at the top level, so both shapes are read.
+    """
+    detail = result.get("detail")
+    return ((isinstance(detail, dict) and detail.get("reason") == "isolation_unqualified")
+            or result.get("reason") == "isolation_unqualified")
+
+
 class DispatchWorker:
     def __init__(self, store, catalog, spec_dir, work_root, config=None,
                  checks=None, required_checks=None, forge=None, target_repo=None,
@@ -249,6 +260,18 @@ class DispatchWorker:
         return {"session": session["session"], "expires_ns": session["expires_ns"],
                 "capabilities": list(session["capabilities"]), "repo": session["repo"]}
 
+    def _take_builder_state(self):
+        """Copy the paid builder's measured usage and model identity before any receipt.
+
+        The author is refreshed even when the call failed, so an error receipt never
+        attributes the attempt to the worker's default model.
+        """
+        if self.builder is None:
+            return
+        self.author_model = getattr(self.builder, "model", self.author_model)
+        if self.paid:
+            self.last_usage = getattr(self.builder, "last_usage", None)
+
     def _zero_transport_proven(self):
         """Only a build with no paid builder and no model review can prove zero spend."""
         return not self.paid and self.review_complete is None
@@ -299,12 +322,9 @@ class DispatchWorker:
             else:
                 self.builder(repo=repo, frozen=frozen, feature=feature,
                              brief=repo.parent / "BRIEF.md")
-                if self.paid:
-                    self.last_usage = getattr(self.builder, "last_usage", None)
-                    self.author_model = getattr(self.builder, "model", self.author_model)
+                self._take_builder_state()
         except Exception as exc:  # noqa: BLE001 - a failed builder never publishes
-            if self.paid:
-                self.last_usage = getattr(self.builder, "last_usage", None)
+            self._take_builder_state()
             result = self.store.complete_attempt(
                 build["attempt_id"], build["attempt_generation"],
                 {"simulated": not self.paid, "author_model": self.author_model if self.paid else None,
@@ -338,7 +358,7 @@ class DispatchWorker:
         # S3 gate: protected checks judged outside the candidate's control.
         gate = self.checks.verdict(self.required_checks, frozen, verdict)
         verdict.pop("repo", None)
-        if any(result.get("reason") == "isolation_unqualified"
+        if any(_isolation_unqualified(result)
                for result in gate["results"].values()):
             self.store.hold_dispatched(build["build_id"], "sandbox_unqualified")
             return {"build_id": build["build_id"], "result": {

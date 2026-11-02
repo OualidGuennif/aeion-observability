@@ -121,6 +121,37 @@ class LiveBuilderTests(unittest.TestCase):
                                     "content": "x"}]},
                         ["src/main/java/local/aeion/forum"], repo=self.repo)
 
+    def test_relative_steps_never_escape_a_scope_by_textual_prefix(self):
+        # Six `..` steps from the scope reach the repository root, then `.git` is unreviewed:
+        # `git diff` and `git ls-files` do not show it.
+        for path in ("src/main/java/local/aeion/forum/../../../../../../.git/hooks/pre-push",
+                     "src/main/java/local/aeion/forum/./A.java",
+                     "src/main/java/local/aeion/forum/.git/hooks/pre-push",
+                     "src/main/java/local/aeion/forum/.GIT/config"):
+            with self.assertRaises(BuilderError):
+                parse_files({"files": [{"path": path, "content": "x"}]},
+                            self.frozen.write_scopes, repo=self.repo)
+        self.assertFalse((self.repo / ".git").exists())
+
+    def test_a_failed_second_call_does_not_reuse_the_previous_usage(self):
+        state = {"fail": False}
+
+        def call(model, prompt, max_tokens=0):
+            if state["fail"]:
+                raise RuntimeError("transport unavailable")
+            return {"answer": {"files": [{
+                "path": "src/main/java/local/aeion/forum/Filter.java",
+                "content": "class Filter {}\n"}]},
+                "usage": {"cost_usd": 0.01, "complete": True}}
+
+        builder = LiveBuilder(client=call)
+        builder(repo=self.repo, frozen=self.frozen, feature=self.feature, brief=self.brief)
+        self.assertEqual(builder.last_usage["cost_usd"], 0.01)
+        state["fail"] = True
+        with self.assertRaises(RuntimeError):
+            builder(repo=self.repo, frozen=self.frozen, feature=self.feature, brief=self.brief)
+        self.assertIsNone(builder.last_usage)
+
     def test_a_symlinked_write_target_is_refused(self):
         outside_tmp = tempfile.TemporaryDirectory()
         self.addCleanup(outside_tmp.cleanup)

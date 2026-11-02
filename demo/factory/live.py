@@ -58,6 +58,15 @@ def parse_files(answer, scopes, repo=None):
             raise BuilderError("builder_file_fields")
         if "\\" in path or path.startswith("/") or path.endswith("/"):
             raise BuilderError("builder_path_invalid")
+        # A textual prefix is not containment: `src/.../forum/../../../../../../.git/...`
+        # starts inside a scope and resolves to the repository's own hooks, which `git diff`
+        # and `git ls-files` never show. Scopes name directories, so no component may be a
+        # relative step and no component may name the Git control directory.
+        parts = path.split("/")
+        if any(part in (".", "..") for part in parts):
+            raise BuilderError("builder_path_escape")
+        if any(part.lower() == ".git" for part in parts):
+            raise BuilderError("builder_path_forbidden")
         normalized = str(PurePosixPath(path))
         if normalized.startswith("../") or normalized == ".." or normalized.startswith("./"):
             raise BuilderError("builder_path_escape")
@@ -96,6 +105,9 @@ class LiveBuilder:
         self.last_usage = None
 
     def __call__(self, repo, frozen, feature, brief):
+        # A call never inherits the previous attempt's cost: if this one fails before the
+        # provider reports usage, settlement must stay open rather than settle stale money.
+        self.last_usage = None
         answer = self.client(self.model, build_prompt(feature, brief, frozen), max_tokens=6000)
         self.last_usage = answer.get("usage")
         files = parse_files(answer.get("answer"), frozen.write_scopes, repo=repo)

@@ -6,10 +6,14 @@
   `demo/factory/isolation.py` runs the Gradle contract in a disposable non-root container with
   `--network none`, no Docker socket, no host home or controller mount, a fixed environment,
   dropped capabilities and bounded CPU/memory/PIDs; the probe's image digest and denied network
-  are recorded with the check, a failed boundary holds `sandbox_unqualified`, and a contract file
-  altered during the run is detected. `demo/factory/live.py` adds the live builder behind the
-  same frozen scopes, canonical wire ids from the shared catalog, bounded JSON parsing and
-  provider-reported usage; unreported cost keeps the reservation open. A completed paid attempt
+  are recorded with the check, a failed boundary holds `sandbox_unqualified` (the hold reads the
+  nested check detail, not a top-level reason), and a contract file altered during the run is
+  detected. `demo/factory/live.py` adds the live builder behind the same frozen scopes, canonical
+  wire ids from the shared catalog, bounded JSON parsing and provider-reported usage; every `.`,
+  `..` or `.git` path component is refused before the scope prefix is trusted, each call resets
+  its usage so a failed attempt cannot settle with the previous cost, and unreported cost keeps
+  the reservation open. A failed paid builder still names its own author model in the receipt.
+  A completed paid attempt
   is `live_complete` with `simulated: false`, and only measured complete usage settles its
   reservation. The cockpit shows the trace state, and a backend readback is what turns
   `exported_unconfirmed` into `confirmed`. `demo/factory/baseline.py` records a verified
