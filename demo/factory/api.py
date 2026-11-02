@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from .auth import AdminSessions, host_origin_ok
+from .budget import DailyBudget
 from .manifest import load_manifest, ManifestError
 from .observer import Observer
 from .store import Store, StoreError
@@ -38,15 +39,21 @@ class ApiError(Exception):
 
 
 class FactoryApp:
-    def __init__(self, manifest_path, state_dir, spec_dir=None, bootstrap_token=None, active_concurrency=1, config=None):
+    def __init__(self, manifest_path, state_dir, spec_dir=None, bootstrap_token=None, active_concurrency=1,
+                 config=None, budget=None):
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         self.catalog = load_manifest(manifest_path)
         self.store = Store(self.state_dir / "factory.db", active_concurrency=active_concurrency)
         self.hub = SseHub()
         spec_dir = Path(spec_dir) if spec_dir else Path(manifest_path).resolve().parent
+        # The worker's purse is separate from the cockpit's: autonomous-forum money never pays
+        # for the observability demo, and an exhausted purse holds the build before any work.
+        self.budget = budget if budget is not None else DailyBudget(
+            self.state_dir / "budget" / "ledger.jsonl")
         self.worker = DispatchWorker(self.store, self.catalog, spec_dir, self.state_dir / "work",
-                                     config=config if config is not None else S2_CONFIG)
+                                     config=config if config is not None else S2_CONFIG,
+                                     budget=self.budget, budget_scope="aeion-autonomous-forum")
         self.observer = Observer(self.store)
         self.token_path = self.state_dir / "admin.token"
         token = bootstrap_token if bootstrap_token is not None else self._load_or_create_token()

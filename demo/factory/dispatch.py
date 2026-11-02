@@ -7,10 +7,12 @@ never trusts the candidate's own claims: it re-checks the frozen identity and th
 diff, then asks the publisher policy before recording anything.
 """
 import subprocess
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from . import boundary as stop
 from .artifact import validate_artifact
+from .budget import BudgetError
 from .checks import DEFAULT_CHECKS, ProtectedChecks, target_check
 from .freeze import FreezeError, freeze_build
 from .gateway import SessionError
@@ -37,7 +39,8 @@ class DispatchWorker:
                  checks=None, required_checks=None, forge=None, target_repo=None,
                  trusted_issuer="gate", review_complete=None, author_model="deepseek-4.1-flash",
                  require_circuit=None, defer_to=None, gateway=None, agent_id=None,
-                 target=None, builder=None, telemetry=None):
+                 target=None, builder=None, telemetry=None, budget=None,
+                 budget_scope="aeion-autonomous-forum"):
         self.store = store
         self.catalog = catalog
         self.spec_dir = Path(spec_dir)
@@ -46,6 +49,8 @@ class DispatchWorker:
         self.target = target
         self.builder = builder
         self.telemetry = telemetry
+        self.budget = budget
+        self.budget_scope = budget_scope
         if checks is not None:
             self.checks = checks
         else:
@@ -138,6 +143,35 @@ class DispatchWorker:
             return {"status": "unavailable", "reason": "invalid_evidence"}
         return evidence
 
+    def _budget_estimate(self):
+        """The most this attempt may spend, from the frozen run config; invalid means no."""
+        raw = self.config.get("cost_reservation_usd", "0.00")
+        try:
+            estimate = Decimal(str(raw))
+        except (InvalidOperation, ValueError):
+            raise BudgetError("invalid_estimate") from None
+        if not estimate.is_finite() or estimate < 0:
+            raise BudgetError("invalid_estimate")
+        return estimate
+
+    def _reserve(self, build):
+        """Journal the attempt's spending cap before any model or tool can spend."""
+        if self.budget is None:
+            return None
+        return self.budget.admit(
+            self.budget_scope, self._budget_estimate(),
+            note=f"{build['build_id']}:{build['feature_id']}",
+        )
+
+    def _settle(self, reservation):
+        """Close the reservation; a failure leaves it open, which is the conservative side."""
+        if reservation is None:
+            return
+        try:
+            self.budget.settle(reservation, reservation.estimate_usd)
+        except BudgetError:
+            pass
+
     def run_once(self):
         """Claim one build, give its agent a session, run it, and end the session whatever happens."""
         assert_worker_isolated()
@@ -145,15 +179,24 @@ class DispatchWorker:
         if build is None:
             return None
         try:
-            session = self._open_session(build)
-        except SessionError as error:
+            reservation = self._reserve(build)
+        except BudgetError:
+            self.store.hold_dispatched(build["build_id"], "budget_unavailable")
             return {"build_id": build["build_id"],
-                    "result": {"status": "held", "reason": "credential_unavailable",
-                               "detail": str(error)}}
+                    "result": {"status": "held", "reason": "budget_unavailable"}}
         try:
-            return self._run(build, session)
+            try:
+                session = self._open_session(build)
+            except SessionError as error:
+                return {"build_id": build["build_id"],
+                        "result": {"status": "held", "reason": "credential_unavailable",
+                                   "detail": str(error)}}
+            try:
+                return self._run(build, session)
+            finally:
+                self._close_session(session)
         finally:
-            self._close_session(session)
+            self._settle(reservation)
 
     def _open_session(self, build):
         """Mint the session this attempt may use; without a gateway there is nothing to mint."""

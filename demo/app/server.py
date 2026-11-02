@@ -20,12 +20,13 @@ from profiles import PROFILES, PROFILE_VERSION, available
 from scenarios import SCENARIOS
 from selection import recommend
 from lifecycle import plan, recover
-from settings import DATA, SERVICES, WORK, FACTORY_MANIFEST, FACTORY_STATE, FACTORY_SPEC_DIR
+from settings import DATA, SERVICES, WORK, LOCAL, FACTORY_MANIFEST, FACTORY_STATE, FACTORY_SPEC_DIR
 
 import sys as _sys
 _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from factory.api import FactoryApp, ApiError, COOKIE
 from factory.auth import host_origin_ok
+from factory.budget import DailyBudget
 
 DATA.mkdir(mode=0o700, parents=True, exist_ok=True)
 WORK.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -112,9 +113,12 @@ for path in CAMPAIGNS.glob("*.json"):
         save_campaign(previous)
 
 memory = Memory()
-runner = Runner(Telemetry(), save, memory=memory, audit=Audit(DATA))
+# One journal, two independent $15.00 purses: the cockpit and the forum workers never share money.
+BUDGET = DailyBudget(os.environ.get("AEION_BUDGET_LEDGER") or LOCAL / "budget/ledger.jsonl")
+runner = Runner(Telemetry(), save, memory=memory, audit=Audit(DATA), budget=BUDGET,
+                budget_scope="aeion-observability")
 
-factory = FactoryApp(FACTORY_MANIFEST, FACTORY_STATE, spec_dir=FACTORY_SPEC_DIR)
+factory = FactoryApp(FACTORY_MANIFEST, FACTORY_STATE, spec_dir=FACTORY_SPEC_DIR, budget=BUDGET)
 
 
 def _factory_tick_loop():

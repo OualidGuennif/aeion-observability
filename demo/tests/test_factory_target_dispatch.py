@@ -5,9 +5,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from decimal import Decimal
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from factory.budget import DailyBudget
 from factory.dispatch import DispatchWorker
 from factory.manifest import Catalog
 from factory.publish import FakeForge
@@ -93,7 +95,8 @@ class TargetDispatchTests(unittest.TestCase):
         self.specs.mkdir()
         self.store = Store(self.root / "factory.db")
 
-    def worker(self, builder, target=None, checks_command=None, require_circuit=True):
+    def worker(self, builder, target=None, checks_command=None, require_circuit=True,
+               budget=None):
         target = target or self.target
         if checks_command is not None:
             target = dataclasses.replace(
@@ -105,7 +108,7 @@ class TargetDispatchTests(unittest.TestCase):
             self.store, self.catalog, self.specs, self.root / "work", config(),
             target=target, builder=builder, forge=FakeForge(),
             review_complete=approve, require_circuit=require_circuit,
-            author_model="deepseek-4.1-flash",
+            author_model="deepseek-4.1-flash", budget=budget,
         )
 
     def builder(self, repo, frozen, feature, brief):
@@ -172,6 +175,41 @@ class TargetDispatchTests(unittest.TestCase):
         self.assertEqual(receipt["gate"]["status"], "failed")
         self.assertEqual(receipt["gate"]["results"]["gradle_test"]["status"], "failed")
         self.assertNotIn("publisher", receipt)
+
+    def test_a_build_journals_its_zero_cost_reservation_in_the_forum_purse(self):
+        budget = DailyBudget(
+            self.root / "ledger.jsonl",
+            limits={"aeion-observability": Decimal("15.00"),
+                    "aeion-autonomous-forum": Decimal("15.00")},
+            today=lambda: "2026-11-02",
+        )
+        self.store.admit(["013"], "k5", self.catalog)
+        result = self.worker(self.builder, budget=budget).run_once()
+        self.assertEqual(result["result"]["status"], "completed")
+        self.assertEqual(budget.spent("aeion-autonomous-forum"), Decimal("0.00"))
+        self.assertEqual(budget.spent("aeion-observability"), Decimal("0.00"))
+        entries = [json.loads(line) for line in
+                   (self.root / "ledger.jsonl").read_text().splitlines()]
+        self.assertEqual([entry["kind"] for entry in entries], ["reserve", "settle"])
+        self.assertEqual({entry["scope"] for entry in entries}, {"aeion-autonomous-forum"})
+
+    def test_an_exhausted_purse_holds_before_a_session_or_builder(self):
+        budget = DailyBudget(
+            self.root / "ledger.jsonl",
+            limits={"aeion-observability": Decimal("15.00"),
+                    "aeion-autonomous-forum": Decimal("0.00")},
+            today=lambda: "2026-11-02",
+        )
+        self.store.admit(["013"], "k6", self.catalog)
+        worker = self.worker(self.builder, budget=budget)
+        worker.config["cost_reservation_usd"] = "0.01"
+        result = worker.run_once()
+        build = self.store.board()[0]
+        self.assertEqual(result["result"], {"status": "held", "reason": "budget_unavailable"})
+        self.assertEqual(build["status"], HELD)
+        self.assertEqual(build["hold_reason"], "budget_unavailable")
+        self.assertFalse((self.root / "work").exists())
+        self.assertFalse((self.root / "ledger.jsonl").exists())
 
 
 if __name__ == "__main__":
