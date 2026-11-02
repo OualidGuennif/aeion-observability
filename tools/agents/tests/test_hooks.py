@@ -176,6 +176,34 @@ class HookTests(unittest.TestCase):
             self.assertFalse(self.call(provider,hook_event_name='PreCompact')['continue'])
             (self.root/'changed.py').unlink()
 
+    def test_a_stale_verified_handover_compacts_through_the_native_adapter(self):
+        # The shared rule lets a verified handover compact after an edit moved the tree, because the gate admits
+        # only the checkpoint command that could refresh the receipt. The native PreCompact must make the same
+        # decision for the harnesses that reach it, or a routine edit leaves scheduled compaction blocked.
+        for provider in ('dsh','pi','opencode'):
+            session=hook.key(provider,{'session_id':f'context-{provider}'})
+            self.measure(provider,260_000)
+            handover=hook.budget.handover_path(self.root,session)
+            handover.write_text(''.join(f'## {heading}\nEvidence\n' for heading in hook.budget.HEADINGS))
+            state_file=self.root/'.aeion/context'/f'{session}.json'
+            state=json.loads(state_file.read_text())
+            state['checkpoint']={'tree':hook.budget.fingerprint(self.root),
+                                 'handover':hook.budget.hashlib.sha256(handover.read_bytes()).hexdigest()}
+            hook.budget.atomic(state_file,json.dumps(state))
+            self.assertTrue(hook.budget.ready(self.root,session,state),provider)
+            (self.root/'new.py').write_text(f'print("{provider} moved the tree")\n')
+            result=self.call(provider,session_id=f'context-{provider}',hook_event_name='PreCompact')
+            self.assertNotIn('continue',result,provider)
+            self.assertIn('compacting now',result.get('systemMessage',''),provider)
+            state=json.loads(state_file.read_text())
+            self.assertEqual(state.get('closure_owed'),'due',provider)
+            # OpenCode sends no compact SessionStart, so the allowed compaction starts its new epoch itself.
+            if provider=='opencode':
+                self.assertEqual(state['state'],'RECOVERING',provider)
+            # The debt survives compaction: Stop still requires a fresh verified receipt.
+            self.assertFalse(self.call(provider,session_id=f'context-{provider}',
+                                       hook_event_name='Stop')['continue'],provider)
+
     def test_pi_native_compaction_runs_and_owes_the_closure_after_it(self):
         # Pi cancels a compaction the hook refuses; at its own window that traps the session, so a native
         # compaction runs and the handover and checkpoint are owed in the new epoch, as for Codex and Droid.
@@ -315,6 +343,30 @@ class HookTests(unittest.TestCase):
         self.assertEqual(json.loads(state_file.read_text())['state'], 'HANDOVER_REQUIRED')
         self.assertFalse(denied(self.measure('dsh', 127_416, **edit)))
         self.assertEqual(json.loads(state_file.read_text())['state'], 'RUNNING')
+
+    def test_dsh_tells_the_user_to_stop_after_a_verified_handover_when_compaction_does_not_start(self):
+        # dsh compaction is not dependable in every profile. Once the handover, work/current.md and checkpoint are
+        # verified, the safe recovery is to end the session, not to keep working against a gate that never opens.
+        edit={'tool_name':'Edit','tool_input':{'file_path':str(self.root/'src.py')}}
+        denied=self.measure('dsh',250_000,**edit)
+        self.assertIn('stop this dsh session',denied['hookSpecificOutput']['permissionDecisionReason'])
+        start=self.measure('dsh',0,hook_event_name='SessionStart',source='startup')
+        self.assertIn('stop this dsh session',start['hookSpecificOutput']['additionalContext'])
+        # The instruction is dsh's recovery path, not a change to every harness's gate message.
+        codex=self.measure('codex',250_000,**edit)
+        self.assertNotIn('stop this dsh session',json.dumps(codex))
+
+    def test_dsh_a_refused_compaction_also_says_to_stop_after_the_handover(self):
+        # The refusal is the dead end: nothing retries the compaction and the gate admits only the checkpoint, so a
+        # user told just to fill the handover keeps working past the threshold. The refusal must carry the stop step.
+        refused=self.call('dsh',session_id='refused-dsh',hook_event_name='PreCompact')
+        self.assertFalse(refused['continue'])
+        self.assertIn('Fill work/handovers/dsh-',refused['stopReason'])
+        self.assertIn('stop this dsh session',refused['stopReason'])
+        self.assertIn('stop this dsh session',refused['systemMessage'])
+        # One harness's recovery path stays out of another harness's refusal.
+        codex=self.call('codex',session_id='refused-codex',hook_event_name='PreCompact')
+        self.assertNotIn('stop this dsh session',json.dumps(codex))
 
     def test_300k_stopgap_compacts_and_keeps_the_closure_owed(self):
         # The incident: a check that failed before the session froze code at 300k, and the checkpoint that would

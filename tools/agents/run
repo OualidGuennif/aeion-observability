@@ -49,6 +49,10 @@ if provider == 'pi':
     version = re.search(r'\bv?(\d+)\.(\d+)\.(\d+)\b', result.stdout + result.stderr)
     if result.returncode or not version or tuple(map(int, version.groups())) < (1, 4, 0):
         sys.exit('Æion Factory requires Pi 1.4.0+ for its extension events.')
+    # `pi rpc` is the factory's headless runner: it owns the RPC framing and the extension, so a 250k
+    # compaction can finish and the resumed run settles in the same process.
+    if arguments[:1] == ['rpc']:
+        sys.exit(subprocess.run([str(root / 'tools/agents/pi-rpc'), *arguments[1:]], cwd=root, shell=False).returncode)
     sys.exit(subprocess.run(['pi', *arguments], cwd=root, shell=False).returncode)
 if provider == 'dsh':
     # dsh loads project plugins only from a patch overlay; the profile comes first. dsh ships no tui profile:

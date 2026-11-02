@@ -1069,3 +1069,27 @@ skipped template job. The squash merge is `main`
 include: browser acceptance with the owner's session, and publishing the product checkout's five
 local commits. Post-merge `CI` (run `41471821925`) and `Architecture refresh` (run
 `41471822171`) both succeeded on `0098c04`.
+
+## Æion Factory v1.9.3 connectors — 2026-11-02
+
+Release `v1.9.3` adds one connector: `tools/agents/pi-rpc`, the headless Pi RPC runner behind
+`tools/agents/run pi rpc` (one `pi --mode rpc` process, so a settlement compaction and its resumed
+run finish together). `tools/agents/connectors.py` lists it and `tools/agents/run` dispatches to
+it. The factory changed no merge file, so no project text was proposed.
+
+`/Users/wallseven/Desktop/AEion./aeion-factory/tools/agents/template-update --from-ref v1.9.2
+--ref v1.9.3 --root /Users/wallseven/Desktop/AEion./aeion-observability` reported exactly three
+files (`run`, `pi-rpc`, `connectors.py`) and wrote them; `VERSION`, `knowledge/`, `work/`,
+`CHANGELOG.md`, `AGENTS.md` and the harness settings were left alone. `adapter-check --root
+/Users/wallseven/Desktop/AEion./aeion-observability --ref v1.9.3` reports 28 connectors, 28
+matching, 0 drifted, 0 absent, 0 unwired, 0 invalid, 0 linked, 0 mode: PASS. `pi-rpc --help`
+renders; `tools/factory-tests` PASS; demo suite 512 tests OK; doc-links PASS (97); knowledge-check
+PASS; repo-health PASS.
+
+The vendored factory-owned tools were then refreshed from the same tag: `tools/agents/adapter-check`,
+`tools/agents/template-update` (now `--from-ref`), `tools/factory-tests`, and
+`tools/agents/tests/test_adapter_check.py`, `test_hooks.py`, `test_template_update.py`,
+`test_dsh.mjs` and the new `test_pi_rpc.py`. `adapter-check` still reports 28/28 PASS,
+`tools/agents/template-update --help` shows `--from-ref`, and `tools/factory-tests` PASS. The
+project-adapted `tools/architecture/views.json` and local `tools/repo-health` adaptation were left
+untouched on purpose.

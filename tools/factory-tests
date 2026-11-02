@@ -33,6 +33,7 @@ run python3 tools/agents/tests/test_dsh_install.py
 run python3 tools/agents/tests/test_template_update.py
 run tools/agents/adapter-check --self
 run node --test tools/agents/tests/test_opencode.mjs
+run python3 tools/agents/tests/test_pi_rpc.py
 run node --test tools/agents/tests/test_pi.mjs
 run node --test tools/agents/tests/test_dsh.mjs
 run python3 tools/evals/tests/test_evals.py
