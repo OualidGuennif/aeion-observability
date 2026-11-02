@@ -2,7 +2,8 @@
 
 Scope: run the Æion cockpit and the Agora factory board on one small VPS, locally, with fake
 inference. Nothing here authorises paid inference, a remote push/PR/merge or a product
-deployment. The product forum does not exist yet; the factory only simulates builds.
+deployment. The default worker still simulates builds; the one pinned target profile below
+runs the real Quarkus forum and its real Gradle check without a model call.
 
 Honest limit: the backup/restore drill below qualifies the **factory state store** (SQLite).
 It does **not** qualify a future product Postgres restore, which needs the real product schema.
@@ -234,3 +235,27 @@ AEION_REDIS_URL=redis://127.0.0.1:6399 python3 demo/run.py
 Agent sessions (workers, never forum users) are issued and revoked through
 `POST /api/factory/session` with `{"action":"issue","agent_id":"…","build_id":"…"}`. The token is
 shown once; the gateway stores only its digest and every call lands in `gateway-audit.jsonl`.
+
+## 14. Pinned forum target (offline)
+
+The default worker writes a simulated Markdown diff. A target profile binds one catalog
+feature to the runnable Quarkus forum instead: an exact base commit, two literal source
+scopes, an adapted brief, and a protected Gradle check whose contract test lives outside both
+scopes. The first profile is feature 013 in
+`demo/forum/targets/forum-app-013.json`; the 100-feature plan is untouched.
+
+```bash
+demo/.local/venv/bin/python demo/tests/qualify_forum_build.py
+# or, without the Collector/Langfuse export:
+demo/.local/venv/bin/python demo/tests/qualify_forum_build.py --no-telemetry
+```
+
+It clones the product repository at `37417ab` (`demo/.local/factory/agents/aeion-autonomous-forum`),
+runs an injected fake-model builder (no inference, no cost), validates the artifact, runs the real
+`gradle test --offline` suite with the external contract copied in, takes two fake review votes,
+records the fake-forge PR shape and emits one metadata-only `factory.build` span. The script then
+reads the trace back from Langfuse and fails if the build, feature, attempt, artifact or session
+identity differs. The build appears on `/factory`; its receipt shows the four ids and links the
+trace. This is an offline qualification: it does not authorise a paid model run, a real pull
+request or a deployment. The local Docker image is documented in the product repository at
+`demo/forum-app/DOCKER.md`.

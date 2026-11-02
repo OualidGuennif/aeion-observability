@@ -5,7 +5,7 @@ a reviewed diff inside declared product scopes, and rejects sensitive, mixed, fo
 cancelled effects. Fake forge responses are labelled; an uncertain result is reconciled
 against the forge before any retry, never blindly redone.
 """
-import hashlib
+from .review import content_digest
 
 SENSITIVE_MARKERS = ("migrations", "auth", "security", "moderation", "rules", "runtime", "deploy", "permission")
 DEPENDENCY_MANIFESTS = (
@@ -26,6 +26,18 @@ def is_sensitive_path(path):
 
 def _in_scope(path, write_scopes):
     return any(path == s or (s.endswith("/") and path.startswith(s)) for s in write_scopes)
+
+
+def _content_digest(files):
+    """Digest of the submitted bytes, or None when they are missing or not text."""
+    if not isinstance(files, dict) or not files:
+        return None
+    if any(not isinstance(path, str) or not isinstance(text, str) for path, text in files.items()):
+        return None
+    try:
+        return content_digest(files)
+    except (TypeError, AttributeError):
+        return None
 
 
 class FakeForge:
@@ -74,9 +86,19 @@ class Publisher:
             return {"decision": "hold", "reason": "stale_base"}
         if self.expected_head is not None and request.get("head") != self.expected_head:
             return {"decision": "hold", "reason": "stale_head"}
-        if self.expected_artifact_digest is not None and request.get("artifact_digest") != self.expected_artifact_digest:
-            return {"decision": "refused", "reason": "forged_receipt"}
+        files = request.get("files")
+        digest = _content_digest(files)
+        if digest is None:
+            return {"decision": "refused", "reason": "missing_content"}
         paths = request.get("reviewed_diff", [])
+        if sorted(files) != sorted(paths):
+            return {"decision": "refused", "reason": "path_set_mismatch"}
+        if self.expected_artifact_digest is not None and digest != self.expected_artifact_digest:
+            return {"decision": "refused", "reason": "forged_content"}
+        if request.get("artifact_digest") not in (None, digest):
+            return {"decision": "refused", "reason": "forged_receipt"}
+        if request.get("review_content_digest") not in (None, digest):
+            return {"decision": "refused", "reason": "forged_review"}
         scopes = request.get("write_scopes", [])
         if not all(_in_scope(p, scopes) for p in paths):
             return {"decision": "refused", "reason": "forbidden_path"}

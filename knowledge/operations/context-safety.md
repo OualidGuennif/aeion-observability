@@ -142,7 +142,11 @@ its allowed compaction itself ends the closure (state RECOVERING, usage cleared)
 keeps `compaction` inside each agent preset, out of the plugin's reach: the plugin tells the shared
 rule that compaction is unavailable, so the 250k/300k gate is advisory there, the handover stays
 required for recovery, and dsh's own compaction runs ungated instead of waiting for a human to type
-`/compact`. Codex ends its turn on a
+`/compact`. When the handover is already verified and an edit has moved the tree since, the gate
+admits the compaction and keeps the closure owed until a fresh checkpoint, rather than refusing the
+only command a routine edit left available; a dsh refusal also tells the user to end the session once
+the handover, `work/current.md` and the checkpoint are in order, because compaction there is not
+guaranteed (v1.9.1). Codex ends its turn on a
 refused compaction and retries it before every turn, so it would stall: when Codex compacts before its
 handover is verified (owner decision 2026-10-28), the compaction runs and the session resumes in closure,
 allowed only the handover, `work/current.md`, docs and the checkpoint until the checkpoint passes. The OpenCode stream and compaction

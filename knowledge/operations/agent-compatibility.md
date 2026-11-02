@@ -281,6 +281,11 @@ tools/agents/adapter-check --root ../app --ref v1.8.4   # against a release, not
 tools/agents/adapter-check --root ../app --ref main     # or a branch somebody works from
 ```
 
+`connectors.py` also ships the two readers a project's check imports instead of re-implementing
+them: `linked(root, relative)` returns the first path component below the root that is a symlink,
+without following it, and `executable(mode)` reads the executable bit from either a git mode string
+or a `stat` mode. A copy that predates them cannot answer a check that imports them.
+
 It prints one line per connector: `ok`, `DRIFT` with both sizes and the exact `cp` that repairs it,
 `UNWIRED` for a native config that names a file which is not there, `invalid` for a config that
 is not valid JSON, and `UNIDENTIFIED` with its line for a `steer` call that carries no id. A

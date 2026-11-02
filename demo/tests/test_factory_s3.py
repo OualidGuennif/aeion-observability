@@ -45,7 +45,8 @@ class S3GateTests(unittest.TestCase):
                             "features": [feat("001", write)]})
         self.store = Store(self.root / f"factory-{id(self)}.db")
         return DispatchWorker(self.store, self.cat, self.spec_dir, self.root / "work",
-                              config(), checks=checks, required_checks=required, forge=forge)
+                              config(), checks=checks, required_checks=required, forge=forge,
+                              allow_unbudgeted=True)
 
     def test_happy_path_records_gate_and_publisher_evidence(self):
         worker = self._worker()
@@ -108,9 +109,13 @@ class S3GateTests(unittest.TestCase):
 
     def test_review_hold_stops_a_secret_before_the_publisher(self):
         worker = self._worker()
-        original = worker._collect_files
-        worker._collect_files = lambda repo, allowed: {
-            path: "const k = 'ghp_" + "a" * 30 + "';\n" for path in allowed}
+
+        def write_secret(repo, frozen, feature):
+            target = repo / frozen.write_scopes[0] / "secret.py"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("const k = 'ghp_" + "a" * 30 + "';\n")
+
+        worker._write_simulated_impl = write_secret
         self.store.admit(["001"], "k6", self.cat)
         result = worker.run_once()
         self.assertEqual(result["result"]["status"], "held")
@@ -122,7 +127,7 @@ class S3GateTests(unittest.TestCase):
 
     def test_review_refusal_fails_the_build(self):
         worker = self._worker()
-        worker._collect_files = lambda repo, allowed: {}
+        worker._write_simulated_impl = lambda repo, frozen, feature: None
         self.store.admit(["001"], "k7", self.cat)
         result = worker.run_once()
         self.assertEqual(result["result"]["status"], "completed")

@@ -42,7 +42,7 @@ class PipelineTests(unittest.TestCase):
         return DispatchWorker(self.store, self.cat, self.specs, self.state / "work", config(),
                               target_repo="o/r", defer_to=self.state if defer else None,
                               review_complete=complete, require_circuit=require_circuit,
-                              author_model="deepseek-4.1-flash")
+                              author_model="deepseek-4.1-flash", allow_unbudgeted=True)
 
     def test_worker_queues_instead_of_publishing(self):
         self.store.admit(["001"], "k1", self.cat)
@@ -114,6 +114,22 @@ class PipelineTests(unittest.TestCase):
         request = json.loads(next((self.state / "publish-queue").glob("*.json")).read_text())
         request["artifact_digest"] = "0" * 64
         self.assertIsNone(verified_receipt(self.store, request))
+
+    def test_tampered_queued_bytes_are_not_publishable(self):
+        """Keep every receipt field, swap the content: the receipt must not certify it."""
+        self.store.admit(["001"], "k9", self.cat)
+        self.worker(lambda model, prompt: {"verdict": "approve", "reason": "ok"}).run_once()
+        request = json.loads(next((self.state / "publish-queue").glob("*.json")).read_text())
+        request["files"] = {path: "tampered\n" for path in request["files"]}
+        receipt = verified_receipt(self.store, request)
+        self.assertIsNone(receipt)
+        forge = FakeForge()
+        decision = Publisher("o/r", forge, expected_base=json.loads(
+            self.store.board()[0]["receipt"])["base_sha"],
+            expected_artifact_digest=json.loads(self.store.board()[0]["receipt"])["artifact_digest"]).decide(request)
+        self.assertEqual(decision["decision"], "refused")
+        self.assertEqual(decision["reason"], "forged_content")
+        self.assertEqual(forge.published, {})
 
 
 if __name__ == "__main__":

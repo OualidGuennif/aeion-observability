@@ -25,6 +25,10 @@ class CircuitError(ValueError):
     """A review circuit that cannot produce two independent votes."""
 
 
+# Telemetry stores canonical outcomes; the vote itself keeps the model's approve/reject word.
+_OUTCOME = {"approve": "approved", "reject": "rejected"}
+
+
 def _prompt(feature_id, files, max_chars=MAX_PROMPT_CHARS):
     budget = max_chars
     parts = [SYSTEM, "", f"FEATURE: {feature_id}", "FILES:"]
@@ -77,10 +81,12 @@ def two_vote_review(author_model, feature_id, files, router, complete, telemetry
         latency_ms = int((time.monotonic() - started) * 1000)
         if answer is None:
             telemetry.record(model, "review", "error", latency_ms=latency_ms)
-            votes.append({"vote": index, "model": model, "verdict": "error", "reason": "malformed_or_failed"})
+            votes.append({"vote": index, "model": model, "family": family(model),
+                          "verdict": "error", "reason": "malformed_or_failed"})
             return {"status": "held", "reason": "reviewer_failed", "votes": votes}
-        telemetry.record(model, "review", answer["verdict"], latency_ms=latency_ms)
-        votes.append({"vote": index, "model": model, "verdict": answer["verdict"], "reason": answer["reason"]})
+        telemetry.record(model, "review", _OUTCOME[answer["verdict"]], latency_ms=latency_ms)
+        votes.append({"vote": index, "model": model, "family": family(model),
+                      "verdict": answer["verdict"], "reason": answer["reason"]})
         used_models.append(model)
         used_families.append(family(model))
         if answer["verdict"] != "approve":

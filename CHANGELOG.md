@@ -2,6 +2,58 @@
 
 ## Unreleased
 
+- Reap orphaned OpenShell containers instead of letting them burn CPU forever. Nine
+  supervisor/sandbox pairs from an interrupted 2026-11-01 qualification were still running 14
+  hours later (each supervisor used 5–22% CPU); the gateway had no records for them.
+  All 18 labeled containers were removed. `demo/openshell/reap.py` now selects only
+  OpenShell-labeled sandbox containers older than a 3,600-second safety window, dry-run by
+  default and `--execute` to remove; bootstrap runs the same sweep before qualification. The
+  reaper is covered by `demo/tests/test_openshell_reap.py`.
+- Move the runnable forum to the separate
+  [`aeion-autonomous-forum`](https://github.com/OualidGuennif/aeion-autonomous-forum) checkout as
+  the canonical product source, because autonomous workers only hold a GitHub key there.
+  `demo/forum/targets/forum-app-013.json` now names that repository, its import commit
+  `37417ab`, the Quarkus main/test scopes, an adapted brief and an external protected Gradle
+  check; `DispatchWorker` clones the product checkout, and the qualification passed from it
+  (build `311a5ac3…`, 28.3 s, trace `94563192…`, Langfuse readback PASS). The product repo also
+  carries commit `1224d03`, which publishes the offline-qualified feature-013 header filter, and
+  `4e27f73`, the local Docker packaging. The container was verified healthy on
+  `127.0.0.1:8081`, with CSP, `nosniff`, `no-referrer` and HSTS on `/healthz` and on a 404, and
+  no report-only header. No paid inference, registry push, VPS deployment or remote publication
+  ran. The main repository's `demo/forum-app/` is now a reading mirror.
+- Enforce two independent daily purses of **$15.00**: `aeion-observability` for the cockpit and
+  `aeion-autonomous-forum` for the factory workers. `demo/factory/budget.py` journals a
+  reservation before any live work and settles the actual cost after it; an open reservation
+  counts against the day, a corrupt ledger fails closed, one purse cannot borrow from the other,
+  the cockpit stops a live run with `BUDGET_STOP` and a worker holds `budget_unavailable`.
+  `FactoryApp` and the cockpit `Runner` share one journal and pass their own scope. The paid
+  publish worker now holds its own forum purse and reserves a positive $0.10 before it can call a
+  reviewer; an entry point without a purse holds `budget_unavailable` instead of spending freely.
+  No paid inference was authorised or run.
+- Confine the protected check to the worker's materialised tree, so a manifest or forged verdict
+  cannot point it at the controller or another host directory. A verified publish receipt now also
+  requires at least two approved votes from distinct model families, not just two vote objects.
+- Remove the obsolete Deno/Hono demo: `demo/playground/` and its Compose service, cockpit
+  integration dot, hero link, `Runner.probe` and the Deno-span read-back are gone; `/factory`
+  is the operator entry and the forum is the only product demonstration. The cockpit links the
+  forum API and web front, and `demo/tests/test_playground_removed.py` keeps the old surface
+  from returning.
+- Bind publication to the reviewed bytes. The artifact digest now covers each path and its
+  content; renames, deletions, binary blobs and unreadable files are held as unsupported effects
+  instead of being silently dropped. `verified_receipt` and `Publisher.decide` recompute the
+  digest and refuse a request whose bytes, path set or review digest differ from the approved
+  artifact. `load_publish_credential` imports `for_role` (the reproduced `NameError` is gone), the
+  review circuit records `approved`/`rejected` so two valid votes score 1.0, and the readiness
+  diagnostic talks to the sandbox helper instead of importing the server that serves on import.
+  The release proxy is explicitly read-only: non-GET requests get 405, and authenticated requests
+  are refused with 400 before the cache. Covered by new and updated tests in
+  `demo/tests/test_factory_{publish,pipeline,s3,review_circuit,publisher_credential}.py`,
+  `test_deploy_playground.py` and `test_live_readiness.py`.
+- Confirm the Æion Factory v1.9.1 template: `template-update --from-ref v1.9.0 --ref v1.9.1`
+  reports no contract file differing and `adapter-check --ref v1.9.1` matches all 27 connectors;
+  the four readers changed in v1.9.1 were already adopted in `10ded60`. The demo's product
+  checkout under `demo/.local/factory/agents/aeion-autonomous-forum` was moved from v1.8.6 to
+  v1.9.1 the same way (five contract files, `adapter-check` PASS).
 - Run the forum's React Native front in a browser through `react-native-web`
   (`npx expo start --port 8082`): the API allows exactly `http://127.0.0.1:8082` and
   `http://localhost:8082` with credentials, `src/api.ts` lets the browser's cookie jar own the session

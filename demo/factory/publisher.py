@@ -14,8 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from factory import queue
 from factory.github import GitHubForge, GitHubError
-from factory.keys import CredentialError, present
+from factory.keys import CredentialError, for_role, present
 from factory.publish import Publisher
+from factory.review import content_digest
 from factory.store import Store
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -32,8 +33,36 @@ def load_publish_credential():
     return token
 
 
+def _request_digest(request):
+    """Content digest of the exact files this request asks the forge to commit."""
+    files = request.get("files")
+    if not isinstance(files, dict) or not files:
+        return None
+    if any(not isinstance(path, str) or not isinstance(text, str) for path, text in files.items()):
+        return None
+    try:
+        return content_digest(files)
+    except (TypeError, AttributeError):
+        return None
+
+
+def independent_circuit(circuit):
+    """A circuit is approved only by at least two votes from distinct model families."""
+    if not isinstance(circuit, dict):
+        return False
+    votes = circuit.get("votes")
+    if not isinstance(votes, list) or len(votes) < 2:
+        return False
+    families = []
+    for vote in votes:
+        if not isinstance(vote, dict) or not isinstance(vote.get("family"), str) or not vote["family"]:
+            return False
+        families.append(vote["family"])
+    return len(set(families)) == len(families)
+
+
 def verified_receipt(store, request):
-    """Cross-check the queued request against the worker's stored receipt."""
+    """Cross-check the queued request, including its bytes, against the worker's stored receipt."""
     row = store.by_attempt(request.get("attempt_id"))
     if not row or not row.get("receipt"):
         return None
@@ -46,9 +75,19 @@ def verified_receipt(store, request):
         return None
     # The circuit is mandatory: a receipt without two distinct approving families is not publishable.
     circuit = receipt.get("circuit") or {}
-    if circuit.get("status") != "approved":
+    if circuit.get("status") != "approved" or not independent_circuit(circuit):
         return None
-    if len(circuit.get("votes") or []) < 2:
+    digest = _request_digest(request)
+    if digest is None:
+        return None
+    paths = sorted(request.get("reviewed_diff") or [])
+    if sorted(request.get("files") or {}) != paths:
+        return None
+    if sorted(receipt.get("allowed") or []) != paths:
+        return None
+    if receipt.get("artifact_digest") != digest:
+        return None
+    if (receipt.get("review") or {}).get("content_digest") != digest:
         return None
     if receipt.get("artifact_digest") != request.get("artifact_digest"):
         return None

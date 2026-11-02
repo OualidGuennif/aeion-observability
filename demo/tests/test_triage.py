@@ -1,6 +1,7 @@
 """Tier 1 triage: frozen synthetic answers, deterministic verdict and a sandbox-free supervisor path."""
 import json
 import os
+from decimal import Decimal
 from pathlib import Path
 import sys
 import tempfile
@@ -8,7 +9,9 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import triage
+from factory.budget import DailyBudget
 try:
     from runner import TRIAGE, Runner, tasks
     IMPORTABLE = True
@@ -120,6 +123,30 @@ class TriageTests(unittest.TestCase):
         handover = (Path(self.folder.name) / run["id"] / "workspace/HANDOVER.md").read_text()
         self.assertIn("`result.json`", handover)
         self.assertFalse((Path(self.folder.name) / "published").exists())
+
+    @unittest.skipUnless(IMPORTABLE, "controller requirements required")
+    def test_a_live_run_without_a_purse_fails_closed(self):
+        saved = []
+        runner = Runner(FakeTelemetry(), saved.append, work_root=Path(self.folder.name))
+        run = {"id": "b" * 32, "synthetic": False, "runtime": TRIAGE, "task_id": TASK,
+               "metric": "active_context", "limit": 250000, "events": [], "sessions": [],
+               "agents": 0, "native_cost_usd": "0", "status": "running"}
+        runner.run(run)
+        self.assertEqual((run["status"], run.get("failure")), ("failed", "BUDGET_STOP"))
+        self.assertNotIn("budget", run)
+
+    @unittest.skipUnless(IMPORTABLE, "controller requirements required")
+    def test_the_cockpit_reserves_then_settles_the_actual_cost(self):
+        budget = DailyBudget(Path(self.folder.name) / "ledger.jsonl",
+                             today=lambda: "2026-11-02")
+        runner = Runner(FakeTelemetry(), lambda _run: None, work_root=Path(self.folder.name),
+                        budget=budget, budget_scope="aeion-observability")
+        run = {"id": "c" * 32, "synthetic": False, "native_cost_usd": "0.04"}
+        reservation = runner._reserve(run)
+        self.assertEqual(budget.spent("aeion-observability"), Decimal("0.10"))
+        runner._settle(run, reservation)
+        self.assertEqual(budget.spent("aeion-observability"), Decimal("0.04"))
+        self.assertEqual(run["budget"]["settled_usd"], "0.04")
 
 
 if __name__ == "__main__":

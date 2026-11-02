@@ -117,6 +117,39 @@ class PlaygroundTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn(b'"slot": "canary"', body)
 
+    def expect_error(self, request):
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(request)
+        failure = caught.exception
+        body = failure.read()
+        failure.close()
+        return failure.code, dict(failure.headers), body
+
+    def test_mutations_are_refused_with_a_clear_method(self):
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.playground.port}/api/threads", data=b"{}",
+            headers={"Content-Type": "application/json"}, method="POST")
+        code, headers, body = self.expect_error(request)
+        self.assertEqual(code, 405)
+        self.assertEqual(headers["Allow"], "GET, HEAD")
+        self.assertIn("read_only_release_proxy", body.decode())
+
+    def test_a_session_cookie_is_refused_before_the_cache(self):
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.playground.port}/api/threads",
+            headers={"Cookie": "aeion_session=abc"})
+        code, _, body = self.expect_error(request)
+        self.assertEqual(code, 400)
+        self.assertIn("authenticated_request_not_supported", body.decode())
+
+    def test_an_authorization_header_is_refused_before_the_cache(self):
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.playground.port}/api/threads",
+            headers={"Authorization": "Bearer token"})
+        code, _, body = self.expect_error(request)
+        self.assertEqual(code, 400)
+        self.assertIn("authenticated_request_not_supported", body.decode())
+
 
 class UpstreamSlotTests(unittest.TestCase):
     """A slot can serve a real application instead of a synthetic bundle: two instances, one LB."""

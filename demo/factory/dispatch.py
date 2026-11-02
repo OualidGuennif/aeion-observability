@@ -7,20 +7,23 @@ never trusts the candidate's own claims: it re-checks the frozen identity and th
 diff, then asks the publisher policy before recording anything.
 """
 import subprocess
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from . import boundary as stop
 from .artifact import validate_artifact
-from .checks import DEFAULT_CHECKS, ProtectedChecks
+from .budget import BudgetError
+from .checks import DEFAULT_CHECKS, ProtectedChecks, target_check
 from .freeze import FreezeError, freeze_build
 from .gateway import SessionError
 from .github import GitHubForge
 from .keys import assert_worker_isolated
 from .models import Router, Telemetry
 from .publish import FakeForge, Publisher
-from .review import review
+from .review import content_digest, review
 from .review_circuit import two_vote_review
 from .store import FAILED
+from .target import TargetError
 
 DEFAULT_REQUIRED_CHECKS = ["scope", "spec_unchanged"]
 DEFAULT_TARGET_REPO = "agora/forum"
@@ -35,16 +38,37 @@ class DispatchWorker:
     def __init__(self, store, catalog, spec_dir, work_root, config=None,
                  checks=None, required_checks=None, forge=None, target_repo=None,
                  trusted_issuer="gate", review_complete=None, author_model="deepseek-4.1-flash",
-                 require_circuit=None, defer_to=None, gateway=None, agent_id=None):
+                 require_circuit=None, defer_to=None, gateway=None, agent_id=None,
+                 target=None, builder=None, telemetry=None, budget=None,
+                 budget_scope="aeion-autonomous-forum", allow_unbudgeted=False):
         self.store = store
         self.catalog = catalog
         self.spec_dir = Path(spec_dir)
         self.work_root = Path(work_root)
         self.config = config or {}
-        self.checks = checks if checks is not None else ProtectedChecks(DEFAULT_CHECKS)
-        self.required_checks = list(required_checks if required_checks is not None else DEFAULT_REQUIRED_CHECKS)
+        self.target = target
+        self.builder = builder
+        self.telemetry = telemetry
+        self.budget = budget
+        self.budget_scope = budget_scope
+        self.allow_unbudgeted = bool(allow_unbudgeted)
+        if checks is not None:
+            self.checks = checks
+        else:
+            registered = dict(DEFAULT_CHECKS)
+            if target is not None:
+                registered[target.protected_check.id] = target_check(
+                    target, work_root=self.work_root)
+            self.checks = ProtectedChecks(registered)
+        if required_checks is not None:
+            self.required_checks = list(required_checks)
+        else:
+            self.required_checks = list(DEFAULT_REQUIRED_CHECKS)
+            if target is not None and target.protected_check.id not in self.required_checks:
+                self.required_checks.append(target.protected_check.id)
         self.forge = forge if forge is not None else FakeForge()
-        self.target_repo = target_repo or DEFAULT_TARGET_REPO
+        self.target_repo = target_repo or (target.target_repo if target is not None
+                                           else DEFAULT_TARGET_REPO)
         self.trusted_issuer = trusted_issuer
         self.review_complete = review_complete
         self.author_model = author_model
@@ -87,22 +111,71 @@ class DispatchWorker:
         )
 
     @staticmethod
-    def _collect_files(repo, allowed, limit=512 * 1024):
-        """Read the reviewed text files so a real forge can commit exactly what was approved."""
-        files = {}
-        for relative in allowed:
-            path = Path(repo) / relative
-            try:
-                data = path.read_bytes()
-            except OSError:
-                continue
-            if len(data) > limit or b"\x00" in data:
-                continue
-            try:
-                files[relative] = data.decode("utf-8")
-            except UnicodeDecodeError:
-                continue
-        return files
+    def _content_bound(files, verdict):
+        """The bytes about to be reviewed and published must be the bytes the gate hashed."""
+        return isinstance(files, dict) and content_digest(files) == verdict.get("digest")
+
+    @staticmethod
+    def _identity(build, feature, frozen, base_sha, verdict):
+        """The four ids every receipt carries, so a board row reaches its trace and artifact."""
+        return {
+            "simulated": True,
+            "build_id": build["build_id"],
+            "feature_id": feature["id"],
+            "attempt_id": build["attempt_id"],
+            "frozen_digest": frozen.digest(),
+            "base_sha": base_sha,
+            "artifact_digest": verdict.get("digest"),
+        }
+
+    def _telemetry_evidence(self, build, feature, frozen, base_sha, verdict, gate, decision):
+        """Best-effort trace evidence; a telemetry failure never rewrites a build outcome."""
+        if self.telemetry is None:
+            return {"status": "disabled"}
+        try:
+            evidence = self.telemetry.emit(
+                build_id=build["build_id"], feature_id=feature["id"],
+                attempt_id=build["attempt_id"], artifact_digest=verdict.get("digest"),
+                base_sha=base_sha, gate_status=(gate or {}).get("status"),
+                publisher_decision=(decision or {}).get("decision"), synthetic=True,
+            )
+        except Exception as exc:  # noqa: BLE001 - observability is not a gate
+            return {"status": "unavailable", "reason": type(exc).__name__}
+        if not isinstance(evidence, dict):
+            return {"status": "unavailable", "reason": "invalid_evidence"}
+        return evidence
+
+    def _budget_estimate(self):
+        """The most this attempt may spend, from the frozen run config; invalid means no."""
+        raw = self.config.get("cost_reservation_usd", "0.00")
+        try:
+            estimate = Decimal(str(raw))
+        except (InvalidOperation, ValueError):
+            raise BudgetError("invalid_estimate") from None
+        if not estimate.is_finite() or estimate < 0:
+            raise BudgetError("invalid_estimate")
+        return estimate
+
+    def _reserve(self, build):
+        """Journal the attempt's spending cap before any model or tool can spend."""
+        if self.budget is None:
+            if self.allow_unbudgeted:
+                return None
+            # No purse means no paid work; a fake-only caller must opt in explicitly.
+            raise BudgetError("budget_unavailable")
+        return self.budget.admit(
+            self.budget_scope, self._budget_estimate(),
+            note=f"{build['build_id']}:{build['feature_id']}",
+        )
+
+    def _settle(self, reservation):
+        """Close the reservation; a failure leaves it open, which is the conservative side."""
+        if reservation is None:
+            return
+        try:
+            self.budget.settle(reservation, reservation.estimate_usd)
+        except BudgetError:
+            pass
 
     def run_once(self):
         """Claim one build, give its agent a session, run it, and end the session whatever happens."""
@@ -111,15 +184,24 @@ class DispatchWorker:
         if build is None:
             return None
         try:
-            session = self._open_session(build)
-        except SessionError as error:
+            reservation = self._reserve(build)
+        except BudgetError:
+            self.store.hold_dispatched(build["build_id"], "budget_unavailable")
             return {"build_id": build["build_id"],
-                    "result": {"status": "held", "reason": "credential_unavailable",
-                               "detail": str(error)}}
+                    "result": {"status": "held", "reason": "budget_unavailable"}}
         try:
-            return self._run(build, session)
+            try:
+                session = self._open_session(build)
+            except SessionError as error:
+                return {"build_id": build["build_id"],
+                        "result": {"status": "held", "reason": "credential_unavailable",
+                                   "detail": str(error)}}
+            try:
+                return self._run(build, session)
+            finally:
+                self._close_session(session)
         finally:
-            self._close_session(session)
+            self._settle(reservation)
 
     def _open_session(self, build):
         """Mint the session this attempt may use; without a gateway there is nothing to mint."""
@@ -152,8 +234,21 @@ class DispatchWorker:
 
     def _run(self, build, session):
         try:
-            repo, base_sha = self._make_repo(build["build_id"])
-            frozen = freeze_build(build, self.catalog, self.spec_dir, base_sha, self.config)
+            if self.target is None:
+                repo, base_sha = self._make_repo(build["build_id"])
+            else:
+                repo = self.work_root / build["build_id"] / "repo"
+                base_sha = self.target.materialize(repo)
+            frozen = freeze_build(
+                build, self.catalog, self.spec_dir, base_sha, self.config,
+                write_scopes=self.target.write_paths if self.target is not None else None,
+                spec_path=self.target.brief if self.target is not None else None,
+            )
+        except TargetError as exc:
+            self.store.hold_dispatched(build["build_id"], "base_unavailable")
+            return {"build_id": build["build_id"],
+                    "result": {"status": "held", "reason": "base_unavailable",
+                               "detail": str(exc)}}
         except FreezeError as exc:
             self.store.hold_dispatched(build["build_id"], "qualification_missing")
             return {"build_id": build["build_id"], "result": {"status": "held", "reason": str(exc)}}
@@ -162,10 +257,32 @@ class DispatchWorker:
         # The build brief lives outside the clone: the agent reads where it stops, the artifact
         # validator never sees it, and the branch it names is the one the publisher will push.
         branch = f"aeion/build-{build['attempt_id'][:24]}"
-        (repo.parent / "TASK.md").write_text(
-            stop.build_brief(feature["id"], feature["title"], branch) + "\n")
-        self._write_simulated_impl(repo, frozen, feature)
+        brief = stop.build_brief(feature["id"], feature["title"], branch)
+        if self.target is not None:
+            (repo.parent / "BRIEF.md").write_text(self.target.brief.read_text())
+            brief += ("\nSpecification: BRIEF.md, outside the repository and read-only.\n"
+                      "Write scopes: " + ", ".join(self.target.write_paths) + ".\n")
+        (repo.parent / "TASK.md").write_text(brief + "\n")
+        try:
+            if self.builder is None:
+                self._write_simulated_impl(repo, frozen, feature)
+            else:
+                self.builder(repo=repo, frozen=frozen, feature=feature,
+                             brief=repo.parent / "BRIEF.md")
+        except Exception as exc:  # noqa: BLE001 - a failed builder never publishes
+            result = self.store.complete_attempt(
+                build["attempt_id"], build["attempt_generation"],
+                {"simulated": True, "build_id": build["build_id"],
+                 "feature_id": feature["id"], "attempt_id": build["attempt_id"],
+                 "reason": "builder_error", "detail": type(exc).__name__},
+                terminal=FAILED,
+            )
+            return {"build_id": build["build_id"], "result": result}
         verdict = validate_artifact(repo, frozen.write_scopes)
+        files = verdict.pop("files", {})
+        if verdict["accepted"] and not self._content_bound(files, verdict):
+            verdict = {**verdict, "accepted": False,
+                       "rejected": [{"path": "*", "reason": "content_digest_mismatch"}]}
         if not verdict["accepted"]:
             result = self.store.complete_attempt(
                 build["attempt_id"], build["attempt_generation"],
@@ -173,25 +290,31 @@ class DispatchWorker:
             )
             return {"build_id": build["build_id"], "result": result}
 
-        # The fake builder faithfully reports the spec it read; the gate re-checks this
+        # The builder faithfully reports the spec it read; the gate re-checks this
         # claim against the frozen spec digest (spec_unchanged).
         verdict["spec_digest"] = frozen.spec_digest
+        # The protected check needs the tree, never the candidate's claim; it is not
+        # persisted in the receipt and is dropped as soon as the gate has judged.
+        verdict["repo"] = str(repo)
 
         # S3 gate: protected checks judged outside the candidate's control.
         gate = self.checks.verdict(self.required_checks, frozen, verdict)
+        verdict.pop("repo", None)
         if gate["status"] == "qualification_missing":
             self.store.hold_dispatched(build["build_id"], "qualification_missing")
             return {"build_id": build["build_id"], "result": {"status": "held",
                     "reason": "qualification_missing", "gate": gate}}
         if gate["status"] == "failed":
+            evidence = self._telemetry_evidence(
+                build, feature, frozen, base_sha, verdict, gate, None)
             result = self.store.complete_attempt(
                 build["attempt_id"], build["attempt_generation"],
-                {"simulated": True, "gate": gate}, terminal=FAILED,
+                {**self._identity(build, feature, frozen, base_sha, verdict),
+                 "gate": gate, "telemetry": evidence}, terminal=FAILED,
             )
             return {"build_id": build["build_id"], "result": result}
 
         # Independent deterministic review: the publisher never sees an unreviewed diff.
-        files = self._collect_files(repo, verdict["allowed"])
         review_verdict = review(frozen, verdict, files)
         if review_verdict["status"] == "refused":
             result = self.store.complete_attempt(
@@ -234,6 +357,7 @@ class DispatchWorker:
             "review_status": review_verdict["status"],
             "circuit_status": (circuit or {}).get("status"),
             "review_digest": review_verdict["digest"],
+            "review_content_digest": review_verdict["content_digest"],
             "write_scopes": frozen.write_scopes,
             "cancelled": False,
         }
@@ -242,12 +366,14 @@ class DispatchWorker:
             # publisher process, which decides and publishes on its own.
             from .queue import enqueue
             enqueue(self.defer_to, request)
+            decision = {"decision": "deferred", "queue": "publish-queue"}
             receipt = {
-                "simulated": True, "pr_shaped": True, "feature_id": feature["id"],
-                "frozen_digest": frozen.digest(), "base_sha": base_sha,
-                "artifact_digest": verdict["digest"], "allowed": verdict["allowed"],
+                **self._identity(build, feature, frozen, base_sha, verdict),
+                "pr_shaped": True, "allowed": verdict["allowed"],
                 "gate": gate, "review": review_verdict, "circuit": circuit,
-                "publisher": {"decision": "deferred", "queue": "publish-queue"},
+                "publisher": decision,
+                "telemetry": self._telemetry_evidence(
+                    build, feature, frozen, base_sha, verdict, gate, decision),
                 "agent_session": self.session_evidence(session),
             }
             result = self.store.complete_attempt(build["attempt_id"], build["attempt_generation"], receipt)
@@ -260,9 +386,12 @@ class DispatchWorker:
         )
         decision = publisher.decide(request)
         if decision["decision"] == "refused":
+            evidence = self._telemetry_evidence(
+                build, feature, frozen, base_sha, verdict, gate, decision)
             result = self.store.complete_attempt(
                 build["attempt_id"], build["attempt_generation"],
-                {"simulated": True, "gate": gate, "publisher": decision}, terminal=FAILED,
+                {**self._identity(build, feature, frozen, base_sha, verdict),
+                 "gate": gate, "publisher": decision, "telemetry": evidence}, terminal=FAILED,
             )
             return {"build_id": build["build_id"], "result": result}
         if decision["decision"] == "hold":
@@ -272,17 +401,15 @@ class DispatchWorker:
                     "reason": reason, "publisher": decision}}
 
         receipt = {
-            "simulated": True,
+            **self._identity(build, feature, frozen, base_sha, verdict),
             "pr_shaped": True,
-            "feature_id": feature["id"],
-            "frozen_digest": frozen.digest(),
-            "base_sha": base_sha,
-            "artifact_digest": verdict["digest"],
             "allowed": verdict["allowed"],
             "gate": gate,
             "review": review_verdict,
             "circuit": circuit,
             "publisher": decision,
+            "telemetry": self._telemetry_evidence(
+                build, feature, frozen, base_sha, verdict, gate, decision),
             "agent_session": self.session_evidence(session),
         }
         result = self.store.complete_attempt(build["attempt_id"], build["attempt_generation"], receipt)

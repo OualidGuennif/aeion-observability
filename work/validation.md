@@ -599,3 +599,138 @@ there; the browser check is a headless screenshot.
 `demo/.local/stack.env` next to `LANGFUSE_PASSWORD`, prints where both are, and `demo/compose.yaml`
 reads `${LANGFUSE_EMAIL:-demo@aeion.local}` so an older configuration still boots. Verified by
 running the script in an isolated copy: the key is written once and the other keys are unchanged.
+
+## The external review, checked at its claim sites — 2026-11-02
+
+An external review of this repository reports five defects and three product gaps, and asks for a
+decision before acting. This run applied no plan; it read the cited sites and reproduced the
+cheapest failures, so the owner decides on checked claims rather than on a summary.
+
+| Claim | Check | Result |
+| --- | --- | --- |
+| F2, publish loader raises | `publisher.load_publish_credential()` with `gh_probe.load_secret` replaced by a no-op | `NameError: name 'for_role' is not defined`, before any credential is read |
+| F1, review bytes are not bound | read `factory/artifact.py:88` and `factory/publisher.py:40-57` | the digest is SHA-256 over sorted **paths**; `verified_receipt` compares that digest and `base_sha`, never the content digest of the queued `files` |
+| F3, valid votes score zero | read `factory/review_circuit.py:82` and `factory/models.py:52` | stored outcomes are `approve`/`reject`; the success set is `approved`/`rejected`/`passed` |
+| F4, the diagnostic can serve | read `factory/live_readiness.py:30-36` and `demo/app/server.py` | `from server import sandbox_ready` inside the report; `server.py` calls `serve_forever()` at module level |
+| F5, the release proxy cannot carry a session | read `demo/deploy/playground.py` | `do_GET` handlers only; `_forward` builds a GET and passes no incoming headers |
+| G1, the builder is simulated | read `factory/api.py:28` and the `factory/dispatch.py` docstring | `profile=fake`, `mode=fake`, "fake inference and a fake forge" — stated, not hidden |
+
+Not verified here: the review's receipt-forgery fixture was not replayed end to end, no remote
+write and no secret read were attempted, and the cleanup and real-executor plans were not started.
+The claim that `demo/forum/product/` is absent from the tree and that the 100 features still point
+at it was not rechecked in this run.
+
+## Plan A and B executed and verified — 2026-11-02
+
+The owner approved plan v1 A/B/C and explicitly required the old Deno/Hono demo to be deleted.
+This run removed it, repaired the five reproduced defects and verified each repair against the
+live checkout. Plan C (one real forum feature build) was designed but not implemented; no paid
+inference, publication, deployment or credential read occurred.
+
+| Change | Check | Result |
+| --- | --- | --- |
+| A, old demo removed | `git ls-files demo/playground`; `grep 8090` in active app/config/docs | no tracked file, no service, no link or probe; `demo/tests/test_playground_removed.py` passes |
+| A, running container | `docker ps` then stop/remove `aeion-observability-demo-playground-1` | removed; `http://127.0.0.1:8090/` returns `URLError` |
+| A, operator entry | cockpit `index.html` | hero and nav link `/factory`; forum API/web rows in the demo runbook |
+| F1, content binding | pipeline fixture: approve, then change one queued byte, keep all receipt fields | `verified_receipt` returns `None`; `Publisher` refuses `forged_content`; fake forge receives nothing |
+| F1, unsupported effects | artifact tests | rename/delete/binary/unreadable held with `unsupported_effect:*` or `binary_content`; digest changes with bytes |
+| F2, loader | empty secret loader, no publish key / fixture key | `CredentialError:credential_missing:publish` / token returned; CLI exits 2 without traceback |
+| F3, vote labels | complete two-approve circuit | `n=1, success_rate=1.0` for both models; a malformed answer remains 0.0 |
+| F4, readiness | `runpy` the diagnostic with `ThreadingHTTPServer` substituted | report produced, no server constructor call, `server` not imported |
+| F5, proxy scope | fake upstream, direct vs proxy | direct cookie 200; proxy cookie 400; proxy POST 405; upstream saw only the direct cookie |
+| Full suite | `python3 -m unittest discover -s demo/tests -v` | **366 passed, 9 skipped** |
+| Knowledge | `tools/knowledge/knowledge-check`, `doc-links`, `repo-health` | PASS, PASS (97 links), PASS |
+| Template | `template-update --from-ref v1.9.0 --ref v1.9.1 --check`, `adapter-check --ref v1.9.1` | 0 files differ; 27/27 connectors match; demo product checkout moved v1.8.6 → v1.9.1 and matches too |
+
+The fix-verification script is temporary and lives at
+`/private/tmp/aeion-observability-review-20261102-6lixqiw6/verify-fixes.py`; its output recorded
+`F1 forged_content`, `F2 ran`, `F3 success_rate 1.0`, `F4 attempted_server_start false` and the
+F5 statuses above. These are local mechanism checks, not a live harness, provider or Langfuse
+ingestion proof.
+
+## One pinned forum build through the real check and Langfuse — 2026-11-02
+
+Plan C was implemented offline against the runnable Quarkus forum, not the planned
+`demo/forum/product/` tree. The target profile names feature 013, base commit
+`753ba3ed239560f2854921efb10530916dcc57ab`, the main/test write scopes, an adapted brief and a
+protected Gradle check. The builder was an injected fake model and the forge was the fake forge:
+no paid inference, publication, deployment or credential read occurred.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| The base is exact and isolated | `target.materialize` clones `753ba3e`, verifies `HEAD` and a clean tree; `test_factory_target.py` | pass; clone under `demo/.local/factory/work/<build_id>/repo` |
+| Scopes and brief come from the profile, not the 100-feature plan | `test_factory_target_dispatch.py`: catalog feature still says `demo/forum/product/`, artifact is accepted in the two Quarkus scopes | pass |
+| The protected check is external | contract test lives in `demo/forum/targets/forum-app-013/`, outside both scopes; copied in, run, then removed | pass |
+| The real Gradle suite passes | `gradle test --offline --console=plain --no-daemon` with `GRADLE_USER_HOME=demo/.local/gradle-home` | return code 0, 27,596 ms; contract SHA-256 `23706825…a07d` |
+| A missing base holds | target replaced with a missing source | `base_unavailable`; no artifact, no publisher |
+| A builder or check failure never publishes | injected exception / `exit 1` check | `FAILED`; no `publisher` field in the receipt |
+| Identity reaches the receipt | live build `26b29b2f9fb34083b0a737fc92ec4766`, attempt `5518a5d638d34a848fcaf1df9915fa92`, artifact `6b78a27a…41b1` | all four ids plus `base_sha` present |
+| Review circuit ran | two injected `approve` answers from different families; deterministic rules first | `approved`; publisher `published` (fake PR, no GitHub call) |
+| Telemetry reaches Langfuse | `factory.build` span, trace `0ea7e7625fc2109a535817c6f7eeabdd` | read back with build, feature, attempt, artifact and session all matching |
+| The cockpit can show it | live build is in `demo/.local/factory/factory.db`; `demo/app/factory.js` renders build/attempt ids and links `/trace/<id>` | `test_factory_board_link.py`; board row present |
+| No paid run | injected builder and injected reviewer, `cost_reservation_usd = 0.00` | no model endpoint and no credential used |
+
+Run: `demo/.local/venv/bin/python demo/tests/qualify_forum_build.py` → exit 0, `status:
+completed`, `langfuse.status: PASS`. The same command with `--no-telemetry` passed earlier
+(build `076aa7455c044f54a2f7ca2534d5d7e4`, 26,641 ms).
+
+Honest scope: the model is fake by construction, so this proves the adapter, the protected
+check, the identity plumbing and the Langfuse read-back — not model quality, a real pull
+request or a production deployment. The target's `QuarkusTestDatabase` remains inside the
+candidate test scope; a change to it would appear in the reviewed diff, and the deterministic
+reviewer runs before the check. Moving the pin to a new base and one paid live run still need
+the owner's decision.
+
+## Product repo, two daily purses and local Docker — 2026-11-02
+
+The runnable forum now has one canonical source, the separate
+`OualidGuennif/aeion-autonomous-forum` checkout. The factory target was repointed, and the
+local publish path was exercised without a paid model, a registry push or a VPS.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| Product source is canonical | `demo/.local/factory/agents/aeion-autonomous-forum` at `37417ab`; commits `1224d03` (feature-013 filter) and `4e27f73` (Docker) | clean `develop`, local commits only, remote not pushed |
+| The target clones the product repo | `demo/forum/targets/forum-app-013.json`: `target_repo = OualidGuennif/aeion-autonomous-forum`, base `37417ab` | `test_forum_target_profile.py` 5/5 pass |
+| The offline build still passes from the product repo | qualification build `311a5ac3f4d74e1f8e7a3b2603d0b7b4`, attempt `95312667492045808ac9aa83baa79b5b`, artifact `6b78a27a…41b1`, base `37417ab` | Gradle return 0 in 28,292 ms; trace `94563192e3b5a34ecc6d8c421c3c173e`; Langfuse read-back PASS |
+| Requalified after the product commits | build `b14c4283c3b14cce8684fdb94216f1e2`, base `37417ab` | gate passed, Gradle return 0 in 50,097 ms; same artifact digest |
+| Feature 013 is in the product | offline qualification build `4e40fcff…` produced `SecurityHeadersFilter.java`; product test with the external contract | `gradle test` return 0 in 37 s, including `SecurityHeadersContractTest` |
+| Two independent $15.00 purses | `demo/factory/budget.py`; `test_factory_budget.py` | reserve before, settle after; open reservations count; corrupt ledger fails closed; one scope cannot borrow from the other |
+| A sub-cent reservation is not free | `test_factory_budget.py::test_a_positive_sub_cent_reservation_is_rounded_up_not_free` | $0.001 reserves $0.01 and settles at $0.01 |
+| A free reservation cannot become paid | `test_factory_budget.py::test_a_zero_reservation_cannot_settle_a_positive_cost` | $0.00 reservation + $0.01 settlement raises `settlement_exceeds_reservation`; spend stays $0.00 |
+| Protected check is confined | `test_factory_target_check.py::test_a_repository_outside_the_allowed_workspace_is_refused` | a repo outside the factory work root is refused before any copy or command |
+| Review circuit families are distinct | `test_factory_publish.py::CircuitIndependenceTests`; `verified_receipt` | two votes in one family are refused; two families pass |
+| Worker refusal is real | `test_factory_target_dispatch.py::test_an_exhausted_purse_holds_before_a_session_or_builder` | `HELD` / `budget_unavailable`; no session, builder or work directory |
+| A worker without a purse also holds | `test_factory_target_dispatch.py::test_a_worker_without_a_purse_holds_before_any_work` | `HELD` / `budget_unavailable`; no work directory |
+| The paid publish worker is pursed | `publish_once.build_worker`; `test_factory_publish_once.py` | forum purse, positive $0.10 reservation, unbudgeted path refused |
+| Cockpit refusal is real | `test_triage.py::test_a_live_run_without_a_purse_fails_closed` (venv) | `failed` / `BUDGET_STOP`; no ledger entry |
+| Full demo suite stays green | `demo/.local/venv/bin/python -m unittest discover -s demo/tests -v` | 426 tests, OK, 0 skipped |
+| Docker image runs non-root | `aeion-autonomous-forum:local`, UID/GID `10001`, `eclipse-temurin:25-jre` | healthy on `127.0.0.1:8081` |
+| Health and headers | `docker compose -f demo/forum-app/compose.yaml up --build -d`; `curl /healthz` and `/api/threads/not-a-number` | `{"status":"ok","release":"local-docker",…}`; 404; CSP `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`, `nosniff`, `no-referrer`, HSTS on both; report-only absent |
+| No remote or paid action | fake builder and fake forge; no `docker push`, no provider call, no VPS command | confirmed; the image is local-only |
+
+Honest scope: the feature-013 Java bytes come from the injected offline builder, not a paid model
+run. The protected Gradle check is real and passed, but model quality and a real PR remain
+unproven. The container is published only to loopback on this PC.
+
+## Orphaned OpenShell sandboxes removed — 2026-11-02
+
+The owner reported a large number of OpenShell sessions still running in Docker and consuming
+CPU. The host had **nine sandbox pairs** (18 containers) created between 20:13 and 20:27 on
+2026-11-01, all still up 14 hours later. The gateway's own record list was empty: these workloads
+were orphaned, not active. The qualification that created them had no corresponding
+`DeleteSandbox` requests for the leaked names, so the exact interruption point is not in the
+gateway log; the observable failure is a cleanup path that did not run or did not finish.
+
+| Check | Evidence | Result |
+| --- | --- | --- |
+| Orphans identified | `docker ps` with `openshell.ai/managed-by=openshell`; created timestamps 2026-11-01 20:13–20:27 | 18 containers (9 sandbox pairs); CPU 5–22% per supervisor |
+| No gateway records | Python `SandboxClient.list(workspace="default")` through the qualified local client | empty page; removing the containers did not delete live state |
+| Removal | `docker rm -f` on the 18 labeled containers only | 0 OpenShell containers remain; forum and Langfuse stack untouched |
+| CPU after removal | `docker stats --no-stream` | OpenShell supervisors gone; remaining stack dominated by ClickHouse's normal background work, forum ~0.4–3.6% |
+| Reaper selection | `demo/openshell/reap.py --older-than 3600` | dry run selects 0 now; test fixtures prove old-only selection and dry-run safety |
+| Bootstrap hardening | `demo/openshell/setup.py` imports `reap` and sweeps older-than-1-hour labeled containers | `test_openshell_setup` and `test_openshell_reap` pass |
+
+The safety window is one hour: a normal agent is bounded to 360 seconds × at most three agents,
+and the harness qualification is shorter, so only abandoned pairs are eligible. The reaper is
+host-side and never runs inside an agent sandbox; it only removes containers carrying OpenShell's
+`managed-by` and `sandbox-namespace=aeion-observability` labels.

@@ -5,6 +5,11 @@ Acceptance cases are built from the frozen spec. A missing required check yields
 evaluator that judges it.
 """
 import hashlib
+import os
+import shutil
+import subprocess
+import time
+from pathlib import Path
 
 
 class ProtectedChecks:
@@ -46,3 +51,80 @@ def spec_unchanged_check(frozen, artifact_verdict):
 
 
 DEFAULT_CHECKS = {"scope": scope_check, "spec_unchanged": spec_unchanged_check}
+
+
+def _failed_tests(output, limit=20):
+    """Extract bounded test identifiers, never the raw build output."""
+    found = []
+    for line in (output or "").splitlines():
+        line = line.strip()
+        if " FAILED" not in line and not line.endswith("FAILED"):
+            continue
+        if " > " not in line and not line.startswith("Execution failed"):
+            continue
+        if line not in found:
+            found.append(line[:240])
+        if len(found) >= limit:
+            break
+    return found
+
+
+def target_check(target, runner=None, work_root=None):
+    """Run the profile's protected check against the materialised candidate tree.
+
+    The contract test is copied in from outside the candidate's write scopes, runs with
+    the host toolchain, and is restored afterwards. Only a bounded failure summary is
+    recorded: no raw output, no candidate-controlled evaluator.
+    """
+    runner = runner or subprocess.run
+    allowed_root = Path(work_root).resolve() if work_root is not None else None
+
+    def check(frozen, artifact_verdict):
+        # An absent or relative path must never resolve to the controller's own directory.
+        raw_repo = artifact_verdict.get("repo")
+        if not isinstance(raw_repo, str) or not raw_repo:
+            return False, {"reason": "repository_missing"}
+        repo = Path(raw_repo)
+        if not repo.is_absolute() or not repo.is_dir():
+            return False, {"reason": "repository_missing"}
+        if allowed_root is not None:
+            try:
+                repo.resolve().relative_to(allowed_root)
+            except ValueError:
+                return False, {"reason": "repository_outside_workspace"}
+        spec = target.protected_check
+        destination = repo / spec.contract_destination
+        original = destination.read_bytes() if destination.is_file() else None
+        started = time.monotonic()
+        try:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(spec.contract_test, destination)
+            command = spec.command_for(repo, target.controller)
+            env = {**os.environ, **spec.env_for(repo, target.controller)}
+            completed = runner(command, cwd=str(repo), env=env, capture_output=True,
+                               text=True, timeout=spec.timeout_seconds)
+        except subprocess.TimeoutExpired:
+            return False, {"check": spec.id, "reason": "timeout",
+                           "timeout_seconds": spec.timeout_seconds}
+        except FileNotFoundError:
+            return False, {"check": spec.id, "reason": "toolchain_missing"}
+        except OSError:
+            return False, {"check": spec.id, "reason": "check_start_failed"}
+        finally:
+            try:
+                if original is None:
+                    destination.unlink(missing_ok=True)
+                else:
+                    destination.write_bytes(original)
+            except OSError:
+                pass
+        output = (completed.stdout or "") + "\n" + (completed.stderr or "")
+        detail = {
+            "check": spec.id,
+            "returncode": completed.returncode,
+            "duration_ms": int((time.monotonic() - started) * 1000),
+            "contract_sha256": hashlib.sha256(spec.contract_test.read_bytes()).hexdigest(),
+            "failed_tests": _failed_tests(output) if completed.returncode != 0 else [],
+        }
+        return completed.returncode == 0, detail
+    return check

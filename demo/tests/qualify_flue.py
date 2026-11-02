@@ -20,9 +20,11 @@ from unittest.mock import patch
 
 TESTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TESTS.parent / "app"))
+sys.path.insert(0, str(TESTS.parent))
 sys.path.insert(0, str(TESTS))
 from local_sandbox import LocalSandbox
 import runner
+from factory.budget import DailyBudget
 from relay import ContextRelay
 from scenarios import SCENARIOS, SOLUTIONS
 from settings import DATA, FLUE, HARNESS, WORK
@@ -175,8 +177,9 @@ def qualify(runtime, root, local_sandbox):
     run = {"id": runtime, "synthetic": False, "status": "running", "started_ns": time.time_ns(), "runtime": runtime,
            "task_id": task_id, "model": "fixture/mock", "limit": 250000, "metric": "active_context",
            "native_cost_usd": "0", "events": [], "sessions": [], "agents": 0}
+    budget = DailyBudget(root / "budget.jsonl")
     with patch("runner.Sandbox", LocalSandbox) if local_sandbox else nullcontext():
-        runner.Runner(NoExport(), lambda _run: None, root).run(run)
+        runner.Runner(NoExport(), lambda _run: None, root, budget=budget).run(run)
     names = [e["name"] for e in run["events"]]
     summary = {key: run.get(key) for key in ("runtime", "status", "failure", "agents", "check", "changed", "usage_complete")}
     summary.update(request_count=len(requests), fresh_sessions=len(set(run["sessions"])),
@@ -218,7 +221,7 @@ def main():
                                 upstream=f"http://127.0.0.1:{server.server_port}/v1/chat/completions", counter=FixtureCounter())
 
         profile = {"model": "fixture/mock", "name": "Fixture", "context": 1000000, "input": 0, "output": 0, "cache_read": 0}
-        with patch.dict(os.environ, {"OPENCODE_API_KEY": "synthetic", "DEMO_MAX_COST_USD": "0", "PLAYGROUND_URL": ""}), \
+        with patch.dict(os.environ, {"OPENCODE_API_KEY": "synthetic", "DEMO_MAX_COST_USD": "0"}), \
                 patch.dict(runner.PROFILES, {"fixture": profile}), patch("runner.ContextRelay", side_effect=local_relay):
             for runtime in RUNS:
                 qualify(runtime, root, args.local_sandbox)

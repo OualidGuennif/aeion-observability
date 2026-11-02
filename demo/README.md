@@ -5,9 +5,12 @@ A local showcase connecting **OpenTelemetry, Langfuse, Hindsight and claude-mem*
 host**; the agent harness is **Flue 2.3.0 on Pi 1.4.0** in [three execution tiers](#three-execution-tiers):
 triage in an emulated in-memory shell, a guided local assistant with folder-confined file tools,
 and autonomous coding whose every tool call runs inside **NVIDIA OpenShell 0.1.5**. Generated
-code from both coding tiers is checked in OpenShell. The application under test is **Deno
-JavaScript + Hono**. The interface uses Æion's ivory, forest-green and copper palette, locally
-bundled fonts and a native GPT Image illustration.
+code from both coding tiers is checked in OpenShell. The product under test is the **Agora
+forum** (Quarkus/Java); the old Deno/Hono playground is gone. The canonical product source is the
+separate `aeion-autonomous-forum` checkout at
+`demo/.local/factory/agents/aeion-autonomous-forum`; `demo/forum-app/` is a reading mirror. The
+interface uses Æion's ivory, forest-green and copper palette, locally bundled fonts and a native
+GPT Image illustration.
 
 ## Agora factory planning
 
@@ -29,11 +32,17 @@ renders in a browser through `react-native-web` (`npx expo start --port 8082` �
 `http://127.0.0.1:8082`), which is how the forum is shown without a phone. A real Kafka broker
 (`apache/kafka-native` in Docker) carried the event drill.
 
+For a **local-only** container, the product repository now carries a multi-stage Dockerfile and
+Compose service (`demo/forum-app/DOCKER.md` in that checkout). It publishes only
+`127.0.0.1:8081`, stores SQLite in a named volume and refuses to start without an ephemeral
+`AGORA_SESSION_SECRET`; health and feature-013 security headers are verified on a success and a
+404. The image is never pushed; a VPS or any remote publication remains a separate owner decision.
+
 ## Start and show
 
 From the repository root, with Docker running, Python 3.11+ and Node.js 22.19+. The native
-gateway bootstrap supports macOS arm64 and Linux x86_64/arm64. Reserve memory for the ten
-observation/application services plus transient sandboxes; the local machine used an 8 GB Docker
+gateway bootstrap supports macOS arm64 and Linux x86_64/arm64. Reserve memory for the nine
+observation services plus transient sandboxes; the local machine used an 8 GB Docker
 VM shared with other projects, which caused startup delays under load:
 
 ```sh
@@ -59,7 +68,9 @@ may hold more than the one it needs.
 | View | Local address | Purpose |
 | --- | --- | --- |
 | Python cockpit | [localhost:8088](http://localhost:8088) | Session timeline, context, model KPIs, memory, MD and logs |
-| Deno/Hono playground | [localhost:8090](http://localhost:8090) | Quote API running the independently verified JS artifact |
+| Feature factory | [localhost:8088/factory](http://localhost:8088/factory) | Select, queue and watch forum feature builds |
+| Forum API | [localhost:8081](http://127.0.0.1:8081/healthz) | Quarkus service: threads, accounts, health |
+| Forum web front | [localhost:8082](http://127.0.0.1:8082) | React Native Web client (`npx expo start --port 8082`) |
 | Langfuse | [localhost:3300](http://localhost:3300) | Real traces, generations, usage, estimated cost and boolean scores |
 | Hindsight | [localhost:9999](http://localhost:9999) | Session-analysis memory banks and semantic recall |
 
@@ -68,7 +79,8 @@ both in the private configuration (`demo/.local/stack.env`, written by `python3 
 Open it locally in an editor; never paste the password into chat/logs.
 claude-mem and the OTel collector publish on loopback only for the native controller.
 The first build downloads upstream runtimes and Hindsight's bundled local models, not model
-weights for coding inference. Compose runs only the observation services and the playground.
+weights for coding inference. Compose runs only the observation services; the forum, the
+feature factory and the Flue harness run on the host.
 The cockpit, counting relay and Flue harness run on the host; there is no controller container,
 agent CLI image or Docker socket in this code path. A private native mTLS gateway owns OpenShell's
 Docker compute driver. No user repository, host transcript or global agent setting is mounted.
@@ -79,8 +91,8 @@ A useful presentation sequence:
    a fresh agent continues, and the four real local services capture/remember the task.
 2. **Run Flue build**: choose an execution tier, then Auto or one of five paid Go profiles.
    Coding tiers edit `src/pricing.js` (through OpenShell in tier 3); 12 or 14 protected Deno
-   checks run for the selected task in a fresh sandbox, then its Hono API is probed. Triage
-   submits one labeled result per event, checked by the supervisor.
+   checks run for the selected task in a fresh sandbox, then the supervisor records the result.
+   Triage submits one labeled result per event, checked by the supervisor.
 3. Compare the **same tier, task, gate and method version** in the model lab. Read cost/latency/autonomy
    together; declare human assistance when applicable rather than inferring independence.
 4. **Recall session analyses**; inspect the checkpoint, correlated JSONL logs and Langfuse trace.
@@ -196,6 +208,28 @@ provider-account settings; the demo does not change them. Missing native usage/c
 unresolved, never a zero-cost winner. Failed attempts count. Infrastructure and memory CPU costs
 are not included in the model estimate. The four small contracts support exploratory comparisons only.
 
+### Two independent daily purses ($15.00 each)
+
+`demo/factory/budget.py` keeps one append-only JSONL journal with two scopes. The cockpit's live
+runs spend from `aeion-observability`; the forum workers spend from `aeion-autonomous-forum`.
+Each scope is capped at **$15.00 per local day** and one scope can never borrow from the other.
+A run journals a reservation before it can call a model, then settles the actual cost; an open
+reservation counts against the day, so two runs cannot spend the same last dollar. A missing,
+corrupt or unreadable journal fails closed. The cockpit stops a live run with `BUDGET_STOP` and
+the factory holds a build with `budget_unavailable` before opening a session or builder.
+
+The default journal is `demo/.local/budget/ledger.jsonl` (mode `0600`); `AEION_BUDGET_LEDGER`
+overrides it. Inspect the current day without spending:
+
+```bash
+python3 -m demo.factory.budget --ledger demo/.local/budget/ledger.jsonl
+```
+
+Only scope, day, USD amount, an opaque reservation id and a bounded note are stored: no prompt,
+source, credential or provider response. The $15.00 limits are an owner decision; this ledger
+does not grant permission for paid inference, and no paid call may run without a new explicit
+owner approval.
+
 ## Markdown before reset: 230k → 250k → 300k
 
 1. **Prepare at 230k:** the supervisor writes `HANDOVER.md` with task, artifact SHA-256,
@@ -248,10 +282,14 @@ Security qualification expires in 24 hours. A separate harness qualification
 relay/bridge/runner/harness sources plus `package-lock.json`; live execution is blocked without
 it. Rerun bootstrap and harness qualification after changes/expiry. Cleanup failure writes
 `demo/.local/data/sandbox.blocked`; verify owned sandbox deletion and requalify before clearing it.
+A killed qualification or a gateway restart can leave an OpenShell supervisor/sandbox pair running
+with nothing tracking it. `demo/openshell/reap.py --older-than 3600` is a dry run of the cleanup;
+add `--execute` to remove only containers carrying both OpenShell labels after that safety window.
+Bootstrap also runs that sweep automatically, so a stale pair cannot survive the next install.
 The gateway, Docker daemon and supervisor are trusted. OpenShell's local container driver is not
-a microVM boundary or a production hostile-code qualification. After acceptance, the Hono
-playground imports the published artifact in its read-only Docker container; Deno permissions
-limit it to `/work/published` and the collector. That is not an OpenShell boundary.
+a microVM boundary or a production hostile-code qualification. After acceptance, the supervisor
+keeps the checked artifact under `demo/.local/work/published/` as evidence; nothing serves it as
+a second application, and that directory is not an OpenShell boundary.
 
 ## Evidence and logs
 
