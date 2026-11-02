@@ -825,3 +825,19 @@ empty; it is not evidence that the live dependency is satisfied.
 Honest scope: no browser rendering, Live execution or dependency-baseline import is claimed. The
 next step is a verified baseline for the product features already present at the pinned commit,
 then the cockpit trace confirmation.
+
+## Publication of the lifecycle slices through PR #12 — 2026-11-02
+
+The reviewed `develop` work (review coverage, trace delivery, Paris budget day, Factory v1.9.2 and
+the explicit execution path) was released to protected `main` through
+[PR #12](https://github.com/OualidGuennif/aeion-observability/pull/12), again as a squash.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| Released head is exactly the reviewed one | PR #12 head `bbb856892d9dded1e48d6a995704ed8faea9a1eb`; `.aeion/reviews/bbb85689….md` | first line `Review: OK` |
+| Every required check is green on that head | run 41442808792 (`docker-demo`, `offline-examples`, knowledge health) and 41442808798 (`Graphify and Archify`) | all four `pass`; `review` skipped (not armed) |
+| The PR was mergeable | `gh pr view 12`: `MERGEABLE`, `CLEAN` | no unresolved threads |
+| Merge is a squash | `gh pr merge 12 --squash` | `main` = `3bef6439fb177d18a5cca2dd7948b85b1a93a539` |
+| `main` carries exactly the released tree | `git rev-parse bbb8568^{tree} origin/main^{tree}` | both `890f5814e419166f36ed57f4f511b1e8da5cffdd` |
+| `develop` does not diverge after the squash | `git merge origin/main` on `develop` | merge `deb9bdf`; no content change |
+| The evidence names a runnable adapter check | corrected row: factory copy with `--root <project>` | 27/27 PASS on both roots |
