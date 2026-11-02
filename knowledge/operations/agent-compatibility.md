@@ -81,10 +81,13 @@ directory does not establish loaded hooks or identical runtime guarantees.
   notification without a verified handover) to `tools/agents/hook.py pi`. `bash` and `powershell` are
   Bash, `read`/`edit`/`write`/`grep` name their file in `path`, `find` and `ls` are Glob and LS, and an
   unknown tool carrying a `command` string is a shell call. `tools/agents/run pi` requires 1.4.0+.
-  Its compaction aborts the running turn, so once it is done the extension sends a message that resumes
-  the task from the handover.
-  The extension sends `ctx.getContextUsage()` to the shared rule and calls `ctx.compact()` at 250k once
-  the handover is verified; the 250k alert names the checkpoint command, and closure admits a project's
+  Its compaction aborts the running turn, so it never starts from a `tool_result`: the extension
+  waits for `agent_before_settle`, sends `ctx.getContextUsage()` as the Stop payload's
+  `observed_tokens`, and only then asks the shared rule. When the handover is verified at 250k, an
+  interactive run calls `ctx.compact()` at settlement and resumes the task from the handover. A
+  one-shot `-p` run has no UI to take that resume message, so it ends cleanly and points at the
+  verified handover instead of aborting before its summary. The 250k alert names the checkpoint
+  command, and closure admits a project's
   Markdown docs. `agent_before_settle` sends Stop: a sign-off finding becomes a displayed
   `custom_message` entry with `continue: true` (one more request); the hook shows each finding once, so
   the next settlement passes. A terminal stop (`continue: false`: a stopped run, invalid or unavailable
