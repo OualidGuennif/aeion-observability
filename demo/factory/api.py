@@ -61,6 +61,7 @@ class FactoryApp:
                                      builder=self.execution.get("builder"),
                                      telemetry=self.execution.get("telemetry"),
                                      review_complete=self.execution.get("review_complete"),
+                                     check_sandbox=self.execution.get("check_sandbox"),
                                      startup_hold=self.execution_hold)
         self.observer = Observer(self.store)
         self.token_path = self.state_dir / "admin.token"

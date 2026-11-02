@@ -8,6 +8,7 @@ scopes and a real protected check, but model bytes are fixed and the attempt is 
 """
 from pathlib import Path
 
+from .isolation import DockerCheckRunner
 from .target import TargetError, load_target
 from .telemetry import FactoryTelemetry
 
@@ -106,4 +107,5 @@ def resolve(repo_root, mode):
         return {"mode": "offline", "hold_reason": "execution_unavailable",
                 "detail": type(exc).__name__}
     return {"mode": "offline", "target": target, "builder": offline_builder,
+            "check_sandbox": DockerCheckRunner(repo_root),
             "telemetry": FactoryTelemetry()}

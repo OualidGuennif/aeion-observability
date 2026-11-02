@@ -104,6 +104,7 @@ class ResolveTests(unittest.TestCase):
         self.assertNotIn("hold_reason", execution)
         self.assertEqual(execution["target"].feature_id, "013")
         self.assertIs(execution["builder"], offline_builder)
+        self.assertIsNotNone(execution["check_sandbox"])
         self.assertIsNotNone(execution["telemetry"])
 
     def test_the_offline_builder_writes_both_scopes(self):
@@ -159,6 +160,8 @@ class AppWiringTests(unittest.TestCase):
         write_profile(self.root)
         execution = resolve(self.root, "offline")
         execution["telemetry"] = None
+        # The fixture profile runs a Python command, not the pinned Gradle image.
+        execution["check_sandbox"] = None
         app = self.app(execution)
         app.store.admit(["013"], "k2", app.catalog)
         app.tick()

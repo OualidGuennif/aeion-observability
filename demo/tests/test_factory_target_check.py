@@ -9,6 +9,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory.checks import target_check
+from factory.isolation import IsolationError
 from factory.target import ProtectedCheck, Target
 
 
@@ -131,6 +132,27 @@ class TargetCheckTests(unittest.TestCase):
         self.assertNotIn("AEION_REVIEW_ENDPOINT", calls[0])
         self.assertIn("PATH", calls[0])
         self.assertTrue(calls[0]["GRADLE_USER_HOME"].endswith("/gradle-home"))
+
+    def test_a_missing_isolation_boundary_holds_the_check(self):
+        def runner(command, **kwargs):
+            raise IsolationError("docker_unavailable")
+
+        passed, detail = target_check(self.target, sandbox=runner)(
+            object(), {"repo": str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(detail["reason"], "isolation_unqualified")
+        self.assertFalse(self.destination.exists())
+
+    def test_a_modified_contract_is_detected_and_restored(self):
+        def runner(command, **kwargs):
+            self.destination.write_text("// altered during the check\n")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        passed, detail = target_check(self.target, runner=runner)(
+            object(), {"repo": str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(detail["reason"], "contract_modified")
+        self.assertFalse(self.destination.exists())
 
 
 if __name__ == "__main__":

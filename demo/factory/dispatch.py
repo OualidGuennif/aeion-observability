@@ -41,7 +41,7 @@ class DispatchWorker:
                  require_circuit=None, defer_to=None, gateway=None, agent_id=None,
                  target=None, builder=None, telemetry=None, budget=None,
                  budget_scope="aeion-autonomous-forum", allow_unbudgeted=False,
-                 startup_hold=None):
+                 startup_hold=None, check_sandbox=None):
         self.store = store
         self.catalog = catalog
         self.spec_dir = Path(spec_dir)
@@ -60,7 +60,7 @@ class DispatchWorker:
             registered = dict(DEFAULT_CHECKS)
             if target is not None:
                 registered[target.protected_check.id] = target_check(
-                    target, work_root=self.work_root)
+                    target, work_root=self.work_root, sandbox=check_sandbox)
             self.checks = ProtectedChecks(registered)
         if required_checks is not None:
             self.required_checks = list(required_checks)

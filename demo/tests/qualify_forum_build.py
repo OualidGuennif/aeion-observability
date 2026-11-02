@@ -28,6 +28,7 @@ sys.path.insert(0, str(DEMO))
 from factory.budget import DailyBudget
 from factory.dispatch import DispatchWorker
 from factory.execution import offline_builder
+from factory.isolation import DockerCheckRunner
 from factory.manifest import load_manifest
 from factory.publish import FakeForge
 from factory.store import SIMULATED_COMPLETE, Store
@@ -99,6 +100,7 @@ def main():
         target=target, builder=offline_builder, telemetry=telemetry, forge=FakeForge(),
         review_complete=fake_reviewer, require_circuit=True,
         author_model="deepseek-4.1-flash",
+        check_sandbox=DockerCheckRunner(REPO),
         budget=DailyBudget(state / "budget" / "ledger.jsonl"),
     )
     result = worker.run_once()

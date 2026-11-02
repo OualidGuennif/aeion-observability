@@ -11,6 +11,8 @@ import subprocess
 import time
 from pathlib import Path
 
+from .isolation import IsolationError
+
 
 class ProtectedChecks:
     def __init__(self, checks=None):
@@ -83,7 +85,7 @@ def _failed_tests(output, limit=20):
     return found
 
 
-def target_check(target, runner=None, work_root=None):
+def target_check(target, runner=None, work_root=None, sandbox=None):
     """Run the profile's protected check against the materialised candidate tree.
 
     The contract test is copied in from outside the candidate's write scopes, runs with a
@@ -93,7 +95,7 @@ def target_check(target, runner=None, work_root=None):
     Only a bounded failure summary is recorded: no raw output, no candidate-controlled
     evaluator.
     """
-    runner = runner or subprocess.run
+    runner = sandbox or runner or subprocess.run
     allowed_root = Path(work_root).resolve() if work_root is not None else None
 
     def check(frozen, artifact_verdict):
@@ -116,10 +118,17 @@ def target_check(target, runner=None, work_root=None):
         try:
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(spec.contract_test, destination)
+            contract_sha256 = hashlib.sha256(spec.contract_test.read_bytes()).hexdigest()
             command = spec.command_for(repo, target.controller)
             env = check_environment(spec, repo, target)
-            completed = runner(command, cwd=str(repo), env=env, capture_output=True,
-                               text=True, timeout=spec.timeout_seconds)
+            try:
+                completed = runner(command, cwd=str(repo), env=env, capture_output=True,
+                                   text=True, timeout=spec.timeout_seconds)
+            except IsolationError as exc:
+                return False, {"check": spec.id, "reason": "isolation_unqualified",
+                               "detail": str(exc)[:120]}
+            if destination.read_bytes() != spec.contract_test.read_bytes():
+                return False, {"check": spec.id, "reason": "contract_modified"}
         except subprocess.TimeoutExpired:
             return False, {"check": spec.id, "reason": "timeout",
                            "timeout_seconds": spec.timeout_seconds}
@@ -140,8 +149,11 @@ def target_check(target, runner=None, work_root=None):
             "check": spec.id,
             "returncode": completed.returncode,
             "duration_ms": int((time.monotonic() - started) * 1000),
-            "contract_sha256": hashlib.sha256(spec.contract_test.read_bytes()).hexdigest(),
+            "contract_sha256": contract_sha256,
             "failed_tests": _failed_tests(output) if completed.returncode != 0 else [],
         }
+        isolation = getattr(completed, "qualification", None)
+        if isolation is not None:
+            detail["isolation"] = isolation
         return completed.returncode == 0, detail
     return check
