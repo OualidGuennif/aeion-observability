@@ -7,9 +7,22 @@
   is the operator entry and the forum is the only product demonstration. The cockpit links the
   forum API and web front, and `demo/tests/test_playground_removed.py` keeps the old surface
   from returning.
+- Bind publication to the reviewed bytes. The artifact digest now covers each path and its
+  content; renames, deletions, binary blobs and unreadable files are held as unsupported effects
+  instead of being silently dropped. `verified_receipt` and `Publisher.decide` recompute the
+  digest and refuse a request whose bytes, path set or review digest differ from the approved
+  artifact. `load_publish_credential` imports `for_role` (the reproduced `NameError` is gone), the
+  review circuit records `approved`/`rejected` so two valid votes score 1.0, and the readiness
+  diagnostic talks to the sandbox helper instead of importing the server that serves on import.
+  The release proxy is explicitly read-only: non-GET requests get 405, and authenticated requests
+  are refused with 400 before the cache. Covered by new and updated tests in
+  `demo/tests/test_factory_{publish,pipeline,s3,review_circuit,publisher_credential}.py`,
+  `test_deploy_playground.py` and `test_live_readiness.py`.
 - Confirm the Æion Factory v1.9.1 template: `template-update --from-ref v1.9.0 --ref v1.9.1`
   reports no contract file differing and `adapter-check --ref v1.9.1` matches all 27 connectors;
-  the four readers changed in v1.9.1 were already adopted in `10ded60`.
+  the four readers changed in v1.9.1 were already adopted in `10ded60`. The demo's product
+  checkout under `demo/.local/factory/agents/aeion-autonomous-forum` was moved from v1.8.6 to
+  v1.9.1 the same way (five contract files, `adapter-check` PASS).
 - Run the forum's React Native front in a browser through `react-native-web`
   (`npx expo start --port 8082`): the API allows exactly `http://127.0.0.1:8082` and
   `http://localhost:8082` with credentials, `src/api.ts` lets the browser's cookie jar own the session

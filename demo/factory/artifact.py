@@ -1,13 +1,22 @@
-"""Validate a returned artifact against the actual Git diff, never a reported path list.
+"""Validate a returned artifact against the actual Git diff and bind it to its bytes.
 
 The host enumerates changed paths from the worktree, checks each against the frozen
 literal write scopes and rejects traversal, absolute paths, symlinks, Git metadata and
-out-of-scope entries. Renames validate both endpoints. Product code never runs here.
+out-of-scope entries. The digest covers each path *and* its content, so a receipt can
+only ever describe the exact bytes a reviewer saw.
+
+Only ordinary added or modified regular UTF-8 files are supported. A rename, deletion,
+type change, binary blob or unreadable file is held as an unsupported effect instead of
+being silently left out of the published payload. Product code never runs here.
 """
-import hashlib
 import os
 import subprocess
 from pathlib import Path
+
+from .review import content_digest
+
+MAX_CONTENT_BYTES = 512 * 1024
+SUPPORTED_STATUSES = {"A", "M", "??"}
 
 
 class ArtifactError(ValueError):
@@ -64,26 +73,50 @@ def _path_problem(path, repo, write_scopes):
     return None
 
 
+def _read_text(full, limit=MAX_CONTENT_BYTES):
+    """Read one supported file; return (text, problem), never guessing at binary bytes."""
+    try:
+        data = Path(full).read_bytes()
+    except OSError:
+        return None, "unreadable_content"
+    if len(data) > limit:
+        return None, "file_too_large"
+    if b"\x00" in data:
+        return None, "binary_content"
+    try:
+        return data.decode("utf-8"), None
+    except UnicodeDecodeError:
+        return None, "non_utf8_content"
+
+
 def validate_artifact(repo, write_scopes):
-    """Validate the whole diff. Returns a verdict dict with allowed/rejected paths and digest."""
+    """Validate the whole diff. Returns a verdict with content-bound allowed/rejected paths."""
     repo = Path(repo)
     entries = changed_entries(repo)
     allowed = []
     rejected = []
+    files = {}
     for entry in entries:
-        if entry[0] == "R":
+        status = entry[0]
+        if status == "R":
             _, old, new = entry
-            problem = _path_problem(old, repo, write_scopes) or _path_problem(new, repo, write_scopes)
-            item = f"{old} -> {new}"
-        else:
-            _, path = entry
-            problem = _path_problem(path, repo, write_scopes)
-            item = path
+            rejected.append({"path": f"{old} -> {new}", "reason": "unsupported_effect:rename"})
+            continue
+        if status not in SUPPORTED_STATUSES:
+            rejected.append({"path": entry[1], "reason": f"unsupported_effect:{status}"})
+            continue
+        path = entry[1]
+        problem = _path_problem(path, repo, write_scopes)
         if problem:
-            rejected.append({"path": item, "reason": problem})
-        else:
-            allowed.append(item)
+            rejected.append({"path": path, "reason": problem})
+            continue
+        text, problem = _read_text(repo / path)
+        if problem:
+            rejected.append({"path": path, "reason": problem})
+            continue
+        files[path] = text
+        allowed.append(path)
     if rejected:
         return {"accepted": False, "allowed": sorted(allowed), "rejected": rejected, "digest": None}
-    digest = hashlib.sha256("\n".join(sorted(allowed)).encode("utf-8")).hexdigest()
-    return {"accepted": True, "allowed": sorted(allowed), "rejected": [], "digest": digest}
+    return {"accepted": True, "allowed": sorted(allowed), "rejected": [],
+            "digest": content_digest(files), "files": files}

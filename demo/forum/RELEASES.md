@@ -52,11 +52,15 @@ client → load balancer (:ephemeral) ─┬─ stable  bundle server
                                      └─ cache: Redis when reachable, file fallback otherwise
 ```
 
-`demo/deploy/playground.py` is an HTTP reverse proxy: it chooses the slot, forwards over a socket,
-caches `GET` responses, and exposes `/__lb/stats` (requests, 2xx/4xx/5xx, cache hits and misses,
-p95). Every response carries `X-Aeion-Slot`, `X-Aeion-Release` and `X-Cache`. The cache backend is
-named in the API (`cache.backend`) and in the headers, so a Redis measurement is never claimed from
-a file fallback.
+`demo/deploy/playground.py` is a **read-only** release data plane: it chooses the slot, forwards
+anonymous `GET` requests over a socket, caches those responses, and exposes `/__lb/stats` (requests,
+2xx/4xx/5xx, cache hits and misses, p95). Every response carries `X-Aeion-Slot`, `X-Aeion-Release`
+and `X-Cache`. The cache backend is named in the API (`cache.backend`) and in the headers, so a
+Redis measurement is never claimed from a file fallback. It is not the forum's front door: the
+browser client talks to Quarkus directly. Non-`GET` requests receive **405**, and a request carrying
+`Authorization` or any cookie other than `aeion_cohort` is refused with **400** before the cache,
+because the cache key is the slot and path — not an identity. Sign-in, posting and logout are
+therefore outside this proxy by construction, not silently stripped of their session.
 
 ## 5. The canary gate is a policy, not a model
 

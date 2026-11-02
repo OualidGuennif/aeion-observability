@@ -1,9 +1,14 @@
 """The playground data plane: two bundle servers behind a weighted load balancer with a cache.
 
-It is small but it is real. The balancer is an HTTP reverse proxy: it receives the request, decides
-stable or canary from the release's audience bucket, forwards the request over a real socket to one
-of two upstreams, caches the response, and reports what it did in headers and in `/__lb/stats`.
-The canary monitor reads those counters, so the verdict is about observed traffic, not a mock.
+It is small but it is real, and deliberately **read-only**. The balancer is an HTTP reverse proxy:
+it receives an anonymous request, decides stable or canary from the release's audience bucket,
+forwards the request over a real socket to one of two upstreams, caches the response, and reports
+what it did in headers and in `/__lb/stats`. The canary monitor reads those counters, so the
+verdict is about observed traffic, not a mock.
+
+It is not the forum's authenticated front door. Non-GET methods receive 405, and a request with
+`Authorization` or a cookie other than `aeion_cohort` is refused with 400 before the cache: the
+cache key is the slot and path, never an identity.
 
 Routing rules:
   * the client key is `X-Client` when a caller sets one (drills), the remote address otherwise;
@@ -76,6 +81,13 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _read_only(self):
+        """The released data plane serves GET; it is not the forum's authenticated front door."""
+        self._send(405, {"error": "read_only_release_proxy", "allowed": "GET"},
+                   extra={"Allow": "GET, HEAD"})
+
+    do_POST = do_PUT = do_PATCH = do_DELETE = _read_only
+
 
 class AppHandler(_Handler):
     """Serves one bundle, or proxies a real application, and says which release and slot answered."""
@@ -140,6 +152,11 @@ class LbHandler(_Handler):
             self._send(200, {"client": client, "bucket": bucket,
                              "slot": self._slot_for(bucket), "percent": state["percent"]()})
             return
+        if self._authenticated_request():
+            # Refuse rather than silently dropping a session: the drill is not the forum's front door.
+            self._send(400, {"error": "authenticated_request_not_supported",
+                             "detail": "use the forum directly; this proxy serves anonymous GET only"})
+            return
         client = self._client_key()
         bucket = self._bucket(client)
         slot = self._slot_for(bucket)
@@ -168,6 +185,17 @@ class LbHandler(_Handler):
             if name == COOKIE and value:
                 return ""  # a sticky bucket is used instead of a fresh key
         return self.client_address[0]
+
+    def _authenticated_request(self):
+        """A cache keyed by slot and path must never answer a signed-in or bearer request."""
+        if self.headers.get("Authorization"):
+            return True
+        cookie = self.headers.get("Cookie") or ""
+        for part in cookie.split(";"):
+            name, _, _ = part.strip().partition("=")
+            if name and name != COOKIE:
+                return True
+        return False
 
     def _bucket(self, client):
         state = self.server.state

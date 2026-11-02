@@ -4,17 +4,28 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory.publish import FakeForge, Publisher, is_sensitive_path
+from factory.review import content_digest
+
+FILES = {"demo/forum/product/x.md": "reviewed bytes\n"}
+DIGEST = content_digest(FILES)
 
 
 def request(**overrides):
     base = {
         "attempt_id": "a1", "issuer": "gate", "target_repo": "agora/forum",
-        "base": "base1", "head": "head1", "artifact_digest": "dig1",
-        "reviewed_diff": ["demo/forum/product/x.md"],
+        "base": "base1", "head": "head1", "artifact_digest": DIGEST,
+        "reviewed_diff": sorted(FILES), "files": dict(FILES),
+        "review_content_digest": DIGEST,
         "write_scopes": ["demo/forum/product/"], "cancelled": False,
     }
     base.update(overrides)
     return base
+
+
+def with_path(path, text="reviewed bytes\n"):
+    return {"reviewed_diff": [path], "files": {path: text},
+            "artifact_digest": content_digest({path: text}),
+            "review_content_digest": content_digest({path: text})}
 
 
 class SensitivePathTests(unittest.TestCase):
@@ -31,7 +42,7 @@ class PublisherTests(unittest.TestCase):
     def setUp(self):
         self.forge = FakeForge()
         self.publisher = Publisher("agora/forum", self.forge, expected_base="base1",
-                                   expected_artifact_digest="dig1")
+                                   expected_artifact_digest=DIGEST)
 
     def test_publishes_permitted_request(self):
         result = self.publisher.decide(request())
@@ -56,8 +67,14 @@ class PublisherTests(unittest.TestCase):
         result = self.publisher.decide(request(artifact_digest="other"))
         self.assertEqual(result["reason"], "forged_receipt")
 
+    def decide_path(self, path):
+        req = request(**with_path(path))
+        publisher = Publisher("agora/forum", self.forge, expected_base="base1",
+                              expected_artifact_digest=req["artifact_digest"])
+        return publisher.decide(req)
+
     def test_refuses_out_of_scope_path(self):
-        result = self.publisher.decide(request(reviewed_diff=["demo/factory/x.py"]))
+        result = self.decide_path("demo/factory/x.py")
         self.assertEqual(result["reason"], "forbidden_path")
 
     def test_holds_stale_base(self):
@@ -66,14 +83,14 @@ class PublisherTests(unittest.TestCase):
         self.assertEqual(result["reason"], "stale_base")
 
     def test_holds_sensitive_path_for_owner_review(self):
-        result = self.publisher.decide(request(reviewed_diff=["demo/forum/product/auth/x.py"]))
+        result = self.decide_path("demo/forum/product/auth/x.py")
         self.assertEqual(result["decision"], "hold")
         self.assertEqual(result["reason"], "owner_review_required")
 
     def test_uncertain_result_is_reconciled_not_redone(self):
         forge = FakeForge(crash_on={"a1"})
         publisher = Publisher("agora/forum", forge, expected_base="base1",
-                              expected_artifact_digest="dig1")
+                              expected_artifact_digest=DIGEST)
         result = publisher.decide(request())
         self.assertEqual(result["decision"], "reconciled")
         self.assertEqual(result["forge"]["status"], "published")
@@ -81,6 +98,28 @@ class PublisherTests(unittest.TestCase):
 
     def test_reconcile_absent(self):
         self.assertEqual(self.forge.reconcile("nope")["status"], "absent")
+
+    def test_refuses_missing_content(self):
+        result = self.publisher.decide(request(files={}))
+        self.assertEqual(result["decision"], "refused")
+        self.assertEqual(result["reason"], "missing_content")
+
+    def test_refuses_a_path_set_that_does_not_match_the_files(self):
+        result = self.publisher.decide(request(reviewed_diff=["demo/forum/product/other.md"]))
+        self.assertEqual(result["decision"], "refused")
+        self.assertEqual(result["reason"], "path_set_mismatch")
+
+    def test_refuses_bytes_that_differ_from_the_reviewed_digest(self):
+        # The attack: keep every receipt field, swap the queued bytes.
+        result = self.publisher.decide(request(files={**FILES, "demo/forum/product/x.md": "tampered\n"}))
+        self.assertEqual(result["decision"], "refused")
+        self.assertEqual(result["reason"], "forged_content")
+        self.assertNotIn("a1", self.forge.published)
+
+    def test_refuses_a_forged_review_digest(self):
+        result = self.publisher.decide(request(review_content_digest="other"))
+        self.assertEqual(result["decision"], "refused")
+        self.assertEqual(result["reason"], "forged_review")
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ from .github import GitHubForge
 from .keys import assert_worker_isolated
 from .models import Router, Telemetry
 from .publish import FakeForge, Publisher
-from .review import review
+from .review import content_digest, review
 from .review_circuit import two_vote_review
 from .store import FAILED
 
@@ -87,22 +87,9 @@ class DispatchWorker:
         )
 
     @staticmethod
-    def _collect_files(repo, allowed, limit=512 * 1024):
-        """Read the reviewed text files so a real forge can commit exactly what was approved."""
-        files = {}
-        for relative in allowed:
-            path = Path(repo) / relative
-            try:
-                data = path.read_bytes()
-            except OSError:
-                continue
-            if len(data) > limit or b"\x00" in data:
-                continue
-            try:
-                files[relative] = data.decode("utf-8")
-            except UnicodeDecodeError:
-                continue
-        return files
+    def _content_bound(files, verdict):
+        """The bytes about to be reviewed and published must be the bytes the gate hashed."""
+        return isinstance(files, dict) and content_digest(files) == verdict.get("digest")
 
     def run_once(self):
         """Claim one build, give its agent a session, run it, and end the session whatever happens."""
@@ -166,6 +153,10 @@ class DispatchWorker:
             stop.build_brief(feature["id"], feature["title"], branch) + "\n")
         self._write_simulated_impl(repo, frozen, feature)
         verdict = validate_artifact(repo, frozen.write_scopes)
+        files = verdict.pop("files", {})
+        if verdict["accepted"] and not self._content_bound(files, verdict):
+            verdict = {**verdict, "accepted": False,
+                       "rejected": [{"path": "*", "reason": "content_digest_mismatch"}]}
         if not verdict["accepted"]:
             result = self.store.complete_attempt(
                 build["attempt_id"], build["attempt_generation"],
@@ -191,7 +182,6 @@ class DispatchWorker:
             return {"build_id": build["build_id"], "result": result}
 
         # Independent deterministic review: the publisher never sees an unreviewed diff.
-        files = self._collect_files(repo, verdict["allowed"])
         review_verdict = review(frozen, verdict, files)
         if review_verdict["status"] == "refused":
             result = self.store.complete_attempt(
@@ -234,6 +224,7 @@ class DispatchWorker:
             "review_status": review_verdict["status"],
             "circuit_status": (circuit or {}).get("status"),
             "review_digest": review_verdict["digest"],
+            "review_content_digest": review_verdict["content_digest"],
             "write_scopes": frozen.write_scopes,
             "cancelled": False,
         }

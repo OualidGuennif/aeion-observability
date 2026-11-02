@@ -14,8 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from factory import queue
 from factory.github import GitHubForge, GitHubError
-from factory.keys import CredentialError, present
+from factory.keys import CredentialError, for_role, present
 from factory.publish import Publisher
+from factory.review import content_digest
 from factory.store import Store
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -32,8 +33,21 @@ def load_publish_credential():
     return token
 
 
+def _request_digest(request):
+    """Content digest of the exact files this request asks the forge to commit."""
+    files = request.get("files")
+    if not isinstance(files, dict) or not files:
+        return None
+    if any(not isinstance(path, str) or not isinstance(text, str) for path, text in files.items()):
+        return None
+    try:
+        return content_digest(files)
+    except (TypeError, AttributeError):
+        return None
+
+
 def verified_receipt(store, request):
-    """Cross-check the queued request against the worker's stored receipt."""
+    """Cross-check the queued request, including its bytes, against the worker's stored receipt."""
     row = store.by_attempt(request.get("attempt_id"))
     if not row or not row.get("receipt"):
         return None
@@ -49,6 +63,18 @@ def verified_receipt(store, request):
     if circuit.get("status") != "approved":
         return None
     if len(circuit.get("votes") or []) < 2:
+        return None
+    digest = _request_digest(request)
+    if digest is None:
+        return None
+    paths = sorted(request.get("reviewed_diff") or [])
+    if sorted(request.get("files") or {}) != paths:
+        return None
+    if sorted(receipt.get("allowed") or []) != paths:
+        return None
+    if receipt.get("artifact_digest") != digest:
+        return None
+    if (receipt.get("review") or {}).get("content_digest") != digest:
         return None
     if receipt.get("artifact_digest") != request.get("artifact_digest"):
         return None

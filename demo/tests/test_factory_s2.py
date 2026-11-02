@@ -111,10 +111,33 @@ class ArtifactTests(unittest.TestCase):
         self.assertFalse(verdict["accepted"])
         self.assertTrue(any("->" in r["path"] for r in verdict["rejected"]))
 
-    def test_rename_within_scope_accepted(self):
+    def test_rename_within_scope_is_held_as_unsupported(self):
         subprocess.run(["git", "-C", str(self.repo), "mv", "demo/forum/product/base.txt", "demo/forum/product/moved.txt"], check=True)
         verdict = validate_artifact(self.repo, self.scopes)
-        self.assertTrue(verdict["accepted"])
+        self.assertFalse(verdict["accepted"])
+        self.assertEqual(verdict["rejected"][0]["reason"], "unsupported_effect:rename")
+
+    def test_deletion_is_held_as_unsupported(self):
+        (self.repo / "demo/forum/product/base.txt").unlink()
+        verdict = validate_artifact(self.repo, self.scopes)
+        self.assertFalse(verdict["accepted"])
+        self.assertEqual(verdict["rejected"][0]["reason"], "unsupported_effect:D")
+
+    def test_binary_content_is_refused(self):
+        (self.repo / "demo/forum/product/blob.bin").write_bytes(b"\x00\x01")
+        verdict = validate_artifact(self.repo, self.scopes)
+        self.assertFalse(verdict["accepted"])
+        self.assertEqual(verdict["rejected"][0]["reason"], "binary_content")
+
+    def test_digest_covers_the_bytes_not_only_the_paths(self):
+        path = self.repo / "demo/forum/product/app.py"
+        path.write_text("one\n")
+        first = validate_artifact(self.repo, self.scopes)
+        path.write_text("two\n")
+        second = validate_artifact(self.repo, self.scopes)
+        self.assertTrue(first["accepted"] and second["accepted"])
+        self.assertNotEqual(first["digest"], second["digest"])
+        self.assertEqual(second["files"], {"demo/forum/product/app.py": "two\n"})
 
     def test_path_problem_string_cases(self):
         self.assertEqual(_path_problem("/etc/passwd", self.repo, self.scopes), "traversal_or_absolute")
