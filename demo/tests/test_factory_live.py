@@ -11,7 +11,8 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.profiles import available as profile_available
 from factory.dispatch import DispatchWorker
-from factory.live import BuilderError, LiveBuilder, parse_files
+from factory.budget import DailyBudget
+from factory.live import BuilderError, LiveBuilder, LiveReview, parse_files
 from factory.model_client import ModelClientError, complete_with_usage
 from factory.models import MODELS, Router, author_model, eligibility, eligible, wire_id
 
@@ -203,6 +204,92 @@ class LiveBuilderTests(unittest.TestCase):
             parse_files({"files": []}, self.frozen.write_scopes, repo=self.repo)
         with self.assertRaises(BuilderError):
             parse_files({"no": "files"}, self.frozen.write_scopes, repo=self.repo)
+
+
+class ReviewBudgetTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.budget = DailyBudget(
+            Path(self.tmp.name) / "ledger.jsonl",
+            limits={"aeion-observability": Decimal("15.00"),
+                    "aeion-autonomous-forum": Decimal("15.00")},
+            today=lambda: "2026-11-02")
+        self.worker = DispatchWorker.__new__(DispatchWorker)
+        self.worker.budget = self.budget
+        self.worker.budget_scope = "aeion-autonomous-forum"
+
+    def entries(self):
+        path = Path(self.tmp.name) / "ledger.jsonl"
+        return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+    def test_each_vote_reserves_and_settles_its_own_usage(self):
+        class Review:
+            last_usage = None
+
+            def __call__(inner, model, prompt):
+                inner.last_usage = {"cost_usd": 0.02, "complete": True}
+                return {"verdict": "approve"}
+
+        self.worker.review_complete = Review()
+        self.assertEqual(self.worker._review_vote("glm-5.3-flash", "prompt"),
+                         {"verdict": "approve"})
+        self.assertEqual([entry["kind"] for entry in self.entries()], ["reserve", "settle"])
+        self.assertEqual(self.budget.spent("aeion-autonomous-forum"), Decimal("0.02"))
+
+    def test_a_raising_callback_cannot_settle_the_previous_votes_usage(self):
+        class Review:
+            last_usage = None
+
+            def __init__(inner):
+                inner.calls = 0
+
+            def __call__(inner, model, prompt):
+                inner.calls += 1
+                if inner.calls == 1:
+                    inner.last_usage = {"cost_usd": 0.02, "complete": True}
+                    return {"verdict": "approve"}
+                raise RuntimeError("provider down")
+
+        self.worker.review_complete = Review()
+        self.worker._review_vote("glm-5.3-flash", "prompt")
+        with self.assertRaises(RuntimeError):
+            self.worker._review_vote("qwen-3.8-flash", "prompt")
+        self.assertEqual([entry["kind"] for entry in self.entries()],
+                         ["reserve", "settle", "reserve"])
+        self.assertEqual(self.budget.spent("aeion-autonomous-forum"), Decimal("0.07"))
+
+    def test_an_unknown_vote_keeps_its_reservation_open(self):
+        class Review:
+            last_usage = None
+
+            def __call__(inner, model, prompt):
+                inner.last_usage = {"complete": False}
+                return {"verdict": "approve"}
+
+        self.worker.review_complete = Review()
+        self.worker._review_vote("qwen-3.8-flash", "prompt")
+        self.assertEqual([entry["kind"] for entry in self.entries()], ["reserve"])
+        self.assertEqual(self.budget.spent("aeion-autonomous-forum"), Decimal("0.05"))
+
+
+class LiveReviewClientTests(unittest.TestCase):
+    def test_it_returns_the_answer_and_keeps_measured_usage(self):
+        def client(model, prompt, max_tokens=0):
+            return {"answer": {"verdict": "approve"},
+                    "usage": {"cost_usd": 0.01, "complete": True}}
+
+        review = LiveReview(client=client)
+        self.assertEqual(review("glm-5.3-flash", "prompt"), {"verdict": "approve"})
+        self.assertEqual(review.last_usage["cost_usd"], 0.01)
+
+        def broken(model, prompt, max_tokens=0):
+            raise RuntimeError("provider down")
+
+        review.client = broken
+        with self.assertRaises(RuntimeError):
+            review("glm-5.3-flash", "prompt")
+        self.assertIsNone(review.last_usage)
 
 
 class WorkerSettlementTests(unittest.TestCase):

@@ -129,3 +129,19 @@ class LiveBuilder:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8")
         return sorted(files)
+
+
+class LiveReview:
+    """One paid review vote with its measured usage, separate from the authoring call."""
+
+    paid = True
+
+    def __init__(self, client=None):
+        self.client = client or complete_with_usage
+        self.last_usage = None
+
+    def __call__(self, model, prompt):
+        self.last_usage = None
+        result = self.client(model, prompt, max_tokens=300)
+        self.last_usage = result.get("usage")
+        return result.get("answer")

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Budget each model review vote as its own paid action. `DispatchWorker` reserves `$0.05`
+  from the product purse before every vote and settles only that call's measured usage;
+  `LiveReview` keeps the provider usage surface the wrapper needs, the wrapper clears any
+  earlier vote's usage before the call so a failure cannot settle stale cost, and a vote with
+  unknown usage stays open. A configured review circuit therefore cannot spend two calls against one
+  build reservation.
+
 - Give the builder and the operator profiles one eligibility authority. The four
   owner-authorized workers now carry their authorization date and recorded profile expiry in
   `demo/factory/models.py`; `demo/app/profiles.py` asks that catalog instead of keeping a second

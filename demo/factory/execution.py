@@ -9,7 +9,7 @@ scopes and a real protected check, but model bytes are fixed and the attempt is 
 from pathlib import Path
 
 from .isolation import DockerCheckRunner
-from .live import LiveBuilder
+from .live import LiveBuilder, LiveReview
 from .model_client import available as provider_available
 from .target import TargetError, load_target
 from .telemetry import FactoryTelemetry
@@ -116,6 +116,7 @@ def resolve(repo_root, mode):
         # The pinned target exists, but no provider credential is loaded: hold, never simulate.
         return {"mode": "live", "hold_reason": "provider_unconfigured"}
     return {"mode": "live", "target": target, "builder": LiveBuilder(),
+            "review_complete": LiveReview(),
             "check_sandbox": DockerCheckRunner(repo_root),
             "telemetry": FactoryTelemetry(readback=True),
             # One attempt may reserve part of the shared purse; $15/day remains the hard cap.

@@ -946,3 +946,16 @@ removes it on timeout or interruption, and the probe carries the sentinel only i
 environment and asserts it is absent inside the container. 496 demo tests OK; the review call
 settled at the provider-reported `0`. Outstanding review liability remains `$0.50` from the two
 calls whose usage is unknown.
+
+## Review votes are budgeted per call — 2026-11-02
+
+`DispatchWorker` now wraps each review vote in its own reservation: `$0.05` from the product
+purse before the call, settled only with that call's measured complete usage, and left open
+when the callback reports none. `demo/factory/live.py` adds `LiveReview`, which keeps the
+provider's usage surface for the budgeted wrapper, and `execution.resolve("live")` injects it.
+Evidence: `test_each_vote_reserves_and_settles_its_own_usage` (reserve + settle at `$0.02`),
+`test_an_unknown_vote_keeps_its_reservation_open` (`$0.05` still counted), and
+`test_a_configured_review_circuit_reserves_each_vote_and_keeps_them_open` (build plus two votes,
+none free), and `test_a_raising_callback_cannot_settle_the_previous_votes_usage` (the wrapper
+clears `last_usage` before each call, so a failure keeps its own reservation open instead of
+settling the previous vote's cost). Full demo suite: 500 tests OK.

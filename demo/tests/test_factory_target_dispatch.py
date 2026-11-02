@@ -238,7 +238,7 @@ class TargetDispatchTests(unittest.TestCase):
         self.assertEqual([entry["kind"] for entry in entries], ["reserve", "settle"])
         self.assertEqual({entry["scope"] for entry in entries}, {"aeion-autonomous-forum"})
 
-    def test_a_configured_review_circuit_keeps_the_reservation_open(self):
+    def test_a_configured_review_circuit_reserves_each_vote_and_keeps_them_open(self):
         budget = DailyBudget(
             self.root / "ledger.jsonl",
             limits={"aeion-observability": Decimal("15.00"),
@@ -249,8 +249,11 @@ class TargetDispatchTests(unittest.TestCase):
         self.worker(self.builder, budget=budget).run_once()
         entries = [json.loads(line) for line in
                    (self.root / "ledger.jsonl").read_text().splitlines()]
-        self.assertEqual([entry["kind"] for entry in entries], ["reserve"])
-        self.assertEqual(budget.spent("aeion-autonomous-forum"), Decimal("0.00"))
+        # The build reservation plus one reservation per vote; the fake reviewers report no
+        # measured usage, so none of the three may be released as free.
+        self.assertEqual([entry["kind"] for entry in entries],
+                         ["reserve", "reserve", "reserve"])
+        self.assertEqual(budget.spent("aeion-autonomous-forum"), Decimal("0.10"))
 
     def test_a_worker_without_a_purse_holds_before_any_work(self):
         self.store.admit(["013"], "k6a", self.catalog)

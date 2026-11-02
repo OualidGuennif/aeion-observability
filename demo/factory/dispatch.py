@@ -272,6 +272,33 @@ class DispatchWorker:
         if self.paid:
             self.last_usage = getattr(self.builder, "last_usage", None)
 
+    def _review_vote(self, model, prompt):
+        """Reserve before one review vote, then settle only that call's measured usage.
+
+        Each vote is a separate paid action: reserving once per build would let two votes
+        spend without a journal entry, and a failed vote must leave its own reservation open.
+        """
+        reservation = None
+        if self.budget is not None:
+            reservation = self.budget.admit(
+                self.budget_scope, "0.05", note=f"review:{model}")
+        # The wrapper owns this read: clear any earlier vote's usage before the call, so a
+        # failure cannot settle the new reservation with stale cost.
+        if hasattr(self.review_complete, "last_usage"):
+            self.review_complete.last_usage = None
+        try:
+            return self.review_complete(model, prompt)
+        finally:
+            usage = getattr(self.review_complete, "last_usage", None)
+            if reservation is not None and isinstance(usage, dict):
+                raw = usage.get("cost_usd")
+                if usage.get("complete") is True and raw is not None:
+                    try:
+                        self.budget.settle(reservation, Decimal(str(raw)))
+                    except (BudgetError, InvalidOperation, ValueError):
+                        # Unknown or unreadable cost keeps the reservation counted.
+                        pass
+
     def _zero_transport_proven(self):
         """Only a build with no paid builder and no model review can prove zero spend."""
         return not self.paid and self.review_complete is None
@@ -401,7 +428,7 @@ class DispatchWorker:
                 return {"build_id": build["build_id"], "result": {
                     "status": "held", "reason": "review_circuit_unconfigured"}}
             circuit = two_vote_review(self.author_model, feature["id"], files,
-                                      self.router, self.review_complete)
+                                      self.router, self._review_vote)
             if circuit["status"] != "approved":
                 self.store.hold_dispatched(build["build_id"], "owner_review_required")
                 return {"build_id": build["build_id"], "result": {
