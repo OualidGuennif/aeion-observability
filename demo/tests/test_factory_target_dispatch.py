@@ -96,7 +96,7 @@ class TargetDispatchTests(unittest.TestCase):
         self.store = Store(self.root / "factory.db")
 
     def worker(self, builder, target=None, checks_command=None, require_circuit=True,
-               budget=None, allow_unbudgeted=None):
+               budget=None, allow_unbudgeted=None, check_sandbox=None):
         target = target or self.target
         if checks_command is not None:
             target = dataclasses.replace(
@@ -107,9 +107,11 @@ class TargetDispatchTests(unittest.TestCase):
         return DispatchWorker(
             self.store, self.catalog, self.specs, self.root / "work", config(),
             target=target, builder=builder, forge=FakeForge(),
-            review_complete=approve, require_circuit=require_circuit,
+            review_complete=approve if require_circuit else None,
+            require_circuit=require_circuit,
             author_model="deepseek-4.1-flash", budget=budget,
             allow_unbudgeted=budget is None if allow_unbudgeted is None else allow_unbudgeted,
+            check_sandbox=check_sandbox,
         )
 
     def builder(self, repo, frozen, feature, brief):
@@ -177,6 +179,48 @@ class TargetDispatchTests(unittest.TestCase):
         self.assertEqual(receipt["gate"]["results"]["gradle_test"]["status"], "failed")
         self.assertNotIn("publisher", receipt)
 
+    def test_a_lost_isolation_boundary_holds_instead_of_failing_the_build(self):
+        from factory.isolation import IsolationError
+
+        def unavailable(*args, **kwargs):
+            raise IsolationError("docker boundary unavailable")
+
+        self.store.admit(["013"], "k8", self.catalog)
+        result = self.worker(self.builder, require_circuit=False,
+                             check_sandbox=unavailable).run_once()
+        self.assertEqual(result["result"]["status"], "held")
+        self.assertEqual(result["result"]["reason"], "sandbox_unqualified")
+        detail = result["result"]["gate"]["results"]["gradle_test"]["detail"]
+        self.assertEqual(detail["reason"], "isolation_unqualified")
+        build = self.store.board()[0]
+        self.assertEqual(build["status"], HELD)
+        self.assertEqual(build["hold_reason"], "sandbox_unqualified")
+        self.assertIsNone(build["attempt_id"])
+
+    def test_a_failed_paid_builder_receipt_names_its_own_author(self):
+        class FailingBuilder:
+            paid = True
+            model = "qwen-3.8-flash"
+            last_usage = None
+
+            def __call__(self, **kwargs):
+                raise RuntimeError("transport down")
+
+        budget = DailyBudget(
+            self.root / "ledger.jsonl",
+            limits={"aeion-observability": Decimal("15.00"),
+                    "aeion-autonomous-forum": Decimal("15.00")},
+            today=lambda: "2026-11-02",
+        )
+        self.store.admit(["013"], "k9", self.catalog)
+        self.worker(FailingBuilder(), budget=budget, require_circuit=False).run_once()
+        build = self.store.board()[0]
+        self.assertEqual(build["status"], FAILED)
+        receipt = json.loads(build["receipt"])
+        self.assertEqual(receipt["reason"], "builder_error")
+        self.assertEqual(receipt["author_model"], "qwen-3.8-flash")
+        self.assertFalse(receipt["simulated"])
+
     def test_a_build_journals_its_zero_cost_reservation_in_the_forum_purse(self):
         budget = DailyBudget(
             self.root / "ledger.jsonl",
@@ -185,7 +229,7 @@ class TargetDispatchTests(unittest.TestCase):
             today=lambda: "2026-11-02",
         )
         self.store.admit(["013"], "k5", self.catalog)
-        result = self.worker(self.builder, budget=budget).run_once()
+        result = self.worker(self.builder, budget=budget, require_circuit=False).run_once()
         self.assertEqual(result["result"]["status"], "completed")
         self.assertEqual(budget.spent("aeion-autonomous-forum"), Decimal("0.00"))
         self.assertEqual(budget.spent("aeion-observability"), Decimal("0.00"))
@@ -193,6 +237,23 @@ class TargetDispatchTests(unittest.TestCase):
                    (self.root / "ledger.jsonl").read_text().splitlines()]
         self.assertEqual([entry["kind"] for entry in entries], ["reserve", "settle"])
         self.assertEqual({entry["scope"] for entry in entries}, {"aeion-autonomous-forum"})
+
+    def test_a_configured_review_circuit_reserves_each_vote_and_keeps_them_open(self):
+        budget = DailyBudget(
+            self.root / "ledger.jsonl",
+            limits={"aeion-observability": Decimal("15.00"),
+                    "aeion-autonomous-forum": Decimal("15.00")},
+            today=lambda: "2026-11-02",
+        )
+        self.store.admit(["013"], "k5b", self.catalog)
+        self.worker(self.builder, budget=budget).run_once()
+        entries = [json.loads(line) for line in
+                   (self.root / "ledger.jsonl").read_text().splitlines()]
+        # The build reservation plus one reservation per vote; the fake reviewers report no
+        # measured usage, so none of the three may be released as free.
+        self.assertEqual([entry["kind"] for entry in entries],
+                         ["reserve", "reserve", "reserve"])
+        self.assertEqual(budget.spent("aeion-autonomous-forum"), Decimal("0.10"))
 
     def test_a_worker_without_a_purse_holds_before_any_work(self):
         self.store.admit(["013"], "k6a", self.catalog)

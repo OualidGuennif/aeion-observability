@@ -141,7 +141,7 @@ class TriageTests(unittest.TestCase):
                              today=lambda: "2026-11-02")
         runner = Runner(FakeTelemetry(), lambda _run: None, work_root=Path(self.folder.name),
                         budget=budget, budget_scope="aeion-observability")
-        run = {"id": "c" * 32, "synthetic": False, "native_cost_usd": "0.04"}
+        run = {"id": "c" * 32, "synthetic": False, "native_cost_usd": "0.04", "usage_complete": True}
         reservation = runner._reserve(run)
         self.assertEqual(budget.spent("aeion-observability"), Decimal("0.10"))
         runner._settle(run, reservation)

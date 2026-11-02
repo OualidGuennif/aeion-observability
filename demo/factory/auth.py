@@ -33,14 +33,18 @@ class AdminSessions:
         self._lock = threading.Lock()
 
     def login(self, token, now_ns=None):
-        """Validate the bootstrap token, rotate it and mint a session + CSRF token."""
+        """Validate the bootstrap token, rotate it and mint a session + CSRF token.
+
+        Compare, rotate and insert happen under one lock: two concurrent callers holding the
+        same single-use token cannot both observe it as valid.
+        """
         now = now_ns if now_ns is not None else time.time_ns()
-        if not isinstance(token, str) or not secrets.compare_digest(token, self.bootstrap_token):
-            return None
-        self.bootstrap_token = secrets.token_urlsafe(32)
-        session_id = secrets.token_urlsafe(32)
-        csrf = secrets.token_urlsafe(32)
         with self._lock:
+            if not isinstance(token, str) or not secrets.compare_digest(token, self.bootstrap_token):
+                return None
+            self.bootstrap_token = secrets.token_urlsafe(32)
+            session_id = secrets.token_urlsafe(32)
+            csrf = secrets.token_urlsafe(32)
             self._sessions[session_id] = {"csrf": csrf, "created_ns": now, "last_seen_ns": now}
         return {"session_id": session_id, "csrf": csrf}
 

@@ -11,6 +11,8 @@ import subprocess
 import time
 from pathlib import Path
 
+from .isolation import IsolationError
+
 
 class ProtectedChecks:
     def __init__(self, checks=None):
@@ -52,6 +54,20 @@ def spec_unchanged_check(frozen, artifact_verdict):
 
 DEFAULT_CHECKS = {"scope": scope_check, "spec_unchanged": spec_unchanged_check}
 
+# The check runner is handed a toolchain environment, not the controller's environment:
+# provider keys, gateway credentials and harness settings must never reach candidate code.
+CHECK_ENV_ALLOWLIST = (
+    "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "LANGUAGE",
+    "JAVA_HOME", "GRADLE_USER_HOME", "GRADLE_OPTS", "JAVA_TOOL_OPTIONS",
+    "SYSTEMROOT", "USERPROFILE",
+)
+
+
+def check_environment(spec, repo, target):
+    env = {name: os.environ[name] for name in CHECK_ENV_ALLOWLIST if name in os.environ}
+    env.update(spec.env_for(repo, target.controller))
+    return env
+
 
 def _failed_tests(output, limit=20):
     """Extract bounded test identifiers, never the raw build output."""
@@ -69,14 +85,16 @@ def _failed_tests(output, limit=20):
     return found
 
 
-def target_check(target, runner=None, work_root=None):
+def target_check(target, runner=None, work_root=None, sandbox=None):
     """Run the profile's protected check against the materialised candidate tree.
 
-    The contract test is copied in from outside the candidate's write scopes, runs with
-    the host toolchain, and is restored afterwards. Only a bounded failure summary is
-    recorded: no raw output, no candidate-controlled evaluator.
+    The contract test is copied in from outside the candidate's write scopes, runs with a
+    toolchain-only environment (never the controller's), and is restored afterwards. When a
+    DockerCheckRunner is supplied it also enforces the isolated runtime; without one this is
+    path and environment confinement only, so untrusted candidate code stays held. Only a
+    bounded failure summary is recorded: no raw output, no candidate-controlled evaluator.
     """
-    runner = runner or subprocess.run
+    runner = sandbox or runner or subprocess.run
     allowed_root = Path(work_root).resolve() if work_root is not None else None
 
     def check(frozen, artifact_verdict):
@@ -99,10 +117,20 @@ def target_check(target, runner=None, work_root=None):
         try:
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(spec.contract_test, destination)
+            contract_sha256 = hashlib.sha256(spec.contract_test.read_bytes()).hexdigest()
             command = spec.command_for(repo, target.controller)
-            env = {**os.environ, **spec.env_for(repo, target.controller)}
-            completed = runner(command, cwd=str(repo), env=env, capture_output=True,
-                               text=True, timeout=spec.timeout_seconds)
+            env = check_environment(spec, repo, target)
+            try:
+                completed = runner(command, cwd=str(repo), env=env, capture_output=True,
+                                   text=True, timeout=spec.timeout_seconds)
+            except IsolationError as exc:
+                return False, {"check": spec.id, "reason": "isolation_unqualified",
+                               "detail": str(exc)[:120]}
+            # Deletion is tampering too; without this guard the read raises and the check is
+            # misreported as a missing toolchain instead of a modified contract.
+            if (not destination.is_file()
+                    or destination.read_bytes() != spec.contract_test.read_bytes()):
+                return False, {"check": spec.id, "reason": "contract_modified"}
         except subprocess.TimeoutExpired:
             return False, {"check": spec.id, "reason": "timeout",
                            "timeout_seconds": spec.timeout_seconds}
@@ -123,8 +151,11 @@ def target_check(target, runner=None, work_root=None):
             "check": spec.id,
             "returncode": completed.returncode,
             "duration_ms": int((time.monotonic() - started) * 1000),
-            "contract_sha256": hashlib.sha256(spec.contract_test.read_bytes()).hexdigest(),
+            "contract_sha256": contract_sha256,
             "failed_tests": _failed_tests(output) if completed.returncode != 0 else [],
         }
+        isolation = getattr(completed, "qualification", None)
+        if isolation is not None:
+            detail["isolation"] = isolation
         return completed.returncode == 0, detail
     return check

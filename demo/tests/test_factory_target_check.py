@@ -1,12 +1,15 @@
 """The protected target check: external contract, host toolchain, bounded evidence."""
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory.checks import target_check
+from factory.isolation import IsolationError
 from factory.target import ProtectedCheck, Target
 
 
@@ -110,6 +113,57 @@ class TargetCheckTests(unittest.TestCase):
             object(), {"repo": str(self.repo)})
         self.assertTrue(passed)
         self.assertEqual(self.destination.read_text(), "// candidate copy\n")
+
+    def test_controller_secrets_do_not_reach_the_check_environment(self):
+        calls = []
+
+        def runner(command, **kwargs):
+            calls.append(kwargs["env"])
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        with mock.patch.dict(os.environ, {
+                "OPENCODE_API_KEY": "fixture-sentinel",
+                "AEION_REVIEW_ENDPOINT": "fixture-sentinel"}, clear=False):
+            passed, _ = target_check(self.target, runner=runner)(
+                object(), {"repo": str(self.repo)})
+
+        self.assertTrue(passed)
+        self.assertNotIn("OPENCODE_API_KEY", calls[0])
+        self.assertNotIn("AEION_REVIEW_ENDPOINT", calls[0])
+        self.assertIn("PATH", calls[0])
+        self.assertTrue(calls[0]["GRADLE_USER_HOME"].endswith("/gradle-home"))
+
+    def test_a_missing_isolation_boundary_holds_the_check(self):
+        def runner(command, **kwargs):
+            raise IsolationError("docker_unavailable")
+
+        passed, detail = target_check(self.target, sandbox=runner)(
+            object(), {"repo": str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(detail["reason"], "isolation_unqualified")
+        self.assertFalse(self.destination.exists())
+
+    def test_a_modified_contract_is_detected_and_restored(self):
+        def runner(command, **kwargs):
+            self.destination.write_text("// altered during the check\n")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        passed, detail = target_check(self.target, runner=runner)(
+            object(), {"repo": str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(detail["reason"], "contract_modified")
+        self.assertFalse(self.destination.exists())
+
+    def test_a_deleted_contract_is_tampering_not_a_missing_toolchain(self):
+        def runner(command, **kwargs):
+            self.destination.unlink()
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        passed, detail = target_check(self.target, runner=runner)(
+            object(), {"repo": str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(detail["reason"], "contract_modified")
+        self.assertFalse(self.destination.exists())
 
 
 if __name__ == "__main__":

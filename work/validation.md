@@ -841,3 +841,145 @@ the explicit execution path) was released to protected `main` through
 | `main` carries exactly the released tree | `git rev-parse bbb8568^{tree} origin/main^{tree}` | both `890f5814e419166f36ed57f4f511b1e8da5cffdd` |
 | `develop` does not diverge after the squash | `git merge origin/main` on `develop` | merge `deb9bdf`; no content change |
 | The evidence names a runnable adapter check | corrected row: factory copy with `--root <project>` | 27/27 PASS on both roots |
+
+## Isolated checks, baseline and one live build — 2026-11-02
+
+The second implementation slice was exercised locally after the owner authorized paid inference
+and named four workers (`glm-5.3-flash`, `qwen-3.8-flash`, `deepseek-4.1-flash`,
+`claude-haiku-5.5`). No credential value or raw transcript was printed; the provider credential
+was loaded by the application from the existing dotenv files.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| Protected Java check runs in the isolated boundary | `demo/factory/isolation.py`; real 013 qualification | Gradle passed in 43 s inside `maven:3.9-eclipse-temurin-25`, image `sha256:93b8a14…`, `network: none`, non-root, read-only root, no Docker socket, toolchain caches read-only |
+| A lost boundary holds, never uses the host | `demo/factory/dispatch.py`; `test_a_lost_isolation_boundary_holds_instead_of_failing_the_build` | **Fixed 2026-11-02:** `ProtectedChecks` nests the reason under `detail`; `_isolation_unqualified` reads it there and the build is held as `sandbox_unqualified` with no attempt id instead of ending `FAILED` |
+| Contract tampering during the check is detected | `test_a_modified_contract_is_detected_and_restored` | `contract_modified`, original restored |
+| Sandbox close survives seed, collection and agent failure | `demo/tests/test_runner_teardown.py` | three cases, one close each, no active sandbox left |
+| Unknown usage cannot settle as zero | `Runner._settle`; `test_unknown_usage_keeps_the_reservation_open` | `settled_usd: unsettled`, reservation still counted |
+| Two concurrent logins cannot reuse one bootstrap token | `test_concurrent_login_mints_at_most_one_session` | exactly one session |
+| Display ids map to canonical wire ids | `test_wire_ids_are_the_documented_identifiers`; provider probe | `glm-5.3-flash` requested and accepted |
+| 001 is a verified pinned-base baseline, not a simulation | `demo/factory/baseline.py --feature 001 --apply` | base `37417ab…`; five hashed paths; isolated base suite returncode 0 with the same image/probe; recorded build `09d2f736…` |
+| 013 can now queue against that evidence | live store admission after the baseline | `queued`, no `dependency_missing` |
+| One real paid build completes | build `5bd31768fd0b41d9a083776ae00baec6` | `live_complete`, `simulated: false`, gate `passed`, fake publisher `published` |
+| Its check used the isolated boundary | receipt `gradle_test.detail.isolation` | `qualified`, image digest above, probe denied network and socket |
+| Its trace reached Langfuse | trace `5d926786bd644df61b4e0fd97b349079`, observation `6a1becec6aeb6ef9` | `confirmed` via authenticated readback |
+| Budget stayed bounded | shared ledger summary | 6 reservations, 6 settled, 0 open, provider-reported spend $0.00 |
+| Full demo suite | `demo/.local/venv/bin/python -m unittest discover -s demo/tests` | 489 tests OK |
+
+The first two live attempts failed the protected check on candidate-authored tests (an
+absent-header matcher and a missing `@WithTestResource`), not on the contract; their receipts are
+`failed` and their reservations settled at the provider-reported cost. An earlier successful
+build `0a5eb2a6…` (trace `9aadae66…`) was stored but its immediate readback raced ingestion and was
+reported `exported_unconfirmed`; a bounded retry now confirms it. The provider reported `cost: 0`
+for these calls, so the ledger shows no dollars: that is a provider-reported amount, not an
+invoice or evidence that inference is free.
+
+Honest scope: no browser login/session was performed by the agent, the cockpit was started in
+`live` mode and served `/factory` with the catalog endpoint requiring a session; review votes are
+not yet budget-reserved; the pricing-profile expiry gate is not yet shared with the factory
+router; the Product repository/spec ownership separation and OpenShell reaper lease reconciliation
+remain.
+
+Independent review of `e2e8e12` (2026-11-02) then returned **NOT OK** with four confirmed
+defects, so that head is not evidence that the slice is publishable: a `..` component could pass
+the live builder's textual scope check and write `.git` bytes invisible to `git diff`; a failed
+second live call reused the previous `last_usage`; the isolation hold read the wrong result
+nesting; and a failed paid builder kept a stale author model in its receipt. The follow-up commit
+fixes all four with regressions: `parse_files` rejects every `.`/`..`/`.git` component before the
+scope prefix check (`.GIT` included), `LiveBuilder` resets `last_usage` before each call,
+`_isolation_unqualified` reads the nested reason so a lost boundary holds the build, and
+`_take_builder_state` refreshes the author (and paid usage) before a `builder_error` receipt. The
+suite is 489 tests OK. A fresh independent review of the new exact head is still required before
+any push.
+
+## One eligibility authority for the four workers — 2026-11-02
+
+`demo/factory/models.py` now owns the eligibility facts for the four owner-authorized workers
+(authorization date `2026-11-02`, recorded profile name and expiry), and
+`demo/app/profiles.py` asks that catalog instead of keeping its own `valid_until`.
+DeepSeek's harness profile expired on 2026-10-31; the owner's spend authorization on 2026-11-02
+does not renew a provider qualification, so the router, the builder and the app all refuse it
+until it is requalified and dated forward. GLM, Qwen and Haiku stay eligible under the recorded
+authorization.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| The app and the factory agree on DeepSeek | `profile_available('deepseek')`; `eligibility('deepseek-4.1-flash')` | both false, reason `profile_expired` |
+| The router never selects it | `Router().select('review')`; `eligible()` | absent from both |
+| The live client refuses it before transport | `test_an_ineligible_model_is_refused_before_transport` | `model_ineligible:profile_expired`, zero transport calls |
+| The other three remain eligible | `test_the_app_and_the_factory_read_one_eligibility_verdict` | GLM, Qwen, Haiku selectable |
+| Full demo suite | `demo/.local/venv/bin/python -m unittest discover -s demo/tests` | 491 tests OK |
+
+Honest scope: Qwen and Haiku have no harness profile record; their eligibility basis is the
+dated owner authorization, not a provider requalification. DeepSeek needs a fresh profile
+verification (account, region, protocol) before it can be enabled again.
+
+## Second independent review and the boundary fixes — 2026-11-02
+
+An independent model review (`glm-5.3-flash`, a different family from the implementer, given
+the exact `origin/develop..HEAD` diff and the review checklist) returned **NOT OK** for
+`eaca6d2`. No raw prompt or answer was retained or printed. I verified every finding:
+
+| Finding | Verdict | Correction |
+| --- | --- | --- |
+| The Docker runner qualified an image digest but executed the mutable tag (`isolation.py:137`) | **Confirmed** | The probe and every check now run `image_id`; a re-tagged or re-pulled tag cannot execute bytes the probe did not qualify. `test_execution_runs_the_qualified_digest_not_the_mutable_tag` |
+| An intermediate symlink inside a scope could redirect a write to `.git` (`live.py:110`) | **Confirmed** | A resolved target must stay inside the *resolved matched scope*, not only inside the repository. `test_an_intermediate_symlink_cannot_redirect_a_write_outside_the_scope` |
+| A deleted contract surfaced as `toolchain_missing` (`checks.py:127`) | **Confirmed, lower impact** | A missing destination is now `contract_modified`; the outer handler already prevented a stranded build. `test_a_deleted_contract_is_tampering_not_a_missing_toolchain` |
+| `app.profiles.available` could raise `ImportError` (`profiles.py:20`) | **Not confirmed** | `server.py` inserts `demo/` into `sys.path` before any request can call `available`; no path reaches the deferred import without `factory` importable |
+| Unreported cost keeps a reservation open forever (`dispatch.py:190`) | **By design** | The brief requires unknown usage to remain an outstanding liability and forbids settling it as zero; the provider reported `cost: 0` for the calls used here |
+
+Full demo suite after the fixes: 494 tests OK. Review-call budgeting: four `$0.25`
+reservations were opened for the four independent-review attempts; the attempt that returned
+the verdict and the attempt whose provider-reported cost was measured `0` are settled, the two
+whose usage is unknown stay open. `aeion-observability` shows `$0.50` outstanding and `$14.50`
+remaining for 2026-11-02; that is journal liability, not an invoice.
+
+## Re-review at 13a1470 and the container/probe fixes — 2026-11-02
+
+The independent model re-review of `13a1470` verified the digest, symlink and contract fixes
+and returned NOT OK with four findings. Two were false on inspection: `dispatch.py` already
+imports `Decimal` and `InvalidOperation`, and `app/relay.py` defines and sets
+`last_error_code`. Two were confirmed: a timed-out `docker run` client left its container
+running with the workspace mounted, and the probe passed `-e SENTINEL=` itself, so its
+`host_environment: absent` claim was untested. The runner now names every check container and
+removes it on timeout or interruption, and the probe carries the sentinel only in the client
+environment and asserts it is absent inside the container. 496 demo tests OK; the review call
+settled at the provider-reported `0`. Outstanding review liability remains `$0.50` from the two
+calls whose usage is unknown.
+
+## Review votes are budgeted per call — 2026-11-02
+
+`DispatchWorker` now wraps each review vote in its own reservation: `$0.05` from the product
+purse before the call, settled only with that call's measured complete usage, and left open
+when the callback reports none. `demo/factory/live.py` adds `LiveReview`, which keeps the
+provider's usage surface for the budgeted wrapper, and `execution.resolve("live")` injects it.
+Evidence: `test_each_vote_reserves_and_settles_its_own_usage` (reserve + settle at `$0.02`),
+`test_an_unknown_vote_keeps_its_reservation_open` (`$0.05` still counted), and
+`test_a_configured_review_circuit_reserves_each_vote_and_keeps_them_open` (build plus two votes,
+none free), and `test_a_raising_callback_cannot_settle_the_previous_votes_usage` (the wrapper
+clears `last_usage` before each call, so a failure keeps its own reservation open instead of
+settling the previous vote's cost). Full demo suite: 500 tests OK.
+
+## Develop publication and the release pull request — 2026-11-02
+
+`develop` was pushed at `f677e1a` with an exact-head `Review: OK` receipt for the full delta
+and at `3069ad1` with the per-vote review budget receipt; both receipts are posted as commit
+comments. [PR #14](https://github.com/OualidGuennif/aeion-observability/pull/14) is open against
+`main`. GitHub reported it `DIRTY` because the squashed PR #13 changed the same two work files,
+so `origin/main` was merged into `develop` keeping this branch's newer entry; the conflict was
+only in `work/current.md` and `work/validation.md`, and no code changed in the merge. The demo
+suite is 500 tests OK and the cockpit runs in `live` mode at `http://127.0.0.1:8088/factory`
+(`/factory` 200, catalog 401 unauthenticated); the owner logs in with the private token file,
+which the agent did not read.
+
+## Host-only CI can import the teardown path — 2026-11-02
+
+PR #14's `offline-examples` job failed on `ModuleNotFoundError: tokenizers` while importing
+`app.runner` for `test_runner_teardown`. The dependency was imported at module scope in
+`token_budget.py`, although only `TokenBudget` construction needs it. Both `jinja2` and
+`tokenizers` now load inside `TokenBudget.__init__`; the runtime counting tests check that the
+pinned wheels are importable before they run; and the runner's failed-span status tolerates a
+host without the OpenTelemetry SDK instead of failing the run after the verdict. Evidence:
+`python3 -m unittest discover -s demo/tests` on the bare system interpreter (no jinja2, no
+tokenizers, no opentelemetry) -> 500 tests OK, 12 skipped; the demo venv -> 500 tests OK, no
+errors. This is the host-only job's environment, so the check should go green on the next push.

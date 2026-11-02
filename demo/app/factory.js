@@ -1,6 +1,6 @@
 /* Factory board client: admin login, catalog cards, queue, cancel and bounded SSE. */
 "use strict";
-const TERMINAL = ["merged", "failed", "cancelled", "simulated_complete"];
+const TERMINAL = ["merged", "failed", "cancelled", "simulated_complete", "live_complete", "baseline"];
 const LANGFUSE_UI = "http://localhost:3300";
 const state = { csrf: null, selected: new Set(), catalog: [], builds: [], events: [], lastSeq: 0,
   execution: { mode: "simulator", hold_reason: null } };
@@ -99,8 +99,15 @@ function receiptSummary(raw) {
   if (r.artifact_digest) bits.push(`artifact ${esc(String(r.artifact_digest).slice(0, 12))}`);
   if (r.frozen_digest) bits.push(`frozen ${esc(String(r.frozen_digest).slice(0, 12))}`);
   if (r.base_sha) bits.push(`base ${esc(String(r.base_sha).slice(0, 8))}`);
-  const trace = r.telemetry && r.telemetry.trace_id;
-  if (trace) bits.push(`<a href="${LANGFUSE_UI}/trace/${encodeURIComponent(trace)}" target="_blank" rel="noreferrer">trace ${esc(String(trace).slice(0, 8))}</a>`);
+  const telemetry = r.telemetry || {};
+  const trace = telemetry.trace_id;
+  if (trace) {
+    const status = telemetry.status || "unknown";
+    const label = status === "confirmed" ? "trace confirmed" : `trace ${status}`;
+    bits.push(`<a href="${LANGFUSE_UI}/trace/${encodeURIComponent(trace)}" target="_blank" rel="noreferrer" title="${esc(status)}">${esc(label)} ${esc(String(trace).slice(0, 8))}</a>`);
+  } else if (telemetry.status && telemetry.status !== "disabled") {
+    bits.push(`trace ${esc(telemetry.status)}`);
+  }
   return bits.length ? `<p class="fineprint">${bits.join(" · ")}</p>` : "";
 }
 

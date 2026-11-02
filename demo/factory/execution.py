@@ -8,10 +8,13 @@ scopes and a real protected check, but model bytes are fixed and the attempt is 
 """
 from pathlib import Path
 
+from .isolation import DockerCheckRunner
+from .live import LiveBuilder, LiveReview
+from .model_client import available as provider_available
 from .target import TargetError, load_target
 from .telemetry import FactoryTelemetry
 
-MODES = ("simulator", "offline")
+MODES = ("simulator", "offline", "live")
 DEFAULT_FEATURE = "013"
 
 FILTER = """package local.aeion.forum;
@@ -97,13 +100,24 @@ def resolve(repo_root, mode):
     mode = str(mode or "simulator")
     if mode == "simulator":
         return {"mode": "simulator"}
-    if mode != "offline":
+    if mode not in MODES:
         return {"mode": mode, "hold_reason": "execution_mode_unknown"}
     try:
         target = load_target(profile_path(repo_root), Path(repo_root))
     except (TargetError, OSError, ValueError) as exc:
         # The target profile or the pinned product checkout is unavailable on this host.
-        return {"mode": "offline", "hold_reason": "execution_unavailable",
+        return {"mode": mode, "hold_reason": "execution_unavailable",
                 "detail": type(exc).__name__}
-    return {"mode": "offline", "target": target, "builder": offline_builder,
-            "telemetry": FactoryTelemetry()}
+    if mode == "offline":
+        return {"mode": "offline", "target": target, "builder": offline_builder,
+                "check_sandbox": DockerCheckRunner(repo_root),
+                "telemetry": FactoryTelemetry(readback=True)}
+    if not provider_available():
+        # The pinned target exists, but no provider credential is loaded: hold, never simulate.
+        return {"mode": "live", "hold_reason": "provider_unconfigured"}
+    return {"mode": "live", "target": target, "builder": LiveBuilder(),
+            "review_complete": LiveReview(),
+            "check_sandbox": DockerCheckRunner(repo_root),
+            "telemetry": FactoryTelemetry(readback=True),
+            # One attempt may reserve part of the shared purse; $15/day remains the hard cap.
+            "cost_reservation_usd": "0.50"}

@@ -1,8 +1,6 @@
 """Local request counting with the official pinned model tokenizer/chat template."""
 import json
 from pathlib import Path
-from jinja2.sandbox import ImmutableSandboxedEnvironment
-from tokenizers import Tokenizer
 from json_input import loads
 from profiles import PROFILES
 
@@ -15,6 +13,10 @@ MAX_OUTPUT = 4096
 
 class TokenBudget:
     def __init__(self, model):
+        # Imported here, not at module scope: the bootstrap helpers and the teardown tests
+        # must be importable on a host that has neither the tokenizer wheels nor jinja2.
+        from jinja2.sandbox import ImmutableSandboxedEnvironment
+        from tokenizers import Tokenizer
         slug = MODELS[model]
         path = ROOT / "tokenizers" / slug
         self.tokenizer = Tokenizer.from_file(str(path / "tokenizer.json"))

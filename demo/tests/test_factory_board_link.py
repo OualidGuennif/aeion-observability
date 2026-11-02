@@ -10,10 +10,15 @@ class BoardLinkTests(unittest.TestCase):
     def test_receipt_summary_shows_build_attempt_and_trace(self):
         self.assertIn("r.build_id", JS)
         self.assertIn("r.attempt_id", JS)
-        self.assertIn("r.telemetry.trace_id", JS)
+        self.assertIn("const trace = telemetry.trace_id", JS)
         self.assertIn("LANGFUSE_UI", JS)
         self.assertIn("/trace/", JS)
         self.assertIn("encodeURIComponent(trace)", JS)
+
+    def test_the_trace_state_is_shown_not_only_the_id(self):
+        self.assertIn("trace confirmed", JS)
+        self.assertIn("trace ${status}", JS)
+        self.assertIn("telemetry.status", JS)
 
     def test_the_trace_link_opens_away_from_the_cockpit(self):
         self.assertIn('target="_blank"', JS)

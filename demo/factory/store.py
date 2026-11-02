@@ -25,9 +25,11 @@ HELD = "held"
 FAILED = "failed"
 CANCELLED = "cancelled"
 SIMULATED_COMPLETE = "simulated_complete"
+LIVE_COMPLETE = "live_complete"
+BASELINE = "baseline"
 
 NONTERMINAL = {PROPOSED, QUEUED, DISPATCHED, BUILT, GATED, PR_OPEN, APPROVED, HELD}
-TERMINAL = {MERGED, FAILED, CANCELLED, SIMULATED_COMPLETE}
+TERMINAL = {MERGED, FAILED, CANCELLED, SIMULATED_COMPLETE, LIVE_COMPLETE, BASELINE}
 ACTIVE = {DISPATCHED}
 HOLD_REASONS = {
     "dependency_missing", "profile_expired", "sandbox_unqualified", "budget_unavailable",
@@ -42,6 +44,8 @@ HOLD_REASONS = {
     "target_feature_mismatch",
     # Live was requested without a qualified builder; the request is held, never simulated.
     "live_builder_unqualified",
+    # Live is configured but the provider credential is absent; no attempt is started.
+    "provider_unconfigured",
 }
 
 SCHEMA = """
@@ -138,12 +142,13 @@ class Store:
         return [dict(r) for r in rows]
 
     def _merged_ids(self, conn):
-        """Dependencies count as satisfied by a merge — or by a simulated build, in the playground."""
+        """Dependencies count as satisfied by a merge or a verified pinned-base baseline."""
         if getattr(self, "simulated_dependencies", False):
-            rows = conn.execute("SELECT feature_id FROM builds WHERE status IN (?,?)",
-                                (MERGED, SIMULATED_COMPLETE))
+            rows = conn.execute("SELECT feature_id FROM builds WHERE status IN (?,?,?)",
+                                (MERGED, BASELINE, SIMULATED_COMPLETE))
         else:
-            rows = conn.execute("SELECT feature_id FROM builds WHERE status=?", (MERGED,))
+            rows = conn.execute("SELECT feature_id FROM builds WHERE status IN (?,?)",
+                                (MERGED, BASELINE))
         return {r["feature_id"] for r in rows}
 
     # ------------------------------------------------------------------ admission
@@ -202,6 +207,40 @@ class Store:
                 conn.close()
 
     # ------------------------------------------------------------------ dispatch
+    def record_baseline(self, feature_id, evidence, catalog, actor="baseline"):
+        """Record a verified pinned-base baseline; only the verifier calls this."""
+        if feature_id not in catalog.by_id:
+            raise StoreError(f"unknown_feature:{feature_id}")
+        if not isinstance(evidence, dict) or not evidence.get("base_sha"):
+            raise StoreError("baseline_evidence")
+        key = f"baseline:{feature_id}:{evidence['base_sha']}"
+        payload_digest = hashlib.sha256(
+            json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        with self._lock:
+            conn = self._connect()
+            try:
+                with conn:
+                    existing = conn.execute(
+                        "SELECT build_id, payload_digest FROM builds WHERE idempotency_key=?",
+                        (key,)).fetchone()
+                    if existing is not None:
+                        if existing["payload_digest"] != payload_digest:
+                            return {"status": "conflict", "build_ids": []}
+                        return {"status": "replayed", "build_ids": [existing["build_id"]]}
+                    build_id = uuid.uuid4().hex
+                    now = self._now()
+                    conn.execute(
+                        "INSERT INTO builds (build_id, feature_id, status, hold_reason, idempotency_key, "
+                        "payload_digest, catalog_digest, created_ns, updated_ns) VALUES (?,?,?,?,?,?,?,?,?)",
+                        (build_id, feature_id, BASELINE, None, key, payload_digest,
+                         catalog.digest, now, now),
+                    )
+                    self._event(conn, build_id, now, actor, PROPOSED, None, 0)
+                    self._event(conn, build_id, now, actor, BASELINE, json.dumps(evidence), 0)
+                    return {"status": "recorded", "build_ids": [build_id]}
+            finally:
+                conn.close()
+
     def claim_next(self, catalog, lease_ns=DEFAULT_LEASE_NS):
         """Claim the next queued build, honouring the active-concurrency and disjointness rules."""
         with self._lock:

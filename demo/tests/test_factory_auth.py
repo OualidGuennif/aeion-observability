@@ -1,6 +1,9 @@
 from pathlib import Path
 import sys
+import threading
+import time
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory.auth import AdminSessions, host_origin_ok
@@ -35,6 +38,30 @@ class AdminSessionTests(unittest.TestCase):
         self.assertIn("csrf", first)
         # The old bootstrap token is now single-use.
         self.assertIsNone(self.auth.login("bootstrap-secret"))
+
+    def test_concurrent_login_mints_at_most_one_session(self):
+        original = __import__("secrets").compare_digest
+
+        def slow_compare(left, right):
+            # Widen the window: a check outside the lock lets both callers pass it.
+            time.sleep(0.05)
+            return original(left, right)
+
+        results = []
+        barrier = threading.Barrier(2)
+
+        def attempt():
+            barrier.wait()
+            results.append(self.auth.login("bootstrap-secret"))
+
+        with mock.patch("factory.auth.secrets.compare_digest", slow_compare):
+            threads = [threading.Thread(target=attempt) for _ in range(2)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+        self.assertEqual(len([result for result in results if result is not None]), 1)
 
     def test_authenticate_valid_session(self):
         first = self.auth.login("bootstrap-secret")

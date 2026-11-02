@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+- Make the host-only bootstrap path importable without the model toolchain.
+  `token_budget` loads `jinja2` and `tokenizers` only when `TokenBudget` is constructed, the
+  runtime counting tests require the pinned wheels before they run, and the runner tolerates a
+  host without the OpenTelemetry SDK when marking a failed span. The Docker-free CI job can run
+  the teardown and settlement regressions again; the demo venv behavior is unchanged.
+
+- Budget each model review vote as its own paid action. `DispatchWorker` reserves `$0.05`
+  from the product purse before every vote and settles only that call's measured usage;
+  `LiveReview` keeps the provider usage surface the wrapper needs, the wrapper clears any
+  earlier vote's usage before the call so a failure cannot settle stale cost, and a vote with
+  unknown usage stays open. A configured review circuit therefore cannot spend two calls against one
+  build reservation.
+
+- Give the builder and the operator profiles one eligibility authority. The four
+  owner-authorized workers now carry their authorization date and recorded profile expiry in
+  `demo/factory/models.py`; `demo/app/profiles.py` asks that catalog instead of keeping a second
+  `valid_until`. DeepSeek's harness profile expired on 2026-10-31, so the owner's spend
+  authorization on 2026-11-02 does not silently requalify it: the router no longer selects it and
+  `complete_with_usage` refuses it before transport, while GLM, Qwen and Haiku stay eligible.
+
+- Run protected candidate checks in a qualified Docker boundary and make paid authoring real.
+  `demo/factory/isolation.py` runs the Gradle contract in a disposable non-root container with
+  `--network none`, no Docker socket, no host home or controller mount, a fixed environment,
+  dropped capabilities and bounded CPU/memory/PIDs; the probe's image digest and denied network
+  are recorded with the check, a failed boundary holds `sandbox_unqualified` (the hold reads the
+  nested check detail, not a top-level reason), and a contract file altered during the run is
+  detected. `demo/factory/live.py` adds the live builder behind the same frozen scopes, canonical
+  wire ids from the shared catalog, bounded JSON parsing and provider-reported usage; every `.`,
+  `..` or `.git` path component is refused before the scope prefix is trusted, each call resets
+  its usage so a failed attempt cannot settle with the previous cost, and unreported cost keeps
+  the reservation open. A failed paid builder still names its own author model in the receipt.
+  The qualified image digest, not the mutable tag, is what both the probe and the check run, so
+  a re-tagged or re-pulled tag cannot execute unqualified bytes; a symlinked parent cannot
+  redirect a write outside its matched scope; deleting the contract during a check is
+  tampering, not a missing toolchain; a timed-out or interrupted check removes its named
+  container; and the probe carries a host sentinel it asserts absent in the container instead
+  of forcing it empty.
+  A completed paid attempt
+  is `live_complete` with `simulated: false`, and only measured complete usage settles its
+  reservation. The cockpit shows the trace state, and a backend readback is what turns
+  `exported_unconfirmed` into `confirmed`. `demo/factory/baseline.py` records a verified
+  pinned-base baseline (hashed paths and an isolated passing base suite), which unblocked 013
+  against 001. One real paid build passed the isolated check and was read back from Langfuse.
+
 - Give the operator front one explicit execution path instead of a silent fake fallback.
   `demo/factory/execution.py` resolves `simulator` or `offline`, loads the pinned forum
   profile and the shared deterministic offline builder, and returns a visible
