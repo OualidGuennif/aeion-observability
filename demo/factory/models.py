@@ -8,11 +8,19 @@ a decision can be reproduced and audited.
 import math
 
 # One family per vendor: two models of the same family share weights and failure modes.
+# The display id stays internal; ``wire`` is the provider's documented identifier and is the
+# only value sent on the wire. The owner authorized these four workers on 2026-11-02; that
+# authorization is not a provider requalification, and no ZDR claim is made for any of them.
+OWNER_AUTHORIZATION = "2026-11-02"
 MODELS = {
-    "claude-haiku-5.5": {"family": "anthropic", "cost": 4.0, "quality": 0.95, "roles": {"review", "author"}},
-    "deepseek-4.1-flash": {"family": "deepseek", "cost": 1.0, "quality": 0.80, "roles": {"review", "author"}},
-    "qwen-3.8-flash": {"family": "qwen", "cost": 0.9, "quality": 0.78, "roles": {"review", "author"}},
-    "glm-5.3-flash": {"family": "zhipu", "cost": 0.8, "quality": 0.78, "roles": {"review", "author"}},
+    "claude-haiku-5.5": {"family": "anthropic", "wire": "claude-haiku-5-5", "cost": 4.0,
+                         "quality": 0.95, "roles": {"review", "author"}, "retention_days": 30},
+    "deepseek-4.1-flash": {"family": "deepseek", "wire": "deepseek-v4.1-flash", "cost": 1.0,
+                           "quality": 0.80, "roles": {"review", "author"}},
+    "qwen-3.8-flash": {"family": "qwen", "wire": "qwen3.8-flash", "cost": 0.9,
+                       "quality": 0.78, "roles": {"review", "author"}},
+    "glm-5.3-flash": {"family": "zhipu", "wire": "glm-5.3-flash", "cost": 0.8,
+                      "quality": 0.78, "roles": {"review", "author"}},
 }
 DEFAULT_REVIEW_ORDER = ("glm-5.3-flash", "qwen-3.8-flash", "deepseek-4.1-flash", "claude-haiku-5.5")
 MAX_RECORDS = 500
@@ -28,6 +36,14 @@ def family(model):
 
 def known(model):
     return model in MODELS
+
+
+def wire_id(model):
+    """The documented provider identifier for an internal display id."""
+    try:
+        return MODELS[model]["wire"]
+    except KeyError:
+        raise RoutingError(f"unknown_model:{model}") from None
 
 
 class Telemetry:
@@ -97,3 +113,9 @@ def eligible(models=None, exclude_models=(), exclude_families=()):
     blocked_models, blocked_families = set(exclude_models), set(exclude_families)
     return sorted(m for m, spec in (models or MODELS).items()
                   if m not in blocked_models and spec["family"] not in blocked_families)
+
+
+def author_model(telemetry=None, exclude_models=(), exclude_families=()):
+    """The shared, explainable choice for an authoring call; never a reviewer's vote."""
+    return Router(telemetry).select("author", exclude_models=exclude_models,
+                                    exclude_families=exclude_families, require_role="author")

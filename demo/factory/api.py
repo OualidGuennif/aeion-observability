@@ -55,7 +55,7 @@ class FactoryApp:
         self.budget = budget if budget is not None else DailyBudget(
             self.state_dir / "budget" / "ledger.jsonl")
         self.worker = DispatchWorker(self.store, self.catalog, spec_dir, self.state_dir / "work",
-                                     config=config if config is not None else S2_CONFIG,
+                                     config=self._worker_config(config),
                                      budget=self.budget, budget_scope="aeion-autonomous-forum",
                                      target=self.execution.get("target"),
                                      builder=self.execution.get("builder"),
@@ -77,6 +77,12 @@ class FactoryApp:
         self.gateway = None
 
     # ------------------------------------------------------------- bootstrap token
+    def _worker_config(self, config):
+        worker_config = dict(config if config is not None else S2_CONFIG)
+        if self.execution.get("cost_reservation_usd") is not None:
+            worker_config["cost_reservation_usd"] = self.execution["cost_reservation_usd"]
+        return worker_config
+
     def _load_or_create_token(self):
         if self.token_path.is_file():
             existing = self.token_path.read_text().strip()
@@ -155,7 +161,10 @@ class FactoryApp:
                 "hold_reason": self.execution_hold,
                 "target_feature": (self.execution.get("target").feature_id
                                    if self.execution.get("target") is not None else None),
-                "live_hold_reason": "live_builder_unqualified",
+                "live_hold_reason": (
+                    (None if self.execution.get("builder") is not None and not self.execution_hold
+                     else (self.execution_hold or "live_builder_unqualified"))
+                    if self.execution_mode == "live" else "live_builder_unqualified"),
             },
         }, {}
 

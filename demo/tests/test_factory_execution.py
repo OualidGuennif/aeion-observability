@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory.api import FactoryApp
@@ -106,6 +107,24 @@ class ResolveTests(unittest.TestCase):
         self.assertIs(execution["builder"], offline_builder)
         self.assertIsNotNone(execution["check_sandbox"])
         self.assertIsNotNone(execution["telemetry"])
+
+    def test_live_without_a_provider_credential_holds(self):
+        self.profile()
+        with mock.patch("factory.execution.provider_available", return_value=False):
+            execution = resolve(self.root, "live")
+        self.assertEqual(execution["mode"], "live")
+        self.assertEqual(execution["hold_reason"], "provider_unconfigured")
+        self.assertNotIn("builder", execution)
+
+    def test_live_resolves_a_paid_builder_isolated_checker_and_reservation(self):
+        self.profile()
+        with mock.patch("factory.execution.provider_available", return_value=True):
+            execution = resolve(self.root, "live")
+        self.assertEqual(execution["mode"], "live")
+        self.assertNotIn("hold_reason", execution)
+        self.assertTrue(execution["builder"].paid)
+        self.assertIsNotNone(execution["check_sandbox"])
+        self.assertEqual(execution["cost_reservation_usd"], "0.50")
 
     def test_the_offline_builder_writes_both_scopes(self):
         repo = self.root / "repo"

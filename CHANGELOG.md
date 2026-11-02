@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- Run protected candidate checks in a qualified Docker boundary and make paid authoring real.
+  `demo/factory/isolation.py` runs the Gradle contract in a disposable non-root container with
+  `--network none`, no Docker socket, no host home or controller mount, a fixed environment,
+  dropped capabilities and bounded CPU/memory/PIDs; the probe's image digest and denied network
+  are recorded with the check, a failed boundary holds `sandbox_unqualified`, and a contract file
+  altered during the run is detected. `demo/factory/live.py` adds the live builder behind the
+  same frozen scopes, canonical wire ids from the shared catalog, bounded JSON parsing and
+  provider-reported usage; unreported cost keeps the reservation open. A completed paid attempt
+  is `live_complete` with `simulated: false`, and only measured complete usage settles its
+  reservation. The cockpit shows the trace state, and a backend readback is what turns
+  `exported_unconfirmed` into `confirmed`. `demo/factory/baseline.py` records a verified
+  pinned-base baseline (hashed paths and an isolated passing base suite), which unblocked 013
+  against 001. One real paid build passed the isolated check and was read back from Langfuse.
+
 - Give the operator front one explicit execution path instead of a silent fake fallback.
   `demo/factory/execution.py` resolves `simulator` or `offline`, loads the pinned forum
   profile and the shared deterministic offline builder, and returns a visible

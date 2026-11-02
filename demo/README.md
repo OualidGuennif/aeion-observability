@@ -87,11 +87,21 @@ Docker compute driver. No user repository, host transcript or global agent setti
 
 Factory execution is explicit. The default `simulator` keeps the fake Markdown builder and says so
 on the board. `AEION_FACTORY_EXECUTION=offline` loads the pinned forum profile and the shared
-deterministic offline builder (real base, real write scopes, real protected check, no model call);
-if the profile or the product checkout is absent, every build holds `execution_unavailable` instead
-of falling back. Live has no qualified real builder yet and is reported as
-`live_builder_unqualified`. A pinned target refuses any other feature with
-`target_feature_mismatch`.
+deterministic offline builder (real base, real write scopes, real protected check, no model call).
+`AEION_FACTORY_EXECUTION=live` loads the same pinned target, the shared model catalog and the live
+builder; the provider credential is read from the project's existing dotenv files and its absence
+holds the build as `provider_unconfigured` instead of simulating. The owner authorized the four
+workers (`glm-5.3-flash`, `qwen-3.8-flash`, `deepseek-4.1-flash`, `claude-haiku-5.5`) on 2026-11-02;
+display ids are translated to canonical wire ids before every request.
+
+Protected candidate checks run in a disposable Docker container: no network, no Docker socket, no
+host home and no controller mount, only the candidate tree and read-only toolchain caches, with a
+fixed environment, dropped capabilities and CPU/memory/PID limits. A probe records the image digest
+and denied network before a build; a missing image or failed probe holds the build as
+`sandbox_unqualified`. `demo/factory/baseline.py` verifies features already present at the pinned
+base with hashed paths and the isolated base test suite, so feature 013 can queue against a
+verified 001 baseline without a simulated merge receipt. A pinned target refuses any other feature
+with `target_feature_mismatch`.
 
 A useful presentation sequence:
 

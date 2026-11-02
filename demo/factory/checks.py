@@ -89,11 +89,10 @@ def target_check(target, runner=None, work_root=None, sandbox=None):
     """Run the profile's protected check against the materialised candidate tree.
 
     The contract test is copied in from outside the candidate's write scopes, runs with a
-    toolchain-only environment (never the controller's), and is restored afterwards. This
-    confines the environment and repository path; it is not yet an isolation boundary, so
-    untrusted candidate code remains held until a qualified isolated runner is supplied.
-    Only a bounded failure summary is recorded: no raw output, no candidate-controlled
-    evaluator.
+    toolchain-only environment (never the controller's), and is restored afterwards. When a
+    DockerCheckRunner is supplied it also enforces the isolated runtime; without one this is
+    path and environment confinement only, so untrusted candidate code stays held. Only a
+    bounded failure summary is recorded: no raw output, no candidate-controlled evaluator.
     """
     runner = sandbox or runner or subprocess.run
     allowed_root = Path(work_root).resolve() if work_root is not None else None

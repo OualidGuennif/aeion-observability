@@ -22,7 +22,7 @@ from .models import Router, Telemetry
 from .publish import FakeForge, Publisher
 from .review import content_digest, review
 from .review_circuit import two_vote_review
-from .store import FAILED
+from .store import FAILED, LIVE_COMPLETE, SIMULATED_COMPLETE
 from .target import TargetError
 
 DEFAULT_REQUIRED_CHECKS = ["scope", "spec_unchanged"]
@@ -54,6 +54,8 @@ class DispatchWorker:
         self.budget_scope = budget_scope
         self.allow_unbudgeted = bool(allow_unbudgeted)
         self.startup_hold = startup_hold
+        self.paid = bool(getattr(builder, "paid", False))
+        self.last_usage = None
         if checks is not None:
             self.checks = checks
         else:
@@ -117,11 +119,11 @@ class DispatchWorker:
         """The bytes about to be reviewed and published must be the bytes the gate hashed."""
         return isinstance(files, dict) and content_digest(files) == verdict.get("digest")
 
-    @staticmethod
-    def _identity(build, feature, frozen, base_sha, verdict):
+    def _identity(self, build, feature, frozen, base_sha, verdict):
         """The four ids every receipt carries, so a board row reaches its trace and artifact."""
         return {
-            "simulated": True,
+            "simulated": not self.paid,
+            "author_model": self.author_model if self.paid else None,
             "build_id": build["build_id"],
             "feature_id": feature["id"],
             "attempt_id": build["attempt_id"],
@@ -139,7 +141,7 @@ class DispatchWorker:
                 build_id=build["build_id"], feature_id=feature["id"],
                 attempt_id=build["attempt_id"], artifact_digest=verdict.get("digest"),
                 base_sha=base_sha, gate_status=(gate or {}).get("status"),
-                publisher_decision=(decision or {}).get("decision"), synthetic=True,
+                publisher_decision=(decision or {}).get("decision"), synthetic=not self.paid,
             )
         except Exception as exc:  # noqa: BLE001 - observability is not a gate
             return {"status": "unavailable", "reason": type(exc).__name__}
@@ -171,17 +173,25 @@ class DispatchWorker:
         )
 
     def _settle(self, reservation):
-        """Close the reservation; a failure leaves it open, which is the conservative side."""
+        """Close the reservation only with measured, complete usage; unknown stays open."""
         if reservation is None:
             return
+        usage = self.last_usage
+        if not isinstance(usage, dict) or usage.get("complete") is not True:
+            return
+        raw = usage.get("cost_usd")
+        if raw is None:
+            return
         try:
-            self.budget.settle(reservation, reservation.estimate_usd)
-        except BudgetError:
-            pass
+            self.budget.settle(reservation, Decimal(str(raw)))
+        except (BudgetError, InvalidOperation, ValueError):
+            # The reservation stays open and keeps counting: fail closed, never free the money.
+            return
 
     def run_once(self):
         """Claim one build, give its agent a session, run it, and end the session whatever happens."""
         assert_worker_isolated()
+        self.last_usage = None
         build = self.store.claim_next(self.catalog)
         if build is None:
             return None
@@ -275,16 +285,23 @@ class DispatchWorker:
             brief += ("\nSpecification: BRIEF.md, outside the repository and read-only.\n"
                       "Write scopes: " + ", ".join(self.target.write_paths) + ".\n")
         (repo.parent / "TASK.md").write_text(brief + "\n")
+        self.last_usage = (None if self.paid else
+                           {"cost_usd": "0", "complete": True, "basis": "no_paid_transport"})
         try:
             if self.builder is None:
                 self._write_simulated_impl(repo, frozen, feature)
             else:
                 self.builder(repo=repo, frozen=frozen, feature=feature,
                              brief=repo.parent / "BRIEF.md")
+                if self.paid:
+                    self.last_usage = getattr(self.builder, "last_usage", None)
+                    self.author_model = getattr(self.builder, "model", self.author_model)
         except Exception as exc:  # noqa: BLE001 - a failed builder never publishes
+            if self.paid:
+                self.last_usage = getattr(self.builder, "last_usage", None)
             result = self.store.complete_attempt(
                 build["attempt_id"], build["attempt_generation"],
-                {"simulated": True, "build_id": build["build_id"],
+                {"simulated": not self.paid, "build_id": build["build_id"],
                  "feature_id": feature["id"], "attempt_id": build["attempt_id"],
                  "reason": "builder_error", "detail": type(exc).__name__},
                 terminal=FAILED,
@@ -312,6 +329,11 @@ class DispatchWorker:
         # S3 gate: protected checks judged outside the candidate's control.
         gate = self.checks.verdict(self.required_checks, frozen, verdict)
         verdict.pop("repo", None)
+        if any(result.get("reason") == "isolation_unqualified"
+               for result in gate["results"].values()):
+            self.store.hold_dispatched(build["build_id"], "sandbox_unqualified")
+            return {"build_id": build["build_id"], "result": {
+                "status": "held", "reason": "sandbox_unqualified", "gate": gate}}
         if gate["status"] == "qualification_missing":
             self.store.hold_dispatched(build["build_id"], "qualification_missing")
             return {"build_id": build["build_id"], "result": {"status": "held",
@@ -382,13 +404,16 @@ class DispatchWorker:
             receipt = {
                 **self._identity(build, feature, frozen, base_sha, verdict),
                 "pr_shaped": True, "allowed": verdict["allowed"],
+                "simulated": not self.paid,
                 "gate": gate, "review": review_verdict, "circuit": circuit,
                 "publisher": decision,
                 "telemetry": self._telemetry_evidence(
                     build, feature, frozen, base_sha, verdict, gate, decision),
                 "agent_session": self.session_evidence(session),
             }
-            result = self.store.complete_attempt(build["attempt_id"], build["attempt_generation"], receipt)
+            result = self.store.complete_attempt(
+                build["attempt_id"], build["attempt_generation"], receipt,
+                terminal=LIVE_COMPLETE if self.paid else SIMULATED_COMPLETE)
             return {"build_id": build["build_id"], "result": result}
 
         # S3 publisher policy on a fake forge: refused, held or simulated-published.
@@ -416,6 +441,7 @@ class DispatchWorker:
             **self._identity(build, feature, frozen, base_sha, verdict),
             "pr_shaped": True,
             "allowed": verdict["allowed"],
+            "simulated": not self.paid,
             "gate": gate,
             "review": review_verdict,
             "circuit": circuit,
@@ -424,5 +450,7 @@ class DispatchWorker:
                 build, feature, frozen, base_sha, verdict, gate, decision),
             "agent_session": self.session_evidence(session),
         }
-        result = self.store.complete_attempt(build["attempt_id"], build["attempt_generation"], receipt)
+        result = self.store.complete_attempt(
+            build["attempt_id"], build["attempt_generation"], receipt,
+            terminal=LIVE_COMPLETE if self.paid else SIMULATED_COMPLETE)
         return {"build_id": build["build_id"], "result": result}

@@ -32,11 +32,23 @@ private native mTLS gateway owns OpenShell sandboxes through its Docker compute 
 explicitly authorized local pilot, not a production OPS boundary or general model benchmark.
 
 The same host cockpit serves the feature-factory board at `/factory`. It resolves one explicit
-execution instead of silently simulating: `simulator`, or `offline` with the pinned forum profile
-and the shared deterministic builder. A missing profile or product checkout holds every build as
-`execution_unavailable`; a pinned target refuses another feature with `target_feature_mismatch`;
-Live is reported as `live_builder_unqualified` until a qualified real builder exists. Dependency
-holds stay real: no simulated receipt satisfies a product dependency.
+execution instead of silently simulating: `simulator`, `offline` with the pinned forum profile and
+the shared deterministic builder, or `live` with the same target and the shared live builder. Live
+reads the provider credential from the project's existing dotenv files and holds
+`provider_unconfigured` when absent; a missing profile or product checkout holds every build as
+`execution_unavailable`; a pinned target refuses another feature with `target_feature_mismatch`.
+The owner authorized four workers on 2026-11-02 (`glm-5.3-flash`, `qwen-3.8-flash`,
+`deepseek-4.1-flash`, `claude-haiku-5.5`); internal display ids map to canonical wire ids and the
+authoring choice is the shared router's deterministic result. A completed paid attempt is
+`live_complete` with `simulated: false`, never `simulated_complete`.
+
+Candidate Java checks run in a qualified, disposable Docker boundary: `--network none`, no Docker
+socket, no host home or controller mount, only the candidate tree plus read-only Gradle caches,
+non-root, read-only root filesystem, dropped capabilities, bounded CPU/memory/PIDs and a fixed
+environment. The probe's image digest and denied network are recorded with the check; a missing
+image or failed probe holds `sandbox_unqualified`. The checker detects a contract file altered
+during its run. A verified pinned-base baseline (`demo/factory/baseline.py`) satisfies dependencies
+only with hashed paths and an isolated passing base suite; a simulated receipt never does.
 
 ## Data sources
 

@@ -139,6 +139,67 @@ class EmitTests(unittest.TestCase):
         self.assertEqual(evidence["status"], "export_failed")
         self.assertEqual(evidence["reason"], "ConnectionError")
 
+    def test_a_backend_readback_is_what_confirms_storage(self):
+        try:
+            from opentelemetry.sdk.trace.export import SpanExportResult
+        except ImportError:
+            self.skipTest("opentelemetry sdk not installed")
+
+        class FakeExporter:
+            def __init__(self, endpoint=None, timeout=None):
+                pass
+
+            def export(self, spans):
+                return SpanExportResult.SUCCESS
+
+            def shutdown(self):
+                return None
+
+            def force_flush(self, timeout_millis=None):
+                return True
+
+        real = telemetry._load_otel()
+        fake_loader = lambda: (real[0], real[1], real[2], real[3], FakeExporter)
+        with mock.patch.object(telemetry, "_load_otel", side_effect=fake_loader), \
+                mock.patch.object(telemetry, "confirm_trace",
+                                  return_value={"confirmed": True, "observation": "obs-1"}):
+            evidence = telemetry.FactoryTelemetry(
+                endpoint="http://collector.invalid/v1/traces", readback=True).emit(
+                    build_id="b" * 32, feature_id="013", attempt_id="a" * 32)
+        self.assertEqual(evidence["status"], "confirmed")
+        self.assertEqual(evidence["observation"], "obs-1")
+        self.assertEqual(evidence["confirmation"], "backend_readback")
+
+    def test_an_unconfirmed_readback_stays_unconfirmed(self):
+        try:
+            from opentelemetry.sdk.trace.export import SpanExportResult
+        except ImportError:
+            self.skipTest("opentelemetry sdk not installed")
+
+        class FakeExporter:
+            def __init__(self, endpoint=None, timeout=None):
+                pass
+
+            def export(self, spans):
+                return SpanExportResult.SUCCESS
+
+            def shutdown(self):
+                return None
+
+            def force_flush(self, timeout_millis=None):
+                return True
+
+        real = telemetry._load_otel()
+        fake_loader = lambda: (real[0], real[1], real[2], real[3], FakeExporter)
+        with mock.patch.object(telemetry, "_load_otel", side_effect=fake_loader), \
+                mock.patch.object(telemetry, "confirm_trace",
+                                  return_value={"confirmed": False, "reason": "trace_not_found"}):
+            evidence = telemetry.FactoryTelemetry(
+                endpoint="http://collector.invalid/v1/traces", readback=True).emit(
+                    build_id="b" * 32, feature_id="013", attempt_id="a" * 32)
+        self.assertEqual(evidence["status"], "exported_unconfirmed")
+        self.assertEqual(evidence["readback_reason"], "trace_not_found")
+
 
 if __name__ == "__main__":
     unittest.main()

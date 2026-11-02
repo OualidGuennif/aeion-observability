@@ -841,3 +841,41 @@ the explicit execution path) was released to protected `main` through
 | `main` carries exactly the released tree | `git rev-parse bbb8568^{tree} origin/main^{tree}` | both `890f5814e419166f36ed57f4f511b1e8da5cffdd` |
 | `develop` does not diverge after the squash | `git merge origin/main` on `develop` | merge `deb9bdf`; no content change |
 | The evidence names a runnable adapter check | corrected row: factory copy with `--root <project>` | 27/27 PASS on both roots |
+
+## Isolated checks, baseline and one live build — 2026-11-02
+
+The second implementation slice was exercised locally after the owner authorized paid inference
+and named four workers (`glm-5.3-flash`, `qwen-3.8-flash`, `deepseek-4.1-flash`,
+`claude-haiku-5.5`). No credential value or raw transcript was printed; the provider credential
+was loaded by the application from the existing dotenv files.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| Protected Java check runs in the isolated boundary | `demo/factory/isolation.py`; real 013 qualification | Gradle passed in 43 s inside `maven:3.9-eclipse-temurin-25`, image `sha256:93b8a14…`, `network: none`, non-root, read-only root, no Docker socket, toolchain caches read-only |
+| A lost boundary holds instead of using the host | `test_a_missing_isolation_boundary_holds_the_check`; `DispatchWorker` hold path | `isolation_unqualified` → `sandbox_unqualified` |
+| Contract tampering during the check is detected | `test_a_modified_contract_is_detected_and_restored` | `contract_modified`, original restored |
+| Sandbox close survives seed, collection and agent failure | `demo/tests/test_runner_teardown.py` | three cases, one close each, no active sandbox left |
+| Unknown usage cannot settle as zero | `Runner._settle`; `test_unknown_usage_keeps_the_reservation_open` | `settled_usd: unsettled`, reservation still counted |
+| Two concurrent logins cannot reuse one bootstrap token | `test_concurrent_login_mints_at_most_one_session` | exactly one session |
+| Display ids map to canonical wire ids | `test_wire_ids_are_the_documented_identifiers`; provider probe | `glm-5.3-flash` requested and accepted |
+| 001 is a verified pinned-base baseline, not a simulation | `demo/factory/baseline.py --feature 001 --apply` | base `37417ab…`; five hashed paths; isolated base suite returncode 0 with the same image/probe; recorded build `09d2f736…` |
+| 013 can now queue against that evidence | live store admission after the baseline | `queued`, no `dependency_missing` |
+| One real paid build completes | build `5bd31768fd0b41d9a083776ae00baec6` | `live_complete`, `simulated: false`, gate `passed`, fake publisher `published` |
+| Its check used the isolated boundary | receipt `gradle_test.detail.isolation` | `qualified`, image digest above, probe denied network and socket |
+| Its trace reached Langfuse | trace `5d926786bd644df61b4e0fd97b349079`, observation `6a1becec6aeb6ef9` | `confirmed` via authenticated readback |
+| Budget stayed bounded | shared ledger summary | 6 reservations, 6 settled, 0 open, provider-reported spend $0.00 |
+| Full demo suite | `demo/.local/venv/bin/python -m unittest discover -s demo/tests` | 480 tests OK |
+
+The first two live attempts failed the protected check on candidate-authored tests (an
+absent-header matcher and a missing `@WithTestResource`), not on the contract; their receipts are
+`failed` and their reservations settled at the provider-reported cost. An earlier successful
+build `0a5eb2a6…` (trace `9aadae66…`) was stored but its immediate readback raced ingestion and was
+reported `exported_unconfirmed`; a bounded retry now confirms it. The provider reported `cost: 0`
+for these calls, so the ledger shows no dollars: that is a provider-reported amount, not an
+invoice or evidence that inference is free.
+
+Honest scope: no browser login/session was performed by the agent, the cockpit was started in
+`live` mode and served `/factory` with the catalog endpoint requiring a session; review votes are
+not yet budget-reserved; the pricing-profile expiry gate is not yet shared with the factory
+router; the Product repository/spec ownership separation and OpenShell reaper lease reconciliation
+remain.
