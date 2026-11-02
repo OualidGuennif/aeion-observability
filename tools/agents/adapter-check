@@ -18,8 +18,8 @@ from pathlib import Path
 FACTORY = Path(__file__).resolve().parents[2]
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from connectors import CONTRACT as VENDORED, WIRING  # noqa: E402
-from refs import Refused, ref_bytes, ref_exists, require_repository  # noqa: E402
+from connectors import CONTRACT as VENDORED, WIRING, executable, linked  # noqa: E402
+from refs import Refused, ref_bytes, ref_exists, ref_mode, require_repository  # noqa: E402
 
 # Every harness-facing file the factory ships: a copy must stay byte-identical, because an
 # adapter's failure is silent and its body is not something a project edits.
@@ -42,11 +42,17 @@ def factory_version(repo, ref=None):
         return "unknown"
 
 
-def compare(root, read=None):
-    """(drifted, missing, clean) over every vendored file, by exact bytes."""
+def compare(root, read=None, expected_mode=None):
+    """(drifted, missing, clean, linked, modes) over every vendored file, by exact bytes and mode."""
     read = read or (lambda relative: (FACTORY / relative).read_bytes())
-    drifted, missing, clean = [], [], []
+    expected_mode = expected_mode or (lambda relative: (FACTORY / relative).stat().st_mode)
+    drifted, missing, clean, links, modes = [], [], [], [], []
     for relative in VENDORED:
+        link = linked(root, relative)
+        if link:
+            # Reading through the link would hide that the project owns no regular file there.
+            links.append((relative, link))
+            continue
         found = root / relative
         if not found.is_file():
             missing.append(relative)
@@ -58,11 +64,17 @@ def compare(root, read=None):
             # and always carries the whole list.
             continue
         actual = found.read_bytes()
-        if expected == actual:
-            clean.append(relative)
+        if expected != actual:
+            drifted.append((relative, len(expected), len(actual)))
             continue
-        drifted.append((relative, len(expected), len(actual)))
-    return drifted, missing, clean
+        clean.append(relative)
+        try:
+            wanted = expected_mode(relative)
+        except (OSError, Refused):
+            wanted = None
+        if wanted is not None and executable(wanted) and not executable(found.stat().st_mode):
+            modes.append(relative)
+    return drifted, missing, clean, links, modes
 
 
 def references(text, relative):
@@ -184,12 +196,13 @@ def main():
             print(f"adapter-check: no such reference: {reference}", file=sys.stderr)
             return 2
     read = (lambda relative: ref_bytes(repo, reference, relative)) if reference else None
+    expected_mode = (lambda relative: ref_mode(repo, reference, relative)) if reference else None
 
-    drifted, missing, clean = compare(root, read)
+    drifted, missing, clean, linked_paths, mode_issues = compare(root, read, expected_mode)
     unwired, broken = wiring(root)
     unmanaged, unroled_calls = [], []
     for relative in VENDORED:
-        if not relative.endswith(".js") or not (root / relative).is_file():
+        if not relative.endswith(".js") or linked(root, relative) or not (root / relative).is_file():
             continue
         text = (root / relative).read_text(encoding="utf-8", errors="replace")
         for line in unidentified(text):
@@ -205,6 +218,10 @@ def main():
         print(f"ok        {relative}")
     for relative, expected, actual in drifted:
         print(f"DRIFT     {relative} — {actual} bytes, factory has {expected}")
+    for relative, link in linked_paths:
+        print(f"LINKED    {relative} — {link} is a symlink; a connector must be a regular file")
+    for relative in mode_issues:
+        print(f"MODE      {relative} — not executable; the reference records an executable file")
     if arguments.verbose:
         for relative in missing:
             print(f"missing   {relative}")
@@ -217,7 +234,7 @@ def main():
     for relative, line in unroled_calls:
         print(f"UNROLED {relative} — steer()/inject()/followup() without a role at line {line}")
 
-    failed = bool(drifted or unwired or broken or unmanaged or unroled_calls)
+    failed = bool(drifted or unwired or broken or unmanaged or unroled_calls or linked_paths or mode_issues)
     if arguments.strict and missing:
         failed = True
     if drifted and reference:
@@ -228,13 +245,20 @@ def main():
         print("\nRepair each drifted copy from the factory, then run the project's tests:")
         for relative, _, _ in drifted:
             print(f"  cp {FACTORY / relative} {root / relative}")
+    if mode_issues:
+        print("\nRestore the executable bit on each launcher:")
+        for relative in mode_issues:
+            print(f"  chmod +x {root / relative}")
+    if linked_paths:
+        print("\nReplace each linked connector with a regular file owned by the project.")
     if arguments.strict and missing:
         print("\nVendored set incomplete; adopt the missing connectors or drop --strict.")
 
     print(
         f"\n{len(VENDORED)} connectors: {len(clean)} matching, {len(drifted)} drifted, "
         f"{len(missing)} absent, {len(unwired)} unwired, {len(broken)} invalid, "
-        f"{len(unmanaged)} unidentified, {len(unroled_calls)} unroled"
+        f"{len(unmanaged)} unidentified, {len(unroled_calls)} unroled, "
+        f"{len(linked_paths)} linked, {len(mode_issues)} mode"
     )
     print("adapter-check: PASS" if not failed else "adapter-check: FAIL")
     return 1 if failed else 0

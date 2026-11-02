@@ -1086,7 +1086,10 @@ matching, 0 drifted, 0 absent, 0 unwired, 0 invalid, 0 linked, 0 mode: PASS. `pi
 renders; `tools/factory-tests` PASS; demo suite 512 tests OK; doc-links PASS (97); knowledge-check
 PASS; repo-health PASS.
 
-Limit: the project's vendored `tools/agents/template-update` still predates v1.9.1's `--from-ref`
-(it reads `VERSION`), so the canonical update procedure uses the factory checkout's copy. It is
-factory-owned but not in the connector contract, so this update neither wrote nor checked it; a
-separate decision can refresh the vendored factory tools.
+The vendored factory-owned tools were then refreshed from the same tag: `tools/agents/adapter-check`,
+`tools/agents/template-update` (now `--from-ref`), `tools/factory-tests`, and
+`tools/agents/tests/test_adapter_check.py`, `test_hooks.py`, `test_template_update.py`,
+`test_dsh.mjs` and the new `test_pi_rpc.py`. `adapter-check` still reports 28/28 PASS,
+`tools/agents/template-update --help` shows `--from-ref`, and `tools/factory-tests` PASS. The
+project-adapted `tools/architecture/views.json` and local `tools/repo-health` adaptation were left
+untouched on purpose.

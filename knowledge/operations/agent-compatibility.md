@@ -11,6 +11,8 @@ sources:
     title: "Managed agent launch"
   - resource: ../../tools/agents/pi-rpc
     title: "Headless Pi RPC runner"
+  - resource: ../../tools/agents/tests/test_pi_rpc.py
+    title: "Fake-RPC tests for the headless Pi RPC runner"
   - resource: ../../tools/agents/adapter-check
     title: "Connector copy drift check"
   - resource: ../../tools/agents/dsh-install

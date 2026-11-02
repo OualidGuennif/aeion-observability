@@ -14,7 +14,7 @@ const sessionID = `factory-dsh-plugin-test-${process.pid}`;
 // A stand-in for the dsh Cordis context: it records the guard, the listeners and compactions. `meter.tokens`
 // can change between calls; `root: false` is the web profile, which isolates its compaction service inside the
 // agent preset, so the plugin runs the `/compact` command instead of calling the service.
-function load(cwd, totalTokens = 1000, { root: service = true } = {}) {
+function load(cwd, totalTokens = 1000, { root: service = true, failCompact = false } = {}) {
   const meter = { tokens: totalTokens };
   const handlers = {};
   const guards = [];
@@ -24,6 +24,7 @@ function load(cwd, totalTokens = 1000, { root: service = true } = {}) {
   const registry = {
     find: (agent, name) => (name === 'compact' ? { name: 'compact' } : undefined),
     execute: async (agent, line) => {
+      if (failCompact) return { result: { kind: 'error' } };
       compactions.push(line);
       return { result: { kind: 'success' } };
     },
@@ -168,6 +169,24 @@ test('dsh never tells the user to type /compact, verified or owed (dsh FB-004)',
   assert.equal(first.steered.length, 1);
   assert.match(first.steered[0].content[0].text, /handover/);
   assert.doesNotMatch(first.steered[0].content[0].text, /type \/compact|ask them to/i);
+});
+
+test('dsh tells the user to stop after verification when /compact does not run', async () => {
+  // A compaction that never lands leaves the gate closed. Once the handover, work/current.md and checkpoint are
+  // verified, the recoverable move is to end the session and resume from the handover, not to retry forever.
+  const folder = answering({
+    PostToolUse: { aeion: { compact: true } },
+    PreCompact: {},
+  });
+  const { handlers, agent, steered } = load(folder, 260000, { root: false, failCompact: true });
+  agent.session.id = `${sessionID}-compact-failure`;
+  await handlers['tools/post-execute'](call(agent, 'bash', { command: 'true' }), {}, async () => ({}));
+  await handlers['agent/status']({ agent, status: 'idle' });
+  rmSync(folder, { recursive: true, force: true });
+  const text = steered.at(-1)?.content[0].text || '';
+  assert.match(text, /did not run/);
+  assert.match(text, /stop this session/);
+  assert.match(text, /handover/);
 });
 
 test('dsh treats a token fall to under half as a compaction and restarts the session as compacted', () => {

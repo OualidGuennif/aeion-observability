@@ -44,6 +44,46 @@ class AdapterCheckTests(unittest.TestCase):
         self.assertIn(f'{len(check.VENDORED)} connectors: {len(check.VENDORED)} matching', output)
         self.assertIn('adapter-check: PASS', output)
 
+    def test_a_linked_connector_fails_even_when_its_bytes_match(self):
+        # Reading through a symlink would compare bytes the project does not own and call it a match.
+        target = self.project / '.pi/extensions/factory/index.js'
+        target.unlink()
+        target.symlink_to(ROOT / '.pi/extensions/factory/index.js')
+        code, output = self.run_check()
+        self.assertEqual(code, 1, output)
+        self.assertIn('LINKED    .pi/extensions/factory/index.js', output)
+        self.assertIn('adapter-check: FAIL', output)
+
+    def test_a_linked_parent_fails(self):
+        folder = self.project / '.pi'
+        outside = Path(tempfile.mkdtemp(prefix='linked-pi-')) / 'pi'
+        self.addCleanup(shutil.rmtree, outside.parent, True)
+        shutil.move(str(folder), str(outside))
+        folder.symlink_to(outside, target_is_directory=True)
+        code, output = self.run_check()
+        self.assertEqual(code, 1, output)
+        self.assertIn('LINKED    .pi/extensions/factory/index.js', output)
+        self.assertIn('adapter-check: FAIL', output)
+
+    def test_a_launcher_without_its_executable_bit_fails(self):
+        launcher = self.project / 'tools/agents/run'
+        launcher.chmod(0o644)
+        code, output = self.run_check()
+        self.assertEqual(code, 1, output)
+        self.assertIn('MODE      tools/agents/run', output)
+        self.assertIn('chmod +x', output)
+        self.assertIn('adapter-check: FAIL', output)
+        launcher.chmod(0o755)
+        code, output = self.run_check()
+        self.assertEqual(code, 0, output)
+
+    def test_a_reference_mode_is_checked(self):
+        factory = self.tagged_factory()
+        (self.project / 'tools/agents/run').chmod(0o644)
+        code, output = self.run_check('--ref', 'v1.0.0', '--repo', str(factory))
+        self.assertEqual(code, 1, output)
+        self.assertIn('MODE      tools/agents/run', output)
+
     def test_a_hand_edited_copy_fails_and_names_its_repair(self):
         edited = self.project / '.dsh/plugins/factory/index.js'
         edited.write_text(edited.read_text() + '\n// a local hand edit\n')
