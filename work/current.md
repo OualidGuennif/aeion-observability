@@ -2,10 +2,10 @@
 
 ## DeepSeek front, cockpit and Langfuse brief — ACTIVE
 - Owner decision: 2026-11-02, begin the implementation brief at `/Users/wallseven/Desktop/AEion./aeion-lifecycle/aeion-observability/DEEPSEEK_FRONT_COCKPIT_LANGFUSE_2026-11-02.md` after the GitHub publication.
-- State: the brief is read through B8 and the repository boundaries; no implementation change has started. The GitHub publication it waited on is done: [PR #11](https://github.com/OualidGuennif/aeion-observability/pull/11) merged to `main` as `3d9ae70` (squash); `develop` carries the merge `fc795e3`.
-- Next: use the `plan` skill for the smallest local slice that fixes B1/B2 wiring and the cockpit-to-Langfuse journey, then implement it; paid inference, remote publication, credential reads and new orchestration platforms remain unauthorized (who: agent).
+- State: the brief is read through B8 and the repository boundaries; its first offline slice is implemented at the current `develop` head (not pushed): the review circuit holds `review_input_too_large` / `author_identity_unknown` instead of approving an excerpt, an approval records whole-file coverage and a content digest, the exporter reports `exported_unconfirmed` or `export_failed` instead of `emitted`, and the budget day is explicit `Europe/Paris`. The GitHub publication it waited on is done: [PR #11](https://github.com/OualidGuennif/aeion-observability/pull/11) merged to `main` as `3d9ae70` (squash); `develop` carries the merge `fc795e3`.
+- Next: wire `FactoryApp` to the same admitted target, injected offline builder, exporter and budget as `qualify_forum_build.py`, with an explicit simulator and a Live mode held for missing qualification (B1/slice 3); then expose trace confirmation per build in the cockpit (slice 4); paid inference, remote publication, credential reads and new orchestration platforms remain unauthorized (who: agent).
 - Blocker: none; the brief itself withholds spend and publication until a later owner authorization.
-- Evidence: the brief path above; [validation](validation.md#publication-to-main-through-pr-11--2026-11-02).
+- Evidence: the brief path above; [publication](validation.md#publication-to-main-through-pr-11--2026-11-02); [first slice](validation.md#review-coverage-trace-delivery-and-the-budget-day--2026-11-02).
 
 ## Æion Factory v1.9.2 update for observability and forum — ACTIVE
 - Owner decision: 2026-11-02, update both adopted projects to Factory v1.9.2 through `template-update`; this repository and `demo/.local/factory/agents/aeion-autonomous-forum`.

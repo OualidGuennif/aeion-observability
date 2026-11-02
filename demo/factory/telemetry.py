@@ -52,6 +52,35 @@ def build_attributes(build_id, feature_id, attempt_id, artifact_digest=None, bas
     return attributes
 
 
+class _RecordingExporter:
+    """Remember what the transport actually answered; a created span is not a delivery.
+
+    ``SimpleSpanProcessor`` discards the exporter's return value, so the wrapper keeps it. A
+    successful export still proves only that the local exporter accepted the span: the backend
+    receipt is a separate readback and is never claimed here.
+    """
+
+    def __init__(self, exporter):
+        self.exporter = exporter
+        self.result = None
+        self.error = None
+
+    def export(self, spans):
+        try:
+            self.result = self.exporter.export(spans)
+            return self.result
+        except Exception as exc:  # noqa: BLE001 - the failure becomes evidence, not a crash
+            from opentelemetry.sdk.trace.export import SpanExportResult
+            self.error = type(exc).__name__
+            return SpanExportResult.FAILURE
+
+    def force_flush(self, timeout_millis=None):
+        return self.exporter.force_flush(timeout_millis)
+
+    def shutdown(self):
+        return self.exporter.shutdown()
+
+
 class FactoryTelemetry:
     def __init__(self, endpoint=None, service_name=SERVICE_NAME, enabled=True):
         self.endpoint = endpoint or os.environ.get("AEION_FACTORY_OTLP_TRACES", DEFAULT_ENDPOINT)
@@ -74,20 +103,32 @@ class FactoryTelemetry:
         )
         provider = TracerProvider(
             resource=Resource.create({"service.name": self.service_name}))
-        provider.add_span_processor(SimpleSpanProcessor(
-            OTLPSpanExporter(endpoint=self.endpoint, timeout=5)))
+        recorder = _RecordingExporter(
+            OTLPSpanExporter(endpoint=self.endpoint, timeout=5))
+        provider.add_span_processor(SimpleSpanProcessor(recorder))
         tracer = provider.get_tracer("aeion.factory", "1")
         started = time.time_ns()
         span = tracer.start_span(SPAN_NAME, attributes=attributes, start_time=started)
         span.end(end_time=time.time_ns())
-        provider.force_flush()
+        try:
+            provider.force_flush()
+        finally:
+            provider.shutdown()
         context = span.get_span_context()
         evidence = {
-            "status": "emitted",
             "trace_id": format(context.trace_id, "032x"),
             "span_id": format(context.span_id, "016x"),
             "session_id": SESSION_PREFIX + build_id,
             "endpoint": self.endpoint,
         }
-        provider.shutdown()
+        if getattr(recorder.result, "name", None) == "SUCCESS":
+            # Local export only; the Langfuse readback is what confirms storage.
+            evidence.update(status="exported_unconfirmed", confirmation="not_read_back")
+        else:
+            evidence.update(
+                status="export_failed",
+                reason=recorder.error or (
+                    "exporter_returned_failure" if recorder.result is not None
+                    else "exporter_not_called"),
+            )
         return evidence

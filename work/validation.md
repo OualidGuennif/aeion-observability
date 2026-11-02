@@ -750,3 +750,32 @@ The reviewed `develop` head was released to protected `main` through
 | `main` carries exactly the released tree | `git rev-parse 0afe95b^{tree} origin/main^{tree}` | both `97285ec054dcbe8ca660e3555577060a4ed6739e` |
 | `develop` does not diverge after the squash | `git merge origin/main` on `develop` | merge `fc795e3`; no content change |
 | CI reached the local-only tests at their cause | `demo/tests/test_forum_target_profile.py` `setUp` skip | five profile tests skipped when the product checkout is absent; 426 tests OK, 12 skipped locally |
+
+## Review coverage, trace delivery and the budget day — 2026-11-02
+
+The first offline slice of the DeepSeek cockpit brief closes two truthfulness gaps that the
+owner journey depends on: a review must never approve bytes its voters did not receive, and a
+trace id must never be displayed as a delivered record. The budget day is now explicit.
+
+| Claim | Evidence | Result |
+| --- | --- | --- |
+| An oversized review is held, not truncated | `test_factory_modelfarm.py::test_oversized_single_file_is_held_without_calling_a_model`; 20,000-char file | `held` / `review_input_too_large`; no model call |
+| A tail file can no longer disappear | `test_factory_modelfarm.py::test_a_tail_file_never_disappears_from_the_review_envelope` | held before any vote; coverage lists both paths |
+| An unknown author cannot start a review | `test_factory_modelfarm.py::test_an_unknown_author_cannot_start_a_review` | `held` / `author_identity_unknown`; no vote |
+| An approval records complete coverage | `test_an_approved_circuit_records_complete_coverage` | `coverage.complete` true, files, 64-char content digest |
+| A timeout holds the circuit | `test_a_timeout_holds_the_circuit` | `held` / `reviewer_failed` |
+| A failed export is not "emitted" | `test_factory_telemetry.py::test_an_exporter_failure_is_not_reported_as_emitted` | `export_failed` / `exporter_returned_failure` |
+| An exporter exception is evidence | `test_an_exporter_exception_is_recorded_as_a_failure` | `export_failed` / `ConnectionError` |
+| A successful local export claims only that | `test_a_span_is_created_with_the_expected_attributes` | `exported_unconfirmed`, `confirmation=not_read_back` |
+| The offline qualification still passes after the change | `demo/tests/qualify_forum_build.py`; build `1f5e916a…`, attempt `03e32bd7…`, artifact `6b78a27a…` | gate passed, Gradle 0 in 19.3 s, review approved, `exported_unconfirmed` |
+| The read-back confirms that trace | Langfuse `GET /api/public/v2/observations?traceId=e0d6b3cc…` | PASS on build, feature, attempt, artifact and session |
+| The budget day is Europe/Paris | `test_factory_budget.py::test_the_budget_day_is_europe_paris_across_midnight` | 23:30 UTC is the next Paris day |
+| A default budget uses that day | `test_a_default_budget_uses_the_paris_day` | reservation recorded on `2026-11-03` |
+| Full demo suite | `demo/.local/venv/bin/python -m unittest discover -s demo/tests` | 434 tests OK |
+| Documentation | `tools/knowledge/doc-links`; `tools/knowledge/knowledge-check`; `tools/repo-health/repo-health` | PASS |
+
+Honest scope: no real provider or browser acceptance ran for this slice. The offline qualification
+did run its real Gradle check and a bounded Langfuse read-back: the exporter still reported
+`exported_unconfirmed`, and the separate read-back supplied the confirmation. The cockpit does not
+yet show that confirmation; the next slice wires it. The check environment still executes
+candidate Gradle tests on the host (B6), so Live stays held.

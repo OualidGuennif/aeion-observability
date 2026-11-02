@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Refuse an incomplete review instead of approving an excerpt. `review_circuit.py` now builds the
+  complete changed bytes into one bounded envelope; an oversized input holds with
+  `review_input_too_large` before any model is called, an unknown author holds with
+  `author_identity_unknown` because its family cannot be excluded, and an approval records
+  whole-file coverage plus a content digest. The factory exporter no longer reports a created
+  span as `emitted`: it returns `exported_unconfirmed` only when the local transport accepted the
+  span, `export_failed` when it refused or raised, and reserves "confirmed" for a Langfuse
+  read-back. The daily budget day is explicit `Europe/Paris`, not the host's local zone.
+
 - Reap orphaned OpenShell containers instead of letting them burn CPU forever. Nine
   supervisor/sandbox pairs from an interrupted 2026-11-01 qualification were still running 14
   hours later (each supervisor used 5–22% CPU); the gateway had no records for them.
