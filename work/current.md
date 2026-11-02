@@ -1,5 +1,12 @@
 # Current work
 
+## Publish the lifecycle slices to main — ACTIVE
+- Owner decision: 2026-11-02, "okay tu peux tout push sur main" — publish the local `develop` work (review coverage, trace delivery, Paris budget day, Factory v1.9.2, explicit execution path) to protected `main`.
+- State: local `develop` is six commits ahead of `origin/develop`; 445 demo tests, `tools/factory-tests`, `doc-links`, `knowledge-check` and `repo-health` pass. Nothing is pushed yet.
+- Next: exact-head review, push `develop`, open the release PR, wait for the required checks, squash-merge, then sync `develop` and record the merge SHA (who: agent).
+- Blocker: none; `main` is protected, so the merge goes through the PR only.
+- Evidence: commits `ae1c181`, `cd0ff3b`, `daa03de`, `cea89db`, `6492532` plus the v1.9.2 test refresh; [validation](validation.md#publication-to-main-through-pr-11--2026-11-02).
+
 ## DeepSeek front, cockpit and Langfuse brief — ACTIVE
 - Owner decision: 2026-11-02, begin the implementation brief at `/Users/wallseven/Desktop/AEion./aeion-lifecycle/aeion-observability/DEEPSEEK_FRONT_COCKPIT_LANGFUSE_2026-11-02.md` after the GitHub publication.
 - State: the first offline slices are implemented at the current `develop` head (not pushed): the review circuit holds `review_input_too_large` / `author_identity_unknown` instead of approving an excerpt, an approval records whole-file coverage and a content digest, the exporter reports `exported_unconfirmed` or `export_failed` instead of `emitted`, the budget day is explicit `Europe/Paris`, and `FactoryApp` now resolves one explicit execution (`simulator` or `offline`) instead of silently faking. Queuing 013 on the live store is held `dependency_missing` because dependency 001 has no merged evidence; the offline builder and check were proven through `FactoryApp.tick` with a fixture catalog. The GitHub publication it waited on is done: [PR #11](https://github.com/OualidGuennif/aeion-observability/pull/11) merged to `main` as `3d9ae70` (squash); `develop` carries the merge `fc795e3`.

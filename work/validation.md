@@ -791,6 +791,8 @@ with the factory's own `template-update` (the vendored 1.9.1 copy cannot update 
 | Both write only that file | same command without `--check` | `written .pi/extensions/factory/index.js`; VERSION, knowledge/, work/, CHANGELOG.md, AGENTS.md and the other harness settings untouched |
 | Connectors match the release | `adapter-check --ref v1.9.2` on both roots | 27/27 matching, 0 drifted, PASS on each |
 | The 1.9.2 behavior is the new one | diff: the `tool_result` compaction block is gone; `Stop` now receives `observed_tokens` at `agent_before_settle`; a one-shot print run ends with a pointer to the verified handover | matches the factory 1.9.2 changelog |
+| The vendored Pi test matches the connector | `tools/agents/tests/test_pi.mjs` refreshed from tag `v1.9.2`; it was byte-identical to `v1.9.1` before | `tools/factory-tests: PASS`, including the two settlement-compaction tests |
+| The Pi README documents the new boundary | `.pi/README.md` refreshed from `v1.9.2` | states the clean one-shot stop and interactive settlement compaction |
 | The application version is separate | root `VERSION` still `1.9.0`; adopted contracts are v1.9.2 | not overwritten, as the brief requires |
 | Forum change is local | `ab72692` in `demo/.local/factory/agents/aeion-autonomous-forum` | committed, not pushed |
 
