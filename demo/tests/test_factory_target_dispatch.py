@@ -195,7 +195,8 @@ class TargetDispatchTests(unittest.TestCase):
         build = self.store.board()[0]
         self.assertEqual(build["status"], HELD)
         self.assertEqual(build["hold_reason"], "sandbox_unqualified")
-        self.assertIsNone(build["attempt_id"])
+        dispatched = next(e for e in self.store.events(build["build_id"]) if e["event"] == "dispatched")
+        self.assertEqual(build["attempt_id"], json.loads(dispatched["detail"])["attempt_id"])
 
     def test_a_failed_paid_builder_receipt_names_its_own_author(self):
         class FailingBuilder:

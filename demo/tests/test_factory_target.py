@@ -5,8 +5,10 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from factory import target as target_module
 from factory.target import TargetError, load_target
 
 
@@ -87,6 +89,55 @@ class TargetTests(unittest.TestCase):
         target.materialize(destination)
         with self.assertRaisesRegex(TargetError, "destination_exists"):
             target.materialize(destination)
+
+    def test_materializes_fetched_main_from_a_shallow_dirty_checkout_on_another_branch(self):
+        git(self.source, "branch", "-M", "main")
+        git(self.source, "branch", "develop")
+        shallow = self.root / "shallow"
+        git(self.root, "clone", "--quiet", "--depth=1", "--branch", "develop",
+            self.source.as_uri(), str(shallow))
+        relative = "demo/forum-app/src/main/java/local/aeion/forum/ForumHealth.java"
+        (self.source / relative).write_text("package local.aeion.forum; // new main\n")
+        git(self.source, "commit", "-qam", "new main")
+        main = git(self.source, "rev-parse", "HEAD").stdout.strip()
+        git(shallow, "fetch", "--quiet", "--no-tags", self.source.as_uri(),
+            "refs/heads/main:refs/remotes/origin/main")
+        (shallow / relative).write_text("operator draft\n")
+        (shallow / "untracked.txt").write_text("operator data\n")
+        before = git(shallow, "status", "--porcelain").stdout
+        data = profile_data(main)
+        data["base"]["source"] = "shallow"
+        target = self.load(data)
+
+        destination = self.root / "work/repo"
+        self.assertEqual(target.materialize(destination), main)
+        self.assertEqual((destination / relative).read_text(),
+                         "package local.aeion.forum; // new main\n")
+        self.assertFalse((destination / "untracked.txt").exists())
+        self.assertEqual(git(destination, "status", "--porcelain").stdout, "")
+        self.assertEqual(git(shallow, "rev-parse", "HEAD").stdout.strip(), self.sha)
+        self.assertEqual(git(shallow, "status", "--porcelain").stdout, before)
+        self.assertEqual((shallow / relative).read_text(), "operator draft\n")
+        self.assertEqual((shallow / "untracked.txt").read_text(), "operator data\n")
+
+    def test_failed_exact_base_fetch_removes_only_the_incomplete_clone(self):
+        target = self.load()
+        destination = self.root / "work/repo"
+        real_git = target_module._git
+
+        def fail_fetch(args):
+            if "cat-file" in args and "-e" in args:
+                return subprocess.CompletedProcess(args, 1, "", "missing object")
+            if "fetch" in args:
+                return subprocess.CompletedProcess(args, 1, "", "PRIVATE_DIAGNOSTIC")
+            return real_git(args)
+
+        with patch.object(target_module, "_git", side_effect=fail_fetch):
+            with self.assertRaisesRegex(TargetError, "^base_fetch_failed$"):
+                target.materialize(destination)
+        self.assertFalse(destination.exists())
+        self.assertEqual(git(self.source, "rev-parse", "HEAD").stdout.strip(), self.sha)
+        self.assertEqual(git(self.source, "status", "--porcelain").stdout, "")
 
     def test_rejects_a_sha_that_is_not_a_commit(self):
         data = profile_data(self.sha)

@@ -1,15 +1,18 @@
 ---
 id: 065
+sequence: 63
 title: "Reply policy"
 area: agents
 size: M
 parallel: false
 phase: P3
 tier: 3
-write_paths: ["demo/forum/product/"]
-depends_on: [022, 048, 059]
+write_paths: ["demo/forum-app/"]
+depends_on: [022, 048, 059, 060, 020]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 065 — Reply policy
@@ -21,9 +24,19 @@ Decide when an agent replies — mentioned, quoted, or thread interest — with 
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_d.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Define metadata-only reply/skip/defer policy from the reviewed persona.
+2. Add atomic per-agent/thread/hour admission under existing sanctions.
+3. Test mentions, hidden targets and concurrent third-reply refusal.
+
+**Scope:**
 
 - A policy function returning reply, skip or defer with a reason.
 - At most two replies from one agent in a thread per hour.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_d.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

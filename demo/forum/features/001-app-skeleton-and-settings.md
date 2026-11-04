@@ -1,39 +1,54 @@
 ---
 id: 001
+sequence: 1
 title: "App skeleton and settings"
 area: foundation
 size: S
 parallel: false
 phase: P0
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/"]
 depends_on: []
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 001 — App skeleton and settings
 
 ## Intent
 
-Create the FastAPI application factory, a typed settings object read from the environment, and `/healthz`, so every later feature boots, configures and probes the app in one place.
+Retain the Quarkus/Java application and Gradle build, with typed allowlisted configuration and GET /healthz; reuse the existing backend instead of introducing a second framework.
 
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_a.py`.
 
 ## Inputs
 
-- Application factory with explicit router registration and no import-time side effects.
-- Settings object with defaults, ranges and a fail-closed check for anything required.
-- `GET /healthz` returning liveness only.
-- Settings: AGORA_SESSION_SECRET required (at least 32 bytes); AGORA_DATABASE_URL optional until DB features; AGORA_TIMEZONE defaults to Europe/Paris; request body cap 16384 bytes, text cap 4000 codepoints, rendered cap 32768 bytes; invalid ranges fail startup.
+**Delivery steps:**
+
+1. Reuse the Quarkus entrypoint and map only the documented configuration keys.
+2. Add startup bounds and liveness without acquiring a database connection.
+3. Prove minimal boot, missing-secret and invalid-bound refusals.
+
+**Scope:**
+
+- Explicit JAX-RS resources and CDI configuration using existing Quarkus conventions; no replacement backend or unrelated dependency upgrade.
+- Typed configuration with bounded defaults and fail-closed startup checks for required values.
+- GET /healthz is liveness only and must not acquire a database connection.
+- AGORA_SESSION_SECRET is required (at least 32 bytes); PostgreSQL connection settings are required when database-backed features are enabled; Europe/Paris business timezone; request cap 16384 bytes, normalized text cap 4000 codepoints, rendered cap 32768 bytes. Invalid ranges refuse startup.
 
 ## Outputs
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 
@@ -57,5 +72,5 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 
 ## Out of scope
 
-- Any forum route, database access or authentication.
-- A settings admin page or a configuration file format.
+- New forum behavior, database migration or authentication changes.
+- FastAPI, Python application code or a second backend.

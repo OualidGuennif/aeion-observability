@@ -16,8 +16,33 @@ test('the model targets the loopback relay with counted, role-compatible request
   assert.deepEqual(model.cost, { input: 0.15, output: 0.5, cacheRead: 0.03, cacheWrite: 0 });
 });
 
+test('only a bounded supervisor setting can increase the output window', () => {
+  const meta=JSON.parse(env.AEION_MODEL_JSON);
+  assert.equal(modelFromEnv({...env,AEION_MODEL_JSON:JSON.stringify({...meta,maxOutputTokens:65536})}).maxTokens,65536);
+  for(const value of [0,65537,true,Infinity]) {
+    assert.throws(()=>modelFromEnv({...env,AEION_MODEL_JSON:JSON.stringify({...meta,maxOutputTokens:value})}));
+  }
+});
+
 test('a non-loopback endpoint, a missing token or missing metadata is refused', () => {
   assert.throws(() => modelFromEnv({ ...env, AEION_RELAY_URL: 'https://opencode.ai/inference/go/openai/v1' }));
   assert.throws(() => modelFromEnv({ ...env, AEION_RELAY_TOKEN: '' }));
   assert.throws(() => modelFromEnv({ ...env, AEION_MODEL_JSON: '{}' }));
+});
+
+test('Anthropic SDK appends /v1/messages once and retains the supervisor session', () => {
+  const model = modelFromEnv({ ...env, AEION_CONVERSATION_ID: 'fixture-review-1',
+    AEION_MODEL_JSON: JSON.stringify({ id: 'qwen3.8-flash', name: 'Qwen', context: 1000000,
+      api: 'anthropic-messages', input: 0.15, output: 0.47, cacheRead: 0.016, cacheWrite: 0.2 }) });
+  assert.equal(model.baseUrl, 'http://127.0.0.1:43210');
+  assert.equal(model.headers['x-opencode-session'], 'fixture-review-1');
+});
+
+test('DeepSeek declares its native thinking protocol and explicit effort mapping', () => {
+  const model=modelFromEnv({...env,AEION_MODEL_JSON:JSON.stringify({
+    ...JSON.parse(env.AEION_MODEL_JSON),id:'deepseek-v4.1-flash'})});
+  assert.equal(model.compat.thinkingFormat,'deepseek');
+  assert.equal(model.compat.supportsReasoningEffort,true);
+  assert.equal(model.thinkingLevelMap.low,'low');
+  assert.equal(model.thinkingLevelMap.medium,'high');
 });

@@ -1,0 +1,243 @@
+---
+type: Component
+title: "Flue factory execution"
+description: "Deterministic supervision of untrusted Flue/Pi workers, isolated tools and protected publication."
+status: draft
+sources:
+  - resource: ../../demo/factory/
+    title: "Factory supervisor, routing and publication"
+  - resource: ../../demo/app/sandbox.py
+    title: "OpenShell boundary"
+  - resource: ../../demo/app/bridge.py
+    title: "Capability-scoped tool bridge"
+  - resource: ../../demo/flue/src/
+    title: "Pinned harness and metadata observer"
+  - resource: ../../work/product-ci-bootstrap-2026-11-03/ci.yml
+    title: "Merged trusted product CI bootstrap"
+---
+
+# Flue factory execution
+
+## Intent
+
+Build selected product features with Flue/Pi and tier-3 OpenShell tools, then deterministically
+validate, review, publish and confirm the result on main. LLM output and recalled memory never
+hold authority. A successful cycle is a confirmed merge, not a generated file or opened PR.
+
+## Data sources
+
+Pinned product/target/contract and harness/image identities define the execution. Trusted
+supervisor receipts define comparable model outcomes. Langfuse, claude-mem and Hindsight store
+bounded metadata/checkpoints; recalled text is advisory and cannot edit policy or scores.
+
+## Inputs
+
+A maintainer bootstrap may deterministically import an already committed backend snapshot onto
+the frozen empty-template main base. Its author is a byte-preserving import, not an invented
+model identity. Two different eligible Flue models review all published bytes. The exception
+admits only exact hashed CI/component/changelog/task documents owned by the supervisor; ordinary
+worker/publication scopes still forbid policy files. The actual isolated backend checks, immutable
+source identity, two complete real votes and current lease must pass before any remote write
+(test_factory_bootstrap). This does not certify the new100-feature PostgreSQL/React contracts.
+An expired bootstrap lease is never extended to keep spending. Only an exact unchanged bundle
+with all prior costs known/settled, a completed first approval, an unforwarded failed second vote
+and no publication job may carry that approval to a fresh attempt. The old attempt is fenced and
+retained; an unknown cost or remote effect refuses this recovery (test_factory_bootstrap).
+Worker completion and publication staging also verify the unexpired worker lease in their own
+SQLite transaction. A still-dispatched stale process cannot enqueue a future remote effect or
+complete the feature while waiting for restart reconciliation (test_factory_publication_state,
+test_factory_recovery).
+A known tree-creation403 can be explicitly rearmed after the owner fixes the publisher's
+permissions. The two existing approvals/checks remain bound to the unchanged request; isolated
+publisher reads must confirm the original main and absence of the attempt's branch and PR.
+Unknown effects, changed payload, cancellation or an active lease refuse rearming. This local
+retry starts no model and changes no remote ref (test_factory_publication_state,test_factory_bootstrap).
+
+Before freezing a live task, a short-lived source synchronizer loads only the build read key.
+It fetches the fixed product main into a unique temporary Git ref, checks ancestry and atomically
+updates `refs/remotes/origin/main` against its previous SHA. No checkout/reset/stash or remote
+write occurs; local HEAD and dirty/untracked files remain intact. Concurrent ref changes or a
+rewritten remote main hold before any model reservation. Fetch diagnostics and credentials never
+enter receipts; parent inference/publication keys are absent from the child environment. The
+source module participates in the activation protocol hash (test_factory_source_sync,
+test_factory_preparation). Git's [fetch](https://git-scm.com/docs/git-fetch) and
+[conditional ref update](https://git-scm.com/docs/git-update-ref) define these operations.
+Materialization also supports shallow source checkouts whose frozen main exists only in a
+remote-tracking ref: if the fresh clone lacks that commit, fetch its exact SHA from the local
+source without updating a branch or FETCH_HEAD. A failed fetch removes only the incomplete
+clone and reports a fixed error, never private Git diagnostics; the source HEAD and operator
+edits remain unchanged (test_factory_target).
+
+Authenticated CSRF-protected feature selection; a validated tier-3 target; a qualified model
+from the explicit four-model whitelist; operator-configured inference, publisher and release
+roles in separate processes. No agent receives host credentials, source paths or authority
+to select a repository, expand scopes, change tests, change budget or merge.
+
+Automatic preparation freezes the complete catalog MD, approved architecture, committed product
+base and narrower literal scopes before implementation. A separate tier-1 Flue preparer may
+propose one bounded JUnit contract, never a command or policy. The supervisor chooses the
+Gradle command and runs that contract outside the candidate. An already-green baseline,
+compilation/toolchain failure, missing architecture or unsupported checker is a hold; only
+an actual failing contract case on the untouched baseline establishes a useful negative
+control. The initial adapter covers the current Java checker; PostgreSQL transition and web
+checker qualification remain explicit unfinished work, not silently accepted features.
+
+The PostgreSQL check boundary uses a new disposable PostgreSQL 17 container per check, network
+`none`, RAM-only data, no host paths or published ports. A non-root checker joins only that
+container's network namespace; localhost reaches the disposable database, external routes stay
+absent. Test credentials apply only to this disposable instance. Both containers are removed
+and absence is confirmed on success, timeout or failure. This boundary alone does not qualify
+the migration/restore contract or React adapter (test_factory_postgres, qualify_postgres.py).
+The activation receipt must explicitly qualify PostgreSQL migration/restore, application role
+limits and the React production browser/API path, plus a non-synthetic confirmed protected-main
+publication. The protocol digest also binds the approved architecture bytes. A Java-only receipt
+cannot activate these product launches (test_factory_qualification); adding these required fields
+does not itself produce any qualification evidence.
+Preparation, the builder's repair feedback and the final gate share the same supervisor-selected
+checker instance; a builder must not silently recreate a different database/check boundary
+(test_factory_execution).
+
+Shared checker tool provisioning is separate from untrusted execution. The pinned public
+JDK/Playwright base images and exact npm lock build one non-root checker image, with no product
+source, credentials or operator data in its build context. Dependency fetches occur only during
+this trusted provisioning; candidates execute offline against read-only tools/caches and an
+owned disposable loopback namespace. Browser sandboxing, negative controls and actual API/DB
+fixtures must pass before the image can qualify PostgreSQL/React feature execution.
+The [dated Chromium qualification](../../work/chromium-security-2026-11-03.md) records the
+actual non-root namespace/Seccomp-BPF/TSYNC checks, absent Yama protection, pinned profile,
+primary sources and the requirement to separate untrusted build processes from browser checks.
+
+Disposable PostgreSQL separates its random bootstrap-administrator, migration-owner and
+application credentials. The candidate application receives only the non-superuser application
+role, with data access and no database/schema creation. Migration credentials remain with the
+supervisor's isolated migration job; no static known owner password is shared with candidate
+code. Native qualification proves ordinary reads/writes and refused application DDL/role changes;
+these boundary checks do not certify product migration/restore or audit-specific grants.
+
+Native inference uses OpenAI completions for GLM/DeepSeek and Anthropic messages for
+Qwen/Haiku. The pinned Anthropic SDK appends `/v1/messages?beta=true`; its model base URL is
+the relay origin, with a supervisor-issued stable conversation header. The relay admits only
+the exact plain/beta paths and forwards to its fixed upstream; arbitrary queries cannot select
+an endpoint. Haiku requires adaptive thinking with medium effort before forwarding
+(`test_provider_protocols`, Flue provider tests). Synthetic protocol qualification does not
+establish provider acceptance, current billing/privacy evidence or model-quality ranking.
+
+DeepSeek's native `thinking`/`reasoning_effort` protocol is explicitly mapped by the pinned
+Pi1.4.0 adapter: low stays low, medium maps to high. The relay enforces the supervisor's exact
+effort before forwarding. After measured16384-output failures and a32768 budget-stop, the owner
+requested looser local budgets under the existing$15/day ceiling. The full maintainer review
+now uses normal medium/high effort, a65536 maximum output and$1 per execution. Normal4096
+defaults, the300k combined context ceiling and daily purses remain enforced. The first approval
+and all failed attempts remain intact; rejection or unknown usage cannot retry. Public effort metadata
+is retained in Langfuse and memory, never hidden reasoning; profilev3 separates measured cohorts.
+The [DeepSeek thinking guide](https://api-docs.deepseek.com/guides/thinking_mode/) documents the
+effort mapping/defaults (checked2026-11-03). Gateway acceptance is verified by the actual request,
+not inferred from upstream documentation (provider.test.mjs,test_provider_protocols,
+qualify_complete_review.py,test_factory_bootstrap).
+
+The reviewer already receives the complete packet; it has no shell/file capability to reread
+duplicate copies or attempt to run the product. The supervisor owns the real checks. A request
+reserves its maximum input/output cost before forwarding; after complete provider usage, the
+relay retains the larger of resource cost and conservatively priced counted input/actual output.
+Unused output liability is then available inside the same unchanged dollar reservation. Missing
+cost/output or unfinished streams retain their maximum liability; higher resource cost blocks
+later calls. A known closed bootstrap failure caused by cumulative unused reservations may be
+recovered once with the unchanged artifact and first approval, never unknown cost or a rejection
+(test_relay_budget_settlement,test_factory_bootstrap).
+
+The default output ceiling remains4096. A supervisor-bounded complete bootstrap review admits
+at most240000 input bytes,65536output tokens,$1 and900 seconds, with per-forward cost admission
+and the unchanged daily purse. Its exact reviewed CI documentation accompanies the source;
+old frozen bundles remain readable. Pinned tokenizers retain the300k/20k preflight; Qwen/Haiku
+use the measured context policy below. The model cannot increase these bounds. A length
+finish is recorded as OUTPUT_LIMIT rather than opaque CLI_FAILED. Known-cost truncated attempts
+stay recorded before an explicitly resumed review; unknown-cost attempts never auto-retry.
+
+## Outputs
+
+Metadata events and immutable receipts bind model/role/task/runtime, artifact/check/review
+digests, usage basis, budget claims, memory acknowledgments and publication state. Missing
+qualification, usage, checks, voters, privileges or expected base yields a visible hold. An
+uncertain external action is reconciled before retry; no automatic paid-author retry occurs.
+
+## Invariants
+
+1. Live authoring invokes Flue/Pi with tier-3 bridge tools; no direct-model or host-tool fallback.
+2. OpenShell agent sandboxes expose no host mount, Docker socket, network or inference key.
+   Inputs are bounded public bytes; output is validated before entering the candidate clone.
+3. The lower tiers remain distinct: tier 1 in-memory triage, tier 2 confined file tools, tier 3
+   sandboxed shell/files. Product implementation is always tier 3.
+4. Profiles with a pinned local tokenizer reserve output/framing and refuse allocations above
+   300000 before forwarding. Qwen/Haiku have no exact local tokenizer: their byte bound reserves
+   cost only and cannot refuse a launch as a token count. They launch bounded inputs and gate the
+   next call on complete API usage including cache; unknown usage holds, native250k hands over
+   and native input+output above300k fails. There is no independent first-call300k preflight
+   guarantee for these profiles. Handover remains supervisor-written, hashed and verified.
+5. Model selection uses only comparable verified real outcomes, with deterministic tie breaks
+   and explicit cold-start priors. No memory, trace, vote or agent can grant capability.
+6. Two approving eligible models from different families, excluding the author and each other,
+   must bind the complete identical artifact; missing/reject/error never means approval.
+7. The publisher/merger has no inference role. It verifies stored evidence, required CI and
+   exact PR head/base before a protected merge. A concurrent change invalidates approval.
+8. Real data/history/budget liabilities survive restart. Synthetic qualification never marks
+   a real feature implemented and never supplies model-quality ranking evidence.
+9. Routing records are immutable and idempotent per attempt/role/model in the existing SQLite
+   store. Only matching trusted area/size/architecture/check/runtime-method cohorts participate.
+   Unknown costs remain unknown; ranking by observed cost requires complete measurements and
+   at least three outcomes for at least two eligible models. Cold-start selection is explicitly
+   labeled prior-based; a valid reject and a valid approve both measure protocol reliability,
+   never independent proof that the review was correct. Unknown outcomes and no-forward budget/local errors do not count as measured model failures (test_factory_routing, test_factory_review_circuit).
+10. Progress changes require the current dispatched attempt and cancellation generation.
+    A cancelled or replaced attempt cannot overwrite displayed progress. Only fixed phases,
+    allowed model identities and bounded counts/check statuses reach SSE (test_factory_progress).
+11. Cancellation revokes future publication effects but cannot undo an in-flight remote merge.
+    Unresolved publication keeps that feature unavailable. A late independently confirmed real
+    main SHA is recorded as integration evidence without reviving the cancelled attempt;
+    synthetic or unconfirmed responses never lock a feature as implemented
+    (test_factory_publication_state).
+12. A no-attempt dependency hold wakes automatically only for the unchanged admitted catalog.
+    Queued or waiting requests from a changed catalog stay held as `catalog_changed`; no paid
+    attempt is replayed and no request silently adopts new scopes/specs (test_factory_store).
+13. Every factory model forward rechecks the current dispatched lease and cancellation
+    generation; revocation stops the next request. An already forwarded call may still finish.
+    Relay teardown waits for its final usage accounting; an unquiesced handler leaves usage
+    unknown (test_factory_recovery, test_provider_protocols).
+
+14. Generated acceptance is frozen and fully reviewed with the MD and artifact. Its preparer
+    cannot build or cast either approval. A baseline initialization/compiler failure cannot
+    substitute for an actual JUnit assertion failure (test_factory_preparation,
+    test_factory_review_circuit, test_factory_vote_integrity).
+15. Protected contract install/read/cleanup refuses candidate-controlled symlinks and confines
+    all parent paths. Frozen contract drift fails before execution; cleanup never follows a
+    replaced parent into host files. Candidate JUnit extensions, service providers, platform
+    properties, foreign packages and skipped/unreported contract XML results are refused
+    (test_factory_target_check, test_factory_live).
+16. Completed role memory exports contain bounded identity/cost/check metadata only, with exact
+    stored-record readbacks. Backends may fail without changing the role result or granting
+    model/capability authority. Canonical outcomes remain in SQLite (test_factory_memories).
+17. Completion and dependency evidence applies only to the exact feature metadata, canonical MD
+    and approved architecture contract. Historical rows without that identity remain visible but
+    cannot certify rewritten specs. Unrelated catalog edits preserve unchanged proofs. Admission
+    may retire an obsolete queued/no-attempt hold, never a possibly paid attempt or uncertain
+    publication. On-disk spec drift holds before preparation; legacy baseline verifiers cannot
+    stamp a new architecture contract (test_factory_contract_identity).
+18. Gradle build files, wrappers, settings, properties and version catalogs receive the same
+    dependency-policy hold in the deterministic review and publisher. A model approval never
+    authorizes a build-policy transition (test_factory_review, test_factory_publish).
+
+## Determinism
+
+Authority is deterministic and fail closed. Generated code/review text is untrusted. Decisions
+and bounds are replayable from pinned inputs and recorded metadata, not model confidence.
+
+## Acceptance checks
+
+Run boundary, relay, factory/harness, routing and forge tests, real OpenShell isolation probes,
+three-tier harness qualification and a real Flue/bridge/protected-check pipeline with local
+fake inference/forge. Read back metadata from all three backends. Test stale heads, incomplete
+CI, contradictory votes, unknown cost, malicious artifact paths and teardown failures.
+
+## Out of scope
+
+Direct pushes/force pushes to main, bypassed branch protection, external data in telemetry,
+general benchmark claims, automatic policy tuning by memory, and unqualified fallback models.

@@ -14,7 +14,7 @@ const { input, resultFile } = triageFromEnv();
 const submit = submitTriage(input, resultFile);
 
 export function Triage() {
-  useModel(model, { compaction: false });
+  useModel(model, { compaction: false, thinkingLevel: 'medium' });
   useSandbox(bash(() => new Bash({
     fs: new InMemoryFs({ '/data/events.json': JSON.stringify(input.events, null, 2) + '\n' }),
     cwd: '/data',

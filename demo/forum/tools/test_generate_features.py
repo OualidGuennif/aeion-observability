@@ -17,6 +17,25 @@ class CatalogTests(unittest.TestCase):
     def test_current_catalog_is_valid(self):
         self.assertEqual(catalog.validate(), [])
 
+    def test_execution_order_is_complete_stable_and_respects_every_dependency(self):
+        ordered = catalog.execution_order()
+        self.assertEqual(len(ordered), 100)
+        positions = {s['id']: i for i, s in enumerate(ordered)}
+        for item in ordered:
+            for dep in item['deps']:
+                self.assertLess(positions[dep], positions[item['id']])
+        self.assertEqual([s['id'] for s in ordered], [s['id'] for s in catalog.execution_order()])
+        self.assertEqual(sorted(positions), list(range(1, 101)))
+
+    def test_each_feature_has_a_short_delivery_recipe(self):
+        for spec in catalog.SPECS:
+            self.assertEqual(len(spec['delivery']), 3, spec['id'])
+            rendered = catalog.render(spec)
+            self.assertLessEqual(len(rendered.split()), 900, spec['id'])
+            self.assertIn('**Delivery steps:**', rendered)
+        errors = self.validate(lambda s: s[63].update(delivery=[]))
+        self.assertTrue(any('delivery steps' in e for e in errors))
+
     def test_forward_dependency_is_not_a_cycle(self):
         errors = self.validate(lambda s: s[16]["deps"].append(18))
         self.assertEqual(errors, [])
@@ -46,17 +65,48 @@ class CatalogTests(unittest.TestCase):
                 self.assertTrue(any("tier 3" in e for e in errors))
 
     def test_write_scopes_cannot_reach_factory_or_escape(self):
-        paths = ["demo/app/runner.py", "demo/forum/product/../PLAN.md",
-                 "demo/forum/product/.git/config", "demo/forum/product/**",
-                 "/demo/forum/product/app.py", "demo/forum/product/app\\escape.py"]
+        paths = ["demo/app/runner.py", "demo/forum-app/../PLAN.md",
+                 "demo/forum-app/.git/config", "demo/forum-app/**",
+                 "/demo/forum-app/app.py", "demo/forum-app/app\\escape.py",
+                 "demo/forum-app/./x.java", "demo/forum-app//x.java",
+                 "demo/forum-mobile/App.tsx", "demo/forum/product/app.py"]
         for path in paths:
             with self.subTest(path=path):
                 errors = self.validate(lambda s: s[77].update(write_paths=[path]))
                 self.assertTrue(any("write scopes" in e for e in errors))
 
     def test_parallel_feature_cannot_reserve_everything(self):
-        errors = self.validate(lambda s: s[77].update(write_paths=[catalog.PRODUCT]))
+        errors = self.validate(lambda s: s[77].update(write_paths=[catalog.PRODUCT_ROOTS[0]]))
         self.assertTrue(any("whole product" in e for e in errors))
+
+    def test_overlapping_parallel_outputs_are_rejected_by_generator(self):
+        errors = self.validate(lambda s: s[82].update(write_paths=s[77]['write_paths']))
+        self.assertTrue(any('overlap' in e for e in errors))
+
+    def test_old_framework_requirement_is_rejected(self):
+        for stale in ('Create a FastAPI app', 'Use a pytest fixture', 'Use extra=forbid',
+                      'Every page works without JavaScript'):
+            with self.subTest(stale=stale):
+                errors = self.validate(lambda s: s[14].update(goal=stale))
+                self.assertTrue(any('superseded application stack' in e for e in errors))
+
+    def test_every_contract_freezes_the_common_architecture(self):
+        digest = catalog.architecture_digest()
+        for spec, feature in zip(catalog.SPECS, catalog.manifest()['features']):
+            text = catalog.render(spec)
+            self.assertIn('architecture_digest: ' + digest, text)
+            self.assertEqual(feature['architecture'], catalog.ARCHITECTURE)
+            self.assertEqual(feature['architecture_digest'], digest)
+            self.assertIn('Quarkus/Java + PostgreSQL', text)
+
+    def test_database_and_browser_foundations_match_owner_decision(self):
+        specs = {s['id']: s for s in catalog.SPECS}
+        self.assertIn('PostgreSQL', specs[2]['title'])
+        self.assertIn('SQLite', specs[2]['title'])  # explicit data migration, never silently skipped
+        self.assertIn('React browser', specs[14]['title'])
+        self.assertIn('JUnit', ' '.join(specs[3]['scope']))
+        self.assertTrue(all(p.startswith(catalog.PRODUCT_ROOTS)
+                            for s in specs.values() for p in s['write_paths']))
 
     def test_four_categories_cannot_be_required_by_three_category_schema(self):
         errors = self.validate(lambda s: s[83]["required_categories"].append("fourth"))

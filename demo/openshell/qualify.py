@@ -40,12 +40,10 @@ def main():
         run.chmod(0o711);(run/'workspace').chmod(0o755);(run/'workspace/src').chmod(0o777)
     try:
         policy=pb.SandboxPolicy(version=1,
-            filesystem=pb.FilesystemPolicy(include_workdir=True,read_only=['/bin','/usr','/lib','/etc','/proc','/opt/demo','/dev/urandom','/var/log',str(run/'workspace')],read_write=['/tmp','/dev/null',str(run/'workspace/src')]),
+            filesystem=pb.FilesystemPolicy(include_workdir=False,read_only=['/bin','/usr','/lib','/etc','/proc','/opt/demo','/dev/urandom','/var/log','/sandbox'],read_write=['/tmp','/dev/null']),
             landlock=pb.LandlockPolicy(compatibility='hard_requirement'),
             process=pb.ProcessPolicy(run_as_user=str(args.uid),run_as_group=str(args.uid)))
         spec=api.SandboxSpec(template=api.SandboxTemplate(image=args.image),policy=policy,command=['/bin/sleep','infinity'])
-        ParseDict({'docker':{'mounts':[{'type':'volume','source':args.volume,'target':str(run),
-                   'subpath':str(run.relative_to(work)),'read_only':False}]}},spec.template.driver_config)
         ref=client.create(workspace='default',name=name,spec=spec)
         client.wait_ready(name,workspace='default',timeout_seconds=120)
         probe='''import json,os,socket,sys
@@ -85,15 +83,16 @@ print(json.dumps(checks))'''
         evidence['bundle_sha256']=json.loads(bundle.stdout)
         names=subprocess.check_output([shutil.which('docker'),'ps','--format','{{.Names}}'],close_fds=False).decode().splitlines()
         supervisor=next(n for n in names if ref.id in n and n.endswith('-supervisor'))
-        inspected=json.loads(subprocess.check_output([shutil.which('docker'),'inspect',supervisor],close_fds=False))[0]
-        values=dict(v.split('=',1) for v in inspected['Config']['Env'] if '=' in v)
-        assert values.get('OPENSHELL_TELEMETRY_ENABLED')=='false'
+        telemetry=subprocess.check_output([shutil.which('docker'),'inspect','--format',
+            '{{range .Config.Env}}{{if eq . "OPENSHELL_TELEMETRY_ENABLED=false"}}disabled{{end}}{{end}}',supervisor],close_fds=False).decode().strip()
+        assert telemetry=='disabled'
         workload=next(n for n in names if ref.id in n and not n.endswith('-supervisor'))
-        config=json.loads(subprocess.check_output([shutil.which('docker'),'inspect',workload],close_fds=False))[0]
-        assert config['HostConfig']['NetworkMode']=='none'
-        assert not any(m['Source'].endswith('docker.sock') for m in config['Mounts'])
+        network=subprocess.check_output([shutil.which('docker'),'inspect','--format','{{.HostConfig.NetworkMode}}',workload],close_fds=False).decode().strip()
+        mounts=json.loads(subprocess.check_output([shutil.which('docker'),'inspect','--format','{{json .Mounts}}',workload],close_fds=False))
+        assert network=='none'
+        assert not any(m['Source'].endswith('docker.sock') or m['Type']=='bind' for m in mounts)
         evidence.update(version='0.1.5',telemetry_disabled=True,network_mode='none',sandbox_id=ref.id,agent_uid=args.uid,
-            work_volume=args.volume,work_dir=str(work),transport='copy-out',sandbox_out=SANDBOX_OUT,
+            work_volume=args.volume,work_dir=str(work),transport='rpc-copy',host_mounts=False,sandbox_out=SANDBOX_OUT,
             agent_image=args.image,ca_sha256=hashlib.sha256((tls/'ca.crt').read_bytes()).hexdigest(),
             qualified_ns=time.time_ns(),expires_ns=time.time_ns()+86400000000000)
     finally:

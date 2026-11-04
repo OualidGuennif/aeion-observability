@@ -1,15 +1,18 @@
 ---
 id: 082
+sequence: 84
 title: "Licensing and provenance note"
 area: corpus
 size: S
 parallel: true
 phase: P4
 tier: 3
-write_paths: ["demo/forum/product/docs/corpus-license.md"]
+write_paths: ["demo/forum-docs/corpus-license.md"]
 depends_on: [075]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 082 — Licensing and provenance note
@@ -21,9 +24,19 @@ Document that the corpus is synthetic, how to replace it with licensed material,
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_e.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Write the short synthetic-source and invented-label statement.
+2. List attribution, licensing review and retention prerequisites for real sources.
+3. Deliver only the documentation file with no runtime toggle.
+
+**Scope:**
 
 - Create only docs/corpus-license.md: synthetic-only statement, invented-source policy and review required for real sources.
 - Document attribution, licensing review and retention prerequisites; do not introduce a real-source loader or deployment toggle.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_e.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

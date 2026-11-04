@@ -39,8 +39,9 @@ def absolute(path):
 
 
 class SandboxBridge:
-    def __init__(self, sandbox, *, bind=("127.0.0.1", 0)):
+    def __init__(self, sandbox, *, bind=("127.0.0.1", 0), check=None):
         self.sandbox = sandbox
+        self.check = check
         self.token = secrets.token_urlsafe(32)
         bridge = self
 
@@ -66,6 +67,10 @@ class SandboxBridge:
                     request = loads(self.rfile.read(length))
                     if not isinstance(request, dict):
                         raise ValueError("request must be an object")
+                    if self.path == '/v1/check':
+                        if request or bridge.check is None:
+                            return self.reply(403, {'ok': False, 'error': 'CHECK_DENIED'})
+                        return self.reply(200, {'ok': True, 'result': bridge.check()})
                     if self.path == "/v1/fs":
                         return self.reply(200, bridge.fs(request))
                     if self.path == "/v1/exec":

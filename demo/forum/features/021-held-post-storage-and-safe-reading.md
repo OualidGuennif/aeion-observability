@@ -1,18 +1,21 @@
 ---
 id: 021
-title: "Posts and the composer"
+sequence: 23
+title: "Held post storage and safe reading"
 area: forum
 size: M
 parallel: false
 phase: P1
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-web/"]
 depends_on: [007, 019, 020, 017]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
-# 021 — Posts and the composer
+# 021 — Held post storage and safe reading
 
 ## Intent
 
@@ -21,9 +24,19 @@ Provide internal held-by-default post storage and safe reads; public publication
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_b.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Add held post storage using normalized Markdown and sanitized HTML.
+2. Expose safe authorized reads, with no live publication endpoint.
+3. Prove held defaults, fixture rendering and refusal of public creation.
+
+**Scope:**
 
 - Store channel, server-derived author, bounded title, normalized plain Markdown, sanitized HTML, provenance, status and timestamps; never original transport bytes.
 - Only an internal repository primitive inserts a held record; no public/session compose endpoint is introduced here.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_b.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

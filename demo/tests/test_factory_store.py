@@ -37,6 +37,28 @@ def fixture_catalog():
 
 
 class StoreTests(unittest.TestCase):
+    def test_dependency_hold_wakes_automatically_when_its_original_contract_is_satisfied(self):
+        store=self.store()
+        admitted=store.admit(['f2'],'wait',self.catalog)
+        self.assertIsNone(store.claim_next(self.catalog))
+        store.seed_merged('f1',self.catalog)
+        claimed=store.claim_next(self.catalog)
+        self.assertEqual(claimed['build_id'],admitted['build_ids'][0])
+        self.assertEqual(claimed['status'],DISPATCHED)
+
+    def test_changed_catalog_cannot_silently_dispatch_a_previously_queued_spec(self):
+        store=self.store();store.admit(['f1'],'before-catalog-change',self.catalog)
+        changed=fixture_catalog();changed.by_id['f1']['write_paths']=['demo/forum/product/changed/']
+        self.assertIsNone(store.claim_next(changed))
+        self.assertEqual(store.board()[0]['hold_reason'],'catalog_changed')
+        self.assertIsNone(store.board()[0]['attempt_id'])
+
+    def test_changed_catalog_or_uncertain_attempt_never_gets_automatic_dependency_retry(self):
+        store=self.store();store.admit(['f2'],'wait',self.catalog)
+        store.seed_merged('f1',self.catalog)
+        changed=fixture_catalog();changed.by_id['f2']['write_paths']=['demo/forum/product/changed/']
+        self.assertIsNone(store.claim_next(changed))
+        self.assertEqual(store.board()[0]['hold_reason'],'catalog_changed')
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -140,13 +162,14 @@ class StoreTests(unittest.TestCase):
         s = Store(path)
         s.admit(["f1"], "k13", self.catalog)
         claimed = s.claim_next(self.catalog, lease_ns=0)
-        # A fresh store on the same file reconciles the expired lease back to queued.
+        # An interrupted paid call is uncertain, so recovery requires explicit review.
         s2 = Store(path)
         b = s2.board()[0]
-        self.assertEqual(b["status"], QUEUED)
-        self.assertIsNone(b["attempt_id"])
+        self.assertEqual(b["status"], HELD)
+        self.assertEqual(b["hold_reason"], "reconciliation_needed")
+        self.assertEqual(b["attempt_id"], claimed["attempt_id"])
         again = s2.claim_next(self.catalog)
-        self.assertNotEqual(again["attempt_id"], claimed["attempt_id"])
+        self.assertIsNone(again)
 
     def test_unknown_attempt_is_refused(self):
         s = self.store()

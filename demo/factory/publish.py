@@ -5,13 +5,10 @@ a reviewed diff inside declared product scopes, and rejects sensitive, mixed, fo
 cancelled effects. Fake forge responses are labelled; an uncertain result is reconciled
 against the forge before any retry, never blindly redone.
 """
-from .review import content_digest
+from .review import content_digest, DEPENDENCY_FILES
 
 SENSITIVE_MARKERS = ("migrations", "auth", "security", "moderation", "rules", "runtime", "deploy", "permission")
-DEPENDENCY_MANIFESTS = (
-    "package.json", "package-lock.json", "requirements.txt", "pyproject.toml", "poetry.lock",
-    "dockerfile", "yarn.lock", "pnpm-lock.yaml", "go.mod", "go.sum", "cargo.lock",
-)
+DEPENDENCY_MANIFESTS = DEPENDENCY_FILES
 
 
 def is_sensitive_path(path):

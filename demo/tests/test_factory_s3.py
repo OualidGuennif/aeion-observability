@@ -123,7 +123,8 @@ class S3GateTests(unittest.TestCase):
         build = self.store.board()[0]
         self.assertEqual(build["status"], HELD)
         self.assertEqual(build["hold_reason"], "owner_review_required")
-        self.assertFalse(any(b.get("receipt") for b in self.store.board()))
+        self.assertNotIn("publisher", json.loads(build["receipt"]))
+        self.assertEqual(json.loads(build["receipt"])["review"]["status"], "held")
 
     def test_review_refusal_fails_the_build(self):
         worker = self._worker()

@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory.models import MODELS, Router, RoutingError, Telemetry, eligible, family
-from factory.review_circuit import two_vote_review
+from factory.review_circuit import MAX_PROMPT_CHARS, two_vote_review
 
 FILES = {"demo/forum/product/x.js": "export function f() { return 1; }\n"}
 
@@ -29,15 +29,15 @@ class RegistryTests(unittest.TestCase):
     def test_eligible_excludes_models_and_families(self):
         remaining = eligible(exclude_models=["glm-5.3-flash"])
         self.assertNotIn("glm-5.3-flash", remaining)
-        self.assertEqual(len(remaining), 2)
+        self.assertEqual(len(remaining), 3)
         self.assertEqual(eligible(exclude_families=["anthropic"]),
-                         ["glm-5.3-flash", "qwen-3.8-flash"])
+                         ["deepseek-4.1-flash", "glm-5.3-flash", "qwen-3.8-flash"])
 
     def test_router_prefers_efficiency_then_is_deterministic(self):
         router = Router()
         first = router.select("review")
         self.assertEqual(first, router.select("review"))
-        self.assertEqual(family(first), "zhipu")  # cheapest declared model wins on priors
+        self.assertEqual(family(first), "zhipu")  # Explicit cold-start preference, not quality evidence.
 
     def test_telemetry_moves_the_choice_away_from_a_failing_model(self):
         telemetry = Telemetry()
@@ -116,7 +116,7 @@ class CircuitTests(unittest.TestCase):
         self.assertEqual(a["digest"], b["digest"])
 
     def test_oversized_single_file_is_held_without_calling_a_model(self):
-        big = {"demo/forum/product/x.js": "a" * 20000}
+        big = {"demo/forum/product/x.js": "a" * (MAX_PROMPT_CHARS + 1)}
         calls = []
 
         def capture(model, prompt):
@@ -132,7 +132,7 @@ class CircuitTests(unittest.TestCase):
 
     def test_a_tail_file_never_disappears_from_the_review_envelope(self):
         files = {
-            "demo/forum/product/a.txt": "a" * 7000,
+            "demo/forum/product/a.txt": "a" * (MAX_PROMPT_CHARS + 1),
             "demo/forum/product/z.txt": "TAIL_COVERAGE_FIXTURE",
         }
         seen = []
@@ -146,6 +146,18 @@ class CircuitTests(unittest.TestCase):
         self.assertEqual(result["reason"], "review_input_too_large")
         self.assertEqual(seen, [])
         self.assertEqual(result["coverage"]["files"], sorted(files))
+
+    def test_a_small_java_feature_and_its_tests_receive_two_complete_reviews(self):
+        files = {'src/Validation.java': 'a' * 5000, 'test/ValidationTest.java': 'b' * 4000}
+        seen = []
+        def capture(model, prompt):
+            seen.append(prompt)
+            return approving(model, prompt)
+        result = two_vote_review('glm-5.3-flash', '017', files, self.router, capture)
+        self.assertEqual(result['status'], 'approved')
+        self.assertEqual(len(seen), 2)
+        self.assertTrue(all(files[path] in prompt for prompt in seen for path in files))
+        self.assertTrue(result['coverage']['complete'])
 
     def test_an_unknown_author_cannot_start_a_review(self):
         calls = []

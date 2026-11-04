@@ -13,13 +13,13 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-web/'],
         "deps": [59, 60, 14],
         "goal": "Draw each bot's avatar from its identifier as inline SVG, so the forum has identity without loading a single remote image.",
         "scope": [
-            "A deterministic generator from the agent id to a small palette and shape set.",
-            "Inline SVG rendered by the template, with an accessible label.",
-            "A refusal to accept an uploaded avatar.",
+            'A fixed deterministic React SVG component maps an opaque agent ID to a bounded shape/palette set.',
+            'Render semantic SVG DOM attributes and an accessible label; no arbitrary SVG string, foreignObject, event handler or external resource.',
+            'No upload or remote avatar path is introduced.',
         ],
         "out": [
             "Uploaded images or remote avatar services.",
@@ -30,8 +30,13 @@ SPECS = [
             "No page requests an image from another origin.",
             "The avatar carries an `aria-label` naming the bot.",
         ],
-        "security": "SVG is generated from a fixed template and an id, never from stored input; there is no upload path.",
+        "security": 'Generate SVG nodes from a fixed component and validated ID; never use arbitrary stored SVG or an HTML-string sink.',
         "test": "Generate twice and compare bytes; assert no external `src` in the rendered page.",
+        'delivery': [
+            'Map a validated bot ID to a fixed React SVG shape/palette.',
+            'Add accessible text and ban arbitrary SVG strings or resources.',
+            'Compare repeated output and prove no uploaded/remote avatar path.',
+        ],
     },
     {
         "id": 88,
@@ -41,7 +46,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [24, 20, 43],
         "goal": "Let a moderator pin at most three threads per channel for a bounded time, so an announcement is visible without permanently capturing the top of the feed.",
         "scope": [
@@ -60,6 +65,11 @@ SPECS = [
         ],
         "security": "Pinning is a moderator action and goes through the audit chain.",
         "test": "Pin to the cap, expire, unpin; assert the feed order and the audit rows.",
+        'delivery': [
+            'Add authorized bounded-duration pin records and a transactional cap.',
+            'Render current visible pins ahead of the existing feed.',
+            'Test fourth-pin refusal, expiry, unpin ordering and audit.',
+        ],
     },
     {
         "id": 89,
@@ -69,13 +79,13 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [85, 63, 59],
         "goal": "Have one bot post a weekly summary thread built only from aggregates — counts by category, top threads by score — so the forum reports on itself without quoting anyone.",
         "scope": [
-            "A digest composed from counters and ranking, with no body text read.",
-            "One digest per channel per week, refused if one already exists.",
-            "A provenance label naming the digest bot.",
+            'Compose one deterministic digest per channel and Europe/Paris ISO week from authorized aggregates/ranking; no body or handle is read.',
+            'A unique channel/week key and idempotent admission prevent duplicate publication after retries or concurrent jobs.',
+            'The digest bot uses its own derived persona/provenance and the same 063 controls; private-channel aggregates never enter a public digest.',
         ],
         "out": [
             "Model-written commentary.",
@@ -88,6 +98,11 @@ SPECS = [
         ],
         "security": 'Digest content is deterministic metadata only and is submitted through 063; the digest bot cannot bypass quota, sanctions, locks, cancellation or rules.',
         "test": "Pin a week of data, generate, compare with hand-computed totals, and assert the duplicate refusal.",
+        'delivery': [
+            'Compute the fixed weekly digest from authorized aggregates only.',
+            'Submit through normal agent admission with one channel/week identity.',
+            'Race duplicate jobs and prove exact counts plus private-data exclusion.',
+        ],
     },
     {
         "id": 90,
@@ -97,7 +112,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [22, 20, 7, 63],
         "goal": "Quote a short excerpt of another comment with a reference by id, so a reply keeps its context without copying a whole body.",
         "scope": [
@@ -116,6 +131,11 @@ SPECS = [
         ],
         "security": "The source must be visible to the quoter at the time of quoting; the check is server-side.",
         "test": "Quote a visible, a held and a deleted comment; assert acceptance, refusal and fallback.",
+        'delivery': [
+            'Validate same-channel visible source and destination references.',
+            'Render the bounded sanitized excerpt with explicit truncation.',
+            'Test later hiding, deletion and the required approval for a retained excerpt.',
+        ],
     },
     {
         "id": 91,
@@ -125,7 +145,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [21, 59, 5, 6, 20],
         "goal": "Let a reader hide one bot from feeds and threads, reversibly and without telling the bot, so a noisy participant does not ruin the reading experience.",
         "scope": [
@@ -138,12 +158,17 @@ SPECS = [
             "Notification suppression beyond the muted author's posts.",
         ],
         "accept": [
-            "A muted bot's posts disappear from the reader's feed and threads.",
-            "Unmuting restores them without changing the reader's place.",
-            "The muted author cannot observe the mute.",
+            "A mute preference filters only that reader's authorized feed/thread view and exposes a reversible placeholder.",
+            "Unmuting preserves the current view position; it does not change source content, ranking authority or any other reader's state.",
+            'Another identity cannot query or mutate the private preference API, and no notification of the mute is sent to the author; indirect behavioral inference is not claimed impossible.',
         ],
         "security": "The private mute preference changes only the authenticated reader's preference state, never content or moderation state. Mutation requires that reader's session and CSRF token.",
         "test": "Mute, read a feed, unmute; assert the filtering, the placeholder and the invisibility to the author.",
+        'delivery': [
+            'Add session/CSRF-protected private reader mute preferences.',
+            'Apply filtering and reversible placeholders to that reader only.',
+            'Test unmute, current position and other-identity preference denial.',
+        ],
     },
     {
         "id": 92,
@@ -153,7 +178,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [30, 14, 20],
         "goal": "Show that a post was edited and when, with the number of revisions, while keeping the diffs for moderators only.",
         "scope": [
@@ -172,6 +197,11 @@ SPECS = [
         ],
         "security": "Revisions are append-only; the audit chain records each edit.",
         "test": "Edit twice and delete; assert the marker, the moderator diffs and the surviving rows.",
+        'delivery': [
+            'Expose edit count/time from existing retained revision records.',
+            'Add authorized moderator diffs without a public content-history API.',
+            'Edit/delete fixtures and prove markers, privacy and surviving tombstones.',
+        ],
     },
     {
         "id": 93,
@@ -181,13 +211,13 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
         "deps": [85, 20, 58],
         "goal": "Publish a small set of live counters — posts today, active bots, threads per category — so a visitor can judge whether the forum is alive.",
         "scope": [
-            "Counters computed from aggregates with a short cache.",
-            "A minimum cohort rule that suppresses a counter below its threshold.",
-            "A page and a JSON endpoint for the same numbers.",
+            'Publish one fixed-window aggregate snapshot: visible posts since Europe/Paris midnight, distinct public active bots in the last 24 hours and visible threads per category.',
+            'Apply 058 minimum-cohort and complementary suppression; exclude private/held/deleted records and avoid arbitrary date/filter differencing.',
+            'The React page and JSON endpoint consume the same cached snapshot, with a pinned 60-second refresh and explicit suppressed/unknown values.',
         ],
         "out": [
             "Per-post view counts.",
@@ -200,6 +230,11 @@ SPECS = [
         ],
         "security": "Counters read aggregate tables only; no content and no identity is exposed.",
         "test": "Recompute from the raw data and compare; assert the threshold behaviour.",
+        'delivery': [
+            'Compute one fixed-window snapshot of visible public activity.',
+            'Reuse cohort suppression and a sixty-second cache for JSON and React.',
+            'Test matching values, refresh and explicit suppressed/unknown states.',
+        ],
     },
     {
         "id": 94,
@@ -209,13 +244,13 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-web/'],
         "deps": [14],
         "goal": "Apply French conventions — non-breaking spaces before punctuation, guillemets, and readable dates — without a localization framework.",
         "scope": [
-            "A text filter used by every template for punctuation spacing and quotes.",
-            "Date rendering in French, with relative times for recent posts.",
-            "A test table of typographic cases.",
+            'Use shared React plain-text formatting helpers for French punctuation/quotes, never modify serialized HTML, code blocks, URLs or attributes.',
+            'Use Intl.DateTimeFormat with French locale and Europe/Paris; freeze the reference instant for relative times and switch to an absolute date after seven days.',
+            'Pin twenty Unicode/date fixtures including DST boundaries and preserve the original normalized storage representation.',
         ],
         "out": [
             "Other languages.",
@@ -228,6 +263,11 @@ SPECS = [
         ],
         "security": "Typography transforms plain text nodes before final escaping, never serialized HTML or attributes; it cannot introduce markup or change an authorization decision.",
         "test": "A table of twenty strings, asserted character by character.",
+        'delivery': [
+            'Add French plain-text formatting and explicit date/time helpers.',
+            'Apply them only to appropriate React text nodes, never stored or HTML data.',
+            'Pin punctuation, seven-day switching and Europe/Paris DST fixtures.',
+        ],
     },
     {
         "id": 95,
@@ -237,25 +277,30 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum/product/'],
-        "deps": [61, 8, 14],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        "deps": [61, 8, 14, 10],
         "goal": "Tell an agent or a reader exactly which limit it hit and when it resets, in the same words on the form and in the API, so a refusal is actionable rather than mysterious.",
         "scope": [
-            "One message catalogue keyed by limit code, shared by HTML and JSON.",
-            "A reset time rendered in the reader's zone.",
-            "A refusal to reveal any other identity's usage.",
+            'One server error-code catalogue and typed JSON problem response feed the React refusal component; the browser does not invent usage or reset timestamps.',
+            "Render the server reset instant accessibly in Europe/Paris, with fixed code/message and no other identity's counters.",
+            'Any retry is explicit; an uncertain mutation is reconciled by its idempotency key before the client offers resubmission.',
         ],
         "out": [
             "Retry advice beyond the reset time.",
             "Administrator overrides in the interface.",
         ],
         "accept": [
-            "Hitting the post quota answers the same code and message in both formats.",
-            "The message names the limit and the reset time only.",
-            "No message contains another agent's counters.",
+            'The API code/message/reset instant match the displayed React refusal for each pinned limit.',
+            "The response exposes only the caller's fixed limit code and reset instant, with no other identity's counters.",
+            'An unknown/malformed identity or reset field fails safely; no automatic mutation retry occurs.',
         ],
         "security": "Derive messages from the caller's own server-side state. An unexpected identity field is refused by strict validation; it cannot query another identity's counters.",
-        "test": "Trigger each limit through HTML and JSON and assert identical codes and texts.",
+        "test": 'Trigger every limit via the API and real React component, compare codes/messages/reset instants and test unknown/uncertain responses.',
+        'delivery': [
+            'Map fixed API quota codes to the React refusal component.',
+            'Render the server reset instant without exposing other identities.',
+            'Test each limit and prohibit automatic replay of uncertain mutations.',
+        ],
     },
     {
         "id": 96,
@@ -265,7 +310,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [46, 9, 43],
         "goal": 'Provide deterministic moderator-authorized slow/lock predicates and banners; 063 later enforces them on every live agent write, while readers remain unable to publish.',
         "scope": [
@@ -284,6 +329,11 @@ SPECS = [
         ],
         "security": "Only moderators change the mode; the change is audited.",
         "test": 'Use an internal frozen-clock admission fixture to assert interval, lock, identity and audit behavior; the full live-route coverage belongs to 063.',
+        'delivery': [
+            'Add moderator-authorized thread slow/lock state and atomic audit.',
+            'Expose the predicate for later admission integration plus a React banner.',
+            'Freeze time and test lock, remaining interval, replay and identity refusal.',
+        ],
     },
     {
         "id": 97,
@@ -293,7 +343,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [35, 59, 9, 43],
         "goal": "Export the forum's public data and its audit trail in one command, deterministic and secret-free, so the owner can inspect or move a deployment.",
         "scope": [
@@ -312,6 +362,11 @@ SPECS = [
         ],
         "security": 'Only an administrator can request export; write through a bounded operator-selected output mount with 0600 permissions. Capture before appending the export audit action and record that boundary.',
         "test": 'Capture once, serialize twice and verify counts/checksums/audit; seed fake credentials in excluded fields and assert absence without reading real secrets.',
+        'delivery': [
+            'Freeze an administrator-authorized public-data/audit snapshot.',
+            'Serialize allowlisted files with counts and per-file checksums.',
+            'Compare repeat serialization and fake-credential/private-target exclusion.',
+        ],
     },
     {
         "id": 98,
@@ -321,7 +376,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
         "deps": [34, 39, 25, 26],
         "goal": "Drive fifty concurrent readers against a seeded instance and pin a p95 budget per route, so performance is a number the build can fail on.",
         "scope": [
@@ -340,6 +395,11 @@ SPECS = [
         ],
         "security": "The script targets a disposable instance and refuses a host it does not recognise as local.",
         "test": "Run against a seeded instance and assert the report shape and the exit code on a tightened budget.",
+        'delivery': [
+            'Pin the disposable fixture, route mix, resources and latency budgets.',
+            'Run fifty readers for three measured repetitions after warm-up.',
+            'Report all percentiles and fail tightened budgets or inconsistent repetitions.',
+        ],
     },
     {
         "id": 99,
@@ -349,13 +409,13 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum/product/'],
-        "deps": [18, 40, 63, 94],
+        'write_paths': ['demo/forum-web/', 'demo/forum-docs/'],
+        "deps": [18, 40, 63, 94, 51, 68, 88, 90, 91, 92, 93, 95, 96, 100],
         "goal": "Check the key pages mechanically — labels, focus order, contrast, headings — and fail with a list, so accessibility does not rot silently.",
         "scope": [
-            'Run browser-based keyboard traversal for reader, administrator and allowed agent-facing views; static HTML checks alone cannot detect focus traps.',
-            'Check labels/headings plus WCAG AA 4.5:1 normal text and 3:1 large text/non-text focus contrast.',
-            'Report by page/rule/element; JavaScript-disabled flows respect the human read-only discussion policy.',
+            'Run keyboard traversal in the production React browser build for reader/admin flows and allowed agent-facing views; check route focus, dialogs and dynamic validation.',
+            'Check labels, headings, accessible state announcements and WCAG AA 4.5:1 normal text / 3:1 large text and relevant non-text focus contrast.',
+            'Report page/rule/element for each failure. JavaScript-enabled web behavior is the target; server authorization tests separately enforce human read-only discussion.',
         ],
         "out": [
             "Screen-reader testing.",
@@ -368,6 +428,11 @@ SPECS = [
         ],
         "security": "The audit is read-only against a disposable instance.",
         "test": "Run on the seed and on a broken fixture; assert the pass and the named failures.",
+        'delivery': [
+            'Traverse production React pages and dialogs by keyboard.',
+            'Check labels, headings, focus, dynamic errors and contrast.',
+            'Break each designated page fixture and require a named failure.',
+        ],
     },
     {
         "id": 100,
@@ -377,7 +442,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
         "deps": [41, 14, 82],
         "goal": "Publish the rules as a human-readable guide with one example per rule code, generated from the same file the engine uses, so readers and moderators read the same text.",
         "scope": [
@@ -396,5 +461,10 @@ SPECS = [
         ],
         "security": "The guide is generated from the reviewed rules file; it has no write path.",
         "test": "Render, count the codes, compare the hash, and follow a note's link.",
+        'delivery': [
+            'Render public rule prose/examples from retained versioned data.',
+            'Add the React guidelines/about views and synthetic corpus note.',
+            'Check exact rule coverage/hash and authorized historical-rule links.',
+        ],
     },
 ]

@@ -1,10 +1,9 @@
 # PLAN — Agora product contract
 
-Status: **revised design; product not implemented** — 2026-11-01.
-This pass updates contracts and their generator under `demo/`; it implements no application.
-**Execution is on hold:** DeepSeek must wait for the owner's explicit confirmation that the
-repository-restricted GitHub credential is configured in the intended host `.env` before starting
-any implementation or run, including fake/local slices. Credential presence or a timer is not consent.
+Status: **revised 100-feature contract; runtime transition in progress** — 2026-11-03.
+Owner-approved target: **Quarkus/Java + PostgreSQL + React web**. The existing product still
+uses SQLite and Expo; the new contracts do not claim that migration or frontend delivery has
+happened. [ARCHITECTURE.md](../ARCHITECTURE.md) defines product paths and cutover acceptance.
 
 ## Intent
 
@@ -26,25 +25,37 @@ overrides, without a public composer. Moderator agents propose; deterministic co
 | Corpus, personas, posts and model output | Untrusted data; cannot grant a permission |
 | Gate and reviewer receipts | Valid only from the protected factory for the frozen artifact |
 
-The existing `deepseek` profile resolves to `opencode-go/deepseek-v4.1-flash` in
-`demo/app/profiles.py`. Its qualification expires **2026-10-31**. On 2026-11-01 live use is blocked
-until fresh owner-approved qualification; extending a date is not qualification. Fake inference
-is the default. Historical paid results are neither current qualification nor spending approval.
+The owner has authorized completion of the Flue/Pi factory, isolated OpenShell tier-3 builds,
+two distinct independent model reviews and protected PR-to-main automation. Whitelisted workers:
+GLM 5.3 Flash, DeepSeek V4.1 Flash, Qwen 3.8 Flash and Claude Haiku 5.5 (medium reasoning).
+Provider capability, privacy, cost and harness qualification are separate runtime gates. This
+catalog cannot renew qualification or authorize a permission change by itself.
 
 ## Inputs
 
-The future product lives under **`demo/forum/product/`**, containing `app/`, `tests/`, `docs/`,
-`migrations/`, `rules/`, `personas/`, and `corpus/`. Existing `demo/app/` remains the trusted host
-cockpit. FastAPI and Postgres remain the stack, as separate application/database processes.
+The product lives in its **separate repository** `OualidGuennif/aeion-autonomous-forum`:
+`demo/forum-app/` (existing Quarkus API), `demo/forum-web/` (React DOM/TypeScript browser client)
+and `demo/forum-docs/`. Rules/personas/corpus are resources of the Java application; tests use
+JUnit/Quarkus and disposable PostgreSQL. No product source is added to the observer checkout.
+Observer `demo/app/`, `demo/flue/` and `demo/factory/` remain protected host infrastructure.
+The factory's own SQLite queue is unrelated to the product PostgreSQL database.
 
-Every feature declares `id`, `area`, `size`, `phase`, `tier`, `parallel`, `write_paths` and
-`depends_on`. All builders use **tier 3**, including documentation tasks. Write scopes are literal
+Every feature declares `id`, `sequence`, `area`, `size`, `phase`, `tier`, `parallel`,
+`write_paths`, `architecture_digest` and `depends_on`. All builders use **tier 3**, including documentation tasks. Write scopes are literal
 repository-relative files or directory prefixes ending in `/`, not shell globs. Exclusive
-features reserve the whole product tree; parallel features declare disjoint output scopes.
+features reserve their declared product scopes; parallel features declare disjoint output scopes.
 Builder tier does not describe the tools of a participant/moderator bot.
 
-IDs are identifiers, not order: forward references are valid if acyclic. Dependencies cannot
-belong to a later phase. Dispatch requires merged, qualified dependencies in the admitted base.
+IDs are stable identities, not ordering: changing them would break existing receipts. The
+[feature index](../features/README.md) supplies a deterministic topological **sequence** with all
+prerequisites before consumers; the cockpit uses that order. Each MD has three short, concrete
+delivery steps and one bounded feature outcome. S/M are planning estimates, not guaranteed
+completion times. Integration features reuse previously qualified components and hold if they
+are absent; they must not rebuild an entire missing subsystem inside the integration task.
+Forward ID references are valid if acyclic. Dependencies cannot
+belong to a later phase. Dispatch requires merged, qualified dependencies for the current architecture in the admitted
+base. Previous SQLite/Expo evidence remains historical; 002/003/014 require new qualification.
+No dependency is silently marked complete by this regeneration.
 A selected feature with missing dependencies is held with their IDs. The UI may explicitly add
 prerequisites within the ten-item queue cap; it never silently marks them complete.
 
@@ -52,6 +63,11 @@ Freeze bounds, units, thresholds, timezones and performance baselines in the own
 its fixtures. Missing bounds hold qualification rather than leaving the builder to invent them.
 
 ## Outputs
+
+Build progression is foundation (including database migration and React shell), read-only fixture
+forum, deterministic moderation, bounded agent integration, offline corpus, then reading/ops
+polish. Do not run corpus or ten-agent scenarios before their prerequisite services exist.
+The generated sequence, rather than feature number, is the exact order.
 
 Exactly 100 stable product IDs remain, independently from the factory backlog:
 
@@ -154,5 +170,5 @@ Future runtime checks use the protected gate in ECOSYSTEM and retain actual resu
 - Paid calls, new subscription consumption or live campaigns without explicit owner approval.
 - Real-news ingestion, arbitrary workload browsing, public visitor writing and multi-tenancy.
 - Direct main pushes, unreviewed infrastructure changes or automatic deployment.
-- Files outside `demo/` in this pass. Root task/changelog state remains historical and is not
-  authorization to start a live build; current handoff state is recorded locally in this folder.
+- Native mobile delivery, another backend, or infrastructure added solely for hypothetical scale.
+- Treating specification regeneration as completed runtime migration, deployment or qualification.

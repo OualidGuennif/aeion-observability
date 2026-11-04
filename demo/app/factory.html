@@ -1,70 +1,58 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Æion Factory · Agora build plane</title>
-<link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/factory.css"><script src="/factory.js" defer></script></head>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Æion · Feature cockpit</title>
+  <link rel="stylesheet" href="/factory.css"><script src="/factory.js" defer></script>
+</head>
 <body>
-<header class="topbar"><a class="brand" href="/">Æion <span>Factory</span></a><nav aria-label="Factory"><a href="/">Observatory ↗</a><span class="connection"><i id="system-dot" class="connected"></i><span id="system-status">Local</span></span></nav></header>
-<main>
-  <section id="login" class="login-card">
-    <p class="eyebrow">FACTORY / ADMIN ACCESS</p>
-    <h1>Build the forum.<br><em>Never by hand.</em></h1>
-    <p class="intro">Select the Markdown features, queue the builds and watch the honest fake workers return. Your bootstrap token lives in <code>demo/.local/factory/admin.token</code>; each login rotates it.</p>
-    <form id="login-form" autocomplete="off"><label for="token">Bootstrap token</label>
-      <input id="token" type="password" required><button class="primary" type="submit">Enter the factory <span>→</span></button></form>
-    <p id="login-msg" class="fineprint" role="status"></p>
-  </section>
-
-  <section id="app" hidden>
-    <div class="section-heading"><div><p class="eyebrow">AGORA / BUILD PLANE</p><h2>100 features, <em>one honest queue.</em></h2></div>
-      <span id="execution-mode" class="tag" title="Live stays held until a qualified real builder exists">simulator</span>
-      <span id="selection-count" class="tag">0 / 10 selected</span></div>
-    <section class="release-panel" aria-label="Release plane">
-      <div class="panel-top"><span class="eyebrow">RELEASE PLANE / STAGING → PROD</span>
-        <span id="release-state" class="tag">no release</span></div>
-      <div class="release-grid">
-        <div class="release-card">
-          <h3>Staging</h3>
-          <p id="release-id" class="mono">—</p>
-          <p id="release-features" class="fineprint">Nothing staged yet.</p>
-          <a id="staging-link" class="fineprint" target="_blank" rel="noreferrer" hidden>Open staging ↗</a>
-          <div class="queue-actions">
-            <button id="validate-release" class="primary" disabled>Validate → prod <span>→</span></button>
-            <button id="deploy-now" class="secondary" disabled>Immediate full deploy</button>
-          </div>
+  <a class="skip-link" href="#main">Skip to workspace</a>
+  <aside class="sidebar">
+    <a class="brand" href="/">Æion<span>OBSERVATORY</span></a>
+    <p class="nav-label">WORKSPACE</p>
+    <nav aria-label="Workspace">
+      <a class="nav-current" href="/#main"><span>◈</span> Feature cockpit</a>
+      <a href="/#activity"><span>↳</span> Build activity</a>
+      <a href="http://127.0.0.1:3300" target="_blank" rel="noreferrer"><span>↗</span> Langfuse traces</a>
+    </nav>
+    <div class="sidebar-bottom"><p class="nav-label">ADVANCED</p><a href="/lab">Model &amp; handover lab ↗</a><div class="local-note"><i></i> Local workspace<span>Agora · autonomous forum</span></div></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><div><span class="breadcrumb">WORKSPACE /</span> Agora</div><span class="connection"><i id="system-dot"></i><span id="system-status">Sign in required</span></span></header>
+    <main id="main">
+      <section id="login" class="login-layout">
+        <div class="login-intro"><p class="eyebrow">THE FEATURE COCKPIT</p><h1>One place.<br><em>Useful work.</em></h1><p>Choose what to build. Follow each attempt. Open the evidence in Langfuse.</p><div class="login-steps"><span>01&nbsp; Select a ready feature</span><span>02&nbsp; Follow the build</span><span>03&nbsp; Inspect the result</span></div></div>
+        <div class="login-card"><span class="small-label">ADMINISTRATOR ACCESS</span><h2>Open your workspace</h2><p>Your local administrator token keeps build controls private.</p><form id="login-form" autocomplete="off"><label for="token">Bootstrap token</label><input id="token" type="password" required spellcheck="false" placeholder="Paste your local token"><button class="primary" type="submit">Enter workspace <span>→</span></button></form><details class="token-help"><summary>Where is my token?</summary><p>Open <code>demo/.local/factory/admin.token</code> locally in your editor. It rotates after each successful sign-in.</p></details><p id="login-msg" class="message" role="status"></p></div>
+      </section>
+      <div id="app" hidden>
+        <section class="page-heading"><div><p class="eyebrow">AGORA / OPERATOR WORKSPACE</p><h1>Build what’s <em>next.</em></h1><p>Launch ready features and follow their verified results.</p></div><div class="heading-meta"><span id="execution-mode" class="mode-pill">Loading execution…</span><span class="small-label">ONE BUILD AT A TIME</span></div></section>
+        <div id="execution-notice" class="notice" role="status"></div>
+        <section class="metrics" aria-label="Workspace summary">
+          <article><span class="small-label">READY TO BUILD</span><strong id="count-ready">—</strong><p>Configured and unblocked</p></article>
+          <article><span class="small-label">IN PROGRESS</span><strong id="count-active">—</strong><p>Queued or running</p></article>
+          <article><span class="small-label">COMPLETED</span><strong id="count-completed">—</strong><p>Built or already implemented</p></article>
+          <article><span class="small-label">WAITING</span><strong id="count-blocked">—</strong><p>Factory, prerequisites or review</p></article>
+        </section>
+        <div class="main-grid">
+          <section class="panel catalog-panel" aria-labelledby="catalog-title">
+            <div class="panel-heading"><div><p class="eyebrow">PLAN THE NEXT STEP</p><h2 id="catalog-title">Feature catalog</h2></div><span id="catalog-count" class="subtle">Loading…</span></div>
+            <div class="catalog-tools"><label class="search"><span class="sr-only">Search features</span><input id="feature-search" type="search" placeholder="Search by name or number…"></label><label><span class="sr-only">Phase</span><select id="phase-filter" aria-label="Phase"><option value="">All phases</option></select></label></div>
+            <div id="status-filters" class="tabs" role="group" aria-label="Feature status"><button data-filter="ready" aria-pressed="false">Ready</button><button data-filter="all" class="selected" aria-pressed="true">All features</button><button data-filter="completed" aria-pressed="false">Completed</button><button data-filter="blocked" aria-pressed="false">Waiting</button></div>
+            <div id="cards" class="feature-list" aria-live="polite"></div>
+            <div class="selection-bar"><div><strong id="selection-count">No features selected</strong><span id="selection-help">Only ready features can be selected.</span></div><button id="build-one" class="primary" disabled>Build selected <span>→</span></button></div>
+            <p id="queue-msg" class="message" role="status"></p>
+          </section>
+          <aside class="activity-column">
+            <section class="panel activity-panel" id="activity" aria-labelledby="activity-title"><div class="panel-heading"><div><p class="eyebrow">FOLLOW THE WORK</p><h2 id="activity-title">Build activity</h2></div><span id="queue-count" class="subtle">—</span></div><div id="builds" class="build-list" aria-live="polite"></div><details id="history-panel" class="history"><summary>Previous attempts &amp; simulations <span id="history-count"></span></summary><div id="history" class="build-list"></div></details></section>
+            <section class="panel budget-panel"><div class="panel-heading"><div><p class="eyebrow">DAILY GUARDRAILS</p><h2>Budget</h2></div><span class="subtle">EUR/PARIS</span></div><div id="budgets"><p class="subtle">Loading budget…</p></div><p class="fineprint">Reserved + settled amounts. Provider-reported costs are not invoices.</p></section>
+          </aside>
         </div>
-        <div class="release-card">
-          <h3>Rollout</h3>
-          <p id="release-timeline" class="fineprint">—</p>
-          <p id="release-traffic" class="fineprint">—</p>
-          <div class="queue-actions">
-            <button id="advance-release" class="secondary" disabled>Advance step</button>
-            <button id="rollback-release" class="quiet" disabled>Rollback</button>
-          </div>
-        </div>
-        <div class="release-card">
-          <h3>Canary gate</h3>
-          <p id="release-gate" class="fineprint">—</p>
-          <div id="release-flags" class="fineprint"></div>
-        </div>
+        <details class="advanced panel" id="release-panel"><summary><div><span class="eyebrow">ADVANCED</span><strong>Release test environment</strong></div><span id="release-state" class="subtle">Load on demand</span></summary><p class="fineprint">Separate release/canary drill. Building a feature does not publish it to production.</p><div class="release-grid"><div><h3>Staging</h3><p id="release-id" class="mono">—</p><p id="release-features" class="fineprint"></p><a id="staging-link" target="_blank" rel="noreferrer" hidden>Open staging ↗</a><div class="queue-actions"><button id="validate-release" class="secondary" disabled>Validate release</button><button id="deploy-now" class="secondary" disabled>Deploy release</button></div></div><div><h3>Rollout</h3><p id="release-timeline" class="fineprint">—</p><p id="release-traffic" class="fineprint">—</p><div class="queue-actions"><button id="advance-release" class="secondary" disabled>Advance step</button><button id="rollback-release" class="secondary" disabled>Rollback</button></div></div><div><h3>Canary</h3><p id="release-gate" class="fineprint">—</p><div id="release-flags"></div></div></div><p id="release-msg" class="message" role="status"></p></details>
+        <details class="advanced panel"><summary><div><span class="eyebrow">DIAGNOSTICS</span><strong>Recent workspace events</strong></div></summary><div id="events" class="event-list"></div></details>
+        <footer><span>Æion · useful work, visible evidence.</span><a href="/lab">Open the advanced model lab ↗</a></footer>
+        <dialog id="spec-dialog" aria-labelledby="spec-title"><header class="panel-heading"><h2 id="spec-title">Specification</h2><button id="spec-close" class="secondary" type="button">Close</button></header><pre id="spec-body"></pre><p id="spec-digest" class="fineprint"></p></dialog>
       </div>
-      <p id="release-msg" class="fineprint" role="status"></p>
-    </section>
-    <div class="factory-layout">
-      <div class="catalog-panel">
-        <div class="panel-top"><span class="eyebrow">FEATURE CATALOG</span><span id="catalog-count" class="tag">—</span></div>
-        <div class="filters"><select id="phase-filter" aria-label="Phase"><option value="">All phases</option></select>
-          <select id="area-filter" aria-label="Area"><option value="">All areas</option></select></div>
-        <div id="cards" class="card-grid" aria-live="polite"></div>
-      </div>
-      <div class="queue-panel">
-        <div class="panel-top"><span class="eyebrow">QUEUE &amp; LIVE VIEW</span><span id="queue-count" class="tag">0 nonterminal</span></div>
-        <div class="queue-actions"><button id="build-one" class="primary" disabled>Build one <span>→</span></button>
-          <button id="queue-ten" class="secondary" disabled>Queue up to ten</button></div>
-        <div id="builds" class="build-list" aria-live="polite"><p class="muted">No builds yet.</p></div>
-        <div class="panel-top"><span class="eyebrow">EVENTS</span></div>
-        <div id="events" class="event-list" aria-live="polite"><p class="muted">Waiting for events.</p></div>
-      </div>
-    </div>
-  </section>
-</main>
-</body></html>
+    </main>
+  </div>
+</body>
+</html>

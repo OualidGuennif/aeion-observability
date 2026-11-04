@@ -16,6 +16,8 @@ changes belong in the product repository. The
 interface uses Æion's ivory, forest-green and copper palette, locally bundled fonts and a native
 GPT Image illustration.
 
+Completed/in-progress features are disabled and rejected on duplicate admission. The catalog only enables validated targets with satisfied dependencies; a successful candidate remains separate from integration. Features 001, 013 and 017 are completed and locked locally. Target 007 now connects content sanitization to the current product and can be launched from Ready after controller reload. The other 96 catalog entries still need their own contracts and prerequisites. The [007 wiring record](../work/feature-007-cockpit-wiring-2026-11-02.md) distinguishes offline qualification, operator readiness and actual model implementation.
+
 ## Agora factory planning
 
 The [Agora product plan](forum/PLAN.md), [factory contract](forum/ECOSYSTEM.md) and
@@ -32,7 +34,7 @@ producer and consumer behind a transactional outbox, CSRF tokens on every mutati
 restore drill and one-writer leasing. `demo/forum-mobile/` is the front on React Native 0.88.1
 through Expo SDK 58: it typechecks, bundles for iOS (619 modules) and its API client passes a
 12-step smoke test against the live service, though no simulator has run it. The same client also
-renders in a browser through `react-native-web` (`npx expo start --port 8082` →
+renders in a browser through `react-native-web` (`npx expo start --web --localhost --port 8082` →
 `http://127.0.0.1:8082`), which is how the forum is shown without a phone. A real Kafka broker
 (`apache/kafka-native` in Docker) carried the event drill.
 
@@ -71,10 +73,11 @@ may hold more than the one it needs.
 
 | View | Local address | Purpose |
 | --- | --- | --- |
-| Python cockpit | [localhost:8088](http://localhost:8088) | Session timeline, context, model KPIs, memory, MD and logs |
+| Operator cockpit | [localhost:8088](http://localhost:8088) | Ready/blocked/completed features, build activity, budget and trace evidence |
+| Advanced model lab | [localhost:8088/lab](http://localhost:8088/lab) | Historical scenario sessions, context, model KPIs, memory and handovers |
 | Feature factory | [localhost:8088/factory](http://localhost:8088/factory) | Select, queue and watch forum feature builds |
 | Forum API | [localhost:8081](http://127.0.0.1:8081/healthz) | Quarkus service: threads, accounts, health |
-| Forum web front | [localhost:8082](http://127.0.0.1:8082) | React Native Web client (`npx expo start --port 8082`) |
+| Forum web front | [localhost:8082](http://127.0.0.1:8082) | Canonical product's React Native Web client (`npx expo start --web --localhost --port 8082` in its `demo/forum-mobile/`) |
 | Langfuse | [localhost:3300](http://localhost:3300) | Real traces, generations, usage, estimated cost and boolean scores |
 | Hindsight | [localhost:9999](http://localhost:9999) | Session-analysis memory banks and semantic recall |
 
@@ -269,6 +272,13 @@ owner approval.
    and blocks proposals beyond the allocation **before forwarding**. The normal preflight
    also hands over at 250k, leaving additional headroom below 300k.
 
+Qwen and Haiku have no pinned exact local tokenizer in this integration. Their byte estimate
+reserves cost only; it does not reject a launch as a context count. These profiles admit bounded
+inputs and use complete API usage, including cache reads/writes, to gate the next request.
+Unknown usage stops continuation; native250k hands over and native input+output above300k fails.
+Their first request has no independent300k preflight guarantee; provider context enforcement and
+the measured gate apply. Pinned-tokenizer profiles retain the pre-request allocation checks.
+
 The harness has only a session-local relay token; the real Go key stays in the supervisor. The
 relay validates model/output limits, serializes requests, does not retry or follow redirects,
 and forwards only the client identity headers. Conversations live in an in-memory database and
@@ -280,7 +290,7 @@ The default active input measure is native uncached input + cache read + cache w
 not cumulative spend. Both native reports and local preflight counts are logged with their
 basis. Local tokenizer/template parity and the provider-framing reserve are qualification
 assumptions, not a guarantee about undisclosed provider internals or invoices. A native
-context >300k or count discrepancy >20k fails the task and blocks future live runs via
+context >300k or a pinned-tokenizer count discrepancy >20k fails the task and blocks future live runs via
 `demo/.local/data/context.blocked`; investigate/requalify before clearing it. The crossing native
 report can exceed 250k, but no subsequent request is admitted.
 

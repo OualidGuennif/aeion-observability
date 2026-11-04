@@ -216,9 +216,9 @@ def main():
             def count(self, _payload):
                 return 4000
 
-        def local_relay(model, key, limit, checkpoint, event, admission=None):
+        def local_relay(model, key, limit, checkpoint, event, admission=None, **options):
             return ContextRelay(model, key, limit, checkpoint, event, admission=admission,
-                                upstream=f"http://127.0.0.1:{server.server_port}/v1/chat/completions", counter=FixtureCounter())
+                                upstream=f"http://127.0.0.1:{server.server_port}/v1/chat/completions", counter=FixtureCounter(), **options)
 
         profile = {"model": "fixture/mock", "name": "Fixture", "context": 1000000, "input": 0, "output": 0, "cache_read": 0}
         with patch.dict(os.environ, {"OPENCODE_API_KEY": "synthetic", "DEMO_MAX_COST_USD": "0"}), \

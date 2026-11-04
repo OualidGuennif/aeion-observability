@@ -9,10 +9,12 @@ scopes and a real protected check, but model bytes are fixed and the attempt is 
 from pathlib import Path
 
 from .isolation import DockerCheckRunner
-from .live import LiveBuilder, LiveReview
-from .model_client import available as provider_available
+from .inference_config import available as provider_available
 from .target import TargetError, load_target
 from .telemetry import FactoryTelemetry
+from .flue_qualification import ready as flue_factory_ready
+from .preparation import TaskPreparer
+from .source import SourceSynchronizer
 
 MODES = ("simulator", "offline", "live")
 DEFAULT_FEATURE = "013"
@@ -102,22 +104,49 @@ def resolve(repo_root, mode):
         return {"mode": "simulator"}
     if mode not in MODES:
         return {"mode": mode, "hold_reason": "execution_mode_unknown"}
-    try:
-        target = load_target(profile_path(repo_root), Path(repo_root))
-    except (TargetError, OSError, ValueError) as exc:
-        # The target profile or the pinned product checkout is unavailable on this host.
-        return {"mode": mode, "hold_reason": "execution_unavailable",
-                "detail": type(exc).__name__}
+    targets = {}
+    errors = {}
+    directory = Path(repo_root) / "demo/forum/targets"
+    for path in sorted(directory.glob("forum-app-[0-9][0-9][0-9].json")):
+        feature_id = path.stem.removeprefix("forum-app-")
+        try:
+            candidate = load_target(path, Path(repo_root))
+            if candidate.feature_id != feature_id:
+                raise TargetError("profile_feature_mismatch")
+            targets[feature_id] = candidate
+        except (TargetError, OSError, ValueError) as exc:
+            errors[feature_id] = type(exc).__name__
+    if not targets and mode == 'offline':
+        return {"mode": mode, "hold_reason": "execution_unavailable", "target_errors": errors}
+    # Offline qualification is a fixed fixture, never a pretend implementation of another feature.
     if mode == "offline":
-        return {"mode": "offline", "target": target, "builder": offline_builder,
+        targets = {fid: target for fid, target in targets.items() if fid == DEFAULT_FEATURE}
+        if not targets:
+            return {"mode": mode, "hold_reason": "execution_unavailable"}
+    target = targets.get(DEFAULT_FEATURE) or next(iter(targets.values()), None)
+    if mode == "offline":
+        return {"mode": "offline", "target": target, "targets": targets, "target_errors": errors, "builder": offline_builder,
                 "check_sandbox": DockerCheckRunner(repo_root),
                 "telemetry": FactoryTelemetry(readback=True)}
     if not provider_available():
         # The pinned target exists, but no provider credential is loaded: hold, never simulate.
         return {"mode": "live", "hold_reason": "provider_unconfigured"}
-    return {"mode": "live", "target": target, "builder": LiveBuilder(),
-            "review_complete": LiveReview(),
-            "check_sandbox": DockerCheckRunner(repo_root),
+    checker = DockerCheckRunner(repo_root)
+    preparer = TaskPreparer(repo_root,
+        Path(repo_root) / 'demo/.local/factory/agents/aeion-autonomous-forum', checker=checker,
+        synchronize=SourceSynchronizer(repo_root))
+    if not flue_factory_ready(repo_root):
+        return {"mode": "live", "hold_reason": "flue_factory_unqualified", "preparer": preparer,
+                "target_errors": errors, "engine": "flue-openshell", "tier": 3}
+    from .flue_builder import FlueBuilder
+    from .flue_review import FlueReview
+    reviews=FlueReview(cost_limit='1.00',max_output_tokens=65536)
+    reviews.timeout_seconds=900
+    return {"mode": "live", "preparer": preparer, "target_errors": errors,
+            "builder": FlueBuilder(repo_root, {}, check_sandbox=checker),
+            "review_complete": reviews, 'engine': 'flue-pi', 'runtime': 'flue-openshell', 'tier': 3,
+            "publication": True,
+            "check_sandbox": checker,
             "telemetry": FactoryTelemetry(readback=True),
             # One attempt may reserve part of the shared purse; $15/day remains the hard cap.
             "cost_reservation_usd": "0.50"}

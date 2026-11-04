@@ -9,13 +9,13 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
         "deps": [2, 14],
         "goal": "Keep the forum rules in one reviewed file that renders to prose and to a machine form, so a moderation decision always cites a version that can be re-read.",
         "scope": [
-            "`rules/rules.yaml` with stable codes, severities and the prose for each rule.",
-            "A renderer that produces the public rules page and a hash of the version.",
-            "A check that every code used by the engine exists in the file.",
+            '`demo/forum-app/src/main/resources/rules/rules.yaml` with stable codes, severities and the prose for each rule.',
+            'A renderer that produces the public rules page and a hash of the version.',
+            'A check that every code used by the engine exists in the file.',
         ],
         "out": [
             "Editing rules through the web interface.",
@@ -28,16 +28,21 @@ SPECS = [
         ],
         "security": "The rules file is code-reviewed like code; no runtime write path exists.",
         "test": "Render, hash, then remove a referenced code and assert the check fails.",
+        'delivery': [
+            'Define immutable rule codes, prose, severity and retained versions.',
+            'Generate the machine form and safe React-readable rules data from one file.',
+            'Test shared hashes and refusal of missing or removed referenced codes.',
+        ],
     },
     {
         "id": 42,
         "area": "moderation",
         "title": "Deterministic rules engine",
-        "size": "L",
+        "size": "M",
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [7, 32, 41],
         "goal": 'Decide allow, hold or reject from normalized content, versioned rules and an explicit duplicate/rate snapshot; no model or I/O participates.',
         "scope": [
@@ -56,6 +61,11 @@ SPECS = [
         ],
         "security": "Fail closed: a check that errors produces a hold, never an allow.",
         "test": "A table of at least forty inputs with expected verdicts and codes, including the failing-check path.",
+        'delivery': [
+            'Define one pure input snapshot and canonical allow/hold/reject result.',
+            'Implement only the reviewed deterministic rules with explicit priorities.',
+            'Pin forty cases including missing/error signals; add no model or I/O.',
+        ],
     },
     {
         "id": 43,
@@ -65,13 +75,13 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [4, 9],
         "goal": "Express every privileged capability as a cell of one matrix enforced in one place, so a new route cannot invent its own authorization.",
         "scope": [
-            "Roles: reader, writer, moderator, administrator, orchestrator.",
-            "A single `can(role, action)` function with an explicit table and a default of deny.",
-            "A test per cell, positive and negative.",
+            'Roles: reader, agent writer, moderator, administrator and orchestrator; the writer capability is never granted to a human account.',
+            'One explicit deny-by-default Java permission matrix, combined with per-channel/object/ownership checks; role alone does not grant object access.',
+            'Each JAX-RS endpoint declares a checked action or an explicit reviewed public read action; a missing declaration fails the route-coverage check.',
         ],
         "out": [
             'A policy language or per-object grant editor.',
@@ -84,6 +94,11 @@ SPECS = [
         ],
         "security": 'Deny by default on unknown roles/actions/errors. Writer is an agent capability, never a human account grant. Route action checks also require the channel/object predicates from 020; no role bypasses ownership.',
         "test": "Walk the matrix in both directions; start the app with a route missing its action and assert the failure.",
+        'delivery': [
+            'Define the fixed Java capability matrix with default deny.',
+            'Require explicit endpoint actions plus current object/channel predicates.',
+            'Enumerate positive/negative cells and fail coverage on an undeclared route.',
+        ],
     },
     {
         "id": 44,
@@ -93,7 +108,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [21, 22, 20, 41, 43],
         "goal": "Let an identity report a post or comment with one rule code and an optional note, deduplicated per reporter, so the queue reflects distinct complaints rather than clicks.",
         "scope": [
@@ -112,6 +127,11 @@ SPECS = [
         ],
         "security": "The reporter's identity is server-derived and never shown to the reported author.",
         "test": "File duplicate reports, an invalid code and a hidden target; assert one row and the two refusals.",
+        'delivery': [
+            'Add bounded reports with a unique open reporter/target key.',
+            'Resolve reporter identity and visible target server-side.',
+            'Test duplicates, unknown rule codes and invisible-target refusals.',
+        ],
     },
     {
         "id": 45,
@@ -121,7 +141,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [44, 41, 43],
         "goal": "Order the queue by rule severity, report count and age with a stable tie-break, so the worst content is seen first and nothing starves.",
         "scope": [
@@ -140,6 +160,11 @@ SPECS = [
         ],
         "security": "The queue is visible only to moderators; its query is covered by the permission matrix.",
         "test": "Build a fixture with mixed severities and ages; assert the order and the starvation lift.",
+        'delivery': [
+            'Implement one pure priority calculation and starvation threshold.',
+            'Expose the authorized queue with its fixed score components.',
+            'Freeze time and test severity, aging and stable equal-score order.',
+        ],
     },
     {
         "id": 46,
@@ -149,7 +174,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [42, 45, 9, 43, 20],
         "goal": "Offer a small, audited action set — hold, approve, reject, lock, escalate — with a mandatory reason code, so every change of visibility is explainable.",
         "scope": [
@@ -168,6 +193,11 @@ SPECS = [
         ],
         "security": 'Commit visibility and audit atomically. Approval recomputes the deterministic verdict on current content/rules; only the separately authorized owner override can overrule it.',
         "test": "Apply each action, repeat one, omit the code; assert state, visibility and audit rows.",
+        'delivery': [
+            'Define the small moderation command set and idempotent action identity.',
+            'Commit state and audit together after current deterministic recomputation.',
+            'Test every action, replay, missing code and visibility atomicity.',
+        ],
     },
     {
         "id": 47,
@@ -177,7 +207,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [46, 8, 43],
         "goal": "Let an author appeal a decision once, with the reason code attached, and require a different moderator to decide, so a decision is checked rather than repeated.",
         "scope": [
@@ -190,12 +220,17 @@ SPECS = [
             "Multiple appeal rounds on the same action.",
         ],
         "accept": [
-            "A second appeal on the same action answers 409.",
-            "The original moderator cannot decide the appeal.",
-            "An overturned appeal restores the content in the same transaction.",
+            'A second appeal on the same action returns 409; the original moderator cannot decide their own appeal.',
+            'Overturning recomputes current content/rules/object access and records its result atomically with audit; a formerly allowed item may now remain held.',
+            'Only the separately authorized administrator override can restore against the current deterministic verdict; an ordinary appeal cannot bypass it.',
         ],
         "security": "Appeals are rate limited per author and audited like any other action.",
-        "test": "File two appeals, attempt self-review, then overturn and assert visibility restored.",
+        "test": 'Test duplicate appeals, self-review refusal, allowed restoration and a changed-rules fixture where overturning cannot publish against the current verdict.',
+        'delivery': [
+            'Add one appeal per action with an independent deciding moderator.',
+            'Recompute current rules/access before an overturned appeal can restore.',
+            'Test duplicates, self-review and refusal of an engine-bypassing restoration.',
+        ],
     },
     {
         "id": 48,
@@ -205,9 +240,9 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [43, 9],
-        "goal": "Apply time-bounded sanctions to an identity with a reason and an expiry, enforced at write time, so a sanction always ends and always has a record.",
+        "goal": 'Apply reasoned sanctions with explicit expiry and server-side write enforcement; permanent sanctions require the separately authorized administrator path.',
         "scope": [
             "`sanctions` table with kind, reason code, start, expiry and issued-by.",
             "Write-path enforcement for both sessions and agent tokens.",
@@ -224,6 +259,11 @@ SPECS = [
         ],
         "security": "Sanctions are checked before content work, so a banned identity cannot consume moderation budget.",
         "test": 'Use a frozen-clock internal write-authorization adapter to assert mute/ban refusal, expiry and audit; 063 later checks every live write path.',
+        'delivery': [
+            'Add explicit sanction types, reason and expiry.',
+            'Expose a reusable write-authorization predicate with current-time checks.',
+            'Test mute/ban behavior, expiry and restricted permanent sanctions.',
+        ],
     },
     {
         "id": 49,
@@ -233,8 +273,8 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
-        "deps": [48],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        "deps": [48, 46, 47],
         "goal": "Turn repeated upheld violations into warn, then mute, then ban, by a table with documented thresholds rather than a moderator's mood.",
         "scope": [
             "A ladder table keyed by upheld violations within a window.",
@@ -252,16 +292,21 @@ SPECS = [
         ],
         "security": "Only upheld decisions count; a dismissed report never escalates.",
         "test": "Simulate violations across the window boundary; assert each rung and the dry-run equality.",
+        'delivery': [
+            'Define the reviewed violation-window thresholds and ladder function.',
+            'Count only upheld outcomes and expose a no-effect dry run.',
+            'Freeze boundary dates and compare each real/dry-run rung.',
+        ],
     },
     {
         "id": 50,
         "area": "moderation",
         "title": "Moderator agent that only triages",
-        "size": "L",
+        "size": "M",
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [46, 52, 61, 66, 73],
         "goal": 'Run the qualified narrow moderator profile, reading queue/rules and submitting bounded proposals; the server recomputes a deterministic decision before applying anything.',
         "scope": [
@@ -280,6 +325,11 @@ SPECS = [
         ],
         "security": 'No forge/database/provider credential reaches the moderator. Its broker checks identity, object scope, revocation and cancellation; the same OS confinement qualification applies as for participants.',
         "test": 'Submit missing, unknown and mismatched known codes plus a valid proposal; assert deterministic recomputation, identity/object checks, deduplication and refusal against engine disagreement. Confinement is independently qualified by 066.',
+        'delivery': [
+            'Bind the already-qualified moderator profile to queue/rule readers.',
+            'Accept only bounded typed proposals through existing moderation commands.',
+            'Test mismatched codes/actions, replay and refusal against engine disagreement.',
+        ],
     },
     {
         "id": 51,
@@ -289,13 +339,13 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [46, 5, 6, 9, 43],
         "goal": "Let the administrator overturn any moderation action from one page, with a mandatory justification, so a wrong automated decision is one click from repair.",
         "scope": [
-            "A console listing recent actions with their evidence and a restore control.",
-            "A mandatory free-text justification stored with the override.",
-            "A confirmation step and a limit on overrides per minute.",
+            'An administrator React console lists authorized actions with safe bounded evidence and restore controls.',
+            'Require a bounded private justification record linked by opaque ID; the append-only audit stores a fixed override code and that ID, never free text.',
+            'Require fresh authentication, CSRF, an explicit confirmation and a fixed override rate limit; current object/visibility checks remain enforced.',
         ],
         "out": [
             "Editing audit rows.",
@@ -308,16 +358,21 @@ SPECS = [
         ],
         "security": "The console requires a fresh session, and every view is audited.",
         "test": "Override a hold, assert restoration and audit; attempt the console as moderator and assert 403.",
+        'delivery': [
+            'Add the fresh-session administrator React override view.',
+            'Store bounded private justification separately from fixed-code audit records.',
+            'Test confirmation/CSRF/rate limits, restoration and non-admin refusals.',
+        ],
     },
     {
         "id": 52,
         "area": "moderation",
         "title": "Injection guard for inbound content",
-        "size": "L",
+        "size": "M",
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [21, 22, 7],
         "goal": 'Derive bounded filtered agent excerpts from normalized stored Markdown; treat all content as untrusted without promising universal injection detection.',
         "scope": [
@@ -336,6 +391,11 @@ SPECS = [
         ],
         "security": 'Scanning is defense in depth, not a firewall. The model may respond to content; the broker enforces authority independently of model instructions.',
         "test": 'Exercise thirty named payloads and ordinary French false-positive fixtures; then use unrecognized payloads to attempt forbidden server operations and assert refusal.',
+        'delivery': [
+            'Derive a bounded agent excerpt from the existing normalized text.',
+            'Filter only named instruction patterns without modifying stored content.',
+            'Test known/ordinary French fixtures plus unknown-payload capability refusals.',
+        ],
     },
     {
         "id": 53,
@@ -345,7 +405,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [9, 46, 47, 48, 51],
         "goal": "Route every moderation action through the hash-chained log with a stable action code, so the history of a post can be reconstructed and verified.",
         "scope": [
@@ -362,8 +422,13 @@ SPECS = [
             "The chain verifies after a restart.",
             "No entry contains body text.",
         ],
-        "security": "The application role keeps INSERT-only rights on the audit table.",
+        "security": 'The application can invoke only the append-only audit function; it has no direct INSERT, UPDATE or DELETE grant on audit history. The separate verifier has restricted read access.',
         "test": 'Apply concurrent moderation actions and rollback fixtures, then verify one chain, transaction coupling, order and absence of text.',
+        'delivery': [
+            'Route each existing moderation command to its fixed audit code.',
+            'Add authorized per-target history and a chain-verification job.',
+            'Test rollback/concurrent order and absence of content in audit records.',
+        ],
     },
     {
         "id": 54,
@@ -373,7 +438,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [46],
         "goal": 'Measure deterministic-engine precision/recall on a held-out labelled synthetic fixture; moderator-proposal comparison is optional only after 050 is qualified.',
         "scope": [
@@ -392,6 +457,11 @@ SPECS = [
         ],
         "security": "The fixture is synthetic and labelled; it is not benchmark evidence about any real community.",
         "test": "Run the report on the fixture, then weaken a rule and assert the threshold failure.",
+        'delivery': [
+            'Freeze separate tuning and held-out synthetic label sets.',
+            'Compute per-code confusion, denominators and precision/recall.',
+            'Weaken a rule and prove the held-out threshold fails without retuning labels.',
+        ],
     },
     {
         "id": 55,
@@ -401,7 +471,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [42],
         "goal": "Keep a growing set of bypass attempts — homoglyphs, zero-width characters, encoded payloads, quote tricks — each pinned to the rule that must still catch it.",
         "scope": [
@@ -420,6 +490,11 @@ SPECS = [
         ],
         "security": "The suite is the regression net for the engine; it is never skipped in CI.",
         "test": "The suite itself, plus a deliberately weakened engine to prove it fails.",
+        'delivery': [
+            'Add forty named encoded/Unicode/quote bypass fixtures.',
+            'Bind each to the reviewed rule and expected fixed verdict.',
+            'Weaken one rule and prove the corresponding protected assertion fails.',
+        ],
     },
     {
         "id": 56,
@@ -429,7 +504,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [46, 9, 43],
         "goal": "Hold everything and stop agent posting with one switch, so a runaway rule or a bad deploy degrades to a quiet forum instead of a flood.",
         "scope": [
@@ -448,6 +523,11 @@ SPECS = [
         ],
         "security": "Only the administrator and the orchestrator may flip it; both paths are audited.",
         "test": 'Assert the internal publication guard holds all new content when either switch is enabled, with audit and recovery; 063 later proves live create/edit/digest integration.',
+        'delivery': [
+            'Add the administrator/orchestrator switch and environment hold override.',
+            'Expose one reusable publication guard with atomic audit.',
+            'Test either switch, explicit recovery and no automatic release of held rows.',
+        ],
     },
     {
         "id": 57,
@@ -457,7 +537,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [41, 9],
         "goal": "Make a rule change a reviewed commit with a fixture diff, so a rule cannot be loosened to let a specific post through.",
         "scope": [
@@ -476,6 +556,11 @@ SPECS = [
         ],
         "security": 'A fixture diff is necessary but not approval. Rules changes always require owner review and protected checks; candidate-controlled tests cannot certify their own change.',
         "test": "Change the rules alone and assert failure; change with a fixture and assert pass.",
+        'delivery': [
+            'Compare rule/version changes with retained citations and fixture changes.',
+            'Produce the bounded human-readable rule diff for review.',
+            'Refuse missing coverage or cited-code removal; tests cannot grant approval.',
+        ],
     },
     {
         "id": 58,
@@ -485,24 +570,29 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
         "deps": [53, 14],
         "goal": "Publish aggregate moderation counts — held, rejected, restored, appeals upheld — from the audit trail, so the forum's own behaviour is visible without exposing content.",
         "scope": [
-            "A public page with counts per week and per rule code, computed from the audit table.",
-            "A minimum cohort size below which a count is bucketed to avoid identification.",
-            "A cached render with the timestamp of the last computation.",
+            'A public React page displays weekly rule-code aggregates from a separate restricted aggregation query, not arbitrary audit row access.',
+            'Pin a minimum cohort k=5 and suppress complementary totals/cells that would reconstruct a suppressed count; private-channel events never enter public aggregates.',
+            'Publish one fixed-window cached snapshot and its generation timestamp; do not expose arbitrary filters for differencing small cohorts.',
         ],
         "out": [
             "Per-post histories in public.",
             "Naming moderators.",
         ],
         "accept": [
-            "Counts match a recomputation from the trail.",
-            "Small cohorts are bucketed, not printed.",
-            "The page never mentions a handle or a post id.",
+            'Authorized counts match an independent recomputation before suppression; private-channel events contribute nothing.',
+            'Cells smaller than five and reconstructing complementary totals are suppressed explicitly, never displayed as zero.',
+            'The page and backing JSON contain no handle, target ID or individual moderator identity.',
         ],
         "security": "Aggregation happens in SQL over codes and timestamps only; no content column is read.",
         "test": "Compute twice and assert equality with the raw query; assert bucketing under the threshold.",
+        'delivery': [
+            'Compute fixed-window public moderation aggregates through restricted SQL.',
+            'Apply minimum-cohort and complementary suppression before JSON/UI output.',
+            'Test independent counts, private-event exclusion and reconstruction attempts.',
+        ],
     },
 ]

@@ -1,132 +1,345 @@
-/* Factory board client: admin login, catalog cards, queue, cancel and bounded SSE. */
+/* Spec: knowledge/components/operator-cockpit.md */
 "use strict";
 const TERMINAL = ["merged", "failed", "cancelled", "simulated_complete", "live_complete", "baseline"];
-const LANGFUSE_UI = "http://localhost:3300";
+const LANGFUSE_UI = "http://127.0.0.1:3300";
+const LANGFUSE_PROJECT = "aeion-demo"; // The project initialized by demo/compose.yaml.
 const state = { csrf: null, selected: new Set(), catalog: [], builds: [], events: [], lastSeq: 0,
-  execution: { mode: "simulator", hold_reason: null } };
-
+  execution: {}, filter: "all", refreshing: false, submitting: false, stream: null, requestKey: null, specRequest: 0 };
 const $ = (id) => document.getElementById(id);
-
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const LABELS = { ready: "Ready", implemented: "Implemented", built: "Built · awaiting integration",
+  in_progress: "In progress", blocked: "Waiting", live_complete: "Built", baseline: "Verified baseline",
+  merged: "Integrated", queued: "Queued", dispatched: "Running", held: "On hold", failed: "Failed",
+  cancelled: "Cancelled", simulated_complete: "Simulation", approved: "Approved", gated: "Publication queued", pr_open: "Waiting for CI" };
+function esc(value) {
+  return String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
-function uid() {
-  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-  return "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+function uid() { return crypto.randomUUID(); }
+function availability(feature) {
+  return feature.availability || { state: "blocked", selectable: false, reason: "availability_unavailable" };
 }
-
-async function api(path, options) {
-  const r = await fetch(path, { credentials: "same-origin", ...options });
-  const body = await r.json().catch(() => ({}));
-  return { ok: r.ok, status: r.status, body };
+function reasonText(info) {
+  const reason = info.reason || "";
+  if (!reason && state.execution.mode === "simulator") return "Ready for a scripted queue simulation.";
+  if (!reason && state.execution.mode === "offline") return "Ready for isolated qualification with scripted agent output.";
+  if (reason === "dependency_missing") {
+    const missing = Array.isArray(info.missing_dependencies) ? info.missing_dependencies : [];
+    return missing.length ? `Waiting for feature${missing.length > 1 ? "s" : ""} ${missing.join(", ")} to be integrated.`
+      : "The prerequisites of this earlier request are now satisfied. Its hold must be reconciled before dispatch.";
+  }
+  return ({ already_implemented: "Implemented and locked against another launch.",
+    awaiting_integration: "Implementation built. Integration is a separate step; relaunch is locked.",
+    feature_in_progress: "Already queued or running. Follow it in Build activity.",
+    target_unavailable: "Automatic task preparation is not connected for this feature yet. This is factory work, not configuration for you to supply.",
+    flue_factory_unqualified: "The Flue/Pi factory is paused: shared PostgreSQL/React checks and the protected PR/CI/main path are not qualified yet. The Java pipeline alone cannot enable implementation launches.",
+    provider_unconfigured: "The model provider is not configured.",
+    execution_unavailable: "The product repository or task preparation adapter is unavailable to the factory.",
+    sandbox_unqualified: "The isolated checker needs qualification.",
+    budget_unavailable: "The daily budget is unavailable or exhausted.",
+    availability_unavailable: "Refresh after the controller update to load availability.",
+    qualification_missing: "The independent acceptance check is missing or unqualified. The factory must prepare and verify it before implementation.",
+    target_feature_mismatch: "This feature does not match the configured execution target.",
+    owner_review_required: "Owner review is required before proceeding.",
+    worker_error: "The worker stopped unexpectedly. The request is held for review; no automatic paid retry.",
+    reconciliation_needed: "An interrupted attempt or remote action needs reconciliation. Another launch stays locked while its effects are unknown.",
+    catalog_changed: "The specification changed after this request. Refresh and read the current MD. A new selection replaces only an obsolete request that never started; uncertain attempts stay locked.",
+    publication_blocked: "Publication stopped safely. Open the publication evidence below for the precise blocker.",
+    publication_unavailable: "The isolated publisher is not connected. The checked artifact is preserved; no PR or main merge is claimed.",
+    preparation_unavailable: "Task preparation stopped before implementation. Open the evidence for the exact checker, repository or acceptance blocker.",
+    preparation_profile_unavailable: "This specification requires the shared React/web checker, which has not been qualified yet. This is factory infrastructure work.",
+    preparation_transition_checker_unqualified: "The shared PostgreSQL transition checker has not been qualified. No builder was started for this request.",
+    preparation_checker_unqualified: "The protected check boundary could not be qualified. No implementation was started.",
+    product_base_not_integrated: "The product main branch still lacks the baseline application. A checked bootstrap PR must integrate it before a feature can start.",
+    preparation_base_unavailable: "The factory cannot resolve the product's pinned main commit. Repository synchronization must be repaired before implementation.",
+    preparation_negative_control_missing: "The proposed acceptance did not produce a genuine failing case on the untouched baseline. It cannot certify a new implementation.",
+    preparation_contract_unavailable: "The preparer could not produce a usable protected acceptance contract. The request is preserved without starting a builder.",
+    protection_unreadable: "The release role needs read access to main branch protection before it can verify a safe merge.",
+    protection_unqualified: "Main branch protection does not satisfy the factory policy. No merge was requested.",
+    ci_pending: "Waiting for all required checks on this exact PR commit. No new implementation is needed.",
+    ci_failed: "A required CI check failed. Inspect the PR checks; the feature has not been merged.",
+    stale_base: "Main changed after the task was frozen. Rebase, checks and independent reviews must be repeated before publication.",
+    stale_head: "The PR head changed after review. Publication is held until the exact artifact is verified again.",
+    merge_not_confirmed: "A merge could not be confirmed on main. Keep this feature locked while the factory reconciles the remote result.",
+    profile_expired: "The model profile needs requalification." })[reason] || (reason ? `Waiting: ${reason}. Inspect the request evidence.` : "Ready for automatic preparation and build.");
 }
-
-function pushEvent(event, data) {
-  state.events.unshift({ event, data });
-  state.events = state.events.slice(0, 20);
-  renderEvents();
+function featureLabel(info) {
+  if (info.state !== "blocked") return LABELS[info.state] || info.state;
+  if (info.reason === "dependency_missing") return "Waiting for prerequisites";
+  if (info.reason === "flue_factory_unqualified") return "Factory paused";
+  if (info.reason === "target_unavailable") return "Preparation pending";
+  if (info.reason === "owner_review_required") return "Review required";
+  return "On hold";
 }
-
-function renderEvents() {
-  const list = $("events");
-  list.innerHTML = state.events.length
-    ? state.events.map((e) => `<div class="event"><b>${esc(e.event)}</b> ${e.data ? esc(JSON.stringify(e.data)).slice(0, 120) : ""}</div>`).join("")
-    : '<p class="muted">Waiting for events.</p>';
+function executionNotice(execution, ready) {
+  if (execution.mode === "simulator") return "<strong>Simulation only.</strong>Scripted queue behavior: no paid model calls, PR or main merge. A simulation does not implement a feature.";
+  if (execution.mode === "offline") return "<strong>Offline qualification.</strong>Isolated checks use scripted agent output. No paid model call or real PR/main publication occurs.";
+  const hold = execution.hold_reason || execution.live_hold_reason;
+  if (hold && execution.mode !== "simulator" && execution.mode !== "offline") {
+    return `<strong>Factory paused.</strong>${esc(reasonText({reason: hold}))} The factory owns repository, isolation, checks and publication preparation. Your step is to choose a specification when execution is available.`;
+  }
+  if (ready) return `<strong>${ready} feature${ready === 1 ? " is" : "s are"} ready.</strong>Select up to ten specifications. The factory runs preparation, isolated implementation, checks and review in order.`;
+  return "<strong>No new implementation can start yet.</strong>Read the specifications and their prerequisite order below. The waiting states explain the exact factory or dependency blocker.";
 }
-
-function renderExecution() {
-  const e = state.execution || {};
-  const target = e.target_feature ? ` · feature ${e.target_feature}` : "";
-  const held = e.hold_reason ? ` · held: ${e.hold_reason}` : "";
-  $("execution-mode").textContent = `${e.mode || "simulator"}${target}${held}`;
-  $("execution-mode").title = e.live_hold_reason
-    ? `Live held: ${e.live_hold_reason}` : "Execution mode";
-}
-
-function renderCards() {
+const PHASE_LABELS = {preparing:"Preparing task",building:"Building in OpenShell",checking:"Checking",
+  reviewing:"Independent review",publishing:"Opening pull request",waiting_ci:"Waiting for CI",merging:"Merging",
+  "model.step.started":"Agent working","tool.finished":"Tool completed","gen_ai.request":"Model response received",
+  "protected_check.started":"Checking","protected_check.finished":"Check completed",
+  "process.started":"Agent started","process.retired":"Agent stopped","gate.closed":"Session checkpoint"};
+function visibleFeatures() {
+  const query = $("feature-search").value.trim().toLowerCase();
   const phase = $("phase-filter").value;
-  const area = $("area-filter").value;
-  const grid = $("cards");
-  grid.innerHTML = "";
-  let count = 0;
-  for (const f of state.catalog) {
-    if (phase && f.phase !== phase) continue;
-    if (area && f.area !== area) continue;
-    count += 1;
-    const checked = state.selected.has(f.id);
-    const disabled = !checked && state.selected.size >= 10;
-    const card = document.createElement("label");
-    card.className = "card" + (checked ? " selected" : "");
-    card.innerHTML = `<input type="checkbox" data-id="${esc(f.id)}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""}>` +
-      `<div class="card-body"><div class="card-head"><strong>${esc(f.id)}</strong><span class="tag">${esc(f.phase)} · ${esc(f.area)}</span></div>` +
-      `<h4>${esc(f.title)}</h4><div class="card-meta"><span>size ${esc(f.size)}</span><span>tier ${f.tier}</span>` +
-      `${f.parallel ? '<span class="badge-parallel">parallel</span>' : ""}<span>${f.depends_on.length ? "needs " + f.depends_on.map(esc).join(", ") : "no deps"}</span></div></div>`;
-    card.querySelector("input").addEventListener("change", (e) => toggleSelection(e.target, f.id));
-    grid.appendChild(card);
-  }
-  $("catalog-count").textContent = `${count} features`;
-  $("selection-count").textContent = `${state.selected.size} / 10 selected`;
-  $("build-one").disabled = state.selected.size !== 1 || Boolean(state.execution.hold_reason);
-  $("queue-ten").disabled = state.selected.size < 1 || state.selected.size > 10
-    || Boolean(state.execution.hold_reason);
+  return state.catalog.filter((f) => {
+    const a = availability(f);
+    const statusMatch = state.filter === "all" || a.state === state.filter
+      || (state.filter === "completed" && ["implemented", "built"].includes(a.state));
+    return statusMatch && (!phase || f.phase === phase)
+      && (!query || `${f.id} ${f.title}`.toLowerCase().includes(query));
+  }).sort((a, b) => (a.sequence ?? Number.MAX_SAFE_INTEGER) - (b.sequence ?? Number.MAX_SAFE_INTEGER)
+    || a.id.localeCompare(b.id));
 }
-
-function toggleSelection(input, id) {
-  if (input.checked) {
-    if (state.selected.size >= 10) { input.checked = false; return; }
-    state.selected.add(id);
-  } else {
-    state.selected.delete(id);
+function cleanSelection() {
+  for (const id of state.selected) {
+    if (!state.catalog.some((f) => f.id === id && availability(f).selectable)) state.selected.delete(id);
   }
+}
+async function api(path, options) {
+  const response = await fetch(path, { credentials: "same-origin", ...options });
+  return { ok: response.ok, status: response.status, body: await response.json().catch(() => ({})) };
+}
+function setConnection(connected, label) {
+  $("system-dot").classList.toggle("connected", connected);
+  $("system-status").textContent = label;
+}
+function showLogin() {
+  $("login").hidden = false; $("app").hidden = true;
+  state.csrf = null; state.selected.clear();
+  if (state.stream) { state.stream.close(); state.stream = null; }
+  setConnection(false, "Sign in required");
+  const dialog = $("spec-dialog");
+  if (dialog?.open) dialog.close();
+  state.specRequest++;
+}
+function renderOverview() {
+  const count = (predicate) => state.catalog.filter((f) => predicate(availability(f))).length;
+  const ready = count((a) => a.selectable);
+  $("count-ready").textContent = ready;
+  $("count-active").textContent = count((a) => a.state === "in_progress");
+  $("count-completed").textContent = count((a) => ["implemented", "built"].includes(a.state));
+  $("count-blocked").textContent = count((a) => a.state === "blocked");
+  const e = state.execution;
+  const mode = ({ live: "Flue factory", offline: "Offline qualification", simulator: "Simulator" })[e.mode] || "Execution unavailable";
+  $("execution-mode").textContent = `${mode}${e.hold_reason ? " · Paused" : ""}`;
+  $("execution-notice").innerHTML = executionNotice(e, ready);
+}
+function renderCards() {
+  cleanSelection();
+  const features = visibleFeatures();
+  $("catalog-count").textContent = `${features.length} of ${state.catalog.length}`;
+  $("cards").innerHTML = features.length ? features.map((f) => {
+    const a = availability(f);
+    const checked = state.selected.has(f.id);
+    const disabled = !a.selectable || state.submitting || (!checked && state.selected.size >= 10);
+    return `<article class="feature-row ${disabled ? "locked" : ""} ${checked ? "selected" : ""}">` +
+      `<input type="checkbox" id="feature-${esc(f.id)}" data-id="${esc(f.id)}" aria-label="Select feature ${esc(f.id)}" ${checked ? "checked" : ""} ${disabled ? "disabled" : ""}>` +
+      `<div class="feature-copy"><div class="feature-top"><span class="feature-number">${f.sequence ? `Step ${esc(f.sequence)} · ` : ""}${esc(f.id)} · ${esc(f.phase)}</span>` +
+      `<span class="badge ${esc(a.state)}">${esc(featureLabel(a))}</span></div><label class="feature-title" for="feature-${esc(f.id)}">${esc(f.title)}</label>` +
+      `<p class="feature-reason">${esc(reasonText(a))}</p><button class="text-button spec-button" data-spec="${esc(f.id)}" type="button">Read MD →</button></div></article>`;
+  }).join("") : `<div class="empty-state"><div class="empty-icon">◇</div><h3>${state.filter === "ready" ? "Nothing ready to launch yet" : "No matching features"}</h3>` +
+    `<p>${state.filter === "ready" ? "Browse the catalog to read the specifications and see the exact waiting states. Completed work stays locked." : "Try another search or status filter."}</p><button class="text-button" id="view-all">View all features →</button></div>`;
+  $("cards").querySelectorAll("[data-id]").forEach((input) => input.addEventListener("change", () => {
+    if (input.checked && state.selected.size < 10) state.selected.add(input.dataset.id);
+    else state.selected.delete(input.dataset.id);
+    state.requestKey = null;
+    renderCards();
+  }));
+  if ($("view-all")) $("view-all").addEventListener("click", () => setFilter("all"));
+  $("cards").querySelectorAll("[data-spec]").forEach((button) => button.addEventListener("click", () => openSpec(button.dataset.spec)));
+  $("selection-count").textContent = state.selected.size ? `${state.selected.size} / 10 selected` : "No features selected";
+  $("build-one").disabled = !state.selected.size || !state.csrf || state.submitting;
+  $("build-one").innerHTML = `${state.submitting ? "Submitting…" : "Build selected"} <span>→</span>`;
+}
+async function openSpec(id) {
+  const request = ++state.specRequest;
+  const dialog = $("spec-dialog");
+  $("spec-title").textContent = `Feature ${id}`;
+  $("spec-body").textContent = "Loading specification…";
+  $("spec-digest").textContent = "";
+  if (!dialog.open) dialog.showModal();
+  try {
+    const result = await api(`/api/factory/spec/${encodeURIComponent(id)}`);
+    if (request !== state.specRequest || !dialog.open) return;
+    if (result.status === 401) { showLogin(); return; }
+    if (!result.ok) throw new Error("unavailable");
+    $("spec-title").textContent = `${result.body.id} · ${result.body.title}`;
+    $("spec-body").textContent = result.body.markdown;
+    $("spec-digest").textContent = `Specification SHA-256: ${result.body.sha256}`;
+  } catch {
+    if (request === state.specRequest) $("spec-body").textContent = "The specification could not be loaded. Close this view and try again.";
+  }
+}
+function setFilter(filter) {
+  state.filter = filter;
+  $("status-filters").querySelectorAll("[data-filter]").forEach((button) => {
+    const selected = button.dataset.filter === filter;
+    button.classList.toggle("selected", selected); button.setAttribute("aria-pressed", String(selected));
+  });
   renderCards();
 }
-
+function parseReceipt(raw) {
+  try { return raw ? JSON.parse(raw) : {}; } catch { return {}; }
+}
 function receiptSummary(raw) {
-  if (!raw) return "";
-  let r;
-  try { r = JSON.parse(raw); } catch { return `<p class="fineprint">receipt: ${esc(String(raw).slice(0, 140))}</p>`; }
-  const bits = [];
-  if (r.simulated) bits.push("simulated");
-  if (r.gate && r.gate.status) {
-    const results = Object.entries(r.gate.results || {}).map(([k, v]) => `${k}:${v.status}`).join(", ");
-    bits.push(`gate ${esc(r.gate.status)}${results ? " (" + esc(results) + ")" : ""}`);
-  }
-  if (r.publisher && r.publisher.decision) bits.push(`publisher ${esc(r.publisher.decision)}`);
-  const pr = r.publisher && r.publisher.forge && r.publisher.forge.pr;
-  if (pr && pr.pr_number) bits.push(`fake PR #${esc(pr.pr_number)}`);
-  if (r.build_id) bits.push(`build ${esc(String(r.build_id).slice(0, 8))}`);
-  if (r.attempt_id) bits.push(`attempt ${esc(String(r.attempt_id).slice(0, 8))}`);
-  if (r.artifact_digest) bits.push(`artifact ${esc(String(r.artifact_digest).slice(0, 12))}`);
-  if (r.frozen_digest) bits.push(`frozen ${esc(String(r.frozen_digest).slice(0, 12))}`);
-  if (r.base_sha) bits.push(`base ${esc(String(r.base_sha).slice(0, 8))}`);
+  const r = parseReceipt(raw);
+  const check = r.gate?.results?.prepared_gradle?.detail || r.gate?.results?.gradle_test?.detail || r.check || {};
   const telemetry = r.telemetry || {};
   const trace = telemetry.trace_id;
-  if (trace) {
-    const status = telemetry.status || "unknown";
-    const label = status === "confirmed" ? "trace confirmed" : `trace ${status}`;
-    bits.push(`<a href="${LANGFUSE_UI}/trace/${encodeURIComponent(trace)}" target="_blank" rel="noreferrer" title="${esc(status)}">${esc(label)} ${esc(String(trace).slice(0, 8))}</a>`);
-  } else if (telemetry.status && telemetry.status !== "disabled") {
-    bits.push(`trace ${esc(telemetry.status)}`);
-  }
-  return bits.length ? `<p class="fineprint">${bits.join(" · ")}</p>` : "";
+  const status = telemetry.status || "unknown";
+  const traceLabel = status === "confirmed" ? "trace confirmed" : `trace ${status}`;
+  const link = trace && /^[a-f0-9]{32}$/i.test(trace)
+    ? `<a href="${LANGFUSE_UI}/project/${LANGFUSE_PROJECT}/traces/${encodeURIComponent(trace)}" target="_blank" rel="noreferrer">${esc(traceLabel)} ↗</a>` : "";
+  const publication = r.publisher || {};
+  const number = publication.pr?.pr_number;
+  const prLink = Number.isSafeInteger(number) && number > 0
+    ? `<a href="https://github.com/OualidGuennif/aeion-autonomous-forum/pull/${number}" target="_blank" rel="noreferrer">Pull request #${number} ↗</a>` : "";
+  const evidence = [
+    ["Progress", r.progress?.phase && esc(PHASE_LABELS[r.progress.phase] || "Working")],
+    ["Routing", r.routing?.basis && esc(`${r.routing.basis} · ${r.routing.model || "unknown"}`)],
+    ["Reason", r.reason && esc(reasonText({reason:String(r.reason)}))],
+    ["Error", r.error && esc(String(r.error))],
+    ["Build", r.build_id && esc(String(r.build_id))],
+    ["Attempt", r.attempt_id && esc(String(r.attempt_id))],
+    ["Artifact", r.artifact_digest && esc(String(r.artifact_digest))],
+    ["Base", r.base_sha && esc(String(r.base_sha))],
+    ["Model", r.author_model && esc(String(r.author_model))],
+    ["Preparer", r.preparation?.preparer_model && esc(r.preparation.preparer_model)],
+    ["Acceptance baseline", r.preparation?.negative_control === "failed_contract_assertion" && "Independent contract failed on the untouched baseline"],
+    ["Working memory", r.execution?.memory?.claude_mem?.status && esc(r.execution.memory.claude_mem.status)],
+    ["Hindsight", r.execution?.memory?.hindsight?.status && esc(r.execution.memory.hindsight.status)],
+    ["Check", r.gate?.status ? esc(String(r.gate.status)) : check.returncode === 0 ? "passed" : null],
+    ["Failure", check.failure_kind && esc(String(check.failure_kind))],
+    ["Compiler", Array.isArray(check.compiler_errors) && check.compiler_errors.length &&
+      esc(check.compiler_errors.map((e) => `${e.file}:${e.line}${e.symbol ? " · " + e.symbol : ""}`).join("; "))],
+    ["Failed tests", Array.isArray(check.failed_tests) && check.failed_tests.length && esc(check.failed_tests.join("; "))],
+    ["Review", r.circuit?.status && esc(String(r.circuit.status))],
+    ["Publication", publication.status && esc(String(publication.status))],
+    ["Publication detail", publication.reason && esc(reasonText({reason: publication.reason}))],
+    ["Merged commit", publication.confirmed_main === true && /^[a-f0-9]{40}$/.test(publication.merge_sha) && esc(publication.merge_sha)],
+    ["Confirmed main", publication.confirmed_main === true && /^[a-f0-9]{40}$/.test(publication.main_sha) && esc(publication.main_sha)],
+  ].filter(([, value]) => value);
+  return `${link || prLink ? `<div class="build-actions">${link}${prLink}</div>` : ""}` + (evidence.length
+    ? `<details class="evidence"><summary>Build evidence</summary><dl>${evidence.map(([key, value]) => `<dt>${key}</dt><dd>${value}</dd>`).join("")}</dl></details>` : "");
 }
-
+function buildCard(build) {
+  const feature = state.catalog.find((f) => f.id === build.feature_id);
+  const r = parseReceipt(build.receipt);
+  const simulation = r.simulated === true || build.status === "simulated_complete";
+  const label = simulation ? "Simulation" : (LABELS[build.status] || build.status);
+  const time = build.updated_ns ? new Date(build.updated_ns / 1e6) : null;
+  return `<article class="build-card"><div class="build-card-heading"><span class="feature-number">FEATURE ${esc(build.feature_id)}</span>` +
+    `<span class="badge ${esc(build.status)}">${esc(label)}</span></div><h3>${esc(feature?.title || build.feature_id)}</h3>` +
+    (build.hold_reason ? `<p>${esc(reasonText({ reason: build.hold_reason, missing_dependencies: feature?.availability?.missing_dependencies || [] }))}</p>` :
+      `<p>${build.status === "live_complete" ? "Checked implementation ready for integration." : build.status === "baseline" || build.status === "merged" ? "Implemented at a verified product base." : simulation ? "Historical fixture, separate from real implementation." : "Protected checks and review govern the next step."}</p>`) +
+    receiptSummary(build.receipt) + `<div class="build-actions">${time ? `<time datetime="${time.toISOString()}">${esc(time.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }))}</time>` : ""}` +
+    (!TERMINAL.includes(build.status) ? `<button class="cancel" data-cancel="${esc(build.build_id)}">Cancel request</button>` : "") + "</div></article>";
+}
+function activitySummary(builds) {
+  const count = (statuses) => builds.filter((b) => statuses.includes(b.status)).length;
+  return `${count(["queued"])} queued · ${count(["dispatched", "built"])} running · ${count(["gated", "pr_open", "approved"])} publishing`;
+}
 function renderBuilds() {
-  const list = $("builds");
-  const nonterm = state.builds.filter((b) => !TERMINAL.includes(b.status)).length;
-  $("queue-count").textContent = `${nonterm} nonterminal`;
-  list.innerHTML = state.builds.length
-    ? state.builds.map((b) => {
-        const f = state.catalog.find((x) => x.id === b.feature_id);
-        const cancel = !TERMINAL.includes(b.status)
-          ? `<button class="quiet" data-cancel="${esc(b.build_id)}">Cancel</button>` : "";
-        return `<div class="build-row ${esc(b.status)}"><div class="build-head"><strong>${esc(b.feature_id)}</strong>` +
-          `<span class="tag">${esc(b.status)}</span>${cancel}</div><p>${f ? esc(f.title) : ""}${b.hold_reason ? " · held: " + esc(b.hold_reason) : ""}</p>${receiptSummary(b.receipt)}</div>`;
-      }).join("")
-    : '<p class="muted">No builds yet.</p>';
-  list.querySelectorAll("[data-cancel]").forEach((btn) => btn.addEventListener("click", () => cancelBuild(btn.dataset.cancel)));
+  const sorted = [...state.builds].sort((a, b) => b.created_ns - a.created_ns);
+  const seen = new Set(); const current = []; const history = [];
+  for (const build of sorted) {
+    const simulation = parseReceipt(build.receipt).simulated === true || build.status === "simulated_complete";
+    const feature = state.catalog.find((f) => f.id === build.feature_id);
+    const a = availability(feature || {});
+    const completed = ["implemented", "built"].includes(a.state);
+    const oldHold = build.status === "held" && (completed || a.reason === "target_unavailable");
+    if (simulation || oldHold || seen.has(build.feature_id)) history.push(build);
+    else { seen.add(build.feature_id); current.push(build); }
+  }
+  $("builds").innerHTML = current.length ? current.slice(0, 8).map(buildCard).join("")
+    : '<div class="empty-state"><h3>No real build yet</h3><p>Your next admitted feature will appear here.</p></div>';
+  $("queue-count").textContent = activitySummary(state.builds);
+  $("history").innerHTML = history.map(buildCard).join("");
+  $("history-count").textContent = `(${history.length})`;
+  $("history-panel").hidden = !history.length;
+  document.querySelectorAll("[data-cancel]").forEach((button) => button.addEventListener("click", () => cancelBuild(button.dataset.cancel)));
 }
-
+function renderBudgets(budget) {
+  const scopes = budget?.scopes || {};
+  const names = { "aeion-autonomous-forum": "Forum workers", "aeion-observability": "Observability" };
+  $("budgets").innerHTML = budget?.status === "available" ? Object.entries(scopes).map(([scope, value]) => {
+    const remaining = Number(value.remaining_usd), limit = Number(value.limit_usd);
+    const percent = limit > 0 ? Math.max(0, Math.min(100, (1 - remaining / limit) * 100)) : 100;
+    return `<div class="budget-row"><div><span>${esc(names[scope] || scope)}</span><strong>$${remaining.toFixed(2)}</strong></div>` +
+      `<progress class="budget-track" max="100" value="${percent}" aria-label="Daily budget used"></progress><p>remaining of $${limit.toFixed(2)} · ${esc(value.day)}</p></div>`;
+  }).join("") : '<p class="fineprint">Budget information is unavailable. Spending remains subject to the server guard.</p>';
+}
+function pushEvent(event) {
+  state.events.unshift({ event, time: new Date().toLocaleTimeString() });
+  state.events = state.events.slice(0, 20);
+  $("events").innerHTML = state.events.map((e) => `<div class="event">${esc(e.time)} · ${esc(e.event.replaceAll("_", " "))}</div>`).join("");
+}
+async function refresh() {
+  if (state.refreshing) return;
+  state.refreshing = true;
+  try {
+    const [catalog, board] = await Promise.all([api("/api/factory/catalog"), api("/api/factory/board")]);
+    if (catalog.status === 401 || board.status === 401) { showLogin(); return; }
+    if (!catalog.ok || !board.ok) throw new Error("unavailable");
+    $("login").hidden = true; $("app").hidden = false;
+    state.catalog = catalog.body.features || []; state.execution = catalog.body.execution || {};
+    state.builds = board.body.builds || []; state.csrf = board.body.csrf || state.csrf;
+    const phase = $("phase-filter").value;
+    const phases = [...new Set(state.catalog.map((f) => f.phase))].sort();
+    $("phase-filter").innerHTML = '<option value="">All phases</option>' + phases.map((p) => `<option>${esc(p)}</option>`).join("");
+    $("phase-filter").value = phases.includes(phase) ? phase : "";
+    renderOverview(); renderCards(); renderBuilds(); renderBudgets(board.body.budget);
+    setConnection(true, "Controller connected");
+    if (!state.stream) connectSSE();
+  } catch {
+    setConnection(false, "Connection interrupted");
+    $("queue-msg").textContent = "The controller is unavailable. Reconnecting; no new request was sent.";
+  } finally { state.refreshing = false; }
+}
+async function queue() {
+  const ids = [...state.selected];
+  if (!ids.length || state.submitting) return;
+  state.submitting = true; state.requestKey ||= uid(); renderCards();
+  try {
+    const result = await api("/api/factory/queue", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrf }, body: JSON.stringify({ ids, idempotency_key: state.requestKey }) });
+    if (result.ok && ["admitted", "replayed"].includes(result.body.status)) {
+      state.selected.clear(); state.requestKey = null;
+      $("queue-msg").textContent = "Request recorded. Follow its progress in Build activity.";
+      pushEvent("request_recorded");
+    } else {
+      const code = result.body.error || result.body.status || "request_refused";
+      $("queue-msg").textContent = code.startsWith("feature_already_completed") ? "This feature is already completed and cannot be launched again."
+        : code.startsWith("feature_in_progress") ? "This feature is already queued or running."
+        : result.status === 403 ? "Your session needs refreshing. Sign in again if this persists."
+        : "The request was not admitted. Review availability and the queue limit.";
+    }
+  } catch { $("queue-msg").textContent = "Connection lost. Retry to check the same request without creating a duplicate."; }
+  finally { state.submitting = false; await refresh(); renderCards(); }
+}
+async function cancelBuild(buildId) {
+  try {
+    const result = await api("/api/factory/cancel", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrf }, body: JSON.stringify({ build_id: buildId }) });
+    $("queue-msg").textContent = result.ok ? "Cancellation recorded." : "Cancellation could not be recorded. Refresh and retry.";
+    await refresh();
+  } catch { $("queue-msg").textContent = "Connection lost while requesting cancellation."; }
+}
+function connectSSE() {
+  const es = new EventSource(`/api/factory/events?since=${state.lastSeq}`); state.stream = es;
+  const onEvent = (event) => {
+    if (event.lastEventId) state.lastSeq = parseInt(event.lastEventId, 10) || state.lastSeq;
+    pushEvent(event.type); refresh();
+    if (event.type === "release_updated" && $("release-panel").open) loadReleases();
+  };
+  ["build_updated", "build_progress", "admitted", "cancelled", "observed", "session_rotated", "release_updated"].forEach((name) => es.addEventListener(name, onEvent));
+  es.addEventListener("reload", () => { es.close(); state.stream = null; refresh(); });
+  es.onerror = () => setConnection(false, "Live updates reconnecting");
+}
 function fmt(seconds) {
   const s = Math.max(0, Math.round(seconds || 0));
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
@@ -198,116 +411,29 @@ async function releaseAction(action, extra) {
   await loadReleases();
 }
 
-async function refresh() {
-  const { ok, body } = await api("/api/factory/board");
-  if (!ok) { showLogin(); return; }
-  state.builds = body.builds || [];
-  state.lastSeq = body.earliest_seq || state.lastSeq;
-  renderBuilds();
-}
-
-async function loadCatalog() {
-  const { ok, body } = await api("/api/factory/catalog");
-  if (!ok) { showLogin(); return; }
-  state.catalog = body.features || [];
-  state.execution = body.execution || { mode: "simulator", hold_reason: null };
-  renderExecution();
-  const phases = [...new Set(state.catalog.map((f) => f.phase))].sort();
-  const areas = [...new Set(state.catalog.map((f) => f.area))].sort();
-  $("phase-filter").innerHTML = '<option value="">All phases</option>' + phases.map((p) => `<option>${esc(p)}</option>`).join("");
-  $("area-filter").innerHTML = '<option value="">All areas</option>' + areas.map((a) => `<option>${esc(a)}</option>`).join("");
-  renderCards();
-}
-
-function showLogin() {
-  $("login").hidden = false;
-  $("app").hidden = true;
-}
-
-function showApp() {
-  $("login").hidden = true;
-  $("app").hidden = false;
-}
-
-async function queue(ids) {
-  const key = uid();
-  const { ok, status, body } = await api("/api/factory/queue", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrf },
-    body: JSON.stringify({ ids, idempotency_key: key }),
-  });
-  if (ok) { state.selected.clear(); renderCards(); await refresh(); }
-  else { pushEvent("queue_error", { status, ...body }); }
-}
-
-async function cancelBuild(buildId) {
-  const { ok, status, body } = await api("/api/factory/cancel", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrf },
-    body: JSON.stringify({ build_id: buildId }),
-  });
-  if (!ok) pushEvent("cancel_error", { status, ...body });
-  await refresh();
-}
-
-function connectSSE() {
-  const es = new EventSource(`/api/factory/events?since=${state.lastSeq}`);
-  const onEvent = (e) => {
-    if (e.lastEventId) state.lastSeq = parseInt(e.lastEventId, 10) || state.lastSeq;
-    if (e.type !== "reload") pushEvent(e.type, e.data ? safeParse(e.data) : null);
-    refresh();
-    if (e.type === "release_updated") loadReleases();
-  };
-  ["build_updated", "admitted", "cancelled", "observed", "session_rotated", "release_updated"]
-    .forEach((n) => es.addEventListener(n, onEvent));
-  es.addEventListener("reload", () => { es.close(); refresh(); });
-  es.onerror = () => { /* EventSource auto-reconnects. */ };
-}
-
-function safeParse(text) {
-  try { return JSON.parse(text); } catch { return text; }
-}
-
 async function boot() {
-  $("login-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const msg = $("login-msg");
-    msg.textContent = "";
-    const { ok, status, body } = await api("/api/factory/login", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: $("token").value }),
-    });
-    if (!ok) { msg.textContent = status === 429 ? "Too many attempts. Wait a minute." : "Invalid or rotated token."; return; }
-    state.csrf = body.csrf;
-    $("token").value = "";
-    showApp();
-    await loadCatalog();
-    await refresh();
-    await loadReleases();
-    connectSSE();
+  $("login-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = $("login-form").querySelector("button"); button.disabled = true;
+    try {
+      const result = await api("/api/factory/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: $("token").value }) });
+      if (!result.ok) { $("login-msg").textContent = result.status === 429 ? "Too many attempts. Wait a minute." : "Invalid or rotated token. Reopen the local token file."; return; }
+      state.csrf = result.body.csrf; $("token").value = ""; await refresh();
+    } catch { $("login-msg").textContent = "Cannot reach the local controller."; }
+    finally { button.disabled = false; }
   });
-  $("build-one").addEventListener("click", () => queue([...state.selected]));
-  $("queue-ten").addEventListener("click", () => queue([...state.selected]));
+  $("build-one").addEventListener("click", queue);
+  $("spec-close").addEventListener("click", () => { state.specRequest++; $("spec-dialog").close(); });
+  $("spec-dialog").addEventListener("cancel", () => { state.specRequest++; });
+  $("feature-search").addEventListener("input", renderCards);
+  $("phase-filter").addEventListener("change", renderCards);
+  $("status-filters").querySelectorAll("[data-filter]").forEach((button) => button.addEventListener("click", () => setFilter(button.dataset.filter)));
+  $("release-panel").addEventListener("toggle", () => { if ($("release-panel").open) loadReleases(); });
   $("validate-release").addEventListener("click", () => releaseAction("validate"));
   $("deploy-now").addEventListener("click", () => releaseAction("deploy_now"));
   $("advance-release").addEventListener("click", () => releaseAction("advance"));
   $("rollback-release").addEventListener("click", () => releaseAction("rollback", { reason: "operator" }));
-  $("phase-filter").addEventListener("change", renderCards);
-  $("area-filter").addEventListener("change", renderCards);
-
-  if (await authed()) {
-    showApp();
-    await loadCatalog();
-    await refresh();
-    await loadReleases();
-    connectSSE();
-    setInterval(loadReleases, 15000);
-  }
+  await refresh();
+  setInterval(() => { if (!$("app").hidden) refresh(); }, 10000);
 }
-
-async function authed() {
-  try { const r = await fetch("/api/factory/board", { credentials: "same-origin" }); return r.ok; }
-  catch { return false; }
-}
-
-boot();
+if (typeof document !== "undefined") boot();

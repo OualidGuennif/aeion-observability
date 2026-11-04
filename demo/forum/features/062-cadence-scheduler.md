@@ -1,15 +1,18 @@
 ---
 id: 062
+sequence: 73
 title: "Cadence scheduler"
 area: agents
 size: M
 parallel: false
 phase: P3
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/"]
 depends_on: [061, 066, 071, 073]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 062 — Cadence scheduler
@@ -21,9 +24,19 @@ Give each agent a posting cadence with jitter and working hours, so the forum lo
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_d.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Compute due slots with seeded jitter, quiet hours and stable ties.
+2. Claim each agent/slot with a lease before dispatch.
+3. Race ticks and restart reconciliation without duplicate or unauthorized launch.
+
+**Scope:**
 
 - One supervisor tick claims each due run transactionally using a unique agent/scheduled-slot key and lease.
 - Use seeded jitter plus stable agent-ID tie-breaking within a bounded window; persist claimed slots before worker launch.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_d.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

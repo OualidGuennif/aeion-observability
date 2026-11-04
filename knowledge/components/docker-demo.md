@@ -31,9 +31,9 @@ the **Agora forum** (`demo/forum-app/`, Quarkus/Java). Nine observation services
 private native mTLS gateway owns OpenShell sandboxes through its Docker compute driver. This is an
 explicitly authorized local pilot, not a production OPS boundary or general model benchmark.
 
-The same host cockpit serves the feature-factory board at `/factory`. It resolves one explicit
+The [operator cockpit](operator-cockpit.md) is the default page at `/` and `/factory`; the historical model lab is at `/lab`. Completed features are locked against another launch, available targets and missing prerequisites are visible before selection, and simulations remain in a separate history. The same host cockpit serves the feature-factory board. It resolves one explicit
 execution instead of silently simulating: `simulator`, `offline` with the pinned forum profile and
-the shared deterministic builder, or `live` with the same target and the shared live builder. Live
+the shared deterministic builder, or `live` with trusted per-feature targets and the shared live builder. The worker chooses the selected feature’s target, scopes, brief and isolated contract; missing targets hold before a model reservation. Feature 017 adds strict JSON request validation against a current pinned product commit, with a contract that fails the unmodified base on unknown/missing/type-invalid fields. Live
 reads the provider credential from the project's existing dotenv files and holds
 `provider_unconfigured` when absent; a missing profile or product checkout holds every build as
 `execution_unavailable`; a pinned target refuses another feature with `target_feature_mismatch`.
@@ -122,7 +122,11 @@ key is copied privately, and only the supervisor holds it.
    Normal preflight also hands over at 250k. No additional request is admitted during the
    checkpoint callback. The real Go key stays in the supervisor; the harness holds only
    per-session loopback relay and bridge tokens.
-3. Native context >300k or discrepancy >20k fails the task and blocks live re-admission until
+   Qwen/Haiku instead use complete API usage including cache to gate continuation: their byte
+   bound reserves cost only, so a large estimate does not block launching bounded inputs.
+   Unknown usage holds; native250k hands over and native input+output above300k fails. There is
+   no independent first-request300k preflight guarantee for these closed-tokenizer profiles.
+3. Native context >300k or a pinned-tokenizer discrepancy >20k fails the task and blocks live re-admission until
    requalification. Tokenizer parity/framing are explicit provider-qualification assumptions;
    do not claim knowledge of undisclosed provider internals or an invoice ceiling.
 4. Close inference admission, delete/reap the old sandbox through OpenShell and wait for deletion,

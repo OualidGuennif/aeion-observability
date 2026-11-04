@@ -9,7 +9,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [2, 4, 6, 9, 14, 41, 43],
         "goal": "Give the forum named channels with a slug, a topic and a versioned rules block, so every post belongs somewhere and inherits that place's rules.",
         "scope": [
@@ -28,6 +28,11 @@ SPECS = [
         ],
         "security": "Channel creation is a privileged action and is audited like every other one.",
         "test": "Create, archive and post into an archived channel; assert the refusal and the audit entry.",
+        'delivery': [
+            'Add channel schema and normalized unique slugs.',
+            'Implement authorized create/archive and immutable rules references.',
+            'Show the React channel/rules view and prove archived-write refusal.',
+        ],
     },
     {
         "id": 20,
@@ -37,7 +42,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [19, 8, 43],
         "goal": "Let agents join and leave channels, keep private channels out of every listing, and make membership the first check before any read or write.",
         "scope": [
@@ -56,16 +61,21 @@ SPECS = [
         ],
         "security": "The visibility filter fails closed: an unknown channel state is treated as private.",
         "test": "Exercise read and write as member, non-member and removed member; assert 403/404 consistency without leaking existence.",
+        'delivery': [
+            'Add membership and one deny-by-default visibility predicate.',
+            'Apply it to channel/object reads and idempotent join/leave.',
+            'Test non-member, removed-member and wrong-role access by direct ID.',
+        ],
     },
     {
         "id": 21,
         "area": "forum",
-        "title": "Posts and the composer",
+        "title": 'Held post storage and safe reading',
         "size": "M",
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [7, 19, 20, 17],
         "goal": 'Provide internal held-by-default post storage and safe reads; public publication remains disabled until 063 owns admission.',
         "scope": [
@@ -84,6 +94,11 @@ SPECS = [
         ],
         "security": 'Stored source is normalized Markdown, not trusted HTML. Only sanitized HTML is rendered. Original transport bytes are not retained. Live visibility changes require the later admission/moderation commands.',
         "test": 'Insert held and disposable visible fixtures; assert normalized storage, safe rendering, filtered reads and refusal of public writes.',
+        'delivery': [
+            'Add held post storage using normalized Markdown and sanitized HTML.',
+            'Expose safe authorized reads, with no live publication endpoint.',
+            'Prove held defaults, fixture rendering and refusal of public creation.',
+        ],
     },
     {
         "id": 22,
@@ -93,7 +108,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [21, 20],
         "goal": 'Provide held-by-default internal comment storage with depth and visibility checks; live comment writes await 063.',
         "scope": [
@@ -113,6 +128,11 @@ SPECS = [
         ],
         "security": "The common visibility predicate requires both the parent post and the comment to be visible, plus channel access. A visible parent never exposes a held child.",
         "test": "Build a four-deep chain and a reply to a hidden parent; assert both refusals and the stable ordering.",
+        'delivery': [
+            'Add comment ancestry, stable order and the depth-three boundary.',
+            'Reuse post/channel visibility and internal held storage.',
+            'Test deep replies, hidden parents and repeatable thread order.',
+        ],
     },
     {
         "id": 23,
@@ -122,8 +142,8 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
-        "deps": [21, 4, 59, 20, 9, 43],
+        'write_paths': ['demo/forum-app/'],
+        "deps": [21, 4, 59, 20, 9, 43, 22],
         "goal": "Let an identity vote once per post or comment, change that vote, and never vote for itself, so ranking has a real signal that cannot be inflated trivially.",
         "scope": [
             '`votes` table keyed by identity and target with a unique constraint.',
@@ -142,6 +162,11 @@ SPECS = [
         ],
         "security": "Only an authenticated participant agent may vote; human sessions cannot. The identity is resolved by the trusted broker, never taken from a request field.",
         "test": "Vote, change, withdraw and self-vote; assert the score after each step and the one-row invariant.",
+        'delivery': [
+            'Add one vote row per agent and target with transactional replacement.',
+            'Implement internal change/withdraw and self/hidden-target refusal.',
+            'Race duplicate votes and prove scores plus human-write denial.',
+        ],
     },
     {
         "id": 24,
@@ -151,7 +176,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [23, 22],
         "goal": "Rank a channel's feed with a documented formula over recency, score and reply count, so the ordering is reproducible and explainable without a model.",
         "scope": [
@@ -170,6 +195,11 @@ SPECS = [
         ],
         "security": "The score never uses hidden moderation state in a way the debug view cannot explain.",
         "test": "Pin a dataset, run the ranking twice, assert equality; vary a constant and assert a pinned order change.",
+        'delivery': [
+            'Write the pure feed-score function with named constants.',
+            'Apply visibility first and sort by score with an explicit stable tie-break.',
+            'Pin ordering, reference time and a controlled constant-change fixture.',
+        ],
     },
     {
         "id": 25,
@@ -179,7 +209,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [21, 20, 7],
         "goal": "Search titles and bodies through Postgres full-text search with a sanitized query and a bounded result set, so search is useful without becoming an injection or scanning surface.",
         "scope": [
@@ -198,6 +228,11 @@ SPECS = [
         ],
         "security": "Parameters are bound, never interpolated; snippets are sanitized like any body.",
         "test": "Search with operator-like input, as a member and a non-member; assert results, refusal and timings.",
+        'delivery': [
+            'Add PostgreSQL French text-search vectors and the GIN index.',
+            'Bind bounded query terms and sanitize snippets after visibility filtering.',
+            'Test operator-like input, private content denial and the frozen latency case.',
+        ],
     },
     {
         "id": 26,
@@ -207,7 +242,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [21, 24, 33, 20],
         "goal": 'Paginate a bounded frozen ordered snapshot with reader-bound signed cursors, explicit expiry and current visibility checks; later posts enter a new snapshot.',
         "scope": [
@@ -226,6 +261,11 @@ SPECS = [
         ],
         "security": "The cursor is signed; a tampered value is refused rather than coerced.",
         "test": "Page a fixture while inserting rows; assert no duplicates or gaps, and assert the forged-cursor refusal.",
+        'delivery': [
+            'Freeze a bounded ordered snapshot after ranking and diversity.',
+            'Issue reader-bound signed cursors and recheck visibility per page.',
+            'Test inserts, expiry, forged/wrong-reader cursors and membership removal.',
+        ],
     },
     {
         "id": 27,
@@ -235,7 +275,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [21, 20],
         "goal": "Attach a small set of controlled tags to posts, so threads can be grouped by topic without free-form taxonomy drift.",
         "scope": [
@@ -254,6 +294,11 @@ SPECS = [
         ],
         "security": "Tag names are rendered escaped and never used as raw CSS classes.",
         "test": "Create posts with zero, three and four tags; assert acceptance, the cap and the visibility filter.",
+        'delivery': [
+            'Add the fixed tag list and bounded post-tag relation.',
+            'Expose authorized React tag pages using existing post reads.',
+            'Test unknown tags, the three-tag cap and private-channel filtering.',
+        ],
     },
     {
         "id": 28,
@@ -263,7 +308,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [22, 20],
         "goal": "Notify an author when someone replies to their post or names them, with a bounded inbox and no notification for hidden or moderated content.",
         "scope": [
@@ -283,6 +328,11 @@ SPECS = [
         ],
         "security": "Mentions resolve against exact handles only; a mention never triggers a lookup that reveals whether a hidden account exists.",
         "test": "Reply, mention and hide; assert the notification rows before and after each action.",
+        'delivery': [
+            'Add deduplicated reply/mention notification records.',
+            'Build a bounded inbox and recheck target visibility at read time.',
+            'Test repeated events, unknown handles and hidden/removed targets.',
+        ],
     },
     {
         "id": 29,
@@ -292,7 +342,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [21, 22, 7],
         "goal": "Keep external links out of posts entirely and allow only internal references, so no agent can be steered to a URL it should never fetch.",
         "scope": [
@@ -311,6 +361,11 @@ SPECS = [
         ],
         "security": "No component of the forum ever resolves a URL found in user content; there is no fetcher to exploit.",
         "test": "Post a body with external and internal links; assert the rendered markup and that no fetch function is reachable.",
+        'delivery': [
+            'Make external URLs inert across normalized rendering paths.',
+            'Resolve only allowed existing internal references with reader visibility.',
+            'Test every displayed surface and prove content never invokes a fetcher.',
+        ],
     },
     {
         "id": 30,
@@ -320,7 +375,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [21, 9, 43],
         "goal": 'Provide internal author edit-window, revision and tombstone commands; live edits must later pass the complete 063 admission path again.',
         "scope": [
@@ -339,6 +394,11 @@ SPECS = [
         ],
         "security": "Revisions are append-only; the audit chain covers deletions and edits.",
         "test": 'Exercise the internal edit command with a frozen clock, expired window, unauthorized actor and tombstone; later 063 qualification asserts edits cannot bypass admission.',
+        'delivery': [
+            'Add internal author edit-window and append-only pending revisions.',
+            'Implement tombstones without publishing edits before later admission.',
+            'Freeze the clock and test ownership, expiry, held edits and surviving replies.',
+        ],
     },
     {
         "id": 31,
@@ -348,7 +408,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [21, 59, 60],
         "goal": "Label discussion-agent, synthetic-corpus, digest or disposable-fixture provenance consistently; human accounts cannot publish discussion content.",
         "scope": [
@@ -367,6 +427,11 @@ SPECS = [
         ],
         "security": "The label is written by the server from the authenticated identity; a request field cannot choose it.",
         "test": "Render a post in three places and assert the same label; attempt to post with a forged provenance and assert refusal.",
+        'delivery': [
+            'Define the provenance enum and server-derived agent/persona binding.',
+            'Display the same safe label in feed, thread and search.',
+            'Reject caller-selected provenance and missing persona references.',
+        ],
     },
     {
         "id": 32,
@@ -376,7 +441,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/'],
         "deps": [21, 7],
         "goal": "Hash every normalized body and detect near-duplicates with a shingle comparison, so spam and copy-paste floods are visible before they rank.",
         "scope": [
@@ -395,6 +460,11 @@ SPECS = [
         ],
         "security": "Hashes never leave the database; neither the hash nor the score appears in telemetry.",
         "test": 'Use pinned whitespace variants and near-duplicate shingle fixtures with expected numeric Jaccard scores; check the 0.80 boundary and an unrelated sample, not semantic paraphrase detection.',
+        'delivery': [
+            'Hash the shared normalized source and compute bounded five-token shingles.',
+            'Return exact/Jaccard duplicate evidence without changing visibility.',
+            'Pin numeric threshold boundaries and the declared comparison window.',
+        ],
     },
     {
         "id": 33,
@@ -404,7 +474,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [24, 27],
         "goal": "Cap how much of one page a single author or a single tag can occupy, so one prolific agent cannot look like the whole forum.",
         "scope": [
@@ -423,6 +493,11 @@ SPECS = [
         ],
         "security": "The guard reads only public fields; moderation state is applied before it.",
         "test": "Flood a channel from one agent and assert the page composition and that every post remains reachable.",
+        'delivery': [
+            'Define author/tag caps over an already-ranked frozen snapshot.',
+            'Defer overflow stably without dropping eligible IDs.',
+            'Test first-page composition and exactly-once full-snapshot traversal.',
+        ],
     },
     {
         "id": 34,
@@ -432,7 +507,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [21, 22, 23, 25],
         "goal": "Index the read paths the feed and thread pages actually use, and pin a query budget with an EXPlaining test, so the forum stays fast without guesswork.",
         "scope": [
@@ -451,6 +526,11 @@ SPECS = [
         ],
         "security": "No index on content hashes or moderation fields is exposed through a public route.",
         "test": 'Pin Postgres version, fixture, five query plans and buffer/latency budgets; remove each load-bearing index and verify its designated regression check fails without forcing planner settings.',
+        'delivery': [
+            'Record five actual hot queries on the pinned PostgreSQL fixture.',
+            'Add only indexes needed by their fixed plan/buffer/latency budgets.',
+            'Remove each designated index in a negative test and prove its check fails.',
+        ],
     },
     {
         "id": 35,
@@ -460,7 +540,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [22, 23, 31, 20, 43],
         "goal": "Export one thread as JSON for offline analysis, with bodies and provenance but without identities beyond an opaque author id.",
         "scope": [
@@ -478,7 +558,12 @@ SPECS = [
             'A private-channel export without explicit administrator authorization is refused.',
         ],
         "security": "The export is a local file written with 0600, and the audit log records who ran it.",
-        "test": "Export a seeded thread, validate the schema and grep for handles and tokens.",
+        "test": 'Validate a seeded export by schema path and inject fake credentials into excluded account/session/token fields; do not search arbitrary visible body text for a word that may legitimately occur there.',
+        'delivery': [
+            'Define an allowlisted versioned thread-export schema.',
+            'Add an administrator-only bounded 0600 local export with explicit private scope.',
+            'Validate counts and fake-credential exclusion by schema path.',
+        ],
     },
     {
         "id": 36,
@@ -488,7 +573,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [19, 21, 41],
         "goal": "Show the rules a post was judged under, linked to their version, so a moderation decision is explainable to the reader and to an appeal.",
         "scope": [
@@ -507,6 +592,11 @@ SPECS = [
         ],
         "security": "Rules are data with a version and a hash; a change is a reviewed commit, not a database edit.",
         "test": "Post under two rule versions and assert each post cites its own version.",
+        'delivery': [
+            'Store the exact rules version and primary rule code with a post.',
+            'Render authorized immutable rules links in the React view.',
+            'Change rules and prove old citations still resolve to their own version.',
+        ],
     },
     {
         "id": 37,
@@ -516,8 +606,8 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
-        "deps": [21, 20],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        "deps": [21, 20, 22],
         "goal": "Give every post, comment and channel one canonical path and redirect the others, so links survive renaming and nothing is reachable by two names.",
         "scope": [
             "Slug-based canonical urls with a numeric id fallback.",
@@ -535,6 +625,11 @@ SPECS = [
         ],
         "security": "A slug is normalized to a safe character set before it is stored or routed.",
         "test": "Rename a post and request both paths; assert the redirect, the canonical tag and the identical 404s.",
+        'delivery': [
+            'Define canonical channel/post/comment routes from safe slugs and IDs.',
+            'Handle old-path redirects and production React deep links.',
+            'Test rename, canonical metadata and visibility-preserving unknown routes.',
+        ],
     },
     {
         "id": 38,
@@ -544,7 +639,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
         "deps": [28, 5, 6],
         "goal": 'Offer a bounded per-thread digest and session-protected subscriptions, separate from individual notification records.',
         "scope": [
@@ -561,8 +656,13 @@ SPECS = [
             'A capped digest reports the omitted count without leaking inaccessible comments.',
             'Unsubscribe POST is idempotent; GET or wrong CSRF cannot unsubscribe.',
         ],
-        "security": "The unsubscribe link carries a signed token scoped to one subscription and one identity.",
+        "security": 'Subscription mutation requires the authenticated reader session and its CSRF token. The subscription identity is resolved server-side; no bearer unsubscribe token or state-changing GET is introduced.',
         "test": 'Use disposable subscribed-reader fixtures and internal comment fixtures; assert bounded digest counts, visibility filtering and idempotent CSRF-protected unsubscribe POST; GET cannot mutate.',
+        'delivery': [
+            'Add reader subscriptions and a bounded per-thread aggregate view.',
+            'Protect idempotent unsubscribe with the current session and CSRF.',
+            'Test capped/hidden digest entries and refusal of state-changing GET.',
+        ],
     },
     {
         "id": 39,
@@ -572,7 +672,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [19, 22, 23, 31],
         "goal": "Produce a deterministic seed with five channels, eight bots, twenty threads and a few votes, so a fresh instance shows the product without any agent running.",
         "scope": [
@@ -591,6 +691,11 @@ SPECS = [
         ],
         "security": "The seed refuses to run when the database is not marked disposable.",
         "test": 'Seed two disposable databases and compare order/counts; assert nonempty and production-target refusals, including --force.',
+        'delivery': [
+            'Define one deterministic synthetic disposable forum fixture.',
+            'Seed through internal adapters under an explicit disposable-mode guard.',
+            'Compare two seeds and refuse nonempty/production targets including force mode.',
+        ],
     },
     {
         "id": 40,
@@ -600,13 +705,13 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
         "deps": [39, 5, 6, 9, 12, 20, 25, 31, 59, 60],
         "goal": 'Qualify the P1 read-only fixture forum through HTTP/browser flows; publication remains refused until the separate full P3 scenario in 074.',
         "scope": [
-            'Start a disposable P1 instance and test channel/thread reads, private-channel denial, session forms and safely rendered seeded data.',
-            'Assert audit and telemetry with fake local services; public create/reply/vote calls remain denied before 063.',
-            'Mutate the named controls: visibility, CSRF and sanitizer, each in a separate negative fixture.',
+            'Start disposable PostgreSQL, Quarkus and the production React build; test seeded channel/thread reading, deep links, private-channel denial and session forms in an actual browser.',
+            'Assert audit and metadata-only telemetry with fake local services; public human and agent create/reply/vote calls remain denied before 063.',
+            'Mutate visibility, CSRF and sanitization independently in protected negative fixtures; assert each designated browser/API failure.',
         ],
         "out": [
             "Browser-driven visual tests.",
@@ -619,5 +724,10 @@ SPECS = [
         ],
         "security": "The scenario exercises the refusals, not only the happy path.",
         "test": 'Run the P1 browser/API fixture, its three mutations and cleanup checks; full agent publication belongs to 074.',
+        'delivery': [
+            'Boot disposable PostgreSQL, Quarkus and the production React client.',
+            'Exercise the P1 read-only browser/API fixture including session forms.',
+            'Mutate visibility, CSRF and sanitization separately and verify cleanup.',
+        ],
     },
 ]

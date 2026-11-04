@@ -157,7 +157,8 @@ class DockerCheckRunner:
         qualification = self.qualification()
         repo = Path(cwd).resolve()
         try:
-            translated = [self.translate(part, repo) for part in command]
+            # Preserve /var -> /private/var and workspace symlink spellings in arguments.
+            translated = [self.translate(part, Path(cwd)) for part in command]
         except IsolationError:
             raise
         # Run the digest the probe qualified, not the mutable tag: a re-tagged or re-pulled

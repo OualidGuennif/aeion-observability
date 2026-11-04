@@ -62,6 +62,11 @@ class EvidenceTests(unittest.TestCase):
         self.assertNotIn("PRIVATE_CANARY", str(value))
         self.assertEqual(value["accounting_basis"], "cli_estimate_not_invoice")
 
+    def test_effort_metadata_preserves_old_documents_and_accepts_only_public_levels(self):
+        self.assertNotIn('reasoning_effort',analysis(run()))
+        self.assertEqual(analysis({**run(),'inference_effort':'low'})['reasoning_effort'],'low')
+        self.assertNotIn('PRIVATE_CANARY',str(analysis({**run(),'inference_effort':'PRIVATE_CANARY'})))
+
     def test_audit_is_durable_and_rejects_arbitrary_content(self):
         with tempfile.TemporaryDirectory() as folder:
             audit = Audit(folder)

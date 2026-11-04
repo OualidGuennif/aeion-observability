@@ -2,6 +2,8 @@
 
 - [Framework](components/observability.md)
 - [Docker demonstration](components/docker-demo.md)
+- [Operator cockpit](components/operator-cockpit.md)
+- [Flue factory execution](components/factory-flue.md)
 - [State of the art](references/state-of-the-art.md)
 - [Sources](references/sources.md)
 - [Provider capabilities](references/provider-capabilities.md)
@@ -9,4 +11,5 @@
 - [Quality and evaluation](operations/quality-and-evaluation.md)
 - [Control loop](operations/control-loop.md)
 - [Security and reliability](operations/security-and-reliability.md)
+- [Chromium evaluator qualification, 2026-11-03](../work/chromium-security-2026-11-03.md)
 - [Implementation plan](operations/implementation-plan.md)

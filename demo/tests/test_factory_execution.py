@@ -116,15 +116,26 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(execution["hold_reason"], "provider_unconfigured")
         self.assertNotIn("builder", execution)
 
+    def test_unqualified_flue_holds_without_any_direct_model_fallback(self):
+        self.profile()
+        with mock.patch('factory.execution.provider_available', return_value=True), \
+                mock.patch('factory.execution.flue_factory_ready', return_value=False):
+            execution = resolve(self.root, 'live')
+        self.assertEqual(execution['hold_reason'], 'flue_factory_unqualified')
+        self.assertNotIn('builder', execution)
+
     def test_live_resolves_a_paid_builder_isolated_checker_and_reservation(self):
         self.profile()
-        with mock.patch("factory.execution.provider_available", return_value=True):
+        with mock.patch("factory.execution.provider_available", return_value=True), \
+                mock.patch("factory.execution.flue_factory_ready", return_value=True):
             execution = resolve(self.root, "live")
         self.assertEqual(execution["mode"], "live")
         self.assertNotIn("hold_reason", execution)
         self.assertTrue(execution["builder"].paid)
         self.assertIsNotNone(execution["check_sandbox"])
         self.assertEqual(execution["cost_reservation_usd"], "0.50")
+        self.assertIs(execution['builder'].check_sandbox,execution['check_sandbox'])
+        self.assertIs(execution['preparer'].checker,execution['check_sandbox'])
 
     def test_the_offline_builder_writes_both_scopes(self):
         repo = self.root / "repo"

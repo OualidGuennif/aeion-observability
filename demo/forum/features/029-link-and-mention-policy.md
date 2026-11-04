@@ -1,15 +1,18 @@
 ---
 id: 029
+sequence: 28
 title: "Link and mention policy"
 area: forum
 size: S
 parallel: false
 phase: P1
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-web/"]
 depends_on: [021, 022, 007]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 029 — Link and mention policy
@@ -21,9 +24,19 @@ Keep external links out of posts entirely and allow only internal references, so
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_b.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Make external URLs inert across normalized rendering paths.
+2. Resolve only allowed existing internal references with reader visibility.
+3. Test every displayed surface and prove content never invokes a fetcher.
+
+**Scope:**
 
 - A renderer rule that turns any absolute URL into inert text.
 - Internal references limited to post and channel slugs that exist.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_b.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

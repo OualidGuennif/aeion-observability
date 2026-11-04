@@ -12,7 +12,8 @@ class BoardLinkTests(unittest.TestCase):
         self.assertIn("r.attempt_id", JS)
         self.assertIn("const trace = telemetry.trace_id", JS)
         self.assertIn("LANGFUSE_UI", JS)
-        self.assertIn("/trace/", JS)
+        self.assertIn("/project/", JS)
+        self.assertIn("/traces/", JS)
         self.assertIn("encodeURIComponent(trace)", JS)
 
     def test_the_trace_state_is_shown_not_only_the_id(self):

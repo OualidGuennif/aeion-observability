@@ -12,7 +12,6 @@ requalification: a recorded profile expiry stays binding, so an expired harness 
 cannot be carried by the authorization date.
 """
 import datetime
-import math
 
 # One family per vendor: two models of the same family share weights and failure modes.
 # The display id stays internal; ``wire`` is the provider's documented identifier and is the
@@ -20,18 +19,18 @@ import math
 # authorization is not a provider requalification, and no ZDR claim is made for any of them.
 OWNER_AUTHORIZATION = "2026-11-02"
 MODELS = {
-    "claude-haiku-5.5": {"family": "anthropic", "wire": "claude-haiku-5-5", "cost": 4.0,
-                         "quality": 0.95, "roles": {"review", "author"}, "retention_days": 30,
+    "claude-haiku-5.5": {"family": "anthropic", "wire": "claude-haiku-5-5",
+                         "roles": {"review", "author"}, "retention_days": 30,
                          "authorization": OWNER_AUTHORIZATION},
-    "deepseek-4.1-flash": {"family": "deepseek", "wire": "deepseek-v4.1-flash", "cost": 1.0,
-                           "quality": 0.80, "roles": {"review", "author"},
+    "deepseek-4.1-flash": {"family": "deepseek", "wire": "deepseek-v4.1-flash",
+                           "roles": {"review", "author"},
                            "authorization": OWNER_AUTHORIZATION, "profile": "deepseek",
-                           "profile_expires": "2026-10-31"},
-    "qwen-3.8-flash": {"family": "qwen", "wire": "qwen3.8-flash", "cost": 0.9,
-                       "quality": 0.78, "roles": {"review", "author"},
+                           "profile_expires": "2026-11-30"},
+    "qwen-3.8-flash": {"family": "qwen", "wire": "qwen3.8-flash",
+                       "roles": {"review", "author"},
                        "authorization": OWNER_AUTHORIZATION},
-    "glm-5.3-flash": {"family": "zhipu", "wire": "glm-5.3-flash", "cost": 0.8,
-                      "quality": 0.78, "roles": {"review", "author"},
+    "glm-5.3-flash": {"family": "zhipu", "wire": "glm-5.3-flash",
+                      "roles": {"review", "author"},
                       "authorization": OWNER_AUTHORIZATION, "profile": "glm"},
 }
 DEFAULT_REVIEW_ORDER = ("glm-5.3-flash", "qwen-3.8-flash", "deepseek-4.1-flash", "claude-haiku-5.5")
@@ -117,15 +116,13 @@ class Router:
         self.models = dict(models or MODELS)
 
     def score(self, model, purpose):
-        spec = self.models[model]
         stats = self.telemetry.stats(model, purpose)
-        # Efficiency: expected quality per unit of cost, penalised by measured failures and
-        # latency. Unknown models score on their declared priors only.
-        reliability = stats["success_rate"] if stats["success_rate"] is not None else 0.9
-        latency_penalty = 0.0
-        if stats["avg_latency_ms"]:
-            latency_penalty = min(0.2, math.log10(1 + stats["avg_latency_ms"] / 1000) / 20)
-        return (spec["quality"] * reliability) / spec["cost"] - latency_penalty
+        # Cold start is an explicit fixed preference, not an invented quality/price estimate.
+        # Actual protocol/check failures can demote that preference before cost ranking has
+        # enough complete comparable samples. Missing evidence supplies no measured score.
+        order = DEFAULT_REVIEW_ORDER.index(model)
+        failure_rate = 1 - stats['success_rate'] if stats['success_rate'] is not None else 0
+        return -order - 100 * failure_rate
 
     def select(self, purpose="review", exclude_models=(), exclude_families=(), require_role=None):
         blocked_models = set(exclude_models)
@@ -141,7 +138,26 @@ class Router:
             candidates.append(model)
         if not candidates:
             raise RoutingError("no_eligible_model")
-        return max(candidates, key=lambda m: (round(self.score(m, purpose), 6), m))
+        statistics = {m: self.telemetry.stats(m, purpose) for m in candidates}
+        measured = [m for m, stats in statistics.items() if stats['n'] >= 3
+                    and stats.get('usage_complete') and stats.get('outcomes_complete') and stats.get('latency_complete')
+                    and stats['avg_cost_usd'] is not None and stats['avg_latency_ms'] is not None]
+        basis = 'cold_start_prior'
+        scores = {m: round(self.score(m, purpose), 6) for m in candidates}
+        if len(measured) >= 2:
+            basis = 'measured_cost_latency'
+            # Equal relative cost/time weights, with observed protocol/check failure penalty.
+            # Decimal spend is preserved in storage; these dimensionless scores are advisory.
+            cost_min = max(0.000001, min(statistics[m]['avg_cost_usd'] for m in measured))
+            time_min = max(1, min(statistics[m]['avg_latency_ms'] for m in measured))
+            scores = {m: round(statistics[m]['success_rate'] /
+                (1 + statistics[m]['avg_cost_usd'] / cost_min
+                   + statistics[m]['avg_latency_ms'] / time_min), 9) for m in measured}
+        selected = max(scores, key=lambda m: (scores[m], m))
+        self.last_decision = {'basis': basis, 'purpose': purpose, 'model': selected,
+                             'cohort': getattr(self.telemetry, 'cohort', None), 'scores': scores,
+                             'samples': {m: statistics[m]['n'] for m in scores}}
+        return selected
 
 
 def eligible(models=None, exclude_models=(), exclude_families=()):

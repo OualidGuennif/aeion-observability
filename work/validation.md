@@ -1093,3 +1093,683 @@ The vendored factory-owned tools were then refreshed from the same tag: `tools/a
 `tools/agents/template-update --help` shows `--from-ref`, and `tools/factory-tests` PASS. The
 project-adapted `tools/architecture/views.json` and local `tools/repo-health` adaptation were left
 untouched on purpose.
+
+## Usable feature cockpit and feature-specific dispatch — 2026-11-02
+
+Owner scope: improve the confusing local cockpit, prevent selecting/relaunching completed
+features, unblock actual unmet work and make failures recoverable. This is a local controller
+delivery. No forum implementation was written by hand, and no model call, push, merge or remote
+deployment was made by this task. Concurrent Factory connector and product changes were preserved.
+
+Root `/` and `/factory` now serve one operator cockpit; `/lab` retains the advanced model lab.
+Search, phase/status filters, ready-work selection, recent real builds, collapsed simulations,
+receipt details, trace confirmation and the shared daily budget have distinct presentations. The
+release drill is loaded only when opened; displaying the cockpit does not start it. An existing
+authenticated session obtains its CSRF value from the authenticated board after a page refresh.
+
+Availability comes from persisted supervisor records. Merged/baseline features are implemented;
+real completed candidates are separately labeled as awaiting integration. Both, and active jobs,
+are disabled and refused by admission. `BEGIN IMMEDIATE` serializes the read/insert across Store
+instances, same-key replay is retained, and a mixed conflicting batch admits nothing. Simulation
+does not establish implementation or fulfill a real prerequisite.
+
+The live resolver loads validated per-feature profiles instead of applying target 013 globally.
+The dispatcher uses the selected target's base, brief, scopes and protected check. Missing targets
+hold before reserving money. Unexpected worker exceptions persist as `worker_error` holds and do
+not silently freeze unrelated queued work or automatically repeat a potentially paid call. Paid
+builders now require the existing independent review circuit by default.
+
+Feature 017 is the next configured unmet feature. Its profile pins canonical product commit
+`b0201db86135b943e84e9fececbde87dbaa7d36e`, not the old pre-013 base, and injects the external
+`RequestValidationContractTest.java` only through the protected check. On a disposable clone, the
+real Docker check compiled and ran Gradle in 41,734 ms, then returned 1 as expected: unknown
+registration fields and missing/wrong-type fields were accepted by the current product. The
+oversized-body and existing valid-shaped authentication cases passed. This is evidence that work
+is missing, not that feature 017 has already been implemented.
+
+The boundary used immutable image
+`sha256:93b8a14ea2f412782e4e842651273b4d903e35cc496284f178fbbe2d67d00976`, denied network,
+read-only root, uid/gid 65534, no capabilities, no Docker socket/host environment, 3 GB memory,
+2 CPUs and 512 PIDs. Contract SHA-256:
+`60c2ff0fd1b003f9774d431f0be74f6cb3f4a2df8f9e5772b5d216e901faba7d`.
+
+Verification:
+
+- `test_cockpit_admission.py`: 9 passing tests for persistent completion locks, simulation,
+  same-key replay, competing Store instances, atomic batches, catalog availability and HTTP 409.
+- `test_factory_feature_targets.py`: 6 passing tests for distinct targets through one FactoryApp,
+  catalog availability, trusted resolution, unsupported work before budget, worker-error recovery
+  and paid review requirements.
+- `node --test demo/tests/test_cockpit_client.mjs`: 6 passing client tests; `node --check` passes.
+- Final `knowledge-check`: PASS (0 problems); `doc-links --diff origin/develop --worktree`:
+  PASS (105 links); `repo-health`: PASS; `git diff --check`: PASS. The 9 admission and 6 target
+  regressions were also re-run against the final working tree and passed.
+- `python -m unittest discover -s demo/tests -v` in a sanitized temporary source snapshot:
+  527 discovered, 522 passed, 5 checkout-specific skips, exit 0 (30.817 s). Those 5 profile cases
+  were then run against the actual checkout and all passed, without inference or Gradle work.
+  Local raw output: `/private/tmp/aeion-cockpit-final-20261102-nowfa5s9/demo-tests.log`.
+- Real browser fixture using the shipped HTML/CSS/JS and FactoryApp presenters: 017 can be checked
+  and enables Build selected; 001 and 013 checkboxes are disabled. Verified at the default desktop
+  width and 390px; document width equals viewport width (390px), with the launch control enabled.
+  The fixture visibly states that it contains no provider or real builds. No build button was
+  clicked. Its temporary server was stopped, its tab closed and viewport override reset.
+- The actual controller was reloaded only after an atomic SQLite preflight found zero queued or
+  dispatched jobs. Root responds 200. Read-only real-state availability: 017 ready, 001/013 locked,
+  97 requiring a target/prerequisite. Restart invalidated its in-memory browser session; final
+  authenticated acceptance and the real 017 attempt remain owner actions. No admin token was read.
+
+Manual sensitive-diff review followed the `security-scan` skill: browser IDs cannot choose a
+repository/command/path, target files are trusted and validated, feature/target equality remains
+checked, SQL values are parameterized, receipt text is escaped, trace IDs are constrained, and
+existing loopback/session/CSRF, isolation, budget and unknown-usage guards remain. No new service,
+dependency or widened privilege was added to the product. No native external scanner or independent
+model review was run; this is a local boundary review with regression evidence.
+
+Remaining scope is explicit: 97 catalog entries do not yet have runnable contracts; checked
+candidates are not automatically integrated; a successful paid 017 build and its Langfuse readback
+have not been claimed. The lifecycle handoff records incremental contracts and trusted integration
+as the follow-up, without re-enabling unsupported checkboxes or pretending the catalog is executable.
+
+## Full code pass and monitored live feature 017 — 2026-11-02
+
+The owner subsequently authorized a full code pass and a real feature launch. Full scope, defect
+proofs and exact attempt/artifact/trace identities are in the
+[assessment record](full-pass-live-feature-2026-11-02.md). Earlier no-paid-call statements above
+describe the previous UI delivery, not this later explicitly authorized live check.
+
+Confirmed and fixed with failing-before/passing-after regressions: duplicate claims between
+Store instances, completion/cancellation races, automatic requeue after an uncertain interrupted
+attempt, too-short worker leases, lost held-attempt identity, malformed queue values escaping as
+TypeError, and the 60-second authoring timeout. Final transitions now serialize with SQLite
+`BEGIN IMMEDIATE`; expired attempts hold rather than spend again; held requests need explicit
+cancellation before retry; authoring has a 180-second transport timeout and reviews keep 60 seconds.
+Builder failures also emit bounded trace evidence. No new dependency/service/privilege was added.
+
+Final fresh source snapshot: `/private/var/folders/71/5ylk1yz559s8pdrf5r4t71sw0000gn/T/aeion-full-pass-20261102-5_8qbybd`.
+`python -m unittest discover -s demo/tests -v`: 535 tests, 530 passed, 5 local-checkout skips,
+exit 0 in 30.810 s. The 5 `test_forum_target_profile.py` cases passed separately on the actual
+checkout. Examples: 33 passed; Flue: 14 passed; cockpit client: 6 passed; `tools/factory-tests` PASS.
+The 5 recovery tests, 25 live-client tests and 7 feature-target tests passed against the working
+tree. No claim that this proves every provider or candidate implementation succeeds.
+
+Preflight: empty real queue, clean canonical product at
+`b0201db86135b943e84e9fececbde87dbaa7d36e`, target 017 present and Docker boundary qualified
+with the same immutable image/denied-network evidence as above. The logged-out browser was not
+bypassed: the owner's local queue admission used the existing Store operator API, no administrator
+token read. Controller picked up each job through its normal FactoryApp/DispatchWorker loop.
+
+Actual outcomes, all with backend-confirmed Langfuse failure traces:
+
+| Build | Result | Trace |
+| --- | --- | --- |
+| `c4c67c272ac748a99e39f26513503034` | Author timeout, no code/check/review | `f5f44fd55f2833bfa38b124a27c9b367` |
+| `af511eaca2b1496b8d6303db74731a3a` | Generated code refused by Java compilation: unsupported enum | `a11f280923869e0807443344c8d7a5ca` |
+| `87655cb326db471d86d34bba92393851` | Compiles; 2 external and 4 own validation assertions fail | `9aa21fadcf879d124bbff0d05462c3ca` |
+
+The final candidate strips `/` from the route before looking it up in a map whose keys retain `/`.
+It therefore bypasses its own validation: the isolated contract observed 201 instead of 422 on
+an unknown registration key, and 400 instead of 422 on missing/wrong-type fields. This was in a
+disposable test database. No candidate was approved, integrated, published or deployed; the
+canonical product remains unchanged. No reviewer call occurred. A pure local coverage check
+also found 7655 chars against the complete-review limit of 6000; no approval on an excerpt.
+
+Three authoring reservations of $0.50 were made; two calls have provider-reported settlements,
+the initial timeout keeps its unknown-usage $0.50 reservation open. The forum purse ends at
+$1.00 counted including prior work and open liabilities, $14.00 remaining, not a billing invoice.
+No queued/dispatched job remains, and no further paid attempt was made after the third failure.
+
+Feature 017 remains unimplemented. The brief and lifecycle handoff retain the verified toolchain,
+route-normalization and review-size constraints. The next builder task is a focused repair,
+followed by the unchanged external acceptance and two-family review; none of those gates was
+disabled to make a build pass. Authenticated browser acceptance remains unavailable while logged
+out; native external scanner/independent model-audit coverage was not claimed.
+
+## Direct implementation of the report with Codex — 2026-11-02
+
+The owner explicitly requested direct implementation after the failed live attempts above.
+The [repair record](feature-017-codex-repair-2026-11-02.md) supersedes that pending status.
+Feature 017 is now implemented in canonical product local commit
+`a50d6075b7aecff8f7c54fa47b5f385c16f4ccbb`; its working tree is clean. The independent external
+contract was unchanged. Before: 58 Java tests, 6 failures; final repair: 58 passing. The exact
+commit passed protected Gradle again in 40892 ms and a replay in 38069 ms under the same immutable
+qualified Docker boundary. No schema/dependency change or manual edit of the read-only snapshot.
+
+Baseline `2716fe2bb1044ceabdecdcc6f4e38513` records the exact base, source/test hashes and external
+contract hash. A replay returned the same build ID. Its recovered metadata-only Langfuse trace
+`18fe0c7e99f4af1cb8d78278cf42d7f9` is confirmed by backend readback (observation
+`9951e9bf4653582e`). Actual store availability is implemented/selectable=false. A new-key launch
+probe was refused as `feature_already_completed:017` without creating another row; the queue is
+idle. The earlier three failures and unknown-usage liability remain intact.
+
+Report fixes: bounded compiler identifiers displayed escaped in the client; complete review
+envelope 24000 chars with refusal/no calls above it; legacy `run_features.py --live` refused before
+work and separate fixture state; preserved macOS path aliases in Docker arguments; curated 017
+baseline checks its own external contract; proof/trace visible in baseline receipts; baseline
+verification idempotent despite new timing, without superseding active requests. The CLI's local
+queue.py shadowed stdlib queue and broke urllib3 on missing LifoQueue; reproduced in a subprocess,
+then fixed and verified through the successful real trace replay.
+
+Final isolated demo suite: 544 tests (539 passed, 5 local-checkout skips), exit 0, 31.181 s.
+The five local profile cases passed separately. Examples 33, Flue 14, client 7 pass. Snapshot/logs:
+`/private/var/folders/71/5ylk1yz559s8pdrf5r4t71sw0000gn/T/aeion-full-pass-20261102-z64ew5n0`.
+Controller knowledge/doc-links (105)/health/diff checks pass; product repair-delta checks pass
+(99 links). Snapshot drift check: 53 files, no change. The controller reloaded only after an atomic
+no-active/no-queued preflight and root returned 200. No paid model call, remote push/deployment,
+forged independent review, or restart of the running forum image occurred in this repair.
+
+The browser connector could list the existing tab but could not attach to it; authenticated
+visual acceptance is not claimed. The genuine persisted outcome and client behavior are verified
+separately. Other catalog contracts/model quality benchmarking and forum image rollout remain
+distinct work, not implied by this successful code baseline.
+
+## Owner-authorized local clean restart — 2026-11-02
+
+The owner subsequently requested a clean local restart. The nine observation containers,
+native controller and gateway were restarted without deleting volumes or resetting state.
+The exact committed product was packaged offline through the qualified Docker runner and its
+new local runtime image was started with the same forum data volume. The canonical product's
+web front now runs on loopback 8082; HTML and its 1754456-byte JavaScript bundle return 200.
+Feature-017 live API refusals return the expected 422 paths; the global body cap returns 413.
+The front/API credentialed CORS check, anonymous catalog refusal (401), four integration health
+checks and gateway mTLS health pass. Budget ledger SHA-256 and build history are unchanged;
+the existing 017 trace is confirmed again. No paid model call or remote publication occurred.
+
+Actual availability remains 0 selectable, with 001/013/017 completed and only 013/017 execution
+targets configured. The advanced Flue lab still reports live/sandbox readiness false; gateway
+health is not fresh sandbox qualification. Browser connector attachment remains unavailable.
+See the [restart record](clean-restart-2026-11-02.md) for image identity and scope limits.
+
+Documentation checks after the operation: knowledge-check PASS (0 problems), doc-links PASS
+(105 links), repo-health PASS, git diff whitespace check PASS. The protected read-only product
+snapshot still has 53 files with no drift; the canonical product Git working tree is clean.
+
+## Feature 007 connected to real operator execution — 2026-11-02
+
+Owner request: connect new feature execution from the cockpit. Added pinned target 007 and an
+external Java sanitization contract. The unmodified pinned base runs 59 tests and fails exactly
+the 5 new acceptance cases; an isolated injected candidate passes 59/59 through the actual
+catalog/CSRF queue, bounded author prompt, artifact gate, Docker check and synthetic two-family
+review path. Its result is simulated_complete in temporary state, not a real implementation
+record. The external contract SHA-256 is
+`c77e99036530853a9e933731f94d930304c2cab88eb0772e06d1004e2e0f273a`.
+
+The author now receives complete bounded public Java context from the pinned commit, rather
+than only a brief. Source paths, regular blobs, per-file/total bounds and full-brief refusal
+have 11 regressions. Before the change the new context tests failed; after it all pass.
+Targeted verification: 174 Python cases pass, including 7 real-checkout profile cases. Full
+public-source snapshot verification: 557 demo cases, exit 0 (7 local-checkout skips already
+covered separately), 33 examples, 14 Flue cases and 7 client cases pass. Knowledge-check (0),
+doc-links (108), repo-health, whitespace and the protected 53-file snapshot drift check pass.
+
+Idle preflight and reload succeeded (PID 40317, root 200). Actual persisted readiness now shows
+007 ready/selectable with no missing dependency, while 001/013/017 remain locked. Real history
+and budget ledger hashes are unchanged; no real queue admission, model call, publication or
+product edit occurred. An initial full-suite authorization attempt hit the automatic review
+service's usage limit; later activation and full-suite calls were approved normally.
+See the [wiring record](feature-007-cockpit-wiring-2026-11-02.md) for exact scope and limits.
+
+## 100-feature Quarkus/PostgreSQL/React web catalog — 2026-11-03
+
+Owner explicitly chose Quarkus/Java, PostgreSQL product storage and React web with no native
+mobile target, then requested compact specs in chronological order. Reviewed all six canonical
+files and every ID; [100-row assessment](forum-catalog-review-2026-11-03.md). Updated architecture,
+plan, current handoff and factory contract, then regenerated all 100 MDs, index, schema-v2
+manifest and review snapshots. Four obsolete renamed files were removed by the generator.
+Stable IDs/history remain unchanged; topological `sequence` is a separate display field.
+
+Measured: 100 features, 342 dependency edges, 354–637 words/MD (median 397), three explicit
+feature-specific steps each. Size counts: 46 S, 53 M, one L (the data migration). Changed shared
+architecture hashes propagate into every feature/spec/catalog identity after regeneration.
+
+Fresh checks:
+
+- `python3 -B demo/forum/tools/generate_features.py --check`: PASS, exactly 100 up-to-date MDs.
+- `python3 -B -m unittest discover -s demo/forum/tools -p 'test_*.py' -v`: 21 PASS, including
+  complete topological order, old-stack refusal, scope/parallel isolation and safety prerequisites.
+- Manifest/board/admission tests: 11 + 4 + 10 PASS. Completed-feature launch locks remain active.
+- `node --test demo/tests/test_cockpit_client.mjs`: 8 PASS, including sequence sorting without
+  mutating stable IDs or bypassing availability.
+- `tools/knowledge/knowledge-check`, `tools/knowledge/doc-links`, repo-health: PASS (110 links).
+- `git diff --check`: PASS at inspection.
+
+Broader public-source snapshot `aeion-full-pass-20261102-6kga7ouu`: examples 33 PASS, Flue and
+client PASS at that snapshot; the full demo suite was **not green** (560 tests, 8 failures,
+55 errors, 7 skips). Many errors are restricted loopback/process operations, plus a missing
+synthetic image setting in a new sandbox test. Failures also include unfinished live-engine
+qualification/profile/tokenizer/selection changes from the ongoing engine replacement.
+This broad run is not cited as successful validation or attributed to the catalog change.
+
+No product source or database was modified, no data volume deleted, no paid model called and
+no GitHub write performed for the catalog revision. PostgreSQL migration/restore, React product
+browser acceptance and the complete Flue-to-main path remain separately unqualified. Previously
+pinned 007/013/017 profiles cover the older product base, not the changed product architecture.
+
+### Flue native review repair and real local harness proof — 2026-11-03
+
+While continuing the factory replacement, isolated synthetic review probes failed before any
+upstream inference. The pinned SDK implementation showed three integration requirements:
+Anthropic's model URL must be the relay origin (the SDK adds `/v1`), Pi uses the exact beta
+path `/v1/messages?beta=true`, and the supervisor must supply the stable OpenCode conversation
+header on the native Anthropic path. Fixed these boundaries, kept the upstream endpoint fixed,
+refused arbitrary query variants, and preserved explicit adaptive/medium admission for Haiku.
+The provider regression failed before the URL fix and then passed. Unknown/multimodal context
+on the new conservative byte-bound profiles is refused rather than counted as plain text.
+
+Fresh verification:
+
+- Flue unit suite: 15 PASS, including native URL/session regression.
+- `test_provider_protocols.py`: 4 PASS using only local fake upstreams, including arbitrary-query
+  refusal and missing-medium refusal before transport.
+- `test_runtime.py`: 7 PASS with real local tokenizers and fake loopback transport; existing
+  test-resource warnings remain visible. No model provider was contacted.
+- `demo/.local/venv/bin/python demo/tests/qualify_factory_flue.py`: **exit 0** on real Flue/Pi,
+  real no-host-mount OpenShell, real protected Java/Docker checks and scripted local inference.
+  Isolated state: `/private/tmp/aeion-real-flue-factory-fhw_rzxc`.
+  Build `7c7858167b7540b5abd9b1f9578a009e`, trace `6cfc53021a12ac88a04d3c2feae55e0e`.
+  The author used GLM's protocol, six requests and two fresh sessions with a hashed handover;
+  the first protected check failure reached the agent, its repair passed, and the independent
+  final Java check passed (41.112 seconds, contract `237068252f1b316e2d11590647c84e89d13131d491ff38225c3bdf9d50e6a07d`).
+  Qwen and DeepSeek's separate Flue reviewers both approved the complete 1651-character artifact;
+  a separate Haiku harness probe passed with adaptive thinking and medium effort. Twelve total
+  fixture requests, no remote model calls; provider-reported **synthetic** cost is zero and native
+  estimates are not invoices or model-quality evidence. The terminal state is correctly
+  `simulated_complete`, with a fake forge, never a real main merge.
+
+No factory activation marker was written. Persistent measured routing, isolated publication/
+required-CI/confirmed-main and automatic current-contract preparation remain unfinished.
+This proof uses the historical product target and does not qualify PostgreSQL/React migration.
+
+Cockpit reload: idle preflight found zero active lab runs/campaigns and zero queued/dispatched
+factory builds; only the verified owned controller was reloaded (PID 56672, root HTTP 200).
+The new process reads the regenerated catalog. Existing build/budget records were preserved;
+administrator sessions are in memory and must be renewed after controller restart. Authenticated
+visual acceptance was not performed.
+
+## Single scheduled continuation — 2026-11-03
+
+Owner requested one resume at05:00 Europe/Paris today. Wrote, fsynced and verified
+`work/HANDOVER.md` (15547bytes at scheduling, SHA256
+`d1d88aa78b7ea7a11e1055eeefde227ab19823a0b02c209cc0d808fe7d4a8340`).
+Created active thread-attached heartbeat `reprendre-la-factory-flue-5-h` with one occurrence
+(COUNT1) at05:00. Tool returned Created and an ACTIVE id; its view card was opened. No daily
+recurring continuation or extra thread was requested. The prompt resumes the already-authorized
+implementation from the handover, preserving model/credential/budget/isolation gates.
+
+Final handover readback after recording the automation ID: 15723bytes, SHA256 `ce89be5feca26c9fa610466e22d3cee05ee1ab713277d929e74733a67385999a`; fsync and readback verified.
+
+## Scheduled continuation: automatic Java preparation and durable factory controls — 2026-11-03
+
+The unique05:00 Paris heartbeat fired and was deleted through automation_update; no recurring
+job was created. The factory activation receipt remains absent. No real inference or remote
+GitHub write ran; owner data, product source and budget liabilities are preserved.
+
+Implemented persistent routing/progress, frozen atomic publication with isolated role outbox,
+confirmed-main-only completion, late-effect cancellation locks, complete MD/acceptance/artifact
+review and a shared typed Flue preparer. Removed the obsolete direct model engine and CLIs.
+Unknown outcomes/no-forward failures do not fabricate model quality; invented prior quality
+scores were removed. The cockpit shows exact holds, chronological MD previews, role/evidence,
+PR/CI details and main SHA without enabling an unqualified engine.
+
+A protected-check parent symlink swap was reproduced deleting only a disposable synthetic
+canary. Both pre-execution overwrite and post-execution cleanup paths are now confined;
+regular nofollow bounded reads and frozen-acceptance checks have regression coverage.
+
+Real automatic Java mechanism proof: `demo/tests/qualify_factory_preparation.py` exited0 with
+actual Flue/Pi/OpenShell and isolated Java evaluation, scripted local inference/fake forge only.
+State `/private/tmp/aeion-real-preparation-abv32f9m`, build
+`ffc6191870304f03bfc52f2c7c3832a9`. Qwen prepared; GLM built across2sessions and repaired a true
+protected-check failure; DeepSeek and Haiku approved independently, all4distinct identities.
+Final Java gate37.402s;12synthetic inference requests; terminal simulated_complete. This uses a
+historical Java/SQLite source and deliberately scoped disposable MD, not all100 contracts or
+PostgreSQL/React acceptance. New JUnit assertion-type and role-memory changes require final rerun.
+
+All3 native lab tiers also passed again with scripted inference: OpenShell6requests/2sessions/
+12checks, local5/1/12, in-memory5/1/8. The lab cli qualification receipt cannot activate the factory.
+
+Metadata-only integration probe made zero provider requests. Exact claude-mem and Hindsight
+stored JSON readbacks confirmed; Hindsight document
+`aeion-demo-synthetic/run-d5f07bf37a2d4cbb808b9f8c148a1710`. Its running1.1.0 Compose hash
+`8bcb308f30cb99f75d732fa26d2e5defb7e28f0d28369cb95e6082772c9aa6e8` matches the declared
+LLM-disabled/chunks configuration. Immediate Langfuse read was too early (probe exit1); a later
+read of SAME trace `683d9bab4e0b12b7cf928c14ba3ab5b6` confirmed demo.task/task.passed,
+observations `ba0f449e41dfd460` and `cfe3cc071a5c362c`. This is stored telemetry proof, not model
+quality or paid-provider proof. Memory outages remain visible; retry replay is still pending.
+
+Public-source snapshot `aeion-full-pass-20261102-gtdb_dn5`:586demo tests OK(7skips),33examples,
+15Flue and14client. Later snapshot `...-t80lurvu`:601demo tests with2obsolete fixture expectations
+failing; both fixed, feature_targets7 PASS. Current targeted preparation9, protected-check15,
+role-memory2, publication-state10 and circuit/vote tests pass. Flue17 and client14 pass. Final
+full-current-tree and docs/sign-off checks remain to run; do not present a stale full pass.
+
+Read-only GitHub refresh: main remains `7193f5c95d7ce2db75ca9e5535ab5fe15e3cf237`, no PRs;
+required Product artifacts CI job is absent. Each isolated build/publish/release role got403 on
+GET main protection. An owner question about Administration read-only for release is pending;
+no security permission was changed. Bootstrap/CI, PostgreSQL/React check adapters, current-MD
+baseline/completion identity and a real protected merge remain unfinished. The cockpit backend
+has not been reloaded in this continuation; actual user tab4 showed Sign in required.
+
+
+## Current-contract evidence, isolated PostgreSQL and real UI actions — 2026-11-03
+
+Owner continuation implemented in the observer; the actual product remains clean at
+`a50d6075b7aecff8f7c54fa47b5f385c16f4ccbb`. No real provider request, GitHub write or product
+migration occurred. Live factory activation remains absent.
+
+- Release key protection GET200 now succeeds after the owner's Administration read-only change.
+  Strict checks/admin enforcement are true, all five required contexts have Actions app15368.
+  No credential value was read or displayed; a named loader consumed the one key privately.
+- `test_factory_contract_identity.py`:12PASS, including failure-before-fix rewritten MD/deps,
+  captured-byte race, symlink drift, explicit no-attempt supersession, uncertain attempt locks,
+  historical SQLite migration and late merges preserving two contract versions. Exact feature
+  metadata/MD/architecture now binds completion, dependencies, frozen receipts and publication.
+  Unrelated catalog edits do not revoke unchanged contracts. Legacy baseline CLI cannot stamp
+  new PostgreSQL/React requirements with an old SQLite proof.
+- `test_factory_publication_http.py`:3PASS with REAL publish/release child processes and local HTTP,
+  isolated fake keys/receipts/forge: exact-head CI wait across restart; cancel after green CI
+  before merge; lost merge response reconciled by readback with exactly one PUT. This proves the
+  mechanism, not a GitHub PR, hosted CI run or real main merge. Production has no fake endpoint flag.
+- Gradle build/settings/properties/wrappers/version catalogs were wrongly approved by the old
+  dependency rule. Regression failed before the fix; review and publisher now share one list.
+ 14review,18publisher and14key-role tests PASS. Templates accurately describe isolated release,
+  Administration read-only and the limits of same-actor fine-grained PAT capability separation.
+- Native `qualify_postgres.py` exit0, evidence `/private/tmp/aeion-postgres-proof-xgqbsnoy/proof.json`:
+  PostgreSQL17.11, image `sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f`,
+  RAM-only data, no host mount/port/external route, non-root checker over owned loopback. Real
+  SQL transaction rollback, fresh second database, denied egress and confirmed removal after
+  success AND candidate failure. Four unit boundary tests PASS. Initial startup failed at the
+  entrypoint's temporary Unix socket; the actual diagnostic identified `/var/run/postgresql`,
+  which now has its own bounded tmpfs. The PostgreSQL product migration adapter is not qualified.
+- Native automatic MD preparation exit0: `/private/tmp/aeion-real-preparation-97dzczx_`, build
+ `32ded74cf7f64729a48e570277955a9b`. Qwen preparer2calls, real failing baseline JUnit assertion;
+  GLM author6calls/2OpenShell sessions with check failure→repair→handover; DeepSeek2+Haiku2 reviews.
+  Protected final Gradle38938ms PASS, complete MD/acceptance/artifact envelope3750chars. Terminal
+  is `simulated_complete`,12scripted inference calls, real provider0, fake forge. Scope is one
+  custom Java/SQLite013 fixture, not the canonical100/PG/React/provider efficacy.
+- All four roles' exact claude-mem and Hindsight documents confirmed. Fresh Langfuse readbacks
+  of those SAME traces confirmed roots: prepare`7629ec472f7fbf0267d3cc074e2e884c`,
+  author`ea9c27999a0cbd2fba25a3db73003387`, DeepSeek`7112db4c57dde49d85d23e63e720a03c`,
+  Haiku`b1a3c0ff35eb3cab1697abaa2c9f64df`. Only basic/metadata queried; no prompt/source export.
+- Current native `qualify_flue.py` exit0: tier3 OpenShell6requests/2sessions/12checks, tier2
+  restricted local5/1/12, tier1 memory5/1/8.16scripted requests, real provider0. This refreshes
+  LAB qualification only. No factory activation receipt was issued.
+- Browser QA used the actual HTTP Handler, FactoryApp and current static files with three
+  disposable fixtures, a distinct cookie and no worker/provider/owner secret. Login, literal
+  hostileMD, selection, completed/dependency locks, queue+selection clearing, duplicate lock,
+  cancel→ready and reload verified. Found/fixed misleading simulator execution promises and
+  invisible queued/publication counts. [Screenshot](evidence/cockpit-fixture-2026-11-03.jpg).
+  The temporary tab/server were closed; the owner's browser/session/token was untouched.
+- A concrete [trusted CI patch](product-ci-bootstrap-2026-11-03/README.md) adds required Product
+  artifacts and includes demo product sources in SAST. It applies to local a50, parses as YAML,
+  new action revisions/pins/read permissions/commands verified. UNPUBLISHED; hosted CI and the
+  bootstrap source integration still need real review and protected PR/main evidence.
+- Full public-source snapshot `.../aeion-full-pass-20261102-th_5maw7`:629demo tests OK,7skips;
+ 33examples OK;17Flue tests OK;16client tests OK. This snapshot includes the final contract,
+  publication subprocess, dependency policy, template, checker DI and client changes. The earlier
+ 617snapshot failed one outdated fixture expecting a web-profile refusal after mutating an
+  already frozen catalog; the fixture now declares web scope before admission, preserving the
+  intended refusal test. No assertion was weakened to accept a stale contract.
+- Knowledge/doclinks/health PASS,112links at last check; manual security boundary review and
+  regression evidence, no proprietary scanner or independent assistant-review claim.
+- Live controller safely reloadedPID11582 after idle lab/campaign/factory checks and a private
+  SQLite backup. HTTP200; all25build IDs/statuses/attempt generations preserved, budget ledger
+  hash unchanged, SQLite quick_check=ok and new contract schema loaded. Factory remains paused.
+  Memory-only admin sessions require local re-login; no token was read by the assistant.
+
+Remaining: actual reviewed product bootstrap/CI into main; PostgreSQL migration/restore and
+React/browser acceptance/toolchains; bounded approved build/dependency transition policy and
+full artifact coverage for imports/locks; real provider/task evidence; actual protected publication
+readback before activation. Current Java adapter holds001/002/003 and web scopes. Native PG
+transport is not a completed cutover. No second wakeup/recurrence was created.
+
+
+## Complete bootstrap reviews, Chromium and role separation — 2026-11-03
+
+Owner authorized the complete backend/CI export to GLM+Qwen and the forum$15/day budget;
+continued Chrome/security research was explicitly requested. No assistant subagent, new
+schedule, product source change, GitHub write or factory activation occurred.
+
+- Frozen bootstrap:49files168878bytes, sourcea50d607, base7193f5c, digest
+  `15085ae47f150d429a291b55e6090eefa0e7ca10d69823eee6dc445d7b9d7d67`.
+  Both v3 and fresh v4 passed knowledge/link/health/factory checks and actual offline Docker
+  Gradle test+Quarkus packaging, non-root/cap-drop/read-only/no network; check.json binds bytes.
+- First GLM call ended without a vote at4096output, actual provider resource cost0.01068027USD.
+  Failure retained. Complete170062-byte synthetic packets now reach real Flue/Pi exactly once,
+  without oversized argv; supervisor-only output extension16384 is admitted, default4096 and
+  hard300k/context reserve unchanged. Native GLM/DeepSeek transport fixtures pass with local
+  scripted inference only. Qwen's conservative byte counter correctly refuses before transport.
+- Real GLM retry approved the complete bundle:4calls,176851input/5959output,
+  resource cost0.02141263USD. Qwen refused locally,0forwarded/cost0. No second approval exists.
+  Budget journal reports forum$0.05 rounded settlement/$14.95remaining and observer$0/$15.
+- Fresh Langfuse metadata readbacks confirmed all three traces, including the initial failure:
+  `d5c794b150eff8861d3ed279b4ab924a` (1generation),
+  `637d356374a35281fd2340c5ec6d9319` (4generations),
+  `10fb607c7e2aad11e61a2e182edfa1fc` (0generations).
+  Exact Hindsight documents were freshly read back; claude-mem checkpoints confirmed during
+  execution. No raw input/output requested. Proof: ignored bootstrap/v4/telemetry-readback.json.
+- The one-hour v3 lease expired while other work continued. Controlled recovery verified all
+  prior costs closed, no publication request, unchanged source/base/files/coverage and a fresh
+  authorized attempt; fenced v3 through Store.cancel and carried the exact approval to v4.
+  No lease extension, erased failure or unknown-liability retry.9bootstrap tests pass, including
+  rejection of unreconciled costs. The second-model export question remains unanswered.
+- Native Chromium sandbox qualification passed:156.0.8078.80, namespace/PID/network/Seccomp-BPF/
+  TSYNC enabled; Yama absent. Non-root,zero effective capabilities,no-new-privileges,read-only,
+  no host mount/port/key,external network denied and browser interaction passed. Proof:
+  `/private/tmp/aeion-chromium-proof-cb60uewh/proof.json`; primary sources/profile provenance and
+  fresh-build/verifier separation are in [research](chromium-security-2026-11-03.md).
+- Trusted checker image inspected/executed at86d317a9…: Node26.13.0, OpenJDK25.0.4.1,
+  React/DOM19.3.1, TypeScript5.9.3,Vite8.3.5,Vitest5.1.0,Playwright1.64.1. Public lockfile
+  `npm audit --package-lock-only` exit0,0known advisories; no product source/private npm config sent.
+- Fixed disposable PostgreSQL's shared owner credentials: fresh random admin/migration/app
+  roles; the candidate receives only app credentials. Native PostgreSQL17.11 proves reads/writes,
+  refusal of table/drop/temp/database/role DDL, rollback,fresh second DB and cleanup after failure.
+  Proof: `/private/tmp/aeion-postgres-proof-ua2lxxhw/proof.json`. Audit-specific product grants,
+  actual Flyway migration/import/restore and React/API acceptance are still unqualified.
+- Activation regression reproduced9 failing subcases before fix. A Java-only, synthetic-main,
+  malformed or missing PG/React receipt now refuses activation;4tests pass. Architecture bytes
+  participate in the protocol hash. No qualification marker was created.
+- Final source-only safe snapshot `/tmp/aeion-full-pass-20261102-_liai49b`:644demo tests OK
+  (7explicit dependency/environment skips),33example tests,18Flue tests and16client tests pass.
+  Snapshot includes new/untracked files but no private state/credentials; knowledge,doclinks120,
+  repo-health pass. Root doclinks112 + diff/worktree and whitespace checks also pass.
+- Manual boundary review covered frozen review coverage,budgets,expired-attempt fencing,credential
+  delivery,PostgreSQL grants,Chromium namespace/seccomp and protected-main activation. No proprietary
+  claude-security scan or hosted CI is claimed. These tests do not qualify the new product yet.
+- Fresh reads: live cockpit PID11582/HTTP200, product localclean a50d607, actual GitHub main7193f5c
+  protected,0open PRs. Actual migration/React adapters,second independent review,PR/CI/main and
+  final activation remain open. No completed merge is claimed.
+
+## Bootstrap quorum, measured budget repair and permission hold — 2026-11-03
+
+This checkpoint supersedes the preceding section's pending DeepSeek question, single approval
+and older output/budget limits. The owner authorized DeepSeek4.1 for the complete bundle, then
+asked for a less restrictive per-execution budget within the already approved hard$15/day.
+
+- The frozen49-file168878-byte backend/CI bundle is unchanged at digest
+  `15085ae47f150d429a291b55e6090eefa0e7ca10d69823eee6dc445d7b9d7d67`,
+  sourcea50d607/base7193f5c. Fresh v5 isolated Gradle tests/Quarkus packaging and repository
+  checks passed. It imports the existing SQLite baseline; PostgreSQL/React remain unimplemented.
+- Two actual independent complete approvals exist: retained GLM5.3Flash and DeepSeek4.1Flash.
+  DeepSeek run`72d6bc9da102496880c1ce2356889182`, trace`0df6ab42703e51b357c37971a61ead41`:
+  2forwarded requests,146092input/61908output,resource cost0.07087032USD,normalmedium/high
+  effort,65536output ceiling,$1 execution ceiling. This is a provider resource cost, not an invoice.
+  The forum journal is$0.22 rounded settled/$14.78 remaining, observer$0/$15; no paid run is active.
+- Retained DeepSeek failures:16k default and low both OUTPUT_LIMIT at0.01950246USD each;
+  low32k BUDGET_STOP at0.04482747USD. Low effort alone did not solve truncation. Confirmed root
+  cause: relay accumulated worst-case output reservations without settling unused liability after
+  measured responses. It now retains the larger of resource cost and conservative full counted
+  input plus actual output price; unknown/unfinished usage retains the full bound. Three regression
+  cases cover repeated admission, incomplete usage and higher reported cost. No failure was erased.
+- Complete review packets are supplied once with the typed review tool; the reviewer has no
+  emulated shell/filesystem fallback. DeepSeek native compatibility enforces explicit effort;
+  enum-only effort metadata is cohort-separated with profilev3. Historical memory shape is retained.
+  Native170062-byte/high65536 transport qualification passed with scripted inference,0real calls.
+- New transactional worker-lease checks refuse expired completion and publication staging.
+  Two regressions failed before the fix, then passed. Temporary source-repo fixtures now disable
+  hooks/automatic maintenance locally after one retained pack-cleanup race; no global Git setting
+  or drift assertion changed. The asynchronous writer's origin was not conclusively identified.
+- Isolated real publication stopped at the first tree operation:held/tree_create_failed:403.
+  No branch, commit, PR or merge was created. Before asking the owner, two valid same-blob tree
+  probes returned201 and exactly the existing tree SHA, changing no ref/content; Contentswrite
+  works. Missing permission for the changed CI workflow is the supported inference, not a token
+  scope readback. The root publisher template/runbook now document temporary repository-only
+  Workflowswrite for this reviewed maintainer bootstrap. Ordinary workers still cannot edit CI.
+- Owner replied that they are outside and will activate that permission later. Publication stays
+  held until their explicit activation reply: no GitHub action, model call, timer or automatic
+  polling occurred after that reply. Two approvals remain saved; no retry was locally rearmed.
+  The new explicit `resume-publication` phase checks unchanged main, exact stored request and
+  branch/PR absence with reads, then transactionally rearms only the known effect-free403.
+  Cancellation, changed payload, active lease and uncertain effects refuse recovery. Focused
+  bootstrap12/publication-state13 tests passed; credentials load before claiming publication.
+- Fresh local Langfuse metadata readback confirmed the final DeepSeek2generations; the exact
+  Hindsight document matches run/trace and high effort. claude-mem confirmed during execution.
+  Ignored v5/telemetry-readback.json retains earlier six traces plus this success; no raw source,
+  prompt, output or reasoning was requested. All DeepSeek attempts total0.15470271resource USD.
+- Final source-only safe snapshot`/tmp/aeion-full-pass-20261102-c8qd5ih_`:656demo tests OK
+  (7explicit skips),33example tests,19Flue tests and16client tests passed. No private state,
+  credentials or real provider is used by that suite. Root knowledge/doclinks112/health and
+  whitespace checks passed. Product worktree remains clean at a50d607; activation marker absent.
+  Snapshot checks include new files:knowledge/doclinks120/health passed. Its broader whitespace
+  check found two extra EOF blanks (removed) and two required space-only unified-patch context
+  lines in the frozen CI evidence patch (preserved); source whitespace passes excluding that patch.
+- Local sensitive-change assessment covered immutable retry inputs, generation/lease fencing,
+  unknown side effects, role-separated credentials and measured liability settlement. It is not
+  an independent review of the observer changes or a proprietary claude-security scan. No new
+  hosted CI result or protected merge is claimed. The two model votes cover only the frozen
+  product bootstrap. Remaining: real PR/CI/main after owner activation, PostgreSQL migration/
+  restore/audit grants, React/API/browser acceptance, bounded dependency transitions and the
+  missing trusted source synchronizer before future tasks can freeze current remote main.
+
+## Qwen launch policy, real bootstrap merge and source synchronization — 2026-11-03
+
+Owner explicitly rejected the byte-estimate context refusal and confirmed publisher Workflows
+activation, then asked to keep going. The earlier owner-away wait is resolved.
+
+- Closed-tokenizer Qwen/Haiku profiles now use the Unicode byte bound for cost reservation
+  only. Bounded requests launch; complete API usage gates the next request, with Anthropic cache
+  reads/writes included. Unknown usage holds, native250k hands over and actual input+output
+  above300k fails. These profiles do not have independent first-request300k preflight proof.
+  Pinned-tokenizer preflight, budgets, role isolation and output/step limits remain enforced.
+  Profilev4 separates this changed method from older routing evidence. Seven focused tests
+  reproduced7failures before correction and all7passed after, including exact-counter refusal,
+  unknown usage, cached context and actual overrun. Native Flue/Pi received170062bytes exactly
+  once per request with Qwen-shaped scripted inference:2requests,0realprovider,typed vote,no shell.
+- Workflows permission fixed actual tree creation. v5 published PR3/head906e8ad. Hosted backend
+  tests/package and3security scans passed, but L3 doc-diff and Graphify failed. Local
+  `doc-links --diff 7193f5c --worktree` reproduced the unchanged build-and-test spec failure;
+  architecture refresh separately requires its owning spec to change with runtime/config.
+- v6 retained all49previous files byte-for-byte and added only the2owning documents:
+  51files198356bytes,digest`6d56126eb021ea98a4448789a68d292d05f4e0267d5515275b6eac7603ccf04d`.
+  Both base documents match public aeion-factoryv1.8.6 SHA256 exactly; only709new documentation
+  bytes describe existing approved CI/product boundaries. Initial automatic approval review
+  rejected sensitive egress as a changed bundle; after these local/public checks, re-review
+  allowed the same GLM/Qwen command. No alternate transport or bypass occurred.
+- v6 doc-diff/knowledge/health/factory checks and isolated Gradle tests+package passed. First
+  local check failed because its isolated PATH lacked Node; check-missing-node-path.json retains
+  the failure. The corrected Node PATH passed; failed-check receipts now include bounded stderr.
+  The trusted Docker checker mounts candidate workspace/public read-only tools/cache; it has no
+  host environment/key/socket/egress, runs non-root/cap-drop/read-only with resource limits.
+  This checker differs from untrusted OpenShell workers, which have no host mounts.
+- Two NEW full real approvals bound the changed v6 bytes. GLM:3requests,151910input/7679output,
+  resourceUSD0.02000821,run`6f676bb5416648ba9488d610114ea749`,
+  trace`3981e6d8d34863839b823d8b7310350b`. Qwen:4requests,223982totalinput/8918output,
+  resourceUSD0.04935952,run`8a340347a2dc4ebea82f78699df893f0`,
+  trace`c7d24c2ec34bd24b59e8a06a094a5964`. Input totals sum requests, not peak context.
+  Exact Langfuse generation counts and Hindsight run/trace readbacks passed; both claude-mem
+  checkpoints confirmed. v6/telemetry-readback.json contains metadata only. No raw reasoning
+  was requested. Journal:$0.30rounded forum settlement/$14.70remaining; observer$0/$15.
+- [PR4](https://github.com/OualidGuennif/aeion-autonomous-forum/pull/4), head932c352, merged
+  through the isolated release role into protected main`63bdece8056136209e0e3d2e68dbf0879005fec9`.
+  All5required exact-head checks and the additional Graphify/Archify check passed; the optional
+  review job is explicitly skipped, not counted as a success. Fresh readback confirms merged
+  PR/main; v6/remote.json and ci-readback.json preserve proof. No direct/force push or protection
+  change. Obsolete PR3 was closed only after exact-head verification; v5 was cancelled/fenced,
+  with failures, approvals and branch/history preserved (v5/superseded.json).
+- Added the previously missing source synchronizer before live MD freezing. Only a short-lived
+  build/read-key child fetches the fixed repository into a unique temporary ref; ancestry and
+  conditional update-ref protect origin/main. It never checks out/resets/stashes, writes remote
+  refs, copies secrets to files/argv or inherits inference/publication keys. Unknown fetch, remote
+  rewrite or concurrent ref change holds before spend. Temporary refs are removed; TLS verification
+  and no redirects are explicit. Five real local-Git regressions plus preparation integration pass.
+  Native actual build-key readback fetched main63bdece while preserving local HEADa50d607 and all
+  worktree status; source-sync-readback.json records0model calls. The source file is protocol-bound.
+- Final safe snapshot`/tmp/aeion-full-pass-20261102-mljlys95`:670demo tests OK (7explicit skips),
+  33examples,19Flue,16client passed. No private state/credentials or real provider in that suite.
+  Protocol binding/TLS flags were tightened afterward; focused checks cover those final changes.
+  Local sensitive-change assessment traced measured-context admission, credential boundary,
+  frozen-byte publication, stale-source/cancellation/concurrent-ref paths. This is no proprietary
+  scanner or independent review of the observer diff; the two model votes cover only the product.
+- Remaining product controls: real PostgreSQL migration/import/restore and audit grants, React
+  production API/browser path, bounded build/dependency transitions and obsolete-file handling.
+  All existing main product bytes remain the SQLite baseline. Factory activation stays absent;
+  no existing volume/database was read, migrated or deleted. No new timer/subagent was created.
+
+
+## Detailed operational checkpoint and shallow-source regression — 2026-11-03
+
+Owner explicitly requested a detailed `work/current.md`. Replaced ambiguous historical/current
+mixing with fifteen bounded entries carrying Owner decision, State, Next (agent), Blocker and
+Evidence. Records actual product PR4 merge separately from pending observer main, exact source
+identities, reviewer runs/traces/costs, context/counting limitations, budget, test snapshots,
+PostgreSQL/React qualification gaps, cockpit work, security hypothesis and ordered resume steps.
+The first prose draft failed knowledge-check because mandatory entry fields were missing; the
+final version retains the detailed content in the established schema rather than weakening the check.
+`HANDOVER.md` points to the new checkpoint, preserves the previous text as historical and carries
+its SHA256. Both files were fsynced and read back exactly. No credential/transcript was read.
+
+The pending `base_checkout_failed` was reproduced against actual product main63bdece. Source and
+fresh clone are shallow; source has the commit in origin/main while the fresh clone advertises
+only local develop/a50d607 and lacks the main object. This is verified object/ref evidence, not an
+assumed permission problem. Added a real shallow clone fixture that fetches new main while keeping
+local HEAD old and dirty/untracked operator files; it FAILED on the old materialize implementation
+with `base_checkout_failed`. Fix fetches only the exact missing SHA from the local source, without
+updating a branch or FETCH_HEAD. A failed-fetch test proves incomplete-clone cleanup and fixed error
+without private Git diagnostics.
+
+Verification after correction:
+- `demo/.local/venv/bin/python -m unittest discover -s demo/tests -p test_factory_target.py -v`:10PASS.
+- Same command with `test_factory_preparation.py`:11PASS; `test_factory_source_sync.py`:5PASS;
+  `test_factory_qualification.py`:4PASS. Total30 focused checks; no full-suite rerun for this final fix.
+- Actual `Target.materialize` from canonical product source to
+  `/private/tmp/aeion-materialization-proof-5lh1w_r1/repo`:exact63bdece, clean candidate,
+  source HEAD/origin-main/worktree status unchanged,0model calls and0remote writes.
+  Local ignored `demo/.local/factory/bootstrap/v6/materialization-readback.json` preserves the result.
+- Earlier latest full safe snapshot `/tmp/aeion-full-pass-20261102-al7jqp3u`:678demo OK/7explicit skips,
+  33examples,19Flue,16client. These are the earlier full-snapshot results, not a rerun of changed bytes.
+
+The code path and changelog/owning component doc were updated together. JUnit interception remains
+an unproven hypothesis: no native baseline/attack completed yet. No PG/React activation, product
+migration, observer push/merge, controller reload or newly paid evaluation occurred in this slice.
+
+Final documentation checks for this checkpoint all passed: knowledge-check (0 problems),
+doc-links --diff origin/develop --worktree (112 links), repo-health (current.md123 lines) and
+git diff --check. An additional local-link readback found all27 current.md relative targets.
+Manual sensitive-change review covered the local exact-SHA fetch, validated target identity,
+argument-list subprocess use, source preservation, incomplete-destination cleanup and fixed
+error reporting. No external scanner/plugin or independent full-delivery review was run for
+this small local correction; protected observer CI/review is still pending, not claimed green.
+
+## JUnit grader boundary hardening, Antigravity hook fix and full suite — 2026-11-04
+
+- Executed the native JUnit grader boundary probe against exact product `main`
+  (`63bdece8056136209e0e3d2e68dbf0879005fec9`) inside `DockerCheckRunner`:
+  - Baseline `FactoryBoundaryProbeTest` failed as required (`returncode: 1`,
+    `failure_kind: tests_failed`, `contract_assertion_failures: 1`).
+  - Adding `CandidateInterceptor` (`InvocationInterceptor` calling `invocation.skip()`),
+    `META-INF/services/org.junit.jupiter.api.extension.Extension` and
+    `junit-platform.properties` (`junit.jupiter.extensions.autodetection.enabled=true`) inside
+    candidate write scopes while leaving `FactoryBoundaryProbeTest.java` untouched made the
+    unhardened `target_check` pass (`returncode: 0`, JUnit XML `tests="1" skipped="0" failures="0" errors="0"`).
+  - Hardened `demo/factory/agent_files.py`, `demo/factory/artifact.py` and
+    `demo/factory/checks.py` (`grader_tampered`, `_grader_tampered`, `_contract_executed`) to
+    refuse `META-INF`, `junit-platform.properties`, JUnit extension/platform hooks, foreign
+    packages under `local/aeion/forum/`, and skipped or unreported contract XML results. Re-ran
+    the native Docker probe (`parse_error: builder_grader_tampered`, `reason: grader_tampered`)
+    and added unit regressions in `test_factory_target_check.py` and `test_factory_live.py`.
+- Updated `tools/agents/hook.py`, `tools/agents/tests/test_hooks.py` and
+  `knowledge/operations/agent-compatibility.md` to map Antigravity `read_file`, `write_file`,
+  `edit_file` and allow `run_command` `toolSummary` strings (`53` hook tests and `factory-tests`
+  pass).
+- Deferred `Telemetry` import in `demo/factory/flue_session.py`, refined OpenShell SDK detection
+  in `demo/tests/test_sandbox_unmounted.py`, and updated `demo/tests/test_forum_content_target.py`
+  for automatic `TaskPreparer` wiring so all `683` tests in `demo/tests` pass under
+  `demo/.local/venv/bin/python` and Docker-free host unit tests pass under system `python3`.

@@ -1,15 +1,18 @@
 ---
 id: 011
+sequence: 11
 title: "Secrets and environment allowlist"
 area: foundation
 size: S
 parallel: false
 phase: P0
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/"]
 depends_on: [001]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 011 — Secrets and environment allowlist
@@ -21,9 +24,19 @@ Read configuration only from an explicit allowlist of environment keys, refuse w
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_a.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Define the configuration allowlist and reject weak required values.
+2. Create minimal role-specific child environments at the trusted boundary.
+3. Test ignored keys and synthetic canaries without reading real secrets.
+
+**Scope:**
 
 - An allowlist mapping name to type and required flag.
 - A startup check that rejects a default, short or placeholder secret.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_a.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

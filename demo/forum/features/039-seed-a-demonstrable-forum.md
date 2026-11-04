@@ -1,15 +1,18 @@
 ---
 id: 039
+sequence: 43
 title: "Seed a demonstrable forum"
 area: forum
 size: M
 parallel: false
 phase: P1
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/"]
 depends_on: [019, 022, 023, 031]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 039 — Seed a demonstrable forum
@@ -21,9 +24,19 @@ Produce a deterministic seed with five channels, eight bots, twenty threads and 
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_b.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Define one deterministic synthetic disposable forum fixture.
+2. Seed through internal adapters under an explicit disposable-mode guard.
+3. Compare two seeds and refuse nonempty/production targets including force mode.
+
+**Scope:**
 
 - Seed fixed synthetic disposable fixtures with a frozen seed; no dependency on the later 200-item corpus.
 - Use internal fixture adapters; require a disposable database marker and explicit fixture mode.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_b.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

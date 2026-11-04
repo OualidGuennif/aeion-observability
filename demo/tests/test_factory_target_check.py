@@ -3,6 +3,9 @@ import os
 import subprocess
 import sys
 import tempfile
+import shutil
+import hashlib
+from types import SimpleNamespace
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -14,6 +17,36 @@ from factory.target import ProtectedCheck, Target
 
 
 class TargetCheckTests(unittest.TestCase):
+    def test_changed_acceptance_bytes_cannot_replace_the_frozen_contract(self):
+        frozen=SimpleNamespace(acceptance_digest=hashlib.sha256(self.contract.read_bytes()).hexdigest())
+        self.contract.write_text('// weakened after freeze\n')
+        runner=mock.Mock(side_effect=AssertionError('changed contract must not execute'))
+        passed,detail=target_check(self.target,runner=runner)(frozen,{'repo':str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(detail['reason'],'acceptance_changed')
+        runner.assert_not_called()
+    def test_symlinked_contract_parent_cannot_overwrite_host_files_before_execution(self):
+        outside=self.root / 'outside';outside.mkdir()
+        canary=outside / 'ContractTest.java';canary.write_text('SYNTHETIC_HOST_CANARY')
+        self.destination.parent.parent.mkdir(parents=True)
+        self.destination.parent.symlink_to(outside,target_is_directory=True)
+        runner=mock.Mock(side_effect=AssertionError('unsafe check must not run'))
+        passed,detail=target_check(self.target,runner=runner)(None,{'repo':str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(canary.read_text(),'SYNTHETIC_HOST_CANARY')
+        runner.assert_not_called()
+
+    def test_candidate_symlink_swap_cannot_make_cleanup_delete_a_host_file(self):
+        outside=self.root / 'outside';outside.mkdir()
+        canary=outside / 'ContractTest.java';canary.write_text('SYNTHETIC_HOST_CANARY')
+        def runner(command,**kwargs):
+            shutil.rmtree(self.destination.parent)
+            self.destination.parent.symlink_to(outside,target_is_directory=True)
+            return subprocess.CompletedProcess(command,0,'BUILD SUCCESSFUL','')
+        passed,detail=target_check(self.target,runner=runner)(None,{'repo':str(self.repo)})
+        self.assertFalse(passed)
+        self.assertTrue(canary.is_file(),'cleanup must not follow a candidate-created parent symlink')
+        self.assertEqual(canary.read_text(),'SYNTHETIC_HOST_CANARY')
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -68,6 +101,20 @@ class TargetCheckTests(unittest.TestCase):
         self.assertFalse(passed)
         self.assertEqual(detail["failed_tests"], ["ContractTest > cspIsEnforced() FAILED"])
         self.assertNotIn("candidate.Stack", str(detail))
+
+    def test_compilation_failure_exposes_identifiers_without_source_or_values(self):
+        def runner(command, **kwargs):
+            output = ('/workspace/src/Filter.java:82: error: cannot find symbol\n'
+                      '    PRIVATE_SOURCE_CONTENT\n'
+                      '  symbol:   variable UNPROCESSABLE_ENTITY\n'
+                      '  location: class Filter\nPRIVATE_VALUE\n')
+            return subprocess.CompletedProcess(command, 1, output, '')
+        passed, detail = target_check(self.target, runner=runner)(None, {'repo': str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(detail['failure_kind'], 'java_compilation_failed')
+        self.assertEqual(detail['compiler_errors'], [
+            {'file': 'Filter.java', 'line': 82, 'symbol': 'UNPROCESSABLE_ENTITY'}])
+        self.assertNotIn('PRIVATE_', str(detail))
 
     def test_timeout_is_a_failed_check_not_a_crash(self):
         def runner(command, **kwargs):
@@ -164,6 +211,48 @@ class TargetCheckTests(unittest.TestCase):
         self.assertFalse(passed)
         self.assertEqual(detail["reason"], "contract_modified")
         self.assertFalse(self.destination.exists())
+
+    def test_candidate_junit_interceptor_and_service_resources_are_refused(self):
+        interceptor = self.repo / "demo/forum-app/src/test/java/local/aeion/forum/CandidateInterceptor.java"
+        interceptor.parent.mkdir(parents=True, exist_ok=True)
+        interceptor.write_text("package local.aeion.forum;\nimport org.junit.jupiter.api.extension.InvocationInterceptor;\n")
+        runner = mock.Mock(side_effect=AssertionError("tampered grader must not execute"))
+        passed, detail = target_check(self.target, runner=runner)(None, {"repo": str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(detail["reason"], "grader_tampered")
+        runner.assert_not_called()
+        interceptor.unlink()
+        service = self.repo / "demo/forum-app/src/main/resources/META-INF/services/org.junit.jupiter.api.extension.Extension"
+        service.parent.mkdir(parents=True, exist_ok=True)
+        service.write_text("local.aeion.forum.CandidateInterceptor\n")
+        passed, detail = target_check(self.target, runner=runner)(None, {"repo": str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(detail["reason"], "grader_tampered")
+        runner.assert_not_called()
+
+    def test_skipped_or_unreported_contract_test_is_refused_when_results_exist(self):
+        results = self.repo / "demo/forum-app/build/test-results/test"
+        results.mkdir(parents=True, exist_ok=True)
+        report = results / "TEST-local.aeion.forum.ContractTest.xml"
+
+        def skipped_runner(command, **kwargs):
+            report.write_text('<testsuite tests="1" skipped="1" failures="0" errors="0">'
+                              '<testcase classname="local.aeion.forum.ContractTest" name="oracle()">'
+                              '<skipped/></testcase></testsuite>')
+            return subprocess.CompletedProcess(command, 0, "BUILD SUCCESSFUL\n", "")
+
+        passed, detail = target_check(self.target, runner=skipped_runner)(None, {"repo": str(self.repo)})
+        self.assertFalse(passed)
+        self.assertEqual(detail["reason"], "contract_not_executed")
+
+        def executed_runner(command, **kwargs):
+            report.write_text('<testsuite tests="1" skipped="0" failures="0" errors="0">'
+                              '<testcase classname="local.aeion.forum.ContractTest" name="oracle()"/>'
+                              '</testsuite>')
+            return subprocess.CompletedProcess(command, 0, "BUILD SUCCESSFUL\n", "")
+
+        passed, detail = target_check(self.target, runner=executed_runner)(None, {"repo": str(self.repo)})
+        self.assertTrue(passed)
 
 
 if __name__ == "__main__":

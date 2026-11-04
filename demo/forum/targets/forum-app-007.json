@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "id": "forum-app-007",
+  "feature_id": "007",
+  "target_repo": "OualidGuennif/aeion-autonomous-forum",
+  "base": {
+    "source": "demo/.local/factory/agents/aeion-autonomous-forum",
+    "sha": "a50d6075b7aecff8f7c54fa47b5f385c16f4ccbb"
+  },
+  "allowed_scope_prefix": "demo/forum-app/src/",
+  "write_paths": [
+    "demo/forum-app/src/main/java/local/aeion/forum/",
+    "demo/forum-app/src/test/java/local/aeion/forum/"
+  ],
+  "context_files": [
+    "demo/forum-app/src/main/java/local/aeion/forum/ThreadService.java",
+    "demo/forum-app/src/main/java/local/aeion/forum/ThreadsResource.java",
+    "demo/forum-app/src/main/java/local/aeion/forum/ForumThread.java"
+  ],
+  "brief": "demo/forum/targets/forum-app-007.md",
+  "protected_check": {
+    "id": "gradle_test",
+    "command": [
+      "{controller}/demo/.local/tools/gradle-9.8.2/bin/gradle",
+      "-p",
+      "{repo}/demo/forum-app",
+      "test",
+      "--offline",
+      "--console=plain",
+      "--no-daemon"
+    ],
+    "env": {
+      "GRADLE_USER_HOME": "{controller}/demo/.local/gradle-home"
+    },
+    "contract_test": "demo/forum/targets/forum-app-007/ContentSanitizationContractTest.java",
+    "contract_destination": "demo/forum-app/src/test/java/local/aeion/forum/ContentSanitizationContractTest.java",
+    "timeout_seconds": 900
+  }
+}

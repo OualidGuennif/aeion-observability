@@ -1,15 +1,18 @@
 ---
 id: 008
+sequence: 8
 title: "Rate limiting per identity"
 area: foundation
 size: M
 parallel: false
 phase: P0
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/"]
 depends_on: [002, 005]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 008 — Rate limiting per identity
@@ -21,9 +24,19 @@ Apply token buckets per IP, per session and per agent token, so one caller canno
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_a.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Define route-class buckets and verified identity/origin keys.
+2. Implement PostgreSQL atomic admission and Retry-After responses.
+3. Race requests at the cap and measure the frozen limiter baseline.
+
+**Scope:**
 
 - Buckets stored in Postgres with an atomic update, keyed by identity and route class.
 - A 429 answer with `Retry-After` and no information about other callers.
@@ -34,6 +47,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_a.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

@@ -84,19 +84,12 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(result["result"]["reason"], "review_circuit_unconfigured")
         self.assertEqual(list((self.state / "publish-queue").glob("*.json")), [])
 
-    def test_publisher_publishes_only_a_verified_receipt(self):
+    def test_simulated_worker_receipt_is_never_publishable_to_the_real_forge(self):
         self.store.admit(["001"], "k5", self.cat)
         self.worker(lambda model, prompt: {"verdict": "approve", "reason": "ok"}).run_once()
         path = next((self.state / "publish-queue").glob("*.json"))
         request = json.loads(path.read_text())
-        receipt = verified_receipt(self.store, request)
-        self.assertIsNotNone(receipt)
-        forge = FakeForge()
-        publisher = Publisher("o/r", forge, expected_base=receipt["base_sha"],
-                              expected_artifact_digest=receipt["artifact_digest"])
-        decision = publisher.decide(request)
-        self.assertEqual(decision["decision"], "published")
-        self.assertIsNotNone(decision["forge"]["pr"]["pr_number"])
+        self.assertIsNone(verified_receipt(self.store, request))
 
     def test_receipt_without_circuit_approval_is_not_publishable(self):
         self.store.admit(["001"], "k6", self.cat)

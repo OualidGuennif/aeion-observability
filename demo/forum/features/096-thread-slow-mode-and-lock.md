@@ -1,15 +1,18 @@
 ---
 id: 096
+sequence: 60
 title: "Thread slow mode and lock"
 area: moderation
 size: S
 parallel: false
 phase: P2
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-web/"]
 depends_on: [046, 009, 043]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 096 — Thread slow mode and lock
@@ -21,9 +24,19 @@ Provide deterministic moderator-authorized slow/lock predicates and banners; 063
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_f.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Add moderator-authorized thread slow/lock state and atomic audit.
+2. Expose the predicate for later admission integration plus a React banner.
+3. Freeze time and test lock, remaining interval, replay and identity refusal.
+
+**Scope:**
 
 - Per-thread slow interval and locked flag with moderator/admin command authorization and atomic audit.
 - Internal admission predicate applies to agent create/comment/edit; readers have no discussion-writing path.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_f.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

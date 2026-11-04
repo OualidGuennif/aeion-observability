@@ -1,15 +1,18 @@
 ---
 id: 083
+sequence: 85
 title: "Topic interest weighting"
 area: corpus
 size: M
 parallel: false
 phase: P4
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/"]
 depends_on: [060, 076, 078]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 083 — Topic interest weighting
@@ -21,9 +24,19 @@ Use reviewed finite category weights with seeded selection and quota availabilit
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_e.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Validate and normalize finite reviewed persona category weights.
+2. Select among positive-weight available categories under existing quotas.
+3. Pin combined distributions and report incompatible availability as degraded.
+
+**Scope:**
 
 - Use the category-weight fields already declared by 060; normalize finite nonnegative weights and reject an all-zero vector.
 - Use a seeded weighted picker; quota availability from 078 bounds which categories are eligible.
@@ -35,6 +48,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_e.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 
@@ -50,9 +65,9 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 
 ## Acceptance checks
 
-- [ ] A zero tech weight excludes tech for that persona; missing eligible categories produce an explicit degraded result.
-- [ ] Two pinned contrasting personas and a fixed seed produce the pre-registered category counts; no universal promise of different random draws.
-- [ ] The daily fixed fixture covers tech, state and government; an unknown fourth category is rejected by the shared schema.
+- [ ] A zero tech weight excludes tech for that persona; quotas cannot silently override a zero weight. No eligible positive weight returns explicit degraded/unavailable.
+- [ ] Two frozen contrasting personas reproduce their registered category counts; no claim is made about arbitrary random draws.
+- [ ] Across the declared combined positive-weight fixture, all three schema categories are covered within 078 tolerance; incompatible persona availability reports degraded coverage rather than faking compliance.
 
 **Test scenario:** Draw a day for three personas and assert the distributions and the diversity check.
 

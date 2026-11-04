@@ -17,8 +17,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 DEMO = HERE.parent
 REPO = DEMO.parent
+# Executing this file directly must not make factory/queue.py shadow stdlib queue.
+sys.path[:] = [entry for entry in sys.path if Path(entry or '.').resolve() != HERE]
 sys.path.insert(0, str(DEMO))
-from factory.checks import _failed_tests
+from factory.checks import _failed_tests, target_check
 from factory.isolation import DockerCheckRunner
 from factory.manifest import load_manifest
 from factory.store import Store
@@ -35,6 +37,12 @@ BASELINE_FEATURES = {
         ],
         "description": "app skeleton, typed settings and /healthz at the pinned base",
     },
+    "017": {
+        "paths": ["demo/forum-app/src/main/java/local/aeion/forum/RequestValidationFilter.java",
+                  "demo/forum-app/src/test/java/local/aeion/forum/RequestValidationTest.java"],
+        "description": "strict bounded request validation, verified with the independent 017 contract",
+        "contract_required": True,
+    },
 }
 
 
@@ -44,6 +52,8 @@ def digest(path):
 
 def verify(feature_id, target, runner, work_root=None):
     spec = BASELINE_FEATURES[feature_id]
+    if spec.get('contract_required') and target.feature_id != feature_id:
+        raise SystemExit('baseline_target_mismatch')
     if work_root is not None:
         Path(work_root).mkdir(mode=0o700, parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=f"aeion-baseline-{feature_id}-",
@@ -53,25 +63,33 @@ def verify(feature_id, target, runner, work_root=None):
         missing = [path for path in spec["paths"] if not (repo / path).is_file()]
         if missing:
             raise SystemExit("baseline paths missing: " + json.dumps(missing))
-        command = target.protected_check.command_for(repo, target.controller)
-        completed = runner(command, cwd=str(repo), timeout=target.protected_check.timeout_seconds)
-        if completed.returncode != 0:
-            failed = _failed_tests((getattr(completed, "stdout", "") or "")
-                                   + "\n" + (getattr(completed, "stderr", "") or ""))
-            raise SystemExit("baseline test suite failed: returncode="
-                             + str(completed.returncode) + " failed=" + json.dumps(failed[:10]))
+        if spec.get('contract_required'):
+            passed, check = target_check(target, work_root=folder, sandbox=runner)(
+                None, {'repo': str(repo)})
+            if not passed:
+                raise SystemExit('baseline contract failed: ' + json.dumps(check))
+            check = {'id': target.protected_check.id, **check}
+        else:
+            command = target.protected_check.command_for(repo, target.controller)
+            completed = runner(command, cwd=str(repo), timeout=target.protected_check.timeout_seconds)
+            if completed.returncode != 0:
+                failed = _failed_tests((getattr(completed, "stdout", "") or "")
+                                       + "\n" + (getattr(completed, "stderr", "") or ""))
+                raise SystemExit("baseline test suite failed: returncode="
+                                 + str(completed.returncode) + " failed=" + json.dumps(failed[:10]))
+            check = {
+                "id": target.protected_check.id,
+                "returncode": completed.returncode,
+                "duration_ms": getattr(completed, "duration_ms", None),
+                "isolation": getattr(completed, "qualification", None),
+            }
         evidence = {
             "kind": "pinned_base_baseline",
             "feature_id": feature_id,
             "description": spec["description"],
             "base_sha": target.base_sha,
             "paths": {path: digest(repo / path) for path in spec["paths"]},
-            "check": {
-                "id": target.protected_check.id,
-                "returncode": completed.returncode,
-                "duration_ms": getattr(completed, "duration_ms", None),
-                "isolation": getattr(completed, "qualification", None),
-            },
+            "check": check,
             "verifier": "demo/factory/baseline.py",
             "verified_at_ns": time.time_ns(),
         }
@@ -94,6 +112,9 @@ def main():
     catalog = load_manifest(REPO / "demo/forum/features/MANIFEST.json")
     if args.feature not in catalog.by_id:
         raise SystemExit("unknown feature: " + args.feature)
+    if catalog.spec_dir is not None:
+        # These historical adapters checked SQLite-era briefs, not the new canonical MDs.
+        raise SystemExit('baseline_contract_unqualified')
     runner = DockerCheckRunner(REPO)
     state = Path(args.state)
     evidence = verify(args.feature, target, runner, work_root=state / "work")
@@ -102,6 +123,22 @@ def main():
         state.mkdir(parents=True, exist_ok=True)
         store = Store(state / "factory.db")
         output["applied"] = store.record_baseline(args.feature, evidence, catalog)
+        build_id = next(iter(output['applied']['build_ids']), None)
+        previous = next((row for row in store.board() if row['build_id'] == build_id), None)
+        trace_status = (json.loads(previous['receipt'] or '{}').get('telemetry') or {}).get('status') if previous else None
+        if output['applied']['status'] in ('recorded', 'replayed') and trace_status != 'confirmed':
+            from factory.telemetry import FactoryTelemetry
+            artifact = hashlib.sha256(json.dumps(evidence['paths'], sort_keys=True,
+                                                separators=(',', ':')).encode()).hexdigest()
+            try:
+                trace = FactoryTelemetry(readback=True).emit(
+                    build_id=build_id, feature_id=args.feature, attempt_id=build_id,
+                    artifact_digest=artifact, base_sha=target.base_sha, gate_status='passed',
+                    publisher_decision='verified_baseline', synthetic=False)
+            except Exception as error:
+                trace = {'status': 'unavailable', 'reason': type(error).__name__}
+            store.record_baseline_trace(build_id, trace)
+            output['telemetry'] = trace
     print(json.dumps(output, indent=2))
     return 0
 

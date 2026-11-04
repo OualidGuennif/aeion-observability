@@ -5,14 +5,16 @@ session; every mutation additionally requires a matching CSRF token and a loopba
 Host/Origin. Forum reader sessions never reach these endpoints.
 """
 import json
+import hashlib
 import os
+import stat
 import secrets
 import threading
 import time
 from pathlib import Path
 
 from .auth import AdminSessions, host_origin_ok
-from .budget import DailyBudget
+from .budget import DailyBudget, BudgetError
 from .manifest import load_manifest, ManifestError
 from .observer import Observer
 from .store import Store, StoreError
@@ -43,10 +45,11 @@ class FactoryApp:
                  config=None, budget=None, execution=None):
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-        self.catalog = load_manifest(manifest_path)
+        self.catalog = load_manifest(manifest_path, spec_dir=spec_dir)
         self.store = Store(self.state_dir / "factory.db", active_concurrency=active_concurrency)
         self.hub = SseHub()
         spec_dir = Path(spec_dir) if spec_dir else Path(manifest_path).resolve().parent
+        self.spec_dir = spec_dir
         self.execution = dict(execution) if execution else {"mode": "simulator"}
         self.execution_mode = self.execution.get("mode", "simulator")
         self.execution_hold = self.execution.get("hold_reason")
@@ -62,7 +65,14 @@ class FactoryApp:
                                      telemetry=self.execution.get("telemetry"),
                                      review_complete=self.execution.get("review_complete"),
                                      check_sandbox=self.execution.get("check_sandbox"),
+                                     targets=self.execution.get('targets'),
+                                     preparer=self.execution.get('preparer'),
                                      startup_hold=self.execution_hold)
+        self.worker.progress = lambda build_id, phase: self.hub.publish(
+            'build_progress', {'build_id': build_id, 'phase': phase})
+        if self.execution.get('publication'):
+            from .publication import PublicationCoordinator
+            self.worker.publication = PublicationCoordinator(self.store)
         self.observer = Observer(self.store)
         self.token_path = self.state_dir / "admin.token"
         token = bootstrap_token if bootstrap_token is not None else self._load_or_create_token()
@@ -79,6 +89,8 @@ class FactoryApp:
     # ------------------------------------------------------------- bootstrap token
     def _worker_config(self, config):
         worker_config = dict(config if config is not None else S2_CONFIG)
+        if self.execution_mode == 'live' and getattr(self.execution.get('builder'),'paid',False):
+            worker_config.update(mode='live',profile='flue-pi')
         if self.execution.get("cost_reservation_usd") is not None:
             worker_config["cost_reservation_usd"] = self.execution["cost_reservation_usd"]
         return worker_config
@@ -152,15 +164,24 @@ class FactoryApp:
         return 200, {"csrf": session["csrf"]}, {"Set-Cookie": self._set_cookie(session["session_id"])}
 
     def catalog_view(self, session):
+        target = self.execution.get('target')
+        availability = self.store.feature_availability(
+            self.catalog, target_feature=target.feature_id if target else None,
+            execution_hold=self.execution_hold, target_required=self.execution_mode != 'simulator'
+                and self.execution.get('preparer') is None,
+            target_features=list(self.execution['targets']) if 'targets' in self.execution else None)
         return 200, {
             "schema_version": self.catalog.schema_version,
             "count": len(self.catalog.features),
-            "features": self.catalog.features,
+            "features": [{**feature, 'availability': availability[feature['id']]}
+                         for feature in self.catalog.features],
             "execution": {
                 "mode": self.execution_mode,
                 "hold_reason": self.execution_hold,
                 "target_feature": (self.execution.get("target").feature_id
                                    if self.execution.get("target") is not None else None),
+                "target_features": sorted(self.execution.get('targets') or {}),
+                "automatic_preparation": self.execution.get('preparer') is not None,
                 "live_hold_reason": (
                     (None if self.execution.get("builder") is not None and not self.execution_hold
                      else (self.execution_hold or "live_builder_unqualified"))
@@ -168,24 +189,59 @@ class FactoryApp:
             },
         }, {}
 
+    def spec_view(self, session, feature_id):
+        """Authenticated by the HTTP boundary; return text as data, never rendered HTML."""
+        feature = self.catalog.by_id.get(feature_id)
+        if feature is None:
+            raise ApiError(404, 'feature_unknown')
+        name = feature['file']
+        if (not isinstance(name, str) or Path(name).name != name or '\\' in name
+                or not name.endswith('.md')):
+            raise ApiError(409, 'spec_unavailable')
+        try:
+            fd = os.open(self.spec_dir / name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(fd, 'rb') as source:
+                if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                    raise ApiError(409, 'spec_unavailable')
+                data = source.read(65537)
+            if len(data) > 65536:
+                raise ApiError(413, 'spec_too_large')
+            text = data.decode('utf-8')
+        except (OSError, UnicodeError):
+            raise ApiError(409, 'spec_unavailable') from None
+        return 200, {'id': feature_id, 'title': feature['title'], 'markdown': text,
+                     'sha256': hashlib.sha256(data).hexdigest()}, {}
+
     def board(self, session):
+        try:
+            budget = {'status': 'available', 'scopes': self.budget.summary()}
+        except (BudgetError, OSError):
+            budget = {'status': 'unavailable', 'scopes': {}}
         return 200, {
             "builds": self.store.board(),
             "earliest_seq": self.hub.earliest_seq(),
+            "budget": budget,
+            "csrf": session.get('csrf') if session else None,
         }, {}
 
     def queue(self, host, origin, session, csrf, body):
         if not host_origin_ok(host, origin):
             raise ApiError(403, "origin_denied")
         self._require_csrf(session, csrf)
+        if self.execution_hold:
+            raise ApiError(409, self.execution_hold)
         ids = body.get("ids") if isinstance(body, dict) else None
         key = body.get("idempotency_key") if isinstance(body, dict) else None
-        if not isinstance(ids, list) or not key:
+        if (not isinstance(ids, list) or any(not isinstance(fid, str) for fid in ids)
+                or not isinstance(key, str) or not key):
             raise ApiError(400, "invalid_request")
         try:
             result = self.store.admit(ids, key, self.catalog, actor="owner")
         except StoreError as exc:
-            raise ApiError(400, str(exc))
+            code = str(exc)
+            conflict = code.startswith(('catalog_changed', 'feature_already_completed:', 'feature_in_progress:',
+                                        'publication_reconciliation_required:'))
+            raise ApiError(409 if conflict else 400, code)
         self.hub.publish("admitted", result)
         return 200, result, {}
 

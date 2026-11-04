@@ -1,17 +1,16 @@
 # ECOSYSTEM — the factory that builds Agora
 
-Status: **revised design; factory not implemented** — 2026-11-01.
-The current request authorizes documentation corrections under `demo/` and a local-work handoff.
-**Start state: `awaiting_owner_github_confirmation`.** The latest owner instruction blocks all
-implementation and runs, including S1/local fake work, until they explicitly confirm placing
-the repository-restricted GitHub credential in the intended host `.env`. A wake-up or credential
-presence cannot lift this gate; the owner's confirmation releases only the existing local scope.
+Status: **implemented local factory; Flue/Pi live-engine completion in progress** — 2026-11-03.
+The owner has explicitly authorized the engine replacement, automatic protected publication to
+main, and the [Quarkus/PostgreSQL/React web target](../ARCHITECTURE.md). The November 1 startup
+hold has been superseded by those instructions. Missing current runtime qualification still
+holds dispatch. Presence of credentials alone never grants additional authority.
 
 ## Intent
 
 Add `/factory` to the loopback cockpit: select one of 100 Markdown features, queue up to ten,
-and watch sandboxed builders return checked artifacts. Product code goes in the future
-`demo/forum/product/`; new trusted factory code goes in the future `demo/factory/`.
+and watch sandboxed builders return checked artifacts. Product code goes in the separate product repository under the paths in ARCHITECTURE.md;
+trusted factory code lives in observer `demo/factory/`.
 Existing `demo/app/` and `demo/flue/` remain trusted infrastructure, excluded from builder writes.
 
 | Actor | Allowed work | Boundary |
@@ -30,9 +29,9 @@ Existing `demo/app/` and `demo/flue/` remain trusted infrastructure, excluded fr
 - A maintainer-owned protected check bundle, acceptance registry and authorized review receipts.
 - Builder/observer output, candidate code, UI-rendered Markdown and workload events are untrusted.
 
-The current branch is `adopt/factory-1.8.2`; do not rename it, create a production branch or switch
-team/local mode during this work. Principal CI currently targets PRs to `main`, not `develop`.
-Remote operation needs separately reviewed CI/protection preparation, outside this demo-only pass.
+Preserve the current branch and concurrent work. Required checks and branch protection must be
+verified on the actual product repository; neither the observer CI nor a local hook proves that
+product merges are protected.
 
 ## Inputs
 
@@ -64,15 +63,15 @@ the host harness. Host code must never import or execute candidate product modul
 broker integration holds qualification rather than expanding a builder's write scopes.
 
 All builder tools run in OpenShell tier 3 with no workload egress. Trusted host inference uses
-the existing relay. macOS tier-3 volume transport remains unqualified in the current runbook:
-live dispatch refuses until the approved stdin-copy transport is qualified on macOS and Linux.
+the existing relay. The qualified local transport uses RPC copy-in/out with no host mounts; its receipt binds the
+actual platform, runtime, image and policy. Missing or stale receipts hold live dispatch. A
+macOS result does not qualify Linux automatically.
 A stand-in is labelled simulation, never containment evidence.
 
 Dry-run uses fake inference and a disposable local repository, producing a local PR-shaped
 receipt, not a GitHub PR. It exercises real transitions/policy but cannot satisfy real product
 dependencies or generate a real merge receipt. Waking DeepSeek does not authorize paid or
-subscription calls. The expired DeepSeek profile remains blocked pending fresh owner-approved
-qualification. Reserve exposure atomically across builders and observer before inference;
+subscription calls. Every live model/runtime pair requires fresh capability, privacy and harness qualification. Reserve exposure atomically across builders and observer before inference;
 missing usage is unknown, never zero. Per-build and aggregate caps, time and step limits all
 apply independently. No cap configured means no live admission.
 
@@ -81,7 +80,7 @@ apply independently. No cap configured means no live admission.
 The board shows ID, title, phase, area, size, tier, parallel flag, dependencies and state; sanitized
 spec previews; Build/Queue; missing-dependency explanations; live attempt rows with steps, time,
 usage coverage, checks, verdict and a validated PR link. SSE is bounded metadata with reconnect
-cursors; reload works without JavaScript. Simulated runs and unknown cost remain explicit.
+cursors; reload reconstructs state from the server; the cockpit remains independent of the product React client. Simulated runs and unknown cost remain explicit.
 
 Factory reads, SSE and mutations require a dedicated administrator session. Bootstrap outside
 the browser; rotate on login; enforce idle/absolute expiry, HttpOnly/SameSite, Secure over TLS,
@@ -113,7 +112,7 @@ observer proposal rather than an automatic repair/spending loop.
 | FX-07 | UI/telemetry exclude secrets and content | Fake canaries absent from errors, SSE, all OTLP surfaces and stored backend records |
 | FX-08 | Recovery reconciles uncertain publication | Crash after PR creation before local recording; restart discovers one existing PR |
 | FX-09 | Concurrent exposure stays inside admitted caps | Competing reservations at the cap cannot both succeed; unresolved usage blocks exposure |
-| FX-10 | Only explicit owner confirmation releases the initial execution hold | Wake with credentials present but no owner confirmation; no implementation or worker starts |
+| FX-10 | Explicit owner authority and current qualification are both required | Credentials without authorization or a stale qualification cannot dispatch a worker |
 
 The kill switch first persists disabled dispatch and increments the cancellation generation.
 Revoke active relay admission, terminate owned process groups within a configured deadline, and
@@ -158,9 +157,10 @@ Other public repositories remain publicly readable, so 200 on one is not a scope
 [Token documentation](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
 and [merge API](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request), checked 2026-11-01.
 
-- No direct push to `main`. Feature branches target `develop`; main gets reviewed release PRs
-  from develop. Main/release merges wait for the owner under existing Factory policy.
-- Auto-merge eligibility is restricted to **`demo/forum/product/`**, intersected with frozen
+- No direct push to `main`. The owner has authorized automatic feature PRs targeting `main`
+  after exact-artifact gates, two approving independent model reviews and required CI. A merge
+  is complete only after confirming its resulting SHA on main; an open PR is not completion.
+- Auto-merge eligibility is restricted to the **separate product repository paths in ARCHITECTURE.md**, intersected with frozen
   feature write scopes and the reviewed actual diff. A product prefix alone is not approval.
 - Always require owner review for migrations, auth/security/moderation/rules/runtime configuration,
   dependency manifests/locks, deployment and permission changes. Sensitive behavior moved into
@@ -170,10 +170,10 @@ and [merge API](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request
 - Require fresh protected green gates, authorized exact-SHA review, active noncancelled attempt
   and publisher approval. Supply the expected head SHA at merge; require the tested base still
   current or hold for revalidation. Record the resulting real merge SHA.
-- Refuse remote mode until branch existence, required CI on develop/main PRs, stale-review
+- Refuse remote mode until branch existence, required CI on main PRs, stale-review
   invalidation and protections against direct push, force-push and deletion are verified. Required
-  results have a trusted issuer. The publisher cannot bypass protections. Preparing `.github/`
-  or remote settings is outside this documentation pass and needs the owner's authorized scope.
+  results have a trusted issuer. The publisher cannot bypass protections. Workers cannot edit `.github/`
+  or remote settings. Any protection preparation is trusted maintainer work under explicit owner authority.
 
 Use deterministic attempt IDs for branch/PR lookup and reconciliation. On timeout, query the
 result before retrying. Local pre-push hooks do not enforce server-side merges. Never switch
@@ -181,14 +181,14 @@ repo mode or disable protections to get a green result.
 
 ## Acceptance checks
 
-These slices are future implementation, not completed work:
+These are acceptance milestones; this document alone does not certify their completion:
 
 | Slice | Deliverable | Proof |
 | --- | --- | --- |
 | S1 | local board/API, SQLite queue, fake worker, SSE, cancellation | ten-item cap; missing dependencies; exclusivity; auth/CSRF refusals; replay/restart; simulated terminal state |
 | S2 | frozen dispatch, tier-3 adapter, artifact/commit publisher | fake inference through real containment; escape/canary refusals; local scratch branch and honest PR-shaped receipt |
 | S3 | protected gates, reviewer/publisher policy, observer proposals | allowed/outside/mixed/sensitive diffs; altered tests; stale head/base; cancelled attempt; crash-after-publication |
-| S4 | local VPS configuration/runbook and backup/restore drill | disposable SQLite/Postgres restore with matching counts/digests/audit chain, then health/auth/TLS checks |
+| S4 | local VPS configuration/runbook and backup/restore drill | disposable factory-SQLite/product-PostgreSQL restore with matching counts/digests/audit chain, then health/auth/TLS checks |
 
 S1 uses labelled fixtures for dependencies, never marks the real catalog merged. S2 is not an
 automatic paid run. S3 uses a fake forge until remote operation is explicitly enabled. The

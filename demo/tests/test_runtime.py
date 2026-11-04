@@ -27,8 +27,14 @@ class RuntimeTests(unittest.TestCase):
     def test_exact_300k_reservation_boundary(self):
         self.assertTrue(admit(275904, 4096))
         self.assertFalse(admit(275905, 4096))
+        self.assertTrue(admit(263616, 16384))
+        self.assertFalse(admit(263617, 16384))
+        self.assertTrue(admit(247232, 32768))
+        self.assertFalse(admit(247233, 32768))
+        self.assertTrue(admit(214464, 65536))
+        self.assertFalse(admit(214465, 65536))
         with self.assertRaises(ValueError):
-            admit(100, 4097)
+            admit(100, 65537)
 
     def test_all_official_templates_count_tool_roundtrip(self):
         body = {"messages": [{"role": "user", "content": "Implement a pricing function."},

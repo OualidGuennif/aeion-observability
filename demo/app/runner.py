@@ -1,6 +1,7 @@
 """Single-task demo supervisor. Agent history and harness output are disposable."""
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -36,6 +37,7 @@ FAILURES = {"USAGE_UNKNOWN", "COST_UNKNOWN", "INVALID_ARTIFACT", "INVALID_CHECK_
             "CONTEXT_ACCOUNTING_MISMATCH", "CONTEXT_UNKNOWN", "PROVIDER_REJECTED", "CLI_CLIENT_REQUIRED",
             "GO_SUBSCRIPTION_REQUIRED", "MODEL_DISABLED", "PROVIDER_ERROR", "CLI_FAILED", "CLI_PROTOCOL_ERROR",
             "HARNESS_COMPACTION", "AGENT_TIMEOUT", "BUDGET_STOP", "STEP_LIMIT", "HANDOVER_NOT_READY",
+            "OUTPUT_LIMIT", "AEION_HANDOVER",
             "INSUFFICIENT_FUNDS", "GO_REGION_REQUIRED", "QUOTA_STOP", "AUTH_ERROR", "SANDBOX_NOT_QUALIFIED",
             "SANDBOX_UNAVAILABLE", "SANDBOX_VERSION_MISMATCH", "SANDBOX_EXEC_FAILED", "SANDBOX_STOP_FAILED"}
 
@@ -84,6 +86,24 @@ def acceptance(workspace, sandbox, task_id="pricing-js-v1", artifact=None):
 def usage_is_complete(steps, forwarded_count, error=None):
     """Complete accounting needs at least one request and one accounted response per relay."""
     return bool(steps) and steps == forwarded_count and error is None
+
+
+def factory_work_limit(run, current_forwards, now=None):
+    """The author deadline and model-step cap survive fresh harness sessions."""
+    cap = run.get('step_cap',12)
+    previous = run.get('forwarded_count',0)
+    deadline = run.get('factory_deadline')
+    if (type(cap) is not int or cap < 1 or type(previous) is not int or previous < 0
+            or type(current_forwards) is not int or current_forwards < 0):
+        return 'WORK_LIMIT_INVALID'
+    if deadline is not None:
+        if type(deadline) not in (int,float) or not math.isfinite(deadline):
+            return 'WORK_LIMIT_INVALID'
+        if (time.monotonic() if now is None else now) >= deadline:
+            return 'AGENT_DEADLINE'
+    if previous + current_forwards >= cap:
+        return 'STEP_LIMIT'
+    return None
 
 
 def artifact_name(run):
@@ -221,14 +241,6 @@ class Runner:
     def collect_workspace(self, sandbox, workspace):
         """Bring the agent's writes back to the host over the exec channel."""
         copied = sandbox.sync_out(workspace, SANDBOX_WORKSPACE)
-        if AGENT_UID != os.getuid():
-            # Docker Desktop maps a foreign UID; the files must stay readable by it for the
-            # protected check sandbox that runs after the agent has stopped.
-            for path in [workspace, *workspace.rglob("*")]:
-                try:
-                    path.chmod(0o777 if path.is_dir() else 0o666)
-                except OSError:
-                    pass
         return copied
 
     def verify(self, run, root, workspace):
@@ -255,7 +267,6 @@ class Runner:
             # The simulator makes no provider call: zero usage is measured, not a default.
             run["usage_complete"] = True
         # On Linux the sandbox runs as this user; Docker Desktop maps a foreign UID instead.
-        foreign = isolated and AGENT_UID != os.getuid()
         reservation = None
         try:
             # No live run starts without a journaled, bounded claim on the daily purse.
@@ -268,10 +279,6 @@ class Runner:
                 source.write_text("export function " + SCENARIOS[run.get("task_id", "pricing-js-v1")]["export"] + "() { throw new Error(\"not implemented\"); }\n")
             else:
                 source.write_text(triage.EMPTY)  # Tier 1 has no OpenShell sandbox; its harness writes as this user.
-            if foreign:
-                root.chmod(0o711)
-                source.parent.chmod(0o777)
-                source.chmod(0o666)
             subprocess.run(["git", "init", "-q", str(workspace)], check=True, capture_output=True)
             original = digest(source)
             handover = None
@@ -391,12 +398,14 @@ class Runner:
         (workspace / artifact_name(run)).write_text(solution)
         return "complete"
 
-    def live(self, run, workspace, handover):
-        prompt = task_contract(run)
+    def live(self, run, workspace, handover, *, prompt=None, kind='lab', review_result=None, preparation_result=None):
+        prompt = task_contract(run) if prompt is None else prompt
+        cost_limit = Decimal(str(run.get('session_cost_limit', max_cost())))
+        handover_path = workspace / 'HANDOVER.md' if kind == 'lab' else workspace.parent / 'HANDOVER.md'
         if handover:
-            if digest(workspace / "HANDOVER.md") != handover["handover_sha256"]:
+            if digest(handover_path) != handover["handover_sha256"]:
                 raise ValueError("HANDOVER_NOT_READY")
-            prompt += ("\nFresh session. Supervisor-loaded HANDOVER.md:\n" + (workspace / "HANDOVER.md").read_text()
+            prompt += ("\nFresh session. Supervisor-loaded HANDOVER.md:\n" + handover_path.read_text()
                        + "\nPreserved artifact/check state: " + json.dumps(handover))
         instance = f"{run['id']}-{run['agents']}"
         state = {"steps": 0, "done": False, "threshold": False, "peak": 0, "last": 0,
@@ -405,12 +414,24 @@ class Runner:
 
         def admission():
             # Runs in the relay before each forward, so the native gate and budget act pre-dispatch.
+            if kind != 'lab':
+                authorize = getattr(self, 'authorization_check', None)
+                try:
+                    if not callable(authorize) or not authorize():
+                        return 'ATTEMPT_REVOKED'
+                except Exception:
+                    return 'ATTEMPT_AUTHORITY_UNAVAILABLE'
+                limit = factory_work_limit(run, relay.forwarded_count)
+                if limit:
+                    return limit
             with accounted:
                 if not accounted.wait_for(lambda: state["steps"] >= relay.forwarded_count or state["done"], timeout=10):
                     state["stop"] = "USAGE_UNKNOWN"
                     return "USAGE_UNKNOWN"
+                if state['stop']:
+                    return state['stop']
                 last, threshold = state["last"], state["threshold"]
-                over_budget = Decimal(run["native_cost_usd"]) > max_cost()
+                over_budget = Decimal(run["native_cost_usd"]) > cost_limit
             if last >= max(1, run["limit"] - 20000) and state["native_md"] != last:
                 self.prepare_handover(run, workspace, last)
                 state["native_md"] = last
@@ -422,26 +443,50 @@ class Runner:
             return None
 
         def relay_checkpoint(counted, close):
+            if kind in {'factory-review', 'factory-prepare'}:
+                # These roles have an immutable input and no author snapshot to checkpoint.
+                # Keep the relay's context refusal instead of masking it as an unknown error.
+                return
             self.prepare_handover(run, workspace, counted, basis="local_tokenizer")
             if close:
                 state["counted_handover"] = counted
 
+        key = next(k for k, p in PROFILES.items() if p['model'] == run['model'])
+        metadata = model_metadata(key)
+        output_limit=run.get('max_output_tokens',4096)
+        relay_options = {'api': metadata['api'], 'required_effort': metadata.get('thinking'),
+                         'max_output_tokens':output_limit}
+        review_effort=run.get('review_thinking_level','medium') if kind=='factory-review' else 'medium'
+        if review_effort not in ('low','medium'):
+            raise ValueError('REASONING_EFFORT_INVALID')
+        if key=='deepseek':
+            relay_options['required_reasoning_effort']='low' if review_effort=='low' else 'high'
+        if kind != 'lab':
+            relay_options.update(prices=metadata, cost_limit=cost_limit - Decimal(run.get('projected_cost_usd', '0')))
         relay = ContextRelay(run["model"], os.environ["OPENCODE_API_KEY"], run["limit"], relay_checkpoint,
-                             lambda name, **attrs: self.event(run, name, **attrs), admission=admission)
+                             lambda name, **attrs: self.event(run, name, **attrs), admission=admission, **relay_options)
         runtime = run.get("runtime", "flue-openshell")
         # Only tier 3 tools reach OpenShell; tier 2 tools act on the workspace folder directly.
-        bridge = SandboxBridge(self.active_sandbox) if runtime == "flue-openshell" else None
+        bridge = SandboxBridge(self.active_sandbox, check=getattr(self, 'protected_check', None)) if runtime == "flue-openshell" else None
         HARNESS.mkdir(mode=0o700, parents=True, exist_ok=True)
         scratch = Path(tempfile.mkdtemp(dir=HARNESS))
         events, empty_env = scratch / "events.ndjson", scratch / "empty.env"
         events.touch(mode=0o600)
         empty_env.touch(mode=0o600)
-        key = next(k for k, p in PROFILES.items() if p["model"] == run["model"])
         # Only loopback credentials scoped to this session; never the Go key or host secrets.
         env = {"PATH": os.environ["PATH"], "HOME": str(scratch), "LANG": "C.UTF-8", "NODE_NO_WARNINGS": "1",
                "AEION_RELAY_URL": relay.url, "AEION_RELAY_TOKEN": relay.token,
-               "AEION_MODEL_JSON": json.dumps(model_metadata(key)), "AEION_EVENTS_FILE": str(events)}
-        if runtime == TRIAGE:
+               "AEION_MODEL_JSON": json.dumps({**model_metadata(key),'maxOutputTokens':output_limit}), "AEION_EVENTS_FILE": str(events),
+               "AEION_CONVERSATION_ID": instance}
+        if kind == 'factory-review':
+            (scratch / 'review.txt').write_text(prompt)
+            env.update(AEION_REVIEW_INPUT=str(scratch / 'review.txt'), AEION_REVIEW_RESULT=str(review_result),
+                       AEION_REVIEW_EFFORT=review_effort)
+        elif kind == 'factory-prepare':
+            (scratch / 'preparation.txt').write_text(prompt)
+            env.update(AEION_PREPARATION_INPUT=str(scratch / 'preparation.txt'),
+                       AEION_PREPARATION_RESULT=str(preparation_result))
+        elif runtime == TRIAGE:
             # Events and labels only; expected answers never leave the supervisor.
             (scratch / "input.json").write_text(triage.agent_input(run["task_id"]))
             env.update(AEION_TRIAGE_INPUT=str(scratch / "input.json"), AEION_RESULT_FILE=str(workspace / triage.ARTIFACT))
@@ -449,7 +494,13 @@ class Runner:
             env["AEION_WORKSPACE"] = SANDBOX_WORKSPACE if self.copies_out(run) else str(workspace)
         if bridge:
             env.update(AEION_BRIDGE_URL=bridge.url, AEION_BRIDGE_TOKEN=bridge.token)
-        argv = [str(FLUE / "node_modules/.bin/flue"), "run", AGENTS[runtime], "--message", prompt,
+        if kind == 'factory-build':
+            env['AEION_FACTORY_BUILD'] = '1'
+        entry = ({'factory-review':'src/agents/reviewer.ts', 'factory-prepare':'src/agents/preparer.ts'}
+                 .get(kind, AGENTS[runtime]))
+        message = ('Review the complete attached frozen_review_packet and submit one verdict.'
+                   if kind == 'factory-review' else prompt)
+        argv = [str(FLUE / "node_modules/.bin/flue"), "run", entry, "--message", message,
                 "--id", instance, "--new", "--json", "--env", str(empty_env)]
         process = None
         try:
@@ -460,7 +511,7 @@ class Runner:
             process = subprocess.Popen(argv, cwd=FLUE, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                        stderr=subprocess.DEVNULL, start_new_session=True)
             self.event(run, "process.started", **{"aeion.process.pid": process.pid, "aeion.agent.number": run["agents"]})
-            deadline = time.monotonic() + AGENT_TIMEOUT_SECONDS
+            deadline = time.monotonic() + min(900, int(run.get('agent_timeout_seconds', AGENT_TIMEOUT_SECONDS)))
             buffer, cumulative, conversation, final, outcome = b"", 0, None, False, None
             request_started_ns = time.time_ns()
             with events.open("rb") as stream:
@@ -485,18 +536,18 @@ class Runner:
                             record = loads(line)
                         except (ValueError, UnicodeError):
                             raise ValueError("CLI_PROTOCOL_ERROR") from None
-                        kind = record.get("type") if isinstance(record, dict) else None
-                        if kind == "step_start":
+                        event_kind = record.get("type") if isinstance(record, dict) else None
+                        if event_kind == "step_start":
                             request_started_ns = time.time_ns()
                             self.event(run, "model.step.started", **{"aeion.agent.number": run["agents"]})
-                        elif kind == "tool":
+                        elif event_kind == "tool":
                             if record.get("name") != "other" and record.get("status") in {"completed", "error"}:
                                 self.event(run, "tool.finished", **{"aeion.tool.name": record["name"], "aeion.tool.status": record["status"]})
-                        elif kind == "compaction":
+                        elif event_kind == "compaction":
                             raise ValueError("HARNESS_COMPACTION")
-                        elif kind == "settled":
+                        elif event_kind == "settled":
                             outcome = record.get("outcome")
-                        elif kind == "step_finish":
+                        elif event_kind == "step_finish":
                             if record.get("instance") != instance:
                                 raise ValueError("CLI_PROTOCOL_ERROR")
                             if conversation is None:
@@ -508,9 +559,17 @@ class Runner:
                                 raise ValueError("CLI_PROTOCOL_ERROR")
                             if record.get("error") is True:
                                 continue  # A refused or failed request has no billable response to account.
+                            run['last_finish_reason']=record.get('finish') if record.get('finish') in {'stop','toolUse','length','error','aborted'} else 'other'
                             usage = native_usage(record.get("usage"))
                             cumulative += usage["input"]
                             observed = gate_value(usage, cumulative, run["metric"])
+                            request_index = state['steps']
+                            request_bound = relay.forwarded_counts[request_index] if request_index < len(relay.forwarded_counts) else None
+                            if usage['input'] + usage['output'] > 300000:
+                                raise ValueError('PROVIDER_CONTEXT_VIOLATION')
+                            if (relay.context_basis == 'local_tokenizer' and not run['model'].startswith('fixture/')
+                                    and (request_bound is None or usage['input'] > request_bound + 20000)):
+                                raise ValueError('CONTEXT_ACCOUNTING_MISMATCH')
                             with accounted:
                                 run["native_cost_usd"] = str(Decimal(run["native_cost_usd"]) + usage["cost"])
                                 state["last"], state["peak"] = observed, max(state["peak"], observed)
@@ -523,11 +582,6 @@ class Runner:
                                        "gen_ai.usage.output_tokens": usage["output"], "aeion.context.observed": observed,
                                        "aeion.cost.estimated_usd": float(usage["cost"]),
                                        "aeion.step.elapsed_ms": round((time.time_ns() - request_started_ns) / 1000000, 2)})
-                            if usage["input"] + usage["output"] > 300000:
-                                self.event(run, "context.violation", **{"aeion.failure.code": "PROVIDER_CONTEXT_VIOLATION"})
-                                raise ValueError("PROVIDER_CONTEXT_VIOLATION")
-                            if not run["model"].startswith("fixture/") and (relay.last_count is None or usage["input"] > relay.last_count + 20000):
-                                raise ValueError("CONTEXT_ACCOUNTING_MISMATCH")
                             final = record.get("finish") == "stop"
             with accounted:
                 state["done"] = True
@@ -542,14 +596,17 @@ class Runner:
                 return "handover"
             if process.poll() is None:
                 raise ValueError("AGENT_TIMEOUT")
-            if state["stop"] or Decimal(run["native_cost_usd"]) > max_cost():
+            if state["stop"] or Decimal(run["native_cost_usd"]) > cost_limit:
                 raise ValueError(state["stop"] or "BUDGET_STOP")
             if relay.last_error_code:
                 raise ValueError(relay.last_error_code)
+            if run.get('last_finish_reason')=='length':
+                raise ValueError('OUTPUT_LIMIT')
             if process.returncode != 0 or outcome != "completed" or not state["steps"] or not final:
                 raise ValueError("CLI_FAILED")
             return "complete"
         finally:
+            relay.closed = True
             with accounted:
                 state["done"] = True
                 accounted.notify_all()
@@ -568,3 +625,7 @@ class Runner:
             shutil.rmtree(scratch, ignore_errors=True)
             run["usage_complete"] = usage_is_complete(
                 state["steps"], relay.forwarded_count, relay.last_error_code)
+            run.setdefault('provider_usages', []).extend(relay.reported_usage)
+            run['provider_accounting_complete'] = relay.accounting_complete
+            run['forwarded_count'] = run.get('forwarded_count', 0) + relay.forwarded_count
+            run['projected_cost_usd'] = str(Decimal(run.get('projected_cost_usd', '0')) + relay.projected_cost)

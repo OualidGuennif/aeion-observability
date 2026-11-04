@@ -86,7 +86,7 @@ review vote, and the second vote must not come from either of the first two mode
   not just distinct names;
 - any reject, any transport error and any malformed answer yields `held`; there is no retry that
   turns a failure into an approval;
-- the complete changed bytes must fit the 6000-character review envelope. If they do not, the
+- the complete changed bytes must fit the 24000-character review envelope. If they do not, the
   circuit holds (`review_input_too_large`) instead of sending an excerpt: a voter that never
   received the tail cannot approve the artifact. An unknown author holds before any vote because
   its family cannot be excluded;
@@ -118,8 +118,8 @@ that no inference and no release credential is present. One key per capability:
 | Key | Role | GitHub permissions | Can it merge `main`? |
 | --- | --- | --- | --- |
 | `GH_BUILD_KEY` | build | `contents:read`, `pull_requests:read` | no |
-| `GH_API_KEY` | publish | `contents:write`, `pull_requests:write` | no — and it belongs to a process that never reviews |
-| `GH_RELEASE_KEY` | release | `contents:write`, `pull_requests:write` | yes, and only a human holds it |
+| `GH_API_KEY` | publish | `contents:write`, `pull_requests:write` | its isolated process refuses merges; PAT scopes alone cannot prevent them |
+| `GH_RELEASE_KEY` | release | `contents:write`, `pull_requests:write`, `administration:read` | isolated deterministic release process after required evidence |
 | `OPENCODE_API_KEY` | inference | none | no |
 
 `keys.py` owns the table, `assert_only()` refuses a role the process does not need,

@@ -180,14 +180,15 @@ directory does not establish loaded hooks or identical runtime guarantees.
   sends PreToolUse and PostToolUse (matcher `.*`) and Stop to `tools/agents/hook.py antigravity
   <event>`: the payload names no hook event or session, so the event is an argument and the
   session key is per clone, as for Devin. The adapter reads `toolCall {name, args}`, maps
-  `run_command` (`CommandLine`) to Bash, `view_file` to Read, `write_to_file` to Write and
-  `replace_file_content`/`multi_replace_file_content` to Edit and `grep_search` to Grep. For any
+  `run_command` (`CommandLine`) to Bash, `view_file` and `read_file` to Read, `write_to_file` and
+  `write_file` to Write and `replace_file_content`/`multi_replace_file_content`/`edit_file` to
+  Edit and `grep_search` to Grep. For any
   tool, including MCP tools, every nonempty string at any depth under an argument whose name,
   ignoring case and `_`/`-`, ends in path, file, dir, directory or uri, or their plurals
   (`AbsolutePath`, `TargetDirectories`, `file_path`, `Uri`; a `file:` URI is decoded to its path),
   goes through the path guard; `view_code_item`'s `NodePaths` are code symbols and are skipped. A
   mapped file tool with none is refused. Not recognized: other names (`target`, `Url`), text typed
-  into a running command (`send_command_input`) and Windows paths. `view_file`'s
+  into a running command (`send_command_input`) and Windows paths. `view_file` and `read_file`
   `StartLine`/`EndLine` become the intake window; `grep_search` with `MatchPerLine: false` lists
   names only. For any tool, every string at any depth under an argument whose name ends in
   include, glob or pattern, or their plurals (`Includes`, `IncludePattern`, `file_pattern`), goes
@@ -195,8 +196,9 @@ directory does not establish loaded hooks or identical runtime guarantees.
   with its limits; a non-string filter is refused. Any tool with a `CommandLine` goes through the
   shell guard, as does a `command` or `commandLine` argument in any case; a call with two is
   refused. `Cwd` or `workdir` in any case (a `file:` URI decoded) is the shell's directory; two
-  or a non-string one are refused. On a shell call any other argument must be a flag or a
-  number, since the guard cannot tell which one a tool runs in; a text, list or object is refused.
+  or a non-string one are refused. On a shell call any other argument besides `toolSummary` must be
+  a flag or a number, since the guard cannot tell which one a tool runs in; any other text, list or
+  object is refused.
   The guards see only fields the adapter derives, never a raw `limit` or output mode from the
   model. A pre-tool payload without `toolCall` is refused. A pre-tool answer is always an
   explicit `{"decision": "allow"}` or `{"decision": "deny", "reason": ...}`, since Antigravity

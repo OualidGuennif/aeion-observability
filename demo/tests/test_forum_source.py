@@ -25,6 +25,10 @@ def git(root, *args):
 
 def init(root):
     subprocess.run(["git", "init", "-q"], cwd=root, check=True, env=GIT_ENV)
+    # Fixture commits must not spawn hooks/automatic repacking beyond directory cleanup.
+    git(root, "config", "core.hooksPath", "/dev/null")
+    git(root, "config", "maintenance.auto", "false")
+    git(root, "config", "gc.auto", "0")
 
 
 def commit(root, message="test"):

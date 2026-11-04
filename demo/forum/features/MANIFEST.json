@@ -1,11 +1,14 @@
 {
   "schema_version": 2,
+  "architecture": "quarkus-postgresql-react-web-v1",
+  "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e",
   "generator": "demo/forum/tools/generate_features.py",
   "plan": "demo/forum/PLAN.md",
   "count": 100,
   "features": [
     {
       "id": "001",
+      "sequence": 1,
       "title": "App skeleton and settings",
       "area": "foundation",
       "size": "S",
@@ -13,29 +16,37 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [],
-      "file": "001-app-skeleton-and-settings.md"
+      "file": "001-app-skeleton-and-settings.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "002",
-      "title": "Postgres schema and migration runner",
+      "sequence": 2,
+      "title": "PostgreSQL migration and SQLite cutover",
       "area": "foundation",
-      "size": "M",
+      "size": "L",
       "parallel": false,
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "001"
       ],
-      "file": "002-postgres-schema-and-migration-runner.md"
+      "file": "002-postgresql-migration-and-sqlite-cutover.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "003",
+      "sequence": 3,
       "title": "Test harness with an ephemeral database",
       "area": "foundation",
       "size": "S",
@@ -43,15 +54,19 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "002"
       ],
-      "file": "003-test-harness-with-an-ephemeral-database.md"
+      "file": "003-test-harness-with-an-ephemeral-database.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "004",
+      "sequence": 4,
       "title": "Accounts and password hashing",
       "area": "foundation",
       "size": "M",
@@ -59,15 +74,18 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/"
       ],
       "depends_on": [
         "002"
       ],
-      "file": "004-accounts-and-password-hashing.md"
+      "file": "004-accounts-and-password-hashing.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "005",
+      "sequence": 5,
       "title": "Sessions with signed cookies",
       "area": "foundation",
       "size": "M",
@@ -75,15 +93,19 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "004"
       ],
-      "file": "005-sessions-with-signed-cookies.md"
+      "file": "005-sessions-with-signed-cookies.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "006",
+      "sequence": 6,
       "title": "CSRF protection on every mutation",
       "area": "foundation",
       "size": "S",
@@ -91,15 +113,19 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "005"
       ],
-      "file": "006-csrf-protection-on-every-mutation.md"
+      "file": "006-csrf-protection-on-every-mutation.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "007",
+      "sequence": 7,
       "title": "Content sanitization for user text",
       "area": "foundation",
       "size": "M",
@@ -107,15 +133,18 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/"
       ],
       "depends_on": [
         "001"
       ],
-      "file": "007-content-sanitization-for-user-text.md"
+      "file": "007-content-sanitization-for-user-text.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "008",
+      "sequence": 8,
       "title": "Rate limiting per identity",
       "area": "foundation",
       "size": "M",
@@ -123,16 +152,20 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "002",
         "005"
       ],
-      "file": "008-rate-limiting-per-identity.md"
+      "file": "008-rate-limiting-per-identity.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "009",
+      "sequence": 9,
       "title": "Append-only audit log",
       "area": "foundation",
       "size": "M",
@@ -140,15 +173,19 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "002"
       ],
-      "file": "009-append-only-audit-log.md"
+      "file": "009-append-only-audit-log.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "010",
+      "sequence": 10,
       "title": "Uniform error answers",
       "area": "foundation",
       "size": "S",
@@ -156,16 +193,20 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "001",
         "009"
       ],
-      "file": "010-uniform-error-answers.md"
+      "file": "010-uniform-error-answers.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "011",
+      "sequence": 11,
       "title": "Secrets and environment allowlist",
       "area": "foundation",
       "size": "S",
@@ -173,15 +214,19 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "001"
       ],
-      "file": "011-secrets-and-environment-allowlist.md"
+      "file": "011-secrets-and-environment-allowlist.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "012",
+      "sequence": 12,
       "title": "Forum telemetry through the collector",
       "area": "foundation",
       "size": "M",
@@ -189,17 +234,21 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "001",
         "011",
         "009"
       ],
-      "file": "012-forum-telemetry-through-the-collector.md"
+      "file": "012-forum-telemetry-through-the-collector.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "013",
+      "sequence": 13,
       "title": "Security headers and CSP",
       "area": "foundation",
       "size": "S",
@@ -207,31 +256,41 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "001"
       ],
-      "file": "013-security-headers-and-csp.md"
+      "file": "013-security-headers-and-csp.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "014",
-      "title": "Server-rendered templates",
+      "sequence": 14,
+      "title": "React browser application shell",
       "area": "foundation",
-      "size": "S",
+      "size": "M",
       "parallel": false,
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "001"
       ],
-      "file": "014-server-rendered-templates.md"
+      "file": "014-react-browser-application-shell.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "015",
+      "sequence": 15,
       "title": "Readiness and dependency probes",
       "area": "foundation",
       "size": "S",
@@ -239,15 +298,19 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "002"
       ],
-      "file": "015-readiness-and-dependency-probes.md"
+      "file": "015-readiness-and-dependency-probes.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "016",
+      "sequence": 16,
       "title": "Graceful shutdown",
       "area": "foundation",
       "size": "S",
@@ -255,15 +318,20 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
-        "001"
+        "001",
+        "002"
       ],
-      "file": "016-graceful-shutdown.md"
+      "file": "016-graceful-shutdown.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "017",
+      "sequence": 17,
       "title": "Strict request validation",
       "area": "foundation",
       "size": "S",
@@ -271,23 +339,26 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/"
       ],
       "depends_on": [
         "001"
       ],
-      "file": "017-strict-request-validation.md"
+      "file": "017-strict-request-validation.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "018",
-      "title": "No-JS baseline and accessibility",
+      "sequence": 18,
+      "title": "Accessible React navigation and forms",
       "area": "foundation",
       "size": "S",
       "parallel": false,
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-web/"
       ],
       "depends_on": [
         "014",
@@ -295,10 +366,13 @@
         "006",
         "013"
       ],
-      "file": "018-no-js-baseline-and-accessibility.md"
+      "file": "018-accessible-react-navigation-and-forms.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "019",
+      "sequence": 21,
       "title": "Channels and their rules",
       "area": "forum",
       "size": "M",
@@ -306,7 +380,8 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "002",
@@ -317,10 +392,13 @@
         "041",
         "043"
       ],
-      "file": "019-channels-and-their-rules.md"
+      "file": "019-channels-and-their-rules.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "020",
+      "sequence": 22,
       "title": "Channel membership and visibility",
       "area": "forum",
       "size": "M",
@@ -328,25 +406,30 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "019",
         "008",
         "043"
       ],
-      "file": "020-channel-membership-and-visibility.md"
+      "file": "020-channel-membership-and-visibility.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "021",
-      "title": "Posts and the composer",
+      "sequence": 23,
+      "title": "Held post storage and safe reading",
       "area": "forum",
       "size": "M",
       "parallel": false,
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "007",
@@ -354,10 +437,13 @@
         "020",
         "017"
       ],
-      "file": "021-posts-and-the-composer.md"
+      "file": "021-held-post-storage-and-safe-reading.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "022",
+      "sequence": 24,
       "title": "Threaded comments",
       "area": "forum",
       "size": "M",
@@ -365,16 +451,20 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "021",
         "020"
       ],
-      "file": "022-threaded-comments.md"
+      "file": "022-threaded-comments.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "023",
+      "sequence": 35,
       "title": "Votes with one identity each",
       "area": "forum",
       "size": "S",
@@ -382,7 +472,7 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/"
       ],
       "depends_on": [
         "021",
@@ -390,12 +480,16 @@
         "059",
         "020",
         "009",
-        "043"
+        "043",
+        "022"
       ],
-      "file": "023-votes-with-one-identity-each.md"
+      "file": "023-votes-with-one-identity-each.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "024",
+      "sequence": 36,
       "title": "Deterministic feed ranking",
       "area": "forum",
       "size": "M",
@@ -403,16 +497,20 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "023",
         "022"
       ],
-      "file": "024-deterministic-feed-ranking.md"
+      "file": "024-deterministic-feed-ranking.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "025",
+      "sequence": 25,
       "title": "Full-text search",
       "area": "forum",
       "size": "M",
@@ -420,17 +518,21 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "021",
         "020",
         "007"
       ],
-      "file": "025-full-text-search.md"
+      "file": "025-full-text-search.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "026",
+      "sequence": 38,
       "title": "Cursor pagination",
       "area": "forum",
       "size": "S",
@@ -438,7 +540,8 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "021",
@@ -446,10 +549,13 @@
         "033",
         "020"
       ],
-      "file": "026-cursor-pagination.md"
+      "file": "026-cursor-pagination.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "027",
+      "sequence": 26,
       "title": "Tags and topics",
       "area": "forum",
       "size": "S",
@@ -457,16 +563,20 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "021",
         "020"
       ],
-      "file": "027-tags-and-topics.md"
+      "file": "027-tags-and-topics.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "028",
+      "sequence": 27,
       "title": "Reply and mention notifications",
       "area": "forum",
       "size": "M",
@@ -474,16 +584,20 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "022",
         "020"
       ],
-      "file": "028-reply-and-mention-notifications.md"
+      "file": "028-reply-and-mention-notifications.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "029",
+      "sequence": 28,
       "title": "Link and mention policy",
       "area": "forum",
       "size": "S",
@@ -491,17 +605,21 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "021",
         "022",
         "007"
       ],
-      "file": "029-link-and-mention-policy.md"
+      "file": "029-link-and-mention-policy.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "030",
+      "sequence": 29,
       "title": "Author edit window and tombstones",
       "area": "forum",
       "size": "M",
@@ -509,17 +627,21 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "021",
         "009",
         "043"
       ],
-      "file": "030-author-edit-window-and-tombstones.md"
+      "file": "030-author-edit-window-and-tombstones.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "031",
+      "sequence": 41,
       "title": "Provenance labels on every post",
       "area": "forum",
       "size": "S",
@@ -527,17 +649,21 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "021",
         "059",
         "060"
       ],
-      "file": "031-provenance-labels-on-every-post.md"
+      "file": "031-provenance-labels-on-every-post.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "032",
+      "sequence": 30,
       "title": "Content hashing and near-duplicates",
       "area": "forum",
       "size": "M",
@@ -545,16 +671,19 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/"
       ],
       "depends_on": [
         "021",
         "007"
       ],
-      "file": "032-content-hashing-and-near-duplicates.md"
+      "file": "032-content-hashing-and-near-duplicates.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "033",
+      "sequence": 37,
       "title": "Feed diversity guard",
       "area": "forum",
       "size": "M",
@@ -562,16 +691,20 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "024",
         "027"
       ],
-      "file": "033-feed-diversity-guard.md"
+      "file": "033-feed-diversity-guard.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "034",
+      "sequence": 39,
       "title": "Query indexes and a budget",
       "area": "forum",
       "size": "S",
@@ -579,7 +712,8 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "021",
@@ -587,10 +721,13 @@
         "023",
         "025"
       ],
-      "file": "034-query-indexes-and-a-budget.md"
+      "file": "034-query-indexes-and-a-budget.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "035",
+      "sequence": 42,
       "title": "Thread export for analysis",
       "area": "forum",
       "size": "S",
@@ -598,7 +735,8 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "022",
@@ -607,10 +745,13 @@
         "020",
         "043"
       ],
-      "file": "035-thread-export-for-analysis.md"
+      "file": "035-thread-export-for-analysis.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "036",
+      "sequence": 31,
       "title": "Channel rules displayed with the post",
       "area": "forum",
       "size": "S",
@@ -618,17 +759,21 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "019",
         "021",
         "041"
       ],
-      "file": "036-channel-rules-displayed-with-the-post.md"
+      "file": "036-channel-rules-displayed-with-the-post.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "037",
+      "sequence": 32,
       "title": "Permalinks and canonical URLs",
       "area": "forum",
       "size": "S",
@@ -636,16 +781,21 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "021",
-        "020"
+        "020",
+        "022"
       ],
-      "file": "037-permalinks-and-canonical-urls.md"
+      "file": "037-permalinks-and-canonical-urls.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "038",
+      "sequence": 33,
       "title": "Thread subscriptions and digest",
       "area": "forum",
       "size": "M",
@@ -653,17 +803,21 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "028",
         "005",
         "006"
       ],
-      "file": "038-thread-subscriptions-and-digest.md"
+      "file": "038-thread-subscriptions-and-digest.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "039",
+      "sequence": 43,
       "title": "Seed a demonstrable forum",
       "area": "forum",
       "size": "M",
@@ -671,7 +825,8 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "019",
@@ -679,10 +834,13 @@
         "023",
         "031"
       ],
-      "file": "039-seed-a-demonstrable-forum.md"
+      "file": "039-seed-a-demonstrable-forum.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "040",
+      "sequence": 44,
       "title": "Forum end-to-end smoke test",
       "area": "forum",
       "size": "M",
@@ -690,7 +848,9 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "039",
@@ -704,10 +864,13 @@
         "059",
         "060"
       ],
-      "file": "040-forum-end-to-end-smoke-test.md"
+      "file": "040-forum-end-to-end-smoke-test.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "041",
+      "sequence": 19,
       "title": "Rules as versioned data",
       "area": "moderation",
       "size": "M",
@@ -715,34 +878,43 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "002",
         "014"
       ],
-      "file": "041-rules-as-versioned-data.md"
+      "file": "041-rules-as-versioned-data.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "042",
+      "sequence": 45,
       "title": "Deterministic rules engine",
       "area": "moderation",
-      "size": "L",
+      "size": "M",
       "parallel": false,
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "007",
         "032",
         "041"
       ],
-      "file": "042-deterministic-rules-engine.md"
+      "file": "042-deterministic-rules-engine.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "043",
+      "sequence": 20,
       "title": "Roles and one permission matrix",
       "area": "moderation",
       "size": "M",
@@ -750,16 +922,20 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "004",
         "009"
       ],
-      "file": "043-roles-and-one-permission-matrix.md"
+      "file": "043-roles-and-one-permission-matrix.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "044",
+      "sequence": 46,
       "title": "Reports with severity",
       "area": "moderation",
       "size": "M",
@@ -767,7 +943,8 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "021",
@@ -776,10 +953,13 @@
         "041",
         "043"
       ],
-      "file": "044-reports-with-severity.md"
+      "file": "044-reports-with-severity.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "045",
+      "sequence": 47,
       "title": "Moderation queue and priority",
       "area": "moderation",
       "size": "M",
@@ -787,17 +967,21 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "044",
         "041",
         "043"
       ],
-      "file": "045-moderation-queue-and-priority.md"
+      "file": "045-moderation-queue-and-priority.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "046",
+      "sequence": 48,
       "title": "Moderator actions",
       "area": "moderation",
       "size": "M",
@@ -805,7 +989,8 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "042",
@@ -814,10 +999,13 @@
         "043",
         "020"
       ],
-      "file": "046-moderator-actions.md"
+      "file": "046-moderator-actions.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "047",
+      "sequence": 49,
       "title": "Appeals",
       "area": "moderation",
       "size": "M",
@@ -825,17 +1013,21 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "046",
         "008",
         "043"
       ],
-      "file": "047-appeals.md"
+      "file": "047-appeals.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "048",
+      "sequence": 50,
       "title": "Bans, mutes and cooldowns",
       "area": "moderation",
       "size": "M",
@@ -843,16 +1035,20 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "043",
         "009"
       ],
-      "file": "048-bans-mutes-and-cooldowns.md"
+      "file": "048-bans-mutes-and-cooldowns.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "049",
+      "sequence": 51,
       "title": "Escalation ladder",
       "area": "moderation",
       "size": "S",
@@ -860,23 +1056,30 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
-        "048"
+        "048",
+        "046",
+        "047"
       ],
-      "file": "049-escalation-ladder.md"
+      "file": "049-escalation-ladder.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "050",
+      "sequence": 72,
       "title": "Moderator agent that only triages",
       "area": "moderation",
-      "size": "L",
+      "size": "M",
       "parallel": false,
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "046",
@@ -885,10 +1088,13 @@
         "066",
         "073"
       ],
-      "file": "050-moderator-agent-that-only-triages.md"
+      "file": "050-moderator-agent-that-only-triages.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "051",
+      "sequence": 52,
       "title": "Human override console",
       "area": "moderation",
       "size": "M",
@@ -896,7 +1102,8 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "046",
@@ -905,28 +1112,35 @@
         "009",
         "043"
       ],
-      "file": "051-human-override-console.md"
+      "file": "051-human-override-console.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "052",
+      "sequence": 53,
       "title": "Injection guard for inbound content",
       "area": "moderation",
-      "size": "L",
+      "size": "M",
       "parallel": false,
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "021",
         "022",
         "007"
       ],
-      "file": "052-injection-guard-for-inbound-content.md"
+      "file": "052-injection-guard-for-inbound-content.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "053",
+      "sequence": 54,
       "title": "Moderation audit trail",
       "area": "moderation",
       "size": "S",
@@ -934,7 +1148,8 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "009",
@@ -943,10 +1158,13 @@
         "048",
         "051"
       ],
-      "file": "053-moderation-audit-trail.md"
+      "file": "053-moderation-audit-trail.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "054",
+      "sequence": 55,
       "title": "Moderation KPIs on synthetic labels",
       "area": "moderation",
       "size": "M",
@@ -954,15 +1172,19 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "046"
       ],
-      "file": "054-moderation-kpis-on-synthetic-labels.md"
+      "file": "054-moderation-kpis-on-synthetic-labels.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "055",
+      "sequence": 56,
       "title": "Moderation red-team suite",
       "area": "moderation",
       "size": "M",
@@ -970,15 +1192,19 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "042"
       ],
-      "file": "055-moderation-red-team-suite.md"
+      "file": "055-moderation-red-team-suite.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "056",
+      "sequence": 57,
       "title": "Moderation kill switch",
       "area": "moderation",
       "size": "S",
@@ -986,17 +1212,21 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "046",
         "009",
         "043"
       ],
-      "file": "056-moderation-kill-switch.md"
+      "file": "056-moderation-kill-switch.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "057",
+      "sequence": 58,
       "title": "Rule change review gate",
       "area": "moderation",
       "size": "S",
@@ -1004,16 +1234,20 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "041",
         "009"
       ],
-      "file": "057-rule-change-review-gate.md"
+      "file": "057-rule-change-review-gate.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "058",
+      "sequence": 59,
       "title": "Transparency page",
       "area": "moderation",
       "size": "S",
@@ -1021,16 +1255,21 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "053",
         "014"
       ],
-      "file": "058-transparency-page.md"
+      "file": "058-transparency-page.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "059",
+      "sequence": 34,
       "title": "Agent registry and signed tokens",
       "area": "agents",
       "size": "M",
@@ -1038,17 +1277,20 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/"
       ],
       "depends_on": [
         "004",
         "009",
         "043"
       ],
-      "file": "059-agent-registry-and-signed-tokens.md"
+      "file": "059-agent-registry-and-signed-tokens.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "060",
+      "sequence": 40,
       "title": "Persona specification",
       "area": "agents",
       "size": "M",
@@ -1056,15 +1298,19 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "059"
       ],
-      "file": "060-persona-specification.md"
+      "file": "060-persona-specification.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "061",
+      "sequence": 61,
       "title": "Per-agent quotas",
       "area": "agents",
       "size": "M",
@@ -1072,17 +1318,21 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/"
       ],
       "depends_on": [
         "059",
         "009",
-        "008"
+        "008",
+        "007"
       ],
-      "file": "061-per-agent-quotas.md"
+      "file": "061-per-agent-quotas.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "062",
+      "sequence": 73,
       "title": "Cadence scheduler",
       "area": "agents",
       "size": "M",
@@ -1090,7 +1340,8 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "061",
@@ -1098,18 +1349,21 @@
         "071",
         "073"
       ],
-      "file": "062-cadence-scheduler.md"
+      "file": "062-cadence-scheduler.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "063",
+      "sequence": 74,
       "title": "Posting pipeline from draft to submission",
       "area": "agents",
-      "size": "L",
+      "size": "M",
       "parallel": false,
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/"
       ],
       "depends_on": [
         "007",
@@ -1138,10 +1392,13 @@
         "073",
         "096"
       ],
-      "file": "063-posting-pipeline-from-draft-to-submission.md"
+      "file": "063-posting-pipeline-from-draft-to-submission.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "064",
+      "sequence": 62,
       "title": "Stance diversity guard",
       "area": "agents",
       "size": "M",
@@ -1149,16 +1406,20 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "024",
         "059"
       ],
-      "file": "064-stance-diversity-guard.md"
+      "file": "064-stance-diversity-guard.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "065",
+      "sequence": 63,
       "title": "Reply policy",
       "area": "agents",
       "size": "M",
@@ -1166,17 +1427,22 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/"
       ],
       "depends_on": [
         "022",
         "048",
-        "059"
+        "059",
+        "060",
+        "020"
       ],
-      "file": "065-reply-policy.md"
+      "file": "065-reply-policy.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "066",
+      "sequence": 64,
       "title": "Sandboxed tool surface for forum bots",
       "area": "agents",
       "size": "M",
@@ -1184,7 +1450,8 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "059",
@@ -1192,10 +1459,13 @@
         "020",
         "011"
       ],
-      "file": "066-sandboxed-tool-surface-for-forum-bots.md"
+      "file": "066-sandboxed-tool-surface-for-forum-bots.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "067",
+      "sequence": 65,
       "title": "Duplicate detection between bots",
       "area": "agents",
       "size": "M",
@@ -1203,16 +1473,19 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/"
       ],
       "depends_on": [
         "032",
         "042"
       ],
-      "file": "067-duplicate-detection-between-bots.md"
+      "file": "067-duplicate-detection-between-bots.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "068",
+      "sequence": 66,
       "title": "Public bot profiles",
       "area": "agents",
       "size": "S",
@@ -1220,17 +1493,21 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "059",
         "060",
         "020"
       ],
-      "file": "068-public-bot-profiles.md"
+      "file": "068-public-bot-profiles.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "069",
+      "sequence": 67,
       "title": "Bot memory checkpoint",
       "area": "agents",
       "size": "M",
@@ -1238,16 +1515,20 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "059",
         "011"
       ],
-      "file": "069-bot-memory-checkpoint.md"
+      "file": "069-bot-memory-checkpoint.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "070",
+      "sequence": 68,
       "title": "Thread summaries in Hindsight",
       "area": "agents",
       "size": "M",
@@ -1255,16 +1536,21 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "069",
-        "022"
+        "022",
+        "096"
       ],
-      "file": "070-thread-summaries-in-hindsight.md"
+      "file": "070-thread-summaries-in-hindsight.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "071",
+      "sequence": 69,
       "title": "Circuit breaker on repeated failure",
       "area": "agents",
       "size": "S",
@@ -1272,17 +1558,22 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "059",
         "068",
         "009"
       ],
-      "file": "071-circuit-breaker-on-repeated-failure.md"
+      "file": "071-circuit-breaker-on-repeated-failure.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "072",
+      "sequence": 70,
       "title": "Provenance enforced at submission",
       "area": "agents",
       "size": "S",
@@ -1290,17 +1581,21 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/"
       ],
       "depends_on": [
         "031",
         "059",
-        "060"
+        "060",
+        "022"
       ],
-      "file": "072-provenance-enforced-at-submission.md"
+      "file": "072-provenance-enforced-at-submission.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "073",
+      "sequence": 71,
       "title": "Agent activity audit",
       "area": "agents",
       "size": "S",
@@ -1308,17 +1603,21 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "009",
         "012",
         "059"
       ],
-      "file": "073-agent-activity-audit.md"
+      "file": "073-agent-activity-audit.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "074",
+      "sequence": 76,
       "title": "Ten-agent dry run",
       "area": "agents",
       "size": "M",
@@ -1326,7 +1625,9 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "050",
@@ -1342,12 +1643,16 @@
         "071",
         "072",
         "073",
-        "095"
+        "095",
+        "040"
       ],
-      "file": "074-ten-agent-dry-run.md"
+      "file": "074-ten-agent-dry-run.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "075",
+      "sequence": 77,
       "title": "Corpus item schema",
       "area": "corpus",
       "size": "S",
@@ -1355,12 +1660,16 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/"
       ],
       "depends_on": [
-        "002"
+        "002",
+        "007",
+        "029"
       ],
       "file": "075-corpus-item-schema.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e",
       "categories": [
         "tech",
         "state",
@@ -1369,6 +1678,7 @@
     },
     {
       "id": "076",
+      "sequence": 78,
       "title": "Offline corpus loader",
       "area": "corpus",
       "size": "M",
@@ -1376,17 +1686,21 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "075",
         "002",
         "009"
       ],
-      "file": "076-offline-corpus-loader.md"
+      "file": "076-offline-corpus-loader.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "077",
+      "sequence": 79,
       "title": "Two hundred synthetic French items",
       "area": "corpus",
       "size": "M",
@@ -1394,17 +1708,20 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/corpus/items/",
-        "demo/forum/product/docs/corpus-style.md"
+        "demo/forum-app/src/main/resources/corpus/items/",
+        "demo/forum-docs/corpus-style.md"
       ],
       "depends_on": [
         "075",
         "052"
       ],
-      "file": "077-two-hundred-synthetic-french-items.md"
+      "file": "077-two-hundred-synthetic-french-items.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "078",
+      "sequence": 80,
       "title": "Category quotas and mix",
       "area": "corpus",
       "size": "S",
@@ -1412,15 +1729,19 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "076"
       ],
-      "file": "078-category-quotas-and-mix.md"
+      "file": "078-category-quotas-and-mix.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "079",
+      "sequence": 82,
       "title": "Half-seeded thread rule",
       "area": "corpus",
       "size": "M",
@@ -1428,18 +1749,24 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "021",
         "076",
         "063",
-        "078"
+        "078",
+        "077",
+        "080"
       ],
-      "file": "079-half-seeded-thread-rule.md"
+      "file": "079-half-seeded-thread-rule.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "080",
+      "sequence": 81,
       "title": "Corpus citation in posts",
       "area": "corpus",
       "size": "S",
@@ -1447,19 +1774,24 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "021",
         "075",
         "029",
         "020",
-        "007"
+        "007",
+        "076"
       ],
-      "file": "080-corpus-citation-in-posts.md"
+      "file": "080-corpus-citation-in-posts.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "081",
+      "sequence": 83,
       "title": "Refresh from a local drop folder",
       "area": "corpus",
       "size": "S",
@@ -1467,16 +1799,20 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "076",
         "009"
       ],
-      "file": "081-refresh-from-a-local-drop-folder.md"
+      "file": "081-refresh-from-a-local-drop-folder.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "082",
+      "sequence": 84,
       "title": "Licensing and provenance note",
       "area": "corpus",
       "size": "S",
@@ -1484,15 +1820,18 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/docs/corpus-license.md"
+        "demo/forum-docs/corpus-license.md"
       ],
       "depends_on": [
         "075"
       ],
-      "file": "082-licensing-and-provenance-note.md"
+      "file": "082-licensing-and-provenance-note.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "083",
+      "sequence": 85,
       "title": "Topic interest weighting",
       "area": "corpus",
       "size": "M",
@@ -1500,7 +1839,8 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "060",
@@ -1508,6 +1848,8 @@
         "078"
       ],
       "file": "083-topic-interest-weighting.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e",
       "required_categories": [
         "tech",
         "state",
@@ -1516,6 +1858,7 @@
     },
     {
       "id": "084",
+      "sequence": 86,
       "title": "Thread generation from an item",
       "area": "corpus",
       "size": "M",
@@ -1523,19 +1866,25 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "021",
         "079",
         "080",
         "060",
-        "063"
+        "063",
+        "083",
+        "062"
       ],
-      "file": "084-thread-generation-from-an-item.md"
+      "file": "084-thread-generation-from-an-item.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "085",
+      "sequence": 87,
       "title": "Diversity metrics across threads",
       "area": "corpus",
       "size": "S",
@@ -1543,16 +1892,23 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "084",
-        "062"
+        "062",
+        "067",
+        "026"
       ],
-      "file": "085-diversity-metrics-across-threads.md"
+      "file": "085-diversity-metrics-across-threads.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "086",
+      "sequence": 88,
       "title": "Corpus injection red-team",
       "area": "corpus",
       "size": "M",
@@ -1560,18 +1916,21 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/tests/fixtures/corpus_injection/",
-        "demo/forum/product/tests/test_corpus_injection.py"
+        "demo/forum-app/src/test/resources/corpus_injection/",
+        "demo/forum-app/src/test/java/local/aeion/forum/CorpusInjectionTest.java"
       ],
       "depends_on": [
         "076",
         "052",
         "066"
       ],
-      "file": "086-corpus-injection-red-team.md"
+      "file": "086-corpus-injection-red-team.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "087",
+      "sequence": 89,
       "title": "Deterministic bot avatars",
       "area": "forum",
       "size": "S",
@@ -1579,17 +1938,20 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-web/"
       ],
       "depends_on": [
         "059",
         "060",
         "014"
       ],
-      "file": "087-deterministic-bot-avatars.md"
+      "file": "087-deterministic-bot-avatars.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "088",
+      "sequence": 90,
       "title": "Pinned threads and featured slots",
       "area": "forum",
       "size": "S",
@@ -1597,17 +1959,21 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "024",
         "020",
         "043"
       ],
-      "file": "088-pinned-threads-and-featured-slots.md"
+      "file": "088-pinned-threads-and-featured-slots.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "089",
+      "sequence": 91,
       "title": "Weekly digest thread",
       "area": "agents",
       "size": "M",
@@ -1615,17 +1981,21 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "085",
         "063",
         "059"
       ],
-      "file": "089-weekly-digest-thread.md"
+      "file": "089-weekly-digest-thread.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "090",
+      "sequence": 92,
       "title": "Quote a comment",
       "area": "forum",
       "size": "S",
@@ -1633,7 +2003,8 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "022",
@@ -1641,10 +2012,13 @@
         "007",
         "063"
       ],
-      "file": "090-quote-a-comment.md"
+      "file": "090-quote-a-comment.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "091",
+      "sequence": 93,
       "title": "Mute a bot as a reader",
       "area": "forum",
       "size": "S",
@@ -1652,7 +2026,8 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "021",
@@ -1661,10 +2036,13 @@
         "006",
         "020"
       ],
-      "file": "091-mute-a-bot-as-a-reader.md"
+      "file": "091-mute-a-bot-as-a-reader.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "092",
+      "sequence": 94,
       "title": "Public edit history",
       "area": "forum",
       "size": "M",
@@ -1672,17 +2050,21 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "030",
         "014",
         "020"
       ],
-      "file": "092-public-edit-history.md"
+      "file": "092-public-edit-history.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "093",
+      "sequence": 95,
       "title": "Public forum counters",
       "area": "forum",
       "size": "S",
@@ -1690,17 +2072,22 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "085",
         "020",
         "058"
       ],
-      "file": "093-public-forum-counters.md"
+      "file": "093-public-forum-counters.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "094",
+      "sequence": 96,
       "title": "French typography and dates",
       "area": "forum",
       "size": "S",
@@ -1708,15 +2095,18 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-web/"
       ],
       "depends_on": [
         "014"
       ],
-      "file": "094-french-typography-and-dates.md"
+      "file": "094-french-typography-and-dates.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "095",
+      "sequence": 75,
       "title": "Quota and rate-limit messages",
       "area": "agents",
       "size": "S",
@@ -1724,17 +2114,22 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "061",
         "008",
-        "014"
+        "014",
+        "010"
       ],
-      "file": "095-quota-and-rate-limit-messages.md"
+      "file": "095-quota-and-rate-limit-messages.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "096",
+      "sequence": 60,
       "title": "Thread slow mode and lock",
       "area": "moderation",
       "size": "S",
@@ -1742,17 +2137,21 @@
       "phase": "P2",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/"
       ],
       "depends_on": [
         "046",
         "009",
         "043"
       ],
-      "file": "096-thread-slow-mode-and-lock.md"
+      "file": "096-thread-slow-mode-and-lock.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "097",
+      "sequence": 97,
       "title": "Owner data export",
       "area": "ops",
       "size": "S",
@@ -1760,7 +2159,8 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "035",
@@ -1768,10 +2168,13 @@
         "009",
         "043"
       ],
-      "file": "097-owner-data-export.md"
+      "file": "097-owner-data-export.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "098",
+      "sequence": 98,
       "title": "Load test with a latency budget",
       "area": "ops",
       "size": "S",
@@ -1779,7 +2182,9 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "034",
@@ -1787,10 +2192,13 @@
         "025",
         "026"
       ],
-      "file": "098-load-test-with-a-latency-budget.md"
+      "file": "098-load-test-with-a-latency-budget.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "099",
+      "sequence": 100,
       "title": "Keyboard and accessibility audit",
       "area": "ops",
       "size": "S",
@@ -1798,18 +2206,32 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-web/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "018",
         "040",
         "063",
-        "094"
+        "094",
+        "051",
+        "068",
+        "088",
+        "090",
+        "091",
+        "092",
+        "093",
+        "095",
+        "096",
+        "100"
       ],
-      "file": "099-keyboard-and-accessibility-audit.md"
+      "file": "099-keyboard-and-accessibility-audit.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     },
     {
       "id": "100",
+      "sequence": 99,
       "title": "Community guidelines page",
       "area": "ops",
       "size": "S",
@@ -1817,14 +2239,18 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum/product/"
+        "demo/forum-app/",
+        "demo/forum-web/",
+        "demo/forum-docs/"
       ],
       "depends_on": [
         "041",
         "014",
         "082"
       ],
-      "file": "100-community-guidelines-page.md"
+      "file": "100-community-guidelines-page.md",
+      "architecture": "quarkus-postgresql-react-web-v1",
+      "architecture_digest": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e"
     }
   ]
 }

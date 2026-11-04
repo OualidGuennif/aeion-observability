@@ -7,6 +7,7 @@ explicitly enabled merging.
 """
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -17,7 +18,8 @@ from factory.github import GitHubForge, GitHubError
 from factory.keys import CredentialError, for_role, present
 from factory.publish import Publisher
 from factory.review import content_digest
-from factory.store import Store
+from factory.models import known, family, eligibility
+from factory.store import Store, GATED, PR_OPEN, APPROVED, LIVE_COMPLETE
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -47,18 +49,35 @@ def _request_digest(request):
 
 
 def independent_circuit(circuit):
-    """A circuit is approved only by at least two votes from distinct model families."""
-    if not isinstance(circuit, dict):
+    """Exactly two actual eligible approvals, neither the author nor its family."""
+    if not isinstance(circuit, dict) or circuit.get('status') != 'approved':
+        return False
+    author = circuit.get('author_model')
+    if not isinstance(author, str) or not known(author):
         return False
     votes = circuit.get("votes")
-    if not isinstance(votes, list) or len(votes) < 2:
+    if not isinstance(votes, list) or len(votes) != 2:
         return False
-    families = []
-    for vote in votes:
-        if not isinstance(vote, dict) or not isinstance(vote.get("family"), str) or not vote["family"]:
+    families, models = {family(author)}, {author}
+    preparer = circuit.get('preparer_model')
+    if preparer is not None:
+        if (not isinstance(preparer, str) or not known(preparer) or family(preparer) in families
+                or not eligibility(preparer)[0]):
             return False
-        families.append(vote["family"])
-    return len(set(families)) == len(families)
+        models.add(preparer)
+        families.add(family(preparer))
+    for vote in votes:
+        if not isinstance(vote, dict) or vote.get('verdict') != 'approve':
+            return False
+        model = vote.get('model')
+        if not isinstance(model, str) or not known(model) or not eligibility(model)[0]:
+            return False
+        actual_family = family(model)
+        if model in models or actual_family in families or vote.get('family') != actual_family:
+            return False
+        models.add(model)
+        families.add(actual_family)
+    return True
 
 
 def verified_receipt(store, request):
@@ -69,6 +88,16 @@ def verified_receipt(store, request):
     import json as _json
 
     receipt = _json.loads(row["receipt"])
+    if (row['status'] not in {GATED,PR_OPEN,APPROVED,LIVE_COMPLETE}
+            or receipt.get('simulated') is not False
+            or row['attempt_generation'] != row['cancellation_generation']
+            or request.get('attempt_generation') != row['attempt_generation']
+            or request.get('build_id') != row['build_id']
+            or not re.fullmatch('[a-f0-9]{64}',row.get('contract_digest') or '')
+            or receipt.get('contract_digest') != row['contract_digest']
+            or request.get('contract_digest') != row['contract_digest']
+            or request.get('frozen_digest') != receipt.get('frozen_digest')):
+        return None
     if (receipt.get("gate") or {}).get("status") != "passed":
         return None
     if (receipt.get("review") or {}).get("status") != "approved":
@@ -76,6 +105,17 @@ def verified_receipt(store, request):
     # The circuit is mandatory: a receipt without two distinct approving families is not publishable.
     circuit = receipt.get("circuit") or {}
     if circuit.get("status") != "approved" or not independent_circuit(circuit):
+        return None
+    preparation = receipt.get('preparation')
+    if preparation is not None:
+        if (not isinstance(preparation, dict) or preparation.get('synthetic') is not False
+                or preparation.get('preparer_model') != circuit.get('preparer_model')
+                or preparation.get('task_digest') != request.get('preparation_digest')
+                or preparation.get('write_paths') != request.get('write_scopes')
+                or any(preparation.get(k) != receipt.get(k)
+                       for k in ('spec_digest','base_sha','acceptance_digest'))):
+            return None
+    elif circuit.get('preparer_model') is not None:
         return None
     digest = _request_digest(request)
     if digest is None:
@@ -86,6 +126,17 @@ def verified_receipt(store, request):
     if sorted(receipt.get("allowed") or []) != paths:
         return None
     if receipt.get("artifact_digest") != digest:
+        return None
+    if (circuit.get('content_digest') != digest
+            or not isinstance(receipt.get('spec_digest'), str)
+            or circuit.get('spec_digest') != receipt['spec_digest']
+            or request.get('spec_digest') != receipt['spec_digest']
+            or not isinstance(receipt.get('acceptance_digest'), str)
+            or not re.fullmatch('[a-f0-9]{64}', receipt['acceptance_digest'])
+            or circuit.get('acceptance_digest') != receipt['acceptance_digest']
+            or request.get('acceptance_digest') != receipt['acceptance_digest']
+            or (circuit.get('coverage') or {}).get('complete') is not True
+            or circuit.get('author_model') != receipt.get('author_model')):
         return None
     if (receipt.get("review") or {}).get("content_digest") != digest:
         return None

@@ -1,0 +1,12 @@
+{
+  "after_sha256": "6d7c42641b5fd59f4446e51bd6ecec1c7de4dde5aa8e9b0638536529321fb7fb",
+  "base_reference": "63bdece8056136209e0e3d2e68dbf0879005fec9",
+  "before_sha256": "f7b21e65ca79d30bee41a3fc9ff7840f395f2dcaf3c0d4be250ea9099c3010c7",
+  "feature_id": "002",
+  "path": "demo/forum-app/build.gradle",
+  "product_runtime": "postgresql",
+  "qualified": false,
+  "quarkus_bom": "3.40.1",
+  "schema_version": 1,
+  "sqlite_scope": "operator_and_test_only"
+}

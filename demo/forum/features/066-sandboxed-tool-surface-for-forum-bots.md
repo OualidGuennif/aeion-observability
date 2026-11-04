@@ -1,15 +1,18 @@
 ---
 id: 066
+sequence: 64
 title: "Sandboxed tool surface for forum bots"
 area: agents
 size: M
 parallel: false
 phase: P3
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/"]
 depends_on: [059, 052, 020, 011]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 066 — Sandboxed tool surface for forum bots
@@ -21,9 +24,19 @@ Qualify distinct three-tool participant and moderator brokers with actual OS con
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_d.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Bind distinct participant/moderator three-tool broker adapters.
+2. Qualify real OS confinement with fake inference and synthetic canaries.
+3. Prove cross-profile, host/network/credential, revocation and cancellation refusals.
+
+**Scope:**
 
 - Participant broker tools: read_threads, read_corpus, submit_draft with bounded typed schemas and server-derived identity; unavailable corpus returns an explicit empty/unavailable result.
 - Moderator broker tools: read_queue_item, read_rules, submit_proposal; no general local-assistant profile or skill loading.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_d.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

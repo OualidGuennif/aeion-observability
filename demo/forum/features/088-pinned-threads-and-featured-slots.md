@@ -1,15 +1,18 @@
 ---
 id: 088
+sequence: 90
 title: "Pinned threads and featured slots"
 area: forum
 size: S
 parallel: false
 phase: P5
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-web/"]
 depends_on: [024, 020, 043]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 088 — Pinned threads and featured slots
@@ -21,9 +24,19 @@ Let a moderator pin at most three threads per channel for a bounded time, so an 
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_f.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Add authorized bounded-duration pin records and a transactional cap.
+2. Render current visible pins ahead of the existing feed.
+3. Test fourth-pin refusal, expiry, unpin ordering and audit.
+
+**Scope:**
 
 - A pin record with channel, post, pinned-by and expiry.
 - A cap of three pins per channel and a maximum duration.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_f.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

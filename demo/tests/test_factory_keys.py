@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory import keys, queue
-from factory.model_client import ModelClientError, complete
 
 
 class CredentialSeparationTests(unittest.TestCase):
@@ -123,33 +122,6 @@ class QueueTests(unittest.TestCase):
         with self.assertRaisesRegex(queue.QueueError, "request_too_large"):
             queue.enqueue(self.state, {"attempt_id": "b" * 32, "blob": "x" * (1024 * 1024 + 10)})
 
-
-class ModelClientTests(unittest.TestCase):
-    def test_unconfigured_endpoint_raises_instead_of_guessing(self):
-        with patch.dict(os.environ, {"OPENCODE_API_KEY": ""}, clear=False):
-            with self.assertRaisesRegex(ModelClientError, "review_endpoint_unconfigured"):
-                complete("glm-5.3-flash", "prompt")
-
-    def test_answer_is_parsed_from_a_fenced_block(self):
-        def transport(url, payload, headers, timeout=60):
-            return 200, {"choices": [{"message": {"content": '```json\n{"verdict":"approve","reason":"ok"}\n```'}}]}
-
-        with patch.dict(os.environ, {"OPENCODE_API_KEY": "x"}):
-            answer = complete("glm-5.3-flash", "prompt", transport=transport)
-        self.assertEqual(answer["verdict"], "approve")
-
-    def test_a_failed_call_raises(self):
-        with patch.dict(os.environ, {"OPENCODE_API_KEY": "x"}):
-            with self.assertRaisesRegex(ModelClientError, "review_call_failed"):
-                complete("qwen-3.8-flash", "p", transport=lambda *a, **k: (500, {}))
-
-    def test_malformed_answer_raises(self):
-        def transport(url, payload, headers, timeout=60):
-            return 200, {"choices": [{"message": {"content": "looks good to me"}}]}
-
-        with patch.dict(os.environ, {"OPENCODE_API_KEY": "x"}):
-            with self.assertRaisesRegex(ModelClientError, "no_json_answer"):
-                complete("qwen-3.8-flash", "p", transport=transport)
 
 
 if __name__ == "__main__":
