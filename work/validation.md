@@ -1773,3 +1773,24 @@ this small local correction; protected observer CI/review is still pending, not 
   in `demo/tests/test_sandbox_unmounted.py`, and updated `demo/tests/test_forum_content_target.py`
   for automatic `TaskPreparer` wiring so all `683` tests in `demo/tests` pass under
   `demo/.local/venv/bin/python` and Docker-free host unit tests pass under system `python3`.
+
+## Observability PR #18 release and green main synchronization — 2026-11-04
+
+- Opened PR #18 to merge the 77+ commit backlog from `develop` into protected `main`:
+  - Fixed runner acceptance artifact resolution in `demo/app/runner.py` for unmounted OpenShell
+    sandboxes (`host_mounts=False`, `include_workdir=False`), seeding candidate source when `artifact`
+    is not pre-resolved.
+  - Fixed candidate write preservation across agent sessions during handover: `prepare_handover`
+    now collects unmounted sandbox writes to the host workspace before creating `HANDOVER.md` and
+    evaluates against the in-sandbox workspace path without re-seeding the initial stub.
+  - Implemented `seed_in`, `collect`, and `sync_out` on `LocalSandbox` in `demo/tests/local_sandbox.py`
+    to allow complete three-tier development qualification without OpenShell.
+- CI and reviews:
+  - Recorded exact-head reviews (`707ed37`, `35282cb`, `4fabe16`) with commit review comments and PR reviews.
+  - PR #18 CI passed all required workflows: `docker-demo` (2m28s, 4/4 scenarios and 3/3 tiers pass),
+    `offline-examples` (50s), `Knowledge, links and repository health` (5s), and `Architecture refresh` (29s).
+  - Merged PR #18 to `origin/main` as commit `ae5a6ef1441a418402e42e61619424b11435a01c`.
+  - Post-merge CI runs on `main` both succeeded: `CI` (databaseId `41798806347`) and `Architecture refresh`
+    (databaseId `41798806370`).
+  - Synced `develop` with `origin/main` at merge commit `4557d1463640aa0d9dfe76328232b941f6e579a9`;
+    local `main` fast-forwarded to `ae5a6ef`. `develop` and `main` trees are byte-for-byte identical.

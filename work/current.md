@@ -34,13 +34,13 @@ Updated 2026-11-03, Europe/Paris. Read this first; older HANDOVER blocks are his
 - Blocker: These two approvals certify this exact baseline packet, not future features or general model superiority. Resource estimates are not additional bank invoices. Recalled memory, traces and model votes cannot grant permissions or override checks.
 - Evidence: Ignored v6/telemetry-readback.json confirms Langfuse generation counts and exact Hindsight documents; claude-mem execution checkpoints were also read back. [Telemetry contract](../knowledge/operations/telemetry-contract.md) and [Flue factory contract](../knowledge/components/factory-flue.md).
 
-## Observability backlog and main synchronization — PR #18 OPEN, QUALIFYING
+## Observability backlog and main synchronization — MERGED TO MAIN
 
 - Owner decision: Merge all approved aeion-observability work into main after verifying it is clean and ready; no force-push or protection bypass.
-- State: PR #18 opened for develop -> main (77 commits ahead of ca9532a0edd4a8c46eb6cd4244fdfffd2925ef64). Hardened runner acceptance artifact resolution and handover collection for unmounted OpenShell sandboxes; all 3 tiers qualified.
-- Next: Commit runner/local_sandbox updates, record review, push to origin/develop, verify green CI on PR #18, and merge into main via merge commit.
-- Blocker: Awaiting CI completion on PR #18 before merge. No protection bypass or squash-merge allowed.
-- Evidence: [PR #18](https://github.com/OualidGuennif/aeion-observability/pull/18), local qualify_flue (all 3 tiers pass), qualify_scenarios (4/4 pass), 683 unit tests pass.
+- State: PR #18 merged to main as commit `ae5a6ef1441a418402e42e61619424b11435a01c` after all required CI checks (docker-demo, offline-examples, doc-links, knowledge-check, architecture-refresh) passed green. Post-merge CI and Architecture refresh workflows on origin/main passed green. develop synced with origin/main at commit `4557d1463640aa0d9dfe76328232b941f6e579a9` (trees are byte-identical, zero diff).
+- Next: Proceed with remaining factory roadmap milestones (live product activation, PostgreSQL/React qualification).
+- Blocker: Factory live product activation remains gated by product readiness.
+- Evidence: [PR #18](https://github.com/OualidGuennif/aeion-observability/pull/18), main commit `ae5a6ef`, develop sync commit `4557d14`, green CI runs 41798358482 and 41798806347.
 
 ## Execution, isolation and recovery — IMPLEMENTED LOCALLY
 
