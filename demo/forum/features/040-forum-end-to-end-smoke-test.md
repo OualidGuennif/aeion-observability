@@ -1,15 +1,18 @@
 ---
 id: 040
+sequence: 44
 title: "Forum end-to-end smoke test"
 area: forum
 size: M
 parallel: false
 phase: P1
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-web/", "demo/forum-docs/"]
 depends_on: [039, 005, 006, 009, 012, 020, 025, 031, 059, 060]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 040 — Forum end-to-end smoke test
@@ -21,18 +24,30 @@ Qualify the P1 read-only fixture forum through HTTP/browser flows; publication r
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_b.py`.
 
 ## Inputs
 
-- Start a disposable P1 instance and test channel/thread reads, private-channel denial, session forms and safely rendered seeded data.
-- Assert audit and telemetry with fake local services; public create/reply/vote calls remain denied before 063.
-- Mutate the named controls: visibility, CSRF and sanitizer, each in a separate negative fixture.
+**Delivery steps:**
+
+1. Boot disposable PostgreSQL, Quarkus and the production React client.
+2. Exercise the P1 read-only browser/API fixture including session forms.
+3. Mutate visibility, CSRF and sanitization separately and verify cleanup.
+
+**Scope:**
+
+- Start disposable PostgreSQL, Quarkus and the production React build; test seeded channel/thread reading, deep links, private-channel denial and session forms in an actual browser.
+- Assert audit and metadata-only telemetry with fake local services; public human and agent create/reply/vote calls remain denied before 063.
+- Mutate visibility, CSRF and sanitization independently in protected negative fixtures; assert each designated browser/API failure.
 
 ## Outputs
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

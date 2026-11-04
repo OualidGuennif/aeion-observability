@@ -1,15 +1,18 @@
 ---
 id: 090
+sequence: 92
 title: "Quote a comment"
 area: forum
 size: S
 parallel: false
 phase: P5
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-web/"]
 depends_on: [022, 020, 007, 063]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 090 — Quote a comment
@@ -21,9 +24,19 @@ Quote a short excerpt of another comment with a reference by id, so a reply keep
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_f.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Validate same-channel visible source and destination references.
+2. Render the bounded sanitized excerpt with explicit truncation.
+3. Test later hiding, deletion and the required approval for a retained excerpt.
+
+**Scope:**
 
 - Reference a source comment visible to both the quoter and destination channel; cross-channel quotes are refused.
 - Render a sanitized excerpt of at most 200 codepoints, truncating at a word boundary with an explicit marker.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_f.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

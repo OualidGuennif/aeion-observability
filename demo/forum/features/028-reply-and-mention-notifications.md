@@ -1,15 +1,18 @@
 ---
 id: 028
+sequence: 27
 title: "Reply and mention notifications"
 area: forum
 size: M
 parallel: false
 phase: P1
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-web/"]
 depends_on: [022, 020]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 028 — Reply and mention notifications
@@ -21,9 +24,19 @@ Notify an author when someone replies to their post or names them, with a bounde
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_b.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Add deduplicated reply/mention notification records.
+2. Build a bounded inbox and recheck target visibility at read time.
+3. Test repeated events, unknown handles and hidden/removed targets.
+
+**Scope:**
 
 - `notifications` table with recipient, kind, target and read flag.
 - Generation on reply and on `@handle` mention, deduplicated per target.
@@ -34,6 +47,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_b.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

@@ -1,15 +1,18 @@
 ---
 id: 053
+sequence: 54
 title: "Moderation audit trail"
 area: moderation
 size: S
 parallel: false
 phase: P2
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-web/"]
 depends_on: [009, 046, 047, 048, 051]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 053 — Moderation audit trail
@@ -21,9 +24,19 @@ Route every moderation action through the hash-chained log with a stable action 
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_c.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Route each existing moderation command to its fixed audit code.
+2. Add authorized per-target history and a chain-verification job.
+3. Test rollback/concurrent order and absence of content in audit records.
+
+**Scope:**
 
 - Action codes covering hold, approve, reject, lock, sanction, appeal and override.
 - A per-target history view for moderators.
@@ -33,10 +46,12 @@ Content and model output are untrusted. Canonical definition: `tools/specs_c.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 
-The application role keeps INSERT-only rights on the audit table.
+The application can invoke only the append-only audit function; it has no direct INSERT, UPDATE or DELETE grant on audit history. The separate verifier has restricted read access.
 
 This invariant and the acceptance cases belong to planned protected check `agora-053`.
 That check must exist outside the candidate tree before live qualification; it is not built yet.

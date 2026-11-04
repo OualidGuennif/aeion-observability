@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  docs-gates:
+    name: Knowledge, links and repository health
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - run: ./tools/knowledge/knowledge-check
+      - name: doc-links (with --diff on pull requests)
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [[ -n "$BASE_REF" ]]; then ./tools/knowledge/doc-links --diff "origin/$BASE_REF"; else ./tools/knowledge/doc-links; fi
+      - run: ./tools/repo-health/repo-health
+      - run: ./tools/factory-tests
+      - name: efficiency bundle is current
+        run: ./tools/efficiency/bundle && git diff --exit-code efficiency/efficiency-bundle.md
+
+  product-artifacts:
+    name: Product artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5, verified 2026-11-03
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+        with:
+          gradle-version: '9.8.2'
+          cache-disabled: true
+      - name: Backend tests and packaged application
+        env:
+          AGORA_SESSION_SECRET: ci-disposable-session-secret-0123456789abcdef
+          AEION_KAFKA_ENABLED: 'false'
+        run: |
+          test -f demo/forum-app/build.gradle
+          gradle -p demo/forum-app test quarkusBuild --console=plain --no-daemon
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: hashFiles('demo/forum-web/package.json') != ''
+        with:
+          node-version: '24'
+      - name: React application checks (once feature 014 introduces the web package)
+        if: hashFiles('demo/forum-web/package.json') != ''
+        working-directory: demo/forum-web
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run typecheck
+          npm test -- --run
+          npm run build
+
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    # On a pull request the action lists the PR's commits through the API.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: google/osv-scanner-action/osv-scanner-action@98b584ee2ed2da3935ccce10e06739d54cdcd20b # v2.0.0
+        with:
+          scan-args: --recursive ./
+
+  sast-scan:
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # Product sources live under demo/ in this repository and must be scanned.
+      - run: semgrep scan --config p/owasp-top-ten --error --exclude demo/forum-mobile/package-lock.json
+# Keep action revisions pinned; review upstream changes before updating them.

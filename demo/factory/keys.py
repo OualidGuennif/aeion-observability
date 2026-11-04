@@ -5,9 +5,9 @@ exactly one role, and a process is allowed to hold exactly the roles it needs:
 
 | Credential | Role | Capabilities | Who may hold it |
 | --- | --- | --- | --- |
-| ``GH_BUILD_KEY`` | build | ``contents:read`` | build agents that only clone and read |
+| ``GH_BUILD_KEY`` | build | ``contents:read`` | trusted source synchronizer, never model workers |
 | ``GH_API_KEY`` | publish | ``contents:write``, ``pull_requests:write`` | one short-lived publisher process |
-| ``GH_RELEASE_KEY`` | release | ``contents:write``, ``pull_requests:write`` | the human release operator only |
+| ``GH_RELEASE_KEY`` | release | ``contents:write``, ``pull_requests:write``, ``administration:read`` | isolated deterministic release process |
 | ``OPENCODE_API_KEY`` | inference | inference only | the supervisor, the relay, the review circuit |
 
 ``GH_TOKEN`` and ``GITHUB_TOKEN`` are ambient aliases of the publish role: they are scrubbed like
@@ -15,8 +15,9 @@ it, because a CI runner or a shell may inject one without the factory asking.
 
 The application scrubs every publish-class credential from its own environment at start-up, so a
 worker, an agent, or anything it spawns cannot read or inherit it. The publisher reloads its key
-from the owner's private file for the duration of one publish, and nothing else. Branch protection
-is the second lock: even a stolen publish key cannot merge into ``main``.
+from the owner's private file for the duration of one operation, and nothing else. Branch protection
+independently requires exact-head CI. PAT scopes alone cannot distinguish publication from merging;
+the process boundary enforces those roles, not a claim about stolen-token immunity.
 """
 import os
 
@@ -26,7 +27,7 @@ ROLES = ("build", "publish", "release", "inference")
 CREDENTIALS = {
     "GH_BUILD_KEY": ("build", ("contents:read",)),
     "GH_API_KEY": ("publish", ("contents:write", "pull_requests:write")),
-    "GH_RELEASE_KEY": ("release", ("contents:write", "pull_requests:write")),
+    "GH_RELEASE_KEY": ("release", ("contents:write", "pull_requests:write", "administration:read")),
     "OPENCODE_API_KEY": ("inference", ()),
 }
 

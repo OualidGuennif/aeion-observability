@@ -12,7 +12,7 @@ const model = registerProvider();
 observeToFile();
 
 export function LocalAssistant() {
-  useModel(model, { compaction: false });
+  useModel(model, { compaction: false, thinkingLevel: 'medium' });
   useSandbox(restrictedLocal());
   useSkill(localChange);
   return [

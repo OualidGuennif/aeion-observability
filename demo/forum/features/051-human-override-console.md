@@ -1,15 +1,18 @@
 ---
 id: 051
+sequence: 52
 title: "Human override console"
 area: moderation
 size: M
 parallel: false
 phase: P2
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-web/"]
 depends_on: [046, 005, 006, 009, 043]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 051 — Human override console
@@ -21,18 +24,30 @@ Let the administrator overturn any moderation action from one page, with a manda
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_c.py`.
 
 ## Inputs
 
-- A console listing recent actions with their evidence and a restore control.
-- A mandatory free-text justification stored with the override.
-- A confirmation step and a limit on overrides per minute.
+**Delivery steps:**
+
+1. Add the fresh-session administrator React override view.
+2. Store bounded private justification separately from fixed-code audit records.
+3. Test confirmation/CSRF/rate limits, restoration and non-admin refusals.
+
+**Scope:**
+
+- An administrator React console lists authorized actions with safe bounded evidence and restore controls.
+- Require a bounded private justification record linked by opaque ID; the append-only audit stores a fixed override code and that ID, never free text.
+- Require fresh authentication, CSRF, an explicit confirmation and a fixed override rate limit; current object/visibility checks remain enforced.
 
 ## Outputs
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

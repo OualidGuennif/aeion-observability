@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 import unittest
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -34,6 +35,26 @@ class MaterializeTests(unittest.TestCase):
     def test_refuses_empty_relative_path(self):
         with self.assertRaisesRegex(ValueError, "SANDBOX_SYNC_PATH"):
             boundary.materialize({"": self.payload("x")}, self.root)
+
+    def test_refuses_a_symlink_parent_in_the_destination(self):
+        outside = self.root / 'outside'
+        outside.mkdir()
+        destination = self.root / 'destination'
+        destination.mkdir()
+        (destination / 'linked').symlink_to(outside, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, 'SANDBOX_SYNC_PATH'):
+            boundary.materialize({'linked/escape.txt': self.payload('no')}, destination)
+        self.assertFalse((outside / 'escape.txt').exists())
+
+    def test_collection_never_follows_a_sandbox_symlink(self):
+        source = self.root / 'source'
+        source.mkdir()
+        (self.root / 'outside.txt').write_text('not an artifact')
+        (source / 'link.txt').symlink_to(self.root / 'outside.txt')
+        result = subprocess.run([sys.executable, '-c', boundary.COLLECT_SCRIPT,
+                                 str(source), '1000'], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn('not an artifact', result.stdout)
 
 
 class SyncOutTests(unittest.TestCase):

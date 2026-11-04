@@ -5,6 +5,7 @@ import sys
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'app'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from profiles import PROFILE_VERSION, PROFILES
 from selection import recommend
 
@@ -20,9 +21,9 @@ def cohort(profile, cost='0.01', seconds=2, task='pricing-js-v1', runtime='flue-
 
 class SelectionTests(unittest.TestCase):
     def test_objectives_choose_from_the_same_task(self):
-        runs=cohort('glm',cost='0.01',seconds=4)+cohort('glm-full',cost='0.03',seconds=1)
+        runs=cohort('glm',cost='0.01',seconds=4)+cohort('haiku',cost='0.03',seconds=1)
         self.assertEqual(recommend(runs,'pricing-js-v1','cost')['profile'],'glm')
-        self.assertEqual(recommend(runs,'pricing-js-v1','speed')['profile'],'glm-full')
+        self.assertEqual(recommend(runs,'pricing-js-v1','speed')['profile'],'haiku')
         self.assertEqual(recommend(runs,'cart-js-v1')['basis'],'provisional_default')
         self.assertEqual(len(recommend(runs,'pricing-js-v1')['candidates']),2)
 
@@ -44,9 +45,9 @@ class SelectionTests(unittest.TestCase):
                 self.assertEqual(recommend(runs,'pricing-js-v1')['basis'],'provisional_default')
 
     def test_each_execution_tier_selects_from_its_own_runs(self):
-        runs=cohort('glm',runtime='flue-local')+cohort('glm-full',runtime='flue-openshell')
+        runs=cohort('glm',runtime='flue-local')+cohort('haiku',runtime='flue-openshell')
         self.assertEqual(recommend(runs,'pricing-js-v1',runtime='flue-local')['profile'],'glm')
-        self.assertEqual(recommend(runs,'pricing-js-v1')['profile'],'glm-full')
+        self.assertEqual(recommend(runs,'pricing-js-v1')['profile'],'haiku')
         self.assertEqual(recommend(runs,'pricing-js-v1',runtime='flue-just-bash')['basis'],'provisional_default')
 
     def test_run_ids_are_limited_to_the_selected_gate_cohort(self):

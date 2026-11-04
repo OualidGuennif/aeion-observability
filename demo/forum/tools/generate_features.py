@@ -8,10 +8,11 @@ The specs_*.py definitions are canonical. Validate their graph and dispatch meta
 rendering Markdown, the manifest and index. Forward references are legal; cycles are not.
 Spec: demo/forum/PLAN.md
 """
+import hashlib
 import json
 import re
 import sys
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -29,10 +30,12 @@ SPECS = A + B + C + D + E + F
 SIZES = {"S", "M", "L"}
 AREAS = {"foundation", "forum", "moderation", "agents", "corpus", "ops"}
 PHASES = {f"P{i}": i for i in range(6)}
-PRODUCT = "demo/forum/product/"
+PRODUCT_ROOTS = ("demo/forum-app/", "demo/forum-web/", "demo/forum-docs/")
+ARCHITECTURE = "quarkus-postgresql-react-web-v1"
 
 TEMPLATE = """---
 id: {id:03d}
+sequence: {sequence}
 title: "{title}"
 area: {area}
 size: {size}
@@ -43,6 +46,8 @@ write_paths: {write_paths}
 depends_on: {deps}
 owner: builder
 status: proposed
+architecture: {architecture}
+architecture_digest: {architecture_digest}
 ---
 
 # {id:03d} — {title}
@@ -54,9 +59,17 @@ status: proposed
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/{source}`.
 
 ## Inputs
+
+**Delivery steps:**
+
+{delivery}
+
+**Scope:**
 
 {scope}{constraints}
 
@@ -64,6 +77,8 @@ Content and model output are untrusted. Canonical definition: `tools/{source}`.
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 
@@ -102,6 +117,26 @@ def checks(items):
     return "\n".join(f"- [ ] {item}" for item in items)
 
 
+def architecture_digest():
+    return hashlib.sha256((ROOT / 'ARCHITECTURE.md').read_bytes()).hexdigest()
+
+
+def execution_order():
+    """Stable topological order: ready prerequisites first, then phase and stable ID."""
+    pending = {s['id']: s for s in SPECS}
+    result = []
+    completed = set()
+    while pending:
+        ready = [s for s in pending.values() if set(s['deps']) <= completed]
+        if not ready:
+            raise ValueError('catalog_has_no_topological_order')
+        item = min(ready, key=lambda s: (PHASES[s['phase']], s['id']))
+        result.append(item)
+        completed.add(item['id'])
+        del pending[item['id']]
+    return result
+
+
 def validate():
     problems = []
     ids = [s["id"] for s in SPECS]
@@ -117,17 +152,21 @@ def validate():
             problems.append(f"{sid:03d}: unknown size {spec['size']}")
         if any(not spec.get(k) for k in ("accept", "scope", "goal", "security", "test", "out")):
             problems.append(f"{sid:03d}: every contract section is mandatory")
+        steps = spec.get('delivery')
+        if (not isinstance(steps, list) or not 2 <= len(steps) <= 4
+                or any(not isinstance(x, str) or not x.strip() or len(x) > 220 for x in steps)):
+            problems.append(f"{sid:03d}: two to four bounded delivery steps are mandatory")
         if spec.get("phase") not in PHASES or spec.get("tier") != 3:
             problems.append(f"{sid:03d}: phase P0..P5 and builder tier 3 are mandatory")
         if type(spec.get("parallel")) is not bool:
             problems.append(f"{sid:03d}: parallel must be a boolean")
         scopes = spec.get("write_paths", [])
-        if not scopes or any(not isinstance(p, str) or not p.startswith(PRODUCT)
+        if not scopes or any(not isinstance(p, str) or not p.startswith(PRODUCT_ROOTS)
                              or not re.fullmatch(r"[A-Za-z0-9_./-]+", p)
-                             or any(part in {"..", ".git"} for part in PurePosixPath(p).parts)
+                             or any(part in {".", "..", ".git"} for part in p.rstrip('/').split('/'))
                              or "//" in p or "/./" in p for p in scopes):
-            problems.append(f"{sid:03d}: write scopes must be literal paths inside {PRODUCT}")
-        if spec.get("parallel") and PRODUCT in scopes:
+            problems.append(f"{sid:03d}: write scopes must be literal paths inside the product roots")
+        if spec.get("parallel") and any(p in scopes for p in PRODUCT_ROOTS):
             problems.append(f"{sid:03d}: parallel work cannot reserve the whole product tree")
         if len(spec["deps"]) != len(set(spec["deps"])):
             problems.append(f"{sid:03d}: duplicate dependencies")
@@ -163,6 +202,18 @@ def validate():
         problems.append("083: daily coverage must match the three schema categories")
     if len({slug(s["title"]) for s in SPECS}) != len(SPECS):
         problems.append("two features share a slug, so a file name would collide")
+    parallel = [s for s in SPECS if s.get('parallel')]
+    for pos, left in enumerate(parallel):
+        for right in parallel[pos + 1:]:
+            if any(a == b or (a.endswith('/') and b.startswith(a))
+                   or (b.endswith('/') and a.startswith(b))
+                   for a in left.get('write_paths', []) for b in right.get('write_paths', [])):
+                problems.append(f"{left['id']:03d}/{right['id']:03d}: parallel write scopes overlap")
+    # Stack-specific regressions are a catalog error, not a task for the builder to resolve.
+    for spec in SPECS:
+        text = '\n'.join(str(spec.get(k, '')) for k in ('goal', 'scope', 'accept', 'test', 'security'))
+        if re.search(r'FastAPI|pytest|extra=forbid|JavaScript.disabled|without JavaScript|no client framework', text, re.I):
+            problems.append(f"{spec['id']:03d}: superseded application stack requirement")
     return problems
 
 
@@ -173,6 +224,8 @@ def render(spec):
         if key in spec:
             constraints.append(f"**{key}:** " + ", ".join(spec[key]) + ".")
     return TEMPLATE.format(
+        architecture=ARCHITECTURE, architecture_digest=architecture_digest(),
+        sequence=next(i for i, s in enumerate(execution_order(), 1) if s['id'] == spec['id']),
         id=spec["id"],
         title=spec["title"],
         area=spec["area"],
@@ -185,6 +238,7 @@ def render(spec):
         deps=deps,
         goal=spec["goal"],
         scope=bullets(spec["scope"]),
+        delivery='\n'.join(f'{i}. {step}' for i, step in enumerate(spec['delivery'], 1)),
         out=bullets(spec["out"]),
         accept=checks(spec["accept"]),
         security=spec["security"],
@@ -193,14 +247,18 @@ def render(spec):
 
 
 def manifest():
+    sequence = {s['id']: i for i, s in enumerate(execution_order(), 1)}
     return {
         "schema_version": 2,
+        "architecture": ARCHITECTURE,
+        "architecture_digest": architecture_digest(),
         "generator": "demo/forum/tools/generate_features.py",
         "plan": "demo/forum/PLAN.md",
         "count": len(SPECS),
         "features": [
             {
                 "id": f"{s['id']:03d}",
+                "sequence": sequence[s['id']],
                 "title": s["title"],
                 "area": s["area"],
                 "size": s["size"],
@@ -208,6 +266,8 @@ def manifest():
                 "phase": s["phase"], "tier": s["tier"], "write_paths": s["write_paths"],
                 "depends_on": [f"{d:03d}" for d in s["deps"]],
                 "file": f"{s['id']:03d}-{slug(s['title'])}.md",
+                "architecture": ARCHITECTURE,
+                "architecture_digest": architecture_digest(),
                 **{key: s[key] for key in ("categories", "required_categories") if key in s},
             }
             for s in SPECS
@@ -220,20 +280,24 @@ def index():
         "# Feature index",
         "",
         "Generated by `tools/generate_features.py`; edit canonical `tools/specs_*.py`, then regenerate.",
+        "All 100 features target [Quarkus + PostgreSQL + React web](../ARCHITECTURE.md).",
         "The contract is",
         "[PLAN.md](../PLAN.md). Build one feature, or queue several: the queue honours `depends_on`",
         "and refuses a `parallel: false` feature beside another build.",
         "",
         "All builders use tier 3. IDs are not execution order; dependencies may have higher IDs.",
+        "Read this table from top to bottom: its sequence puts every prerequisite before its consumer.",
+        "Each MD has three small delivery steps; scope and protected acceptance remain the completion contract.",
         "Parallel work also requires disjoint declared write scopes and separate worktrees.",
         "",
-        "| # | Feature | Area | Phase | Size | Parallel | Depends on |",
-        "| --- | --- | --- | --- | --- | --- | --- |",
+        "| Sequence | Stable ID | Feature | Area | Phase | Size | Parallel | Depends on |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
-    for spec in SPECS:
+    for sequence, spec in enumerate(execution_order(), 1):
         deps = ", ".join(f"{d:03d}" for d in spec["deps"]) or "—"
         parallel = "yes" if spec["parallel"] else "no"
-        lines.append(f"| {spec['id']:03d} | {spec['title']} | {spec['area']} | {spec['phase']} | {spec['size']} | {parallel} | {deps} |")
+        file = f"{spec['id']:03d}-{slug(spec['title'])}.md"
+        lines.append(f"| {sequence:03d} | {spec['id']:03d} | [{spec['title']}]({file}) | {spec['area']} | {spec['phase']} | {spec['size']} | {parallel} | {deps} |")
     counts = {}
     for spec in SPECS:
         counts[spec["area"]] = counts.get(spec["area"], 0) + 1

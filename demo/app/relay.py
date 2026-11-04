@@ -5,11 +5,13 @@ import json
 import secrets
 import ssl
 import threading
+from decimal import Decimal
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from token_budget import TokenBudget, admit, PROVIDER_RESERVE
+from provider_usage import ReportedUsage
 
 
 def _tls_context():
@@ -23,17 +25,38 @@ from json_input import loads
 
 
 class ContextRelay:
-    def __init__(self, model, api_key, limit, checkpoint, event, *, upstream=None, counter=None, bind=None, admission=None):
+    def __init__(self, model, api_key, limit, checkpoint, event, *, upstream=None, counter=None, bind=None, admission=None,
+                 api='openai-completions', prices=None, cost_limit=None, required_effort=None,max_output_tokens=4096,
+                 required_reasoning_effort=None):
+        if type(max_output_tokens) is not int or not 1 <= max_output_tokens <= 65536:
+            raise ValueError('OUTPUT_LIMIT_INVALID')
+        self.max_output_tokens=max_output_tokens
+        if required_reasoning_effort not in (None,'low','high','max'):
+            raise ValueError('REASONING_EFFORT_INVALID')
+        self.required_reasoning_effort=required_reasoning_effort
         self.model = model.split("/", 1)[1]
         self.key, self.limit, self.checkpoint, self.event = api_key, limit, checkpoint, event
         self.counter = counter or TokenBudget(self.model)
-        self.upstream = upstream or "https://opencode.ai/inference/go/openai/v1/chat/completions"
+        self.context_basis = getattr(self.counter, 'context_basis', 'local_tokenizer')
+        if api not in ('openai-completions', 'anthropic-messages'):
+            raise ValueError('PROTOCOL_UNKNOWN')
+        self.api = api
+        self.route = '/v1/messages' if api == 'anthropic-messages' else '/v1/chat/completions'
+        self.upstream = upstream or ('https://opencode.ai/inference/go/anthropic/v1/messages'
+            if api == 'anthropic-messages' else 'https://opencode.ai/inference/go/openai/v1/chat/completions')
+        self.prices, self.cost_limit = prices, None if cost_limit is None else Decimal(str(cost_limit))
+        self.required_effort = required_effort
+        self.projected_cost = Decimal('0')
+        self.reported_usage = []
+        self.accounting_complete = True
         self.token = secrets.token_urlsafe(32)
         self.closed = False
         self.active = threading.Lock()
+        self.dispatch_lock = threading.Lock()
         self.responses = []
         self.last_count = None
         self.forwarded_count = 0
+        self.forwarded_counts = []
         self.last_error_code = None
         # Harnesses sometimes submit the same turn twice — once as a prompt and once as a
         # JSON payload. An identical body with no new conversation state is a duplicate and
@@ -58,9 +81,15 @@ class ContextRelay:
 
             def do_POST(self):
                 authorization = self.headers.get("Authorization", "")
-                if relay.closed or not hmac.compare_digest(authorization, "Bearer " + relay.token):
+                api_key = self.headers.get('x-api-key', '')
+                authenticated = hmac.compare_digest(authorization, "Bearer " + relay.token) or hmac.compare_digest(api_key, relay.token)
+                if relay.closed or not authenticated:
                     return self.deny(403, "GATE_CLOSED")
-                if self.path != "/v1/chat/completions" or not relay.active.acquire(blocking=False):
+                routes = {relay.route}
+                if relay.api == 'anthropic-messages':
+                    # Pi uses the pinned Anthropic SDK beta.messages path. No arbitrary query.
+                    routes.add(relay.route + '?beta=true')
+                if self.path not in routes or not relay.active.acquire(blocking=False):
                     return self.deny(409, "GATE_CLOSED")
                 try:
                     if relay.closed:
@@ -82,13 +111,23 @@ class ContextRelay:
                         return self.deny(409, "DUPLICATE_REQUEST")
                     relay.last_body_sha256 = digest
                     maximum = payload.get("max_tokens", payload.get("max_completion_tokens"))
+                    if type(maximum) is not int or not 1 <= maximum <= relay.max_output_tokens:
+                        raise ValueError('CONTEXT_UNKNOWN')
                     for key in ("max_tokens", "max_completion_tokens"):
-                        if key in payload and (type(payload[key]) is not int or not 1 <= payload[key] <= 4096):
+                        if key in payload and (type(payload[key]) is not int or not 1 <= payload[key] <= relay.max_output_tokens):
                             raise ValueError("CONTEXT_UNKNOWN")
+                    if relay.required_effort and (payload.get('thinking', {}).get('type') != 'adaptive'
+                            or payload.get('output_config', {}).get('effort') != relay.required_effort):
+                        raise ValueError('CONTEXT_UNKNOWN')
+                    if relay.required_reasoning_effort and (payload.get('thinking',{}).get('type')!='enabled'
+                            or payload.get('reasoning_effort')!=relay.required_reasoning_effort):
+                        raise ValueError('CONTEXT_UNKNOWN')
                     counted = relay.counter.count(payload)
                     relay.last_count = counted
-                    relay.event("context.preflight", **{"aeion.context.counted": counted,
-                                                       "aeion.context.hard_limit": 300000,
+                    relay.event("context.preflight", **{
+                                                       ('aeion.cost.input_token_bound' if relay.context_basis == 'provider_usage'
+                                                        else 'aeion.context.counted'): counted,
+                                                       'aeion.context.measurement_basis': relay.context_basis,
                                                        "aeion.context.reserve": PROVIDER_RESERVE,
                                                        "aeion.context.max_output": maximum,
                                                        "aeion.context.tokenizer_revision": getattr(relay.counter, "revision", "fixture")})
@@ -102,14 +141,40 @@ class ContextRelay:
                         relay.closed = True
                         relay.event("context.refused", **{"aeion.failure.code": stop})
                         return self.deny(409, stop)
-                    if not admit(counted, maximum) or counted >= min(relay.limit, 250000):
+                    context_count = counted
+                    if relay.context_basis == 'provider_usage':
+                        context_count = None
+                        if relay.forwarded_count:
+                            previous = relay.reported_usage[-1] if len(relay.reported_usage) == relay.forwarded_count else {}
+                            if (previous.get('complete') is not True
+                                    or any(type(previous.get(k)) is not int or previous[k] < 0
+                                           for k in ('input_tokens','output_tokens'))):
+                                relay.closed = True
+                                relay.last_error_code = 'USAGE_UNKNOWN'
+                                return self.deny(409, 'USAGE_UNKNOWN')
+                            context_count = previous['input_tokens']
+                            if context_count + previous['output_tokens'] > 300000:
+                                relay.closed = True
+                                relay.last_error_code = 'PROVIDER_CONTEXT_VIOLATION'
+                                return self.deny(409, relay.last_error_code)
+                    if context_count is not None and (not admit(context_count, maximum)
+                            or context_count >= min(relay.limit, 250000)):
                         relay.closed = True
-                        relay.checkpoint(counted, True)
+                        relay.last_error_code = 'AEION_HANDOVER'
+                        relay.checkpoint(context_count, True)
                         return self.deny(409, "AEION_HANDOVER")
-                    if counted >= max(1, relay.limit - 20000):
-                        relay.checkpoint(counted, False)
+                    if context_count is not None and context_count >= max(1, relay.limit - 20000):
+                        relay.checkpoint(context_count, False)
+                    if relay.prices is not None and relay.cost_limit is not None:
+                        input_rate = max(Decimal(str(relay.prices['input'])), Decimal(str(relay.prices.get('cacheWrite', 0))))
+                        projected = (Decimal(counted) * input_rate + Decimal(maximum) * Decimal(str(relay.prices['output']))) / 1000000
+                        if relay.projected_cost + projected > relay.cost_limit:
+                            relay.closed = True
+                            relay.last_error_code = 'BUDGET_STOP'
+                            return self.deny(409, 'BUDGET_STOP')
+                        relay.projected_cost += projected
                     headers = {name: value for name, value in self.headers.items()
-                               if name.lower() == "user-agent" or name.lower().startswith("x-opencode-")}
+                               if name.lower() in {'user-agent', 'anthropic-version', 'anthropic-beta'} or name.lower().startswith("x-opencode-")}
                     request = urllib.request.Request(relay.upstream, data=body, headers={**headers,
                         "Authorization": "Bearer " + relay.key, "Content-Type": "application/json",
                         "Accept-Encoding": "identity",
@@ -120,7 +185,10 @@ class ContextRelay:
                             return None
                     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect(),
                                                          urllib.request.HTTPSHandler(context=_tls_context()))
-                    relay.forwarded_count += 1
+                    if not relay.claim_forward(counted):
+                        self.deny(409,'RELAY_CLOSED')
+                        return
+                    usage = ReportedUsage()
                     with opener.open(request, timeout=45) as response:
                         relay.responses.append(response)
                         self.send_response(response.status)
@@ -132,9 +200,24 @@ class ContextRelay:
                             block = response.read1(65536)
                             if not block:
                                 break
+                            usage.feed(block)
                             self.wfile.write(block)
                             self.wfile.flush()
                         relay.responses.remove(response)
+                        summary=usage.summary()
+                        relay.reported_usage.append(summary)
+                        if (relay.prices is not None and relay.cost_limit is not None
+                                and summary.get('complete') is True):
+                            # The active lock serializes settlement with the next admission.
+                            # Keep the counted full-input price and the larger provider cost;
+                            # only finalized, unused output liability becomes available again.
+                            resource_cost=Decimal(str(summary['cost_usd']))
+                            spent_bound=max(resource_cost,projected)
+                            if type(summary.get('output_tokens')) is int and 0<=summary['output_tokens']<=maximum:
+                                spent_bound=max(resource_cost,
+                                    (Decimal(counted)*input_rate+Decimal(summary['output_tokens'])*
+                                     Decimal(str(relay.prices['output'])))/1000000)
+                            relay.projected_cost+=spent_bound-projected
                 except urllib.error.HTTPError as error:
                     relay.closed = True
                     relay.event("provider.rejected", **{"aeion.http.status": error.code})
@@ -154,13 +237,16 @@ class ContextRelay:
                     self.deny(error.code, code)
                 except (ValueError, TypeError, KeyError):
                     relay.closed = True
+                    relay.last_error_code = 'CONTEXT_UNKNOWN'
                     relay.event("context.refused", **{"aeion.failure.code": "CONTEXT_UNKNOWN"})
                     self.deny(409, "CONTEXT_UNKNOWN")
                 except (OSError, TimeoutError):
                     relay.closed = True
+                    relay.last_error_code = 'TRANSPORT_ERROR'
                     relay.event("provider.failed", **{"aeion.failure.code": "TRANSPORT_ERROR"})
                 except Exception:
                     relay.closed = True
+                    relay.last_error_code = 'CONTEXT_UNKNOWN'
                     relay.event("context.refused", **{"aeion.failure.code": "CONTEXT_UNKNOWN"})
                     self.deny(409, "CONTEXT_UNKNOWN")
                 finally:
@@ -175,10 +261,28 @@ class ContextRelay:
     def start(self):
         self.thread.start()
 
+    def claim_forward(self, counted):
+        # Shutdown and the liability counter share one ordering point. Once closed, local
+        # preflight cannot later start an uncounted provider request after a zero settlement.
+        with self.dispatch_lock:
+            if self.closed:
+                return False
+            self.forwarded_count += 1
+            self.forwarded_counts.append(counted)
+            return True
+
     def close(self):
-        self.closed = True
+        with self.dispatch_lock:
+            self.closed = True
         for response in self.responses[:]:
             response.close()
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=2)
+        # The daemon HTTP handler may still be appending the final usage after the SDK has
+        # read its stop event. Join that accounting boundary before the supervisor snapshots it.
+        if self.active.acquire(timeout=5):
+            self.active.release()
+        else:
+            self.accounting_complete = False
+            self.last_error_code = self.last_error_code or 'RELAY_ACCOUNTING_INCOMPLETE'

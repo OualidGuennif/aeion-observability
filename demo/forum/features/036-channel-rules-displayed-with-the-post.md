@@ -1,15 +1,18 @@
 ---
 id: 036
+sequence: 31
 title: "Channel rules displayed with the post"
 area: forum
 size: S
 parallel: false
 phase: P1
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-web/"]
 depends_on: [019, 021, 041]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 036 — Channel rules displayed with the post
@@ -21,9 +24,19 @@ Show the rules a post was judged under, linked to their version, so a moderation
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_b.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Store the exact rules version and primary rule code with a post.
+2. Render authorized immutable rules links in the React view.
+3. Change rules and prove old citations still resolve to their own version.
+
+**Scope:**
 
 - A rules version recorded with every post at creation.
 - A rules page per channel rendering the version in force.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_b.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

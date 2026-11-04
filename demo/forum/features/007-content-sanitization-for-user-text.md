@@ -1,15 +1,18 @@
 ---
 id: 007
+sequence: 7
 title: "Content sanitization for user text"
 area: foundation
 size: M
 parallel: false
 phase: P0
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/"]
 depends_on: [001]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 007 — Content sanitization for user text
@@ -21,9 +24,19 @@ Turn any submitted body into a small, safe HTML subset with length caps, so a po
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_a.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Define one bounded normalization and Markdown-rendering function.
+2. Allow only the declared safe markup and enforce both size caps.
+3. Pin XSS, Unicode and code-block fixtures and prove 413 without truncation.
+
+**Scope:**
 
 - A Markdown subset renderer that escapes raw HTML and allows only paragraphs, emphasis, lists, quotes and code blocks.
 - Length caps on characters and on rendered size.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_a.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

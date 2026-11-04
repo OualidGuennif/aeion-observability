@@ -73,13 +73,26 @@ never one:
 
 | Key | Role | Fine-grained permissions | Held by |
 | --- | --- | --- | --- |
-| `GH_BUILD_KEY` | build | Contents read-only, Pull requests read-only | build agents, and only if they must clone |
+| `GH_BUILD_KEY` | build | Contents read-only, Pull requests read-only | trusted source synchronizer; never a model worker |
 | `GH_API_KEY` | publish | Contents read/write, Pull requests read/write | the publisher process, for one publish |
-| `GH_RELEASE_KEY` | release | Contents read/write, Pull requests read/write | a human, at release time |
+| `GH_RELEASE_KEY` | release | Contents read/write, Pull requests read/write, Administration read-only | isolated deterministic release process |
 
 Scope each key to `OualidGuennif/aeion-autonomous-forum` only, give it an expiry, and never export
 it to an agent, a worker, the review circuit or CI. `demo/factory/keys.py` enforces the roles and
 `demo/app/settings.py` scrubs the publish class at start-up; a missing key fails closed.
+
+The separately reviewed maintainer bootstrap imports CI as well as the exact committed backend.
+Its publisher temporarily needs **Workflows read/write** on this product repository; ordinary
+workers remain forbidden from changing `.github/`. Remove that temporary permission after the
+bootstrap completes. GitHub refused the current bootstrap at tree creation with HTTP403, before
+any branch or PR existed. The owner will activate the permission later: do not retry until the
+owner confirms activation. The two complete approvals remain valid for the unchanged bundle.
+
+After that confirmation, run `bootstrap.py resume-publication --state <bootstrap-state>` in the
+isolated publisher environment. This phase only reads GitHub and rearms local state after checking
+the frozen main, absence of the deterministic branch/PR, exact stored request and the known
+effect-free403. Then use `publish` and the separate `release` environment; changed/uncertain
+remote state holds for reconciliation. Do not repeat model reviews or bypass required CI.
 
 ### 5.2 Branch protection and the required checks
 
@@ -182,8 +195,11 @@ Schedule it from `systemd` timers or cron, and fail the job on a non-zero exit.
    lists the expected builds (a restored `simulated_complete` build keeps its receipt).
 6. Only after a successful verification, remove the `.pre-restore` files.
 
-The factory's `Store` also reconciles expired leases at startup: a build that was dispatched when
-the process died returns to `queued` and is re-claimed, never blindly duplicated.
+The factory's `Store` reconciles expired leases at startup into `held/reconciliation_needed`,
+preserving the attempt identity. A crash does not prove that a paid call or forge action had no
+effect. Inspect the evidence and budget liability, then explicitly cancel the old request before
+admitting a retry. No automatic paid retry occurs. The worker's lease covers the longest target
+check deadline, three model call timeouts and a 60-second teardown allowance.
 
 ## 10. Rollback
 
@@ -211,8 +227,8 @@ without a migration.
 
 ## 13. Release plane
 
-Start the cockpit and open `http://127.0.0.1:8088/factory`. The **Release plane** panel is above the
-build panels.
+Start the cockpit and open `http://127.0.0.1:8088/factory`. The **Release test environment** panel
+is collapsed below build activity and loaded only when opened.
 
 | Action | Endpoint | What it does |
 | --- | --- | --- |

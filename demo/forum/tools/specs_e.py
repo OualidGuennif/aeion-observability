@@ -9,9 +9,9 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/'],
         'categories': ['tech', 'state', 'government'],
-        "deps": [2],
+        "deps": [2, 7, 29],
         "goal": "Define one news item — synthetic title, category, date, short excerpt, source label — with a stable id, so every later corpus feature shares one shape.",
         "scope": [
             'Strict schema: stable id, category enum tech/state/government, bounded title/excerpt/source_label, ISO date and synthetic=true.',
@@ -29,6 +29,11 @@ SPECS = [
         ],
         "security": 'A URL field is not supported, and URL-shaped text in every free-text field is rendered inert by 007/029. No item is fetched or interpreted as an instruction.',
         "test": "Validate a good item and four malformed ones; assert the exact refusals.",
+        'delivery': [
+            'Define the strict three-category synthetic item DTO and bounds.',
+            'Validate IDs/dates/labels and make URL-like text inert.',
+            'Reject missing synthetic flags, unknown categories, extra fields and oversize text.',
+        ],
     },
     {
         "id": 76,
@@ -38,7 +43,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [75, 2, 9],
         "goal": 'Load regular local corpus files in an offline job with only an explicit local Postgres transport; arbitrary internet/DNS egress remains denied.',
         "scope": [
@@ -57,6 +62,11 @@ SPECS = [
         ],
         "security": 'Deny general egress at OS policy; a fixed local database capability is the only required transport. Absence of an HTTP import is not isolation evidence.',
         "test": 'Load twice and inject malformed/symlink files; test real network-denial policy plus the permitted local DB connection. An import scan alone cannot qualify isolation.',
+        'delivery': [
+            'Read bounded regular corpus files from one confined local root.',
+            'Import by stable ID/checksum into PostgreSQL transactionally.',
+            'Replay imports and prove traversal/symlink and actual network-policy refusals.',
+        ],
     },
     {
         "id": 77,
@@ -66,13 +76,16 @@ SPECS = [
         "parallel": True,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum/product/corpus/items/', 'demo/forum/product/docs/corpus-style.md'],
+        'write_paths': [
+            'demo/forum-app/src/main/resources/corpus/items/',
+            'demo/forum-docs/corpus-style.md',
+        ],
         "deps": [75, 52],
         "goal": "Write two hundred plausible French news items across tech, state and government, clearly synthetic, so the forum has material without touching a real outlet.",
         "scope": [
-            'Exactly 200 validated synthetic French JSON items under corpus/items/, with invented source labels and no real-outlet quotations.',
-            'At least forty items per each of the three categories, dates spanning six months and no personally identifying content.',
-            'A style note only at docs/corpus-style.md; no app/schema/index changes, enabling parallel work with 082/086.',
+            'Exactly 200 validated synthetic French JSON items under demo/forum-app/src/main/resources/corpus/items/, with invented source labels and no real-outlet quotations.',
+            'At least forty items in each category, dates spanning six months and no personally identifying content.',
+            'Only this data directory and demo/forum-docs/corpus-style.md may change; no schema, application or index edits, preserving disjoint work with 082/086.',
         ],
         "out": [
             "Any quotation of a real publication.",
@@ -85,6 +98,11 @@ SPECS = [
         ],
         "security": "The corpus is data, never instructions; it is scanned by the injection guard like any body.",
         "test": "Validate all items, then grep for a list of real outlet names to assert none appears as a source.",
+        'delivery': [
+            'Write synthetic French data against the frozen item schema.',
+            'Check 200 unique items, three category minima and invented sources.',
+            'Deliver only the corpus directory and its small style note.',
+        ],
     },
     {
         "id": 78,
@@ -94,13 +112,13 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [76],
         "goal": "Fix the share of each category in a day's seeding — a third each, within tolerance — so one category cannot dominate the forum.",
         "scope": [
-            'Pin a daily target of one third per category with 5 percentage point tolerance on a fixed 300-selection simulation.',
-            'Choose category before item, transactionally counting selections with a seeded tie-break.',
-            'If a category is empty, redistribute among available categories and record degraded coverage; empty-all refuses dispatch.',
+            'Pin one-third daily share per category with five percentage-point tolerance in a frozen 300-selection simulation.',
+            'Choose category before item using transactional counters and seeded tie-breaks; a committed selection counts once per stable selection key.',
+            'Reset on Europe/Paris business days with explicit DST fixtures. Empty categories redistribute with degraded coverage; empty-all refuses dispatch.',
         ],
         "out": [
             "Personalized category mixes.",
@@ -113,6 +131,11 @@ SPECS = [
         ],
         "security": "The picker reads only category counters and ids.",
         "test": "Simulate a day with three and with two populated categories; assert the mixes.",
+        'delivery': [
+            'Define daily category target/tolerance and seeded tie-breaking.',
+            'Count committed selections atomically by stable key.',
+            'Test full/degraded/empty coverage, replay and Europe/Paris day boundaries.',
+        ],
     },
     {
         "id": 79,
@@ -122,13 +145,13 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum/product/'],
-        "deps": [21, 76, 63, 78],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        "deps": [21, 76, 63, 78, 77, 80],
         "goal": "Make roughly half of a day's new threads start from a corpus item and the rest from existing discussions, so the forum is not a news mirror.",
         "scope": [
-            'Over a frozen 100-thread simulation require 40–60 corpus-origin threads, using seeded deterministic selection.',
-            'Bootstrap with one corpus-origin thread when the store is empty; discussion-origin threads require an existing visible thread ID.',
-            'An item cannot seed twice within seven days; exhausted eligible inputs hold rather than weakening the rule.',
+            'In a frozen simulation of exactly 100 committed visible threads, require 40–60 corpus-origin threads; refused/held attempts are recorded separately and never fill that denominator.',
+            'Use seeded deterministic selection; bootstrap an empty store with a corpus thread, then require a visible existing discussion reference for non-corpus origins.',
+            'Reserve source choices transactionally with submission identity; an item cannot seed twice within seven days, and exhausted eligible inputs hold.',
         ],
         "out": [
             "Per-agent quotas on corpus use beyond the category mix.",
@@ -141,6 +164,11 @@ SPECS = [
         ],
         "security": "The rule is enforced at creation, in one function, not by the agents' goodwill.",
         "test": 'Simulate exactly 100 thread creations with frozen seed/clock and valid qualified inputs; assert 40–60 corpus-origin records, first-thread bootstrap, visible references and seven-day reuse refusal.',
+        'delivery': [
+            'Reserve corpus/discussion origins with stable submission identity.',
+            'Enforce bootstrap, visible references and seven-day source reuse bounds.',
+            'Simulate 100 committed visible threads and report refused attempts separately.',
+        ],
     },
     {
         "id": 80,
@@ -150,8 +178,8 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum/product/'],
-        "deps": [21, 75, 29, 20, 7],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        "deps": [21, 75, 29, 20, 7, 76],
         "goal": "Attach the source item id to a thread and show a short, sanitized excerpt on the post page, so the discussion is traceable to the synthetic item it started from.",
         "scope": [
             "A nullable corpus reference on the post and a rendered excerpt block.",
@@ -169,6 +197,11 @@ SPECS = [
         ],
         "security": "The excerpt is sanitized text; the reference is an internal id, never a URL.",
         "test": "Attach, delete and render; assert the label, the fallback and the absence of anchors.",
+        'delivery': [
+            'Add an optional internal corpus reference with current category policy.',
+            'Render only the sanitized synthetic excerpt in the React thread view.',
+            'Test unavailable items, invalid policy references and absence of external links.',
+        ],
     },
     {
         "id": 81,
@@ -178,7 +211,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         "deps": [76, 9],
         "goal": "Pick up new corpus files dropped into a local folder on a schedule, so a human can add material without a deploy or a network path.",
         "scope": [
@@ -197,6 +230,11 @@ SPECS = [
         ],
         "security": "Path resolution is confined to the folder; no traversal and no symlink following.",
         "test": 'Ignore partial temporary files, accept atomic .json rename once, race a symlink/inode replacement and assert confined-descriptor refusals and audit.',
+        'delivery': [
+            'Accept completed files published by atomic rename in one drop root.',
+            'Reuse the loader with descriptor-based bounded reads and checksums.',
+            'Test temporary files, replay, symlink and inode-replacement races.',
+        ],
     },
     {
         "id": 82,
@@ -206,7 +244,9 @@ SPECS = [
         "parallel": True,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum/product/docs/corpus-license.md'],
+        'write_paths': [
+            'demo/forum-docs/corpus-license.md',
+        ],
         "deps": [75],
         "goal": "Document that the corpus is synthetic, how to replace it with licensed material, and what must change — so nobody ships real news through this path by accident.",
         "scope": [
@@ -225,6 +265,11 @@ SPECS = [
         ],
         "security": "This note grants no runtime switch or real-source ingestion capability. 075/076 accept synthetic items only; future real-source support requires separate owner review.",
         "test": 'Review the note against the three required prerequisites and synthetic-source statement; no runtime flag or about-page implementation is claimed by this documentation feature.',
+        'delivery': [
+            'Write the short synthetic-source and invented-label statement.',
+            'List attribution, licensing review and retention prerequisites for real sources.',
+            'Deliver only the documentation file with no runtime toggle.',
+        ],
     },
     {
         "id": 83,
@@ -234,7 +279,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum/product/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
         'required_categories': ['tech', 'state', 'government'],
         "deps": [60, 76, 78],
         "goal": 'Use reviewed finite category weights with seeded selection and quota availability; qualify the fixed three-category distribution without claiming distinct arbitrary random draws.',
@@ -248,12 +293,17 @@ SPECS = [
             "Per-user interests.",
         ],
         "accept": [
-            'A zero tech weight excludes tech for that persona; missing eligible categories produce an explicit degraded result.',
-            'Two pinned contrasting personas and a fixed seed produce the pre-registered category counts; no universal promise of different random draws.',
-            'The daily fixed fixture covers tech, state and government; an unknown fourth category is rejected by the shared schema.',
+            'A zero tech weight excludes tech for that persona; quotas cannot silently override a zero weight. No eligible positive weight returns explicit degraded/unavailable.',
+            'Two frozen contrasting personas reproduce their registered category counts; no claim is made about arbitrary random draws.',
+            'Across the declared combined positive-weight fixture, all three schema categories are covered within 078 tolerance; incompatible persona availability reports degraded coverage rather than faking compliance.',
         ],
         "security": "Weights are configuration; they never come from user input.",
         "test": "Draw a day for three personas and assert the distributions and the diversity check.",
+        'delivery': [
+            'Validate and normalize finite reviewed persona category weights.',
+            'Select among positive-weight available categories under existing quotas.',
+            'Pin combined distributions and report incompatible availability as degraded.',
+        ],
     },
     {
         "id": 84,
@@ -263,8 +313,8 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum/product/'],
-        "deps": [21, 79, 80, 60, 63],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        "deps": [21, 79, 80, 60, 63, 83, 62],
         "goal": "Open a thread from a corpus item with a short question, then invite a bounded set of agents to answer, so a seeded thread becomes a conversation rather than an echo.",
         "scope": [
             "A seed post quoting the excerpt and asking one question.",
@@ -276,12 +326,17 @@ SPECS = [
             "Threads without a corpus item.",
         ],
         "accept": [
-            "A seeded thread has at most five invited agents and no duplicates.",
-            "A declined invitation is not retried more than once.",
-            "The thread renders with the excerpt and the question.",
+            'A committed seeded thread has three to five eligible distinct invited agents; insufficient eligibility yields an explicit degraded result instead of duplicate invitations.',
+            'Each item/thread/agent invitation has one stable key; declined or uncertain invitations are recorded without an automatic retry.',
+            'The React thread page safely renders the synthetic excerpt, provenance and question.',
         ],
         "security": "Invitations carry ids only; no content is pushed into an agent's context without passing the guard.",
         "test": "Seed a thread and assert the invitation count, dedup and rendering.",
+        'delivery': [
+            'Create one corpus-origin draft through existing admission.',
+            'Reserve three to five eligible distinct invitations by stable key.',
+            'Test replay, declined/insufficient invitations and the safely rendered question.',
+        ],
     },
     {
         "id": 85,
@@ -291,8 +346,8 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum/product/'],
-        "deps": [84, 62],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
+        "deps": [84, 62, 67, 26],
         "goal": "Report per day how many distinct items, categories and authors appear in the first page of each channel, so 'looks alive' is measured.",
         "scope": [
             'Compute daily distinct-author, distinct-category and cross-author duplicate-rate metrics from authorized tables.',
@@ -310,6 +365,11 @@ SPECS = [
         ],
         "security": "Metrics aggregate identifiers into counts; no body text is read.",
         "test": "Pin a day of data, compute, and compare with a hand-written expectation.",
+        'delivery': [
+            'Compute daily distinct-author/category and duplicate-rate aggregates.',
+            'Compare only known denominators against frozen synthetic targets.',
+            'Test exact recomputation, empty data and two consecutive measured misses.',
+        ],
     },
     {
         "id": 86,
@@ -319,13 +379,16 @@ SPECS = [
         "parallel": True,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum/product/tests/fixtures/corpus_injection/', 'demo/forum/product/tests/test_corpus_injection.py'],
+        'write_paths': [
+            'demo/forum-app/src/test/resources/corpus_injection/',
+            'demo/forum-app/src/test/java/local/aeion/forum/CorpusInjectionTest.java',
+        ],
         "deps": [76, 52, 66],
         "goal": 'Test hostile corpus fixtures against excerpt filtering and independently enforced capabilities; content may affect drafts but cannot enlarge authority.',
         "scope": [
-            'At least twenty synthetic injection fixtures under tests/fixtures/corpus_injection/ and one isolated test module.',
-            'Assert known-span filtering plus server-side refusal of forbidden tools, identity changes, quotas and destination overrides.',
-            'Do not require model wording or next action to stay identical; successful security means unchanged authority, not unchanged reasoning.',
+            'At least twenty synthetic payloads under demo/forum-app/src/test/resources/corpus_injection/ and one isolated JUnit test class CorpusInjectionTest.java.',
+            'Assert declared known-span filtering plus independently enforced broker refusal of forbidden tools, identity changes, quotas and destinations.',
+            'Do not assert that model wording or next action stays identical; protection means unchanged authority, not unchanged reasoning.',
         ],
         "out": [
             "Exhaustive adversarial research.",
@@ -338,5 +401,10 @@ SPECS = [
         ],
         "security": "This is the evidence that the corpus is data; without it the claim is a promise.",
         "test": 'Run the twenty-payload fixture plus unknown injection shapes; weaken the broker or known-span filter separately and require its designated protected assertion to fail.',
+        'delivery': [
+            'Add twenty hostile corpus data fixtures and one isolated JUnit class.',
+            'Exercise known-span filtering and independent broker capability refusals.',
+            'Weaken filtering and authorization separately and require both regressions to fail.',
+        ],
     },
 ]

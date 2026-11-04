@@ -14,6 +14,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+MAX_CONTEXT_BYTES = 48000
+MAX_BRIEF_BYTES = 12000
+PUBLIC_JAVA = re.compile(r"demo/forum-app/src/main/java/(?:[A-Za-z_$][A-Za-z0-9_$]*/)+[A-Za-z_$][A-Za-z0-9_$]*\.java")
 
 
 class TargetError(ValueError):
@@ -49,6 +52,27 @@ class Target:
     write_paths: list
     brief: Path
     protected_check: ProtectedCheck
+    context_files: tuple = ()
+
+    def source_context(self):
+        """Read only bounded regular public blobs from the pinned Git tree."""
+        parts = []
+        for path in self.context_files:
+            ref = f"{self.base_sha}:{path}"
+            entry = _git(['-C', str(self.base_source), 'ls-tree', self.base_sha, '--', path])
+            if entry.returncode or not entry.stdout.startswith(('100644 blob ', '100755 blob ')):
+                raise TargetError('context_not_regular_blob')
+            size = _git(['-C', str(self.base_source), 'cat-file', '-s', ref])
+            if size.returncode or not size.stdout.strip().isdigit() or int(size.stdout) > 24000:
+                raise TargetError('context_file_size')
+            blob = _git(['-C', str(self.base_source), 'show', ref])
+            if blob.returncode:
+                raise TargetError('context_blob_unavailable')
+            parts.append(f'FILE: {path}\n{blob.stdout}\nEND FILE\n')
+        context = '\n'.join(parts)
+        if len(context.encode('utf-8')) > MAX_CONTEXT_BYTES:
+            raise TargetError('context_too_large')
+        return context
 
     def materialize(self, destination):
         """Clone the pinned base into an isolated worktree and prove its identity."""
@@ -61,6 +85,15 @@ class Target:
         if cloned.returncode != 0:
             shutil.rmtree(destination, ignore_errors=True)
             raise TargetError("base_clone_failed")
+        # A shallow source can keep the frozen main only in a remote-tracking ref,
+        # which clone does not copy. Fetch that exact commit locally if necessary.
+        present = _git(["-C", str(destination), "cat-file", "-e", f"{self.base_sha}^{{commit}}"])
+        if present.returncode != 0:
+            fetched = _git(["-C", str(destination), "fetch", "--quiet", "--no-tags",
+                            "--no-write-fetch-head", str(self.base_source), self.base_sha])
+            if fetched.returncode != 0:
+                shutil.rmtree(destination, ignore_errors=True)
+                raise TargetError("base_fetch_failed")
         checked_out = _git(["-C", str(destination), "checkout", "--quiet", "--detach", self.base_sha])
         if checked_out.returncode != 0:
             shutil.rmtree(destination, ignore_errors=True)
@@ -138,8 +171,14 @@ def load_target(path, repo_root):
     _inside(repo_root, brief, "brief")
     if not brief.is_file():
         raise TargetError("brief_missing")
-    if brief.stat().st_size > 65536:
+    if brief.stat().st_size > MAX_BRIEF_BYTES:
         raise TargetError("brief_too_large")
+
+    context_files = data.get('context_files', [])
+    if (not isinstance(context_files, list) or len(context_files) > 8
+            or any(not isinstance(item, str) or not PUBLIC_JAVA.fullmatch(item)
+                   for item in context_files) or len(set(context_files)) != len(context_files)):
+        raise TargetError('invalid_context_files')
 
     check = data.get("protected_check") if isinstance(data.get("protected_check"), dict) else {}
     check_id = check.get("id")
@@ -177,7 +216,7 @@ def load_target(path, repo_root):
     if not isinstance(timeout, int) or isinstance(timeout, bool) or not 1 <= timeout <= 3600:
         raise TargetError("invalid_check_timeout")
 
-    return Target(
+    target = Target(
         id=str(data.get("id") or ""), feature_id=feature_id, target_repo=target_repo,
         controller=repo_root, base_source=base_source, base_sha=sha,
         write_paths=normalized, brief=brief,
@@ -185,4 +224,7 @@ def load_target(path, repo_root):
             id=check_id, command=list(command), env=dict(env), contract_test=contract,
             contract_destination=destination, timeout_seconds=timeout,
         ),
+        context_files=tuple(context_files),
     )
+    target.source_context()
+    return target

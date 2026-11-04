@@ -1,15 +1,18 @@
 ---
 id: 094
+sequence: 96
 title: "French typography and dates"
 area: forum
 size: S
 parallel: false
 phase: P5
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-web/"]
 depends_on: [014]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 094 — French typography and dates
@@ -21,18 +24,30 @@ Apply French conventions — non-breaking spaces before punctuation, guillemets,
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_f.py`.
 
 ## Inputs
 
-- A text filter used by every template for punctuation spacing and quotes.
-- Date rendering in French, with relative times for recent posts.
-- A test table of typographic cases.
+**Delivery steps:**
+
+1. Add French plain-text formatting and explicit date/time helpers.
+2. Apply them only to appropriate React text nodes, never stored or HTML data.
+3. Pin punctuation, seven-day switching and Europe/Paris DST fixtures.
+
+**Scope:**
+
+- Use shared React plain-text formatting helpers for French punctuation/quotes, never modify serialized HTML, code blocks, URLs or attributes.
+- Use Intl.DateTimeFormat with French locale and Europe/Paris; freeze the reference instant for relative times and switch to an absolute date after seven days.
+- Pin twenty Unicode/date fixtures including DST boundaries and preserve the original normalized storage representation.
 
 ## Outputs
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

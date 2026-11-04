@@ -56,6 +56,17 @@ class TranslationTests(unittest.TestCase):
         self.assertIn(digest, calls[0])
         self.assertNotIn(self.runner.image, calls[0])
 
+    def test_an_aliased_workspace_is_translated_before_its_path_is_resolved(self):
+        self.repo.mkdir(parents=True)
+        alias = self.controller / 'repo-alias'
+        alias.symlink_to(self.repo, target_is_directory=True)
+        self.runner._qualification = {'status': 'qualified', 'image_id': 'sha256:' + 'a' * 64}
+        with mock.patch('factory.isolation.subprocess.run',
+                        return_value=subprocess.CompletedProcess([], 0, '', '')) as run:
+            self.runner(['gradle', '-p', str(alias / 'demo/forum-app')], cwd=alias)
+        self.assertIn('/workspace/demo/forum-app', run.call_args.args[0])
+        self.assertIn(str(self.repo.resolve()) + ':/workspace', run.call_args.args[0])
+
     def test_a_timed_out_check_removes_its_container(self):
         self.runner._qualification = {"status": "qualified", "image": self.runner.image,
                                       "image_id": "sha256:" + "b" * 64}

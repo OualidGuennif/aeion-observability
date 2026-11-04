@@ -773,7 +773,10 @@ class HookTests(unittest.TestCase):
                      {'CommandLine':'ls','FilePath':str(self.root/('.'+'env'))}):
             with self.assertRaises(ValueError,msg=str(args)):
                 self.agy('mcp_shell',args)
-        self.assertEqual(self.agy('run_command',{'CommandLine':'ls','Cwd':str(sub),'Blocking':True,'SafeToAutoRun':True,'WaitMsBeforeAsync':0}),{})
+        self.assertEqual(self.agy('run_command',{'CommandLine':'ls','Cwd':str(sub),'Blocking':True,'SafeToAutoRun':True,'WaitMsBeforeAsync':0,'toolSummary':'Directory listing'}),{})
+        self.assertEqual(self.agy('read_file',{'Path':str(long),'StartLine':1,'EndLine':20}),{})
+        with self.assertRaisesRegex(hook.GuardRefusal,'intake|Bounded'):
+            self.agy('read_file',{'Path':str(long)})
         # A file: URI directory is decoded like any other path.
         with self.assertRaisesRegex(hook.GuardRefusal,'intake|Bounded'):
             self.agy('mcp_shell',{'command':'cat big.log','cwd':sub.as_uri()})
@@ -813,8 +816,10 @@ class HookTests(unittest.TestCase):
         log.unlink(missing_ok=True)
         self.addCleanup(log.unlink,missing_ok=True)
         (self.root/'notes.md').write_text('x\n')
+        (self.root/'other.md').write_text('x\n')
         self.agy('replace_file_content',{'TargetFile':str(self.root/'notes.md')},event='PostToolUse')
-        self.assertEqual(set(log.read_text().splitlines()),{'notes.md'})
+        self.agy('edit_file',{'Path':str(self.root/'other.md')},event='PostToolUse')
+        self.assertEqual(set(log.read_text().splitlines()),{'notes.md','other.md'})
 
     def test_antigravity_hooks_route_every_event_to_the_adapter(self):
         groups=json.loads((ROOT/'.agents/hooks.json').read_text())

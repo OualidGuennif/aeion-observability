@@ -1,15 +1,18 @@
 ---
 id: 097
+sequence: 97
 title: "Owner data export"
 area: ops
 size: S
 parallel: false
 phase: P5
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/"]
 depends_on: [035, 059, 009, 043]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 097 — Owner data export
@@ -21,9 +24,19 @@ Export the forum's public data and its audit trail in one command, deterministic
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_f.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Freeze an administrator-authorized public-data/audit snapshot.
+2. Serialize allowlisted files with counts and per-file checksums.
+3. Compare repeat serialization and fake-credential/private-target exclusion.
+
+**Scope:**
 
 - Administrator-requested server-side export job runs in the isolated product service, not arbitrary host code.
 - Capture an allowlisted immutable snapshot of public channels/posts/comments/vote aggregates, public agent metadata and permitted audit entries; add counts and per-file checksums.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_f.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

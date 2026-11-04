@@ -1,13 +1,16 @@
 # Pinned target profiles
 
-The 100-feature manifest remains the canonical plan and still points at the planned
-`demo/forum/product/` tree. A target profile binds **one** catalog feature to the runnable
-forum without rewriting the other 99 specs. The product source is the separate
+The 100-feature manifest is the canonical [Quarkus/PostgreSQL/React web contract](../ARCHITECTURE.md).
+A target profile binds **one** feature to an exact runnable product base and protected check.
+Existing 007/013/017 profiles describe the earlier SQLite backend; they do not qualify the
+new PostgreSQL migration or React client. The product source is the separate
 [`aeion-autonomous-forum`](https://github.com/OualidGuennif/aeion-autonomous-forum) checkout at
 `demo/.local/factory/agents/aeion-autonomous-forum`; the files under `demo/forum-app/` are a
 reading mirror, not the build source.
 
-`forum-app-013.json` is the first profile:
+`forum-app-013.json` is the historical first profile. `forum-app-017.json` binds strict request validation to a newer exact product base; its external contract rejects missing/unknown/wrong-type fields without values in errors, checks the body cap before authentication and retains valid business refusals. `forum-app-007.json` covers normalized Markdown and safe derived HTML in that existing JSON thread API. Its real external contract checks 30 hostile payloads, exact subset fixtures, stored canonical text and size refusals without an outbox insert. Live dispatch remains subject to current engine, contract and base qualification; a profile's presence alone does not make it launchable. The fixed offline fixture remains 013-only.
+
+Profile fields:
 
 | Field | Meaning |
 | --- | --- |
@@ -15,9 +18,18 @@ reading mirror, not the build source.
 | `allowed_scope_prefix` | every write scope must stay under this directory |
 | `write_paths` | the literal main and test source directories |
 | `brief` | the adapted feature brief the worker freezes and copies next to the clone |
+| `context_files` (optional) | at most eight regular main Java blobs from the pinned commit; complete public source supplied outside the candidate tree, not host working-tree files |
 | `protected_check` | the command, toolchain home, external contract test and timeout |
 
-The base is `37417ab`, the product repository's import commit, before the offline-qualified
+The brief is limited to 12000 UTF-8 bytes. Optional context accepts only public
+`demo/forum-app/src/main/java/.../*.java` paths, up to 24000 bytes per file and 48000 labeled
+bytes in total. Symlinks, missing blobs, duplicates, configuration paths and oversized input
+are refused when loading the profile, before it can be advertised as ready. No truncated brief
+or source excerpt is sent to the author. Context is materialized as controller-owned
+`CONTEXT.md` beside `BRIEF.md`, outside candidate write scopes. It is author input, never raw
+telemetry. The full review envelope still bounds the complete changed output separately.
+
+For target 013, the base is `37417ab`, the product repository's import commit, before the offline-qualified
 feature-013 filter was applied locally (`1224d03`). The worker clones that commit from the
 product checkout into `demo/.local/factory/work/<build_id>/repo`, verifies `HEAD` and a clean
 tree, and never edits the controller checkout. The pin deliberately stays at the pre-feature

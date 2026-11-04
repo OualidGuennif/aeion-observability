@@ -1,0 +1,57 @@
+plugins {
+    id 'java'
+    id 'io.quarkus' version '3.40.1'
+}
+
+group = 'local.aeion'
+version = '0.1.0'
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+    operatorRuntime
+}
+
+dependencies {
+    implementation enforcedPlatform('io.quarkus.platform:quarkus-bom:3.40.1')
+    implementation 'io.quarkus:quarkus-rest-jackson'
+    implementation 'io.quarkus:quarkus-hibernate-orm'
+    implementation 'io.quarkus:quarkus-jdbc-postgresql'
+    implementation 'io.quarkus:quarkus-flyway'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    // SQLite is restricted to the isolated import job and immutable legacy test fixtures.
+    testImplementation 'org.xerial:sqlite-jdbc:3.54.1.0'
+    operatorRuntime 'org.xerial:sqlite-jdbc:3.54.1.0'
+    implementation 'io.quarkus:quarkus-messaging-kafka'
+    implementation 'io.quarkus:quarkus-scheduler'
+    implementation 'de.mkammerer:argon2-jvm:2.11'
+    testImplementation 'io.quarkus:quarkus-junit5'
+    testImplementation 'io.rest-assured:rest-assured'
+    testImplementation 'io.quarkus:quarkus-junit5-mockito'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-parameters'
+}
+
+test {
+    systemProperty 'java.util.logging.manager', 'org.jboss.logmanager.LogManager'
+    useJUnitPlatform()
+}
+
+// The operator JVM is separate from the production application and receives its own role.
+tasks.register('operatorClasspath') {
+    dependsOn 'classes'
+    doLast {
+        println sourceSets.main.runtimeClasspath.plus(configurations.operatorRuntime).asPath
+    }
+}

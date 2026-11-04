@@ -6,6 +6,8 @@ write scopes before any effect.
 """
 import hashlib
 import json
+import os
+import stat
 from pathlib import Path
 
 SUPPORTED_SCHEMA = 2
@@ -30,6 +32,66 @@ class Catalog:
         self.by_id = {}
         self._validate()
         self.digest = self._digest()
+        self.spec_dir = None
+        self.architecture_path = None
+        self.contracts = {fid: self._contract(feature) for fid, feature in self.by_id.items()}
+
+    @staticmethod
+    def _contract(feature, spec=None, architecture=None):
+        # Sequence is a display order, not a change to an individual feature contract.
+        identity = {'feature': {k: v for k, v in feature.items() if k != 'sequence'},
+                    'spec_digest': spec, 'architecture_digest': architecture}
+        return hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+    @staticmethod
+    def _file_digest(path):
+        try:
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(fd, 'rb') as handle:
+                if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                    raise ManifestError('contract_input_unsafe')
+                data = handle.read(65537)
+            if len(data) > 65536 or b'\0' in data:
+                raise ManifestError('contract_input_unsafe')
+            data.decode('utf-8')
+            return hashlib.sha256(data).hexdigest()
+        except (OSError, UnicodeError):
+            raise ManifestError('contract_input_unavailable') from None
+
+    def bind_contracts(self, spec_dir, architecture_path):
+        """Bind canonical public inputs once; never infer identities for historical rows."""
+        self.spec_dir, self.architecture_path = Path(spec_dir), Path(architecture_path)
+        architecture = self._file_digest(self.architecture_path)
+        if self.raw.get('architecture_digest') != architecture:
+            raise ManifestError('contract_architecture_changed')
+        self.contracts = {fid: self._current_contract(fid) for fid in self.by_id}
+
+    def _current_contract(self, fid):
+        feature = self.by_id[fid]
+        if self.spec_dir is None:
+            return self._contract(feature)
+        name = feature['file']
+        if (not isinstance(name, str) or Path(name).name != name or '\\' in name
+                or not name.endswith('.md')):
+            raise ManifestError('contract_spec_path_invalid')
+        architecture = self._file_digest(self.architecture_path)
+        if feature.get('architecture_digest') != architecture:
+            raise ManifestError('contract_architecture_changed')
+        return self._contract(feature, self._file_digest(self.spec_dir / name), architecture)
+
+    def contract_current(self, fid):
+        try:
+            return self.contracts[fid] == self._current_contract(fid)
+        except (ManifestError, KeyError):
+            return False
+
+    def matches_contract(self, row):
+        fid = row['feature_id']
+        return fid in self.contracts and row.get('contract_digest') == self.contracts[fid] and self.contract_current(fid)
+
+    def matches_inputs(self, fid, spec_digest, architecture_digest):
+        """Check the bytes actually read, even if an editor changed/restored a file in between."""
+        return self.spec_dir is None or self._contract(self.by_id[fid],spec_digest,architecture_digest) == self.contracts[fid]
 
     def _digest(self):
         # Stable over the semantic feature list: ids are the canonical order, so a
@@ -109,7 +171,11 @@ def _valid_scope(path):
     return True
 
 
-def load_manifest(path):
+def load_manifest(path, spec_dir=None):
     """Load a manifest file from disk and validate it."""
     data = json.loads(Path(path).read_text())
-    return Catalog(data, source=path)
+    catalog = Catalog(data, source=path)
+    if data.get('architecture'):
+        folder = Path(spec_dir) if spec_dir is not None else Path(path).parent
+        catalog.bind_contracts(folder, folder.parent / 'ARCHITECTURE.md')
+    return catalog

@@ -1,15 +1,18 @@
 ---
 id: 075
+sequence: 77
 title: "Corpus item schema"
 area: corpus
 size: S
 parallel: false
 phase: P4
 tier: 3
-write_paths: ["demo/forum/product/"]
-depends_on: [002]
+write_paths: ["demo/forum-app/"]
+depends_on: [002, 007, 029]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 075 — Corpus item schema
@@ -21,9 +24,19 @@ Define one news item — synthetic title, category, date, short excerpt, source 
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_e.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Define the strict three-category synthetic item DTO and bounds.
+2. Validate IDs/dates/labels and make URL-like text inert.
+3. Reject missing synthetic flags, unknown categories, extra fields and oversize text.
+
+**Scope:**
 
 - Strict schema: stable id, category enum tech/state/government, bounded title/excerpt/source_label, ISO date and synthetic=true.
 - Pin title 120, excerpt 1000 and source_label 80 codepoints; extra fields are refused.
@@ -35,6 +48,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_e.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

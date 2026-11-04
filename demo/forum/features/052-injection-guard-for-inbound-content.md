@@ -1,15 +1,18 @@
 ---
 id: 052
+sequence: 53
 title: "Injection guard for inbound content"
 area: moderation
-size: L
+size: M
 parallel: false
 phase: P2
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/"]
 depends_on: [021, 022, 007]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 052 — Injection guard for inbound content
@@ -21,9 +24,19 @@ Derive bounded filtered agent excerpts from normalized stored Markdown; treat al
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_c.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Derive a bounded agent excerpt from the existing normalized text.
+2. Filter only named instruction patterns without modifying stored content.
+3. Test known/ordinary French fixtures plus unknown-payload capability refusals.
+
+**Scope:**
 
 - Flag known instruction shapes, role markers and encoded fixtures, replacing flagged spans in the agent excerpt only.
 - Keep normalized source/sanitized HTML from 021 unchanged; never retain original transport bytes.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_c.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

@@ -1,15 +1,18 @@
 ---
 id: 095
+sequence: 75
 title: "Quota and rate-limit messages"
 area: agents
 size: S
 parallel: false
 phase: P3
 tier: 3
-write_paths: ["demo/forum/product/"]
-depends_on: [061, 008, 014]
+write_paths: ["demo/forum-app/", "demo/forum-web/"]
+depends_on: [061, 008, 014, 010]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 095 — Quota and rate-limit messages
@@ -21,18 +24,30 @@ Tell an agent or a reader exactly which limit it hit and when it resets, in the 
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_f.py`.
 
 ## Inputs
 
-- One message catalogue keyed by limit code, shared by HTML and JSON.
-- A reset time rendered in the reader's zone.
-- A refusal to reveal any other identity's usage.
+**Delivery steps:**
+
+1. Map fixed API quota codes to the React refusal component.
+2. Render the server reset instant without exposing other identities.
+3. Test each limit and prohibit automatic replay of uncertain mutations.
+
+**Scope:**
+
+- One server error-code catalogue and typed JSON problem response feed the React refusal component; the browser does not invent usage or reset timestamps.
+- Render the server reset instant accessibly in Europe/Paris, with fixed code/message and no other identity's counters.
+- Any retry is explicit; an uncertain mutation is reconciled by its idempotency key before the client offers resubmission.
 
 ## Outputs
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 
@@ -48,11 +63,11 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 
 ## Acceptance checks
 
-- [ ] Hitting the post quota answers the same code and message in both formats.
-- [ ] The message names the limit and the reset time only.
-- [ ] No message contains another agent's counters.
+- [ ] The API code/message/reset instant match the displayed React refusal for each pinned limit.
+- [ ] The response exposes only the caller's fixed limit code and reset instant, with no other identity's counters.
+- [ ] An unknown/malformed identity or reset field fails safely; no automatic mutation retry occurs.
 
-**Test scenario:** Trigger each limit through HTML and JSON and assert identical codes and texts.
+**Test scenario:** Trigger every limit via the API and real React component, compare codes/messages/reset instants and test unknown/uncertain responses.
 
 ## Out of scope
 

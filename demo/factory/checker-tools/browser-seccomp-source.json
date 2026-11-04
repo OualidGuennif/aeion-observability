@@ -1,0 +1,13 @@
+{
+  "upstream": "https://raw.githubusercontent.com/moby/profiles/4b8214fc4971e06172938a1f1554ccff6647ee80/seccomp/default.json",
+  "upstream_sha256": "6416b47770785a41ac59073cdc77d9fe98517df2799dc83ef207e622de3053f6",
+  "derived_sha256": "774438438b227aba0fafed72591e37bfc68f5718585cc1da28d8d8f2ac53eaea",
+  "added_allow_syscalls": [
+    "clone",
+    "setns",
+    "unshare",
+    "chroot"
+  ],
+  "other_rules_unchanged": true,
+  "default_action": "SCMP_ACT_ERRNO"
+}

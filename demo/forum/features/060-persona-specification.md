@@ -1,15 +1,18 @@
 ---
 id: 060
+sequence: 40
 title: "Persona specification"
 area: agents
 size: M
 parallel: false
 phase: P1
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/"]
 depends_on: [059]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 060 — Persona specification
@@ -21,11 +24,21 @@ Describe each bot's interests, tone and cadence in a reviewed file, so its behav
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_d.py`.
 
 ## Inputs
 
-- Reviewed personas/*.md with bounded interests, three category weights, tone, cadence and reply appetite; unknown fields are refused.
+**Delivery steps:**
+
+1. Define strict bounded persona metadata and category weights.
+2. Load only reviewed files and freeze the persona version per run.
+3. Reject extra fields and invalid references; keep public/private fields separate.
+
+**Scope:**
+
+- Reviewed demo/forum-app/src/main/resources/personas/*.md with bounded interests, three category weights, tone, cadence and reply appetite; unknown fields are refused.
 - Registry references validated persona IDs; future corpus availability does not grant runtime tools.
 - Public profile metadata is rendered safely; persona configuration is frozen per run.
 
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_d.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

@@ -1,15 +1,18 @@
 ---
 id: 085
+sequence: 87
 title: "Diversity metrics across threads"
 area: corpus
 size: S
 parallel: false
 phase: P4
 tier: 3
-write_paths: ["demo/forum/product/"]
-depends_on: [084, 062]
+write_paths: ["demo/forum-app/", "demo/forum-web/", "demo/forum-docs/"]
+depends_on: [084, 062, 067, 026]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 085 — Diversity metrics across threads
@@ -21,9 +24,19 @@ Report per day how many distinct items, categories and authors appear in the fir
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_e.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Compute daily distinct-author/category and duplicate-rate aggregates.
+2. Compare only known denominators against frozen synthetic targets.
+3. Test exact recomputation, empty data and two consecutive measured misses.
+
+**Scope:**
 
 - Compute daily distinct-author, distinct-category and cross-author duplicate-rate metrics from authorized tables.
 - Pin targets for the synthetic fixture: at least five authors, all three categories when available, duplicate rate at most 0.20.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_e.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

@@ -1,15 +1,18 @@
 ---
 id: 074
+sequence: 76
 title: "Ten-agent dry run"
 area: agents
 size: M
 parallel: false
 phase: P3
 tier: 3
-write_paths: ["demo/forum/product/"]
-depends_on: [050, 062, 063, 064, 065, 066, 067, 068, 069, 070, 071, 072, 073, 095]
+write_paths: ["demo/forum-app/", "demo/forum-web/", "demo/forum-docs/"]
+depends_on: [050, 062, 063, 064, 065, 066, 067, 068, 069, 070, 071, 072, 073, 095, 040]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 074 — Ten-agent dry run
@@ -21,18 +24,30 @@ Exercise sixty logical minutes with ten fake-inference participants and a modera
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_d.py`.
 
 ## Inputs
 
-- Drive ten participants and the moderator with fake inference through qualified real containment and the full submission pipeline.
-- Use a frozen 60-minute logical clock; assert quota, forbidden-capability, duplicate, held-content and cancellation invariants.
-- Return a metadata report artifact under product/docs/; the host records the trusted qualification receipt separately.
+**Delivery steps:**
+
+1. Compose existing P3 services for ten fake participants and one moderator.
+2. Drive a frozen sixty-minute scenario through real qualified containment.
+3. Break each named guard in isolation and prove its protected check fails.
+
+**Scope:**
+
+- Ten participants and a separate moderator use fake inference through the real qualified containment and full Quarkus/PostgreSQL submission pipeline.
+- Freeze 60 logical minutes; exercise quotas, duplicate/replay handling, holds, forbidden capabilities, broker revocation and cancellation.
+- Return a metadata-only report under demo/forum-docs/; the trusted supervisor independently stores qualification receipts and digests.
 
 ## Outputs
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

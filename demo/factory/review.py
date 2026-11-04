@@ -4,9 +4,8 @@ The reviewer never executes the candidate's code and never trusts what the build
 it. It reads only the bounded set of changed files the artifact validator already accepted and
 applies fixed rules, so the same input always yields the same verdict.
 
-A second language model is deliberately **not** the reviewer: a model is untrusted input too,
-and a rogue one would approve a rogue diff. Anything doubtful is held for a human owner instead
-of being auto-approved. The reviewer can only approve, refuse or hold; it can never publish.
+This deterministic gate complements the separate two-model review circuit. Model approvals
+cannot override its holds. The reviewer can only approve, refuse or hold; it can never publish.
 """
 import hashlib
 import json
@@ -38,6 +37,9 @@ DANGEROUS_PATTERNS = (
 DEPENDENCY_FILES = (
     "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
     "requirements.txt", "pyproject.toml", "poetry.lock", "go.mod", "go.sum", "cargo.lock",
+    "dockerfile", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts",
+    "gradle.properties", "gradle-wrapper.properties", "libs.versions.toml", "gradle.lockfile",
+    "gradlew", "gradlew.bat",
 )
 
 
@@ -81,7 +83,8 @@ def review(frozen, artifact_verdict, files, max_files=MAX_FILES, max_total_bytes
             if pattern.search(text):
                 findings.append(_finding(code, path))
         name = path.rsplit("/", 1)[-1].lower()
-        if name in DEPENDENCY_FILES:
+        approved_dependencies=getattr(frozen,'dependency_changes',None) or {}
+        if name in DEPENDENCY_FILES and approved_dependencies.get(path)!=hashlib.sha256(text.encode()).hexdigest():
             findings.append(_finding("dependency_manifest", path))
     if total > max_total_bytes:
         findings.append(_finding("diff_too_large", f"{total}>{max_total_bytes}"))

@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import tempfile
 import time
 
 from settings import AGENT_UID, DATA, DEMO, OPENSHELL_STATE, WORK, WORK_VOLUME
@@ -15,16 +16,23 @@ VERSION = '0.1.5'
 SANDBOX_OUT = '/tmp/aeion-out'
 MAX_SYNC_BYTES = 8 * 1024 * 1024
 COLLECT_SCRIPT = r'''
-import base64, json, os, sys
+import base64, json, os, stat, sys
 root, limit = sys.argv[1], int(sys.argv[2])
 items, total = {}, 0
-for base, _, files in os.walk(root):
+if os.path.islink(root):
+    raise SystemExit('sync_symlink')
+for base, directories, files in os.walk(root, followlinks=False):
+    if any(os.path.islink(os.path.join(base, name)) for name in directories):
+        raise SystemExit('sync_symlink')
     for name in files:
         path = os.path.join(base, name)
-        with open(path, 'rb') as handle:
-            data = handle.read()
+        if not stat.S_ISREG(os.lstat(path).st_mode):
+            raise SystemExit('sync_not_regular')
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        with os.fdopen(fd, 'rb') as handle:
+            data = handle.read(limit - total + 1)
         total += len(data)
-        if total > limit:
+        if total > limit or len(items) >= 4096:
             raise SystemExit('sync_too_large')
         items[os.path.relpath(path, root)] = base64.b64encode(data).decode('ascii')
 print(json.dumps(items))
@@ -51,28 +59,41 @@ print(written)
 def materialize(items, destination):
     """Write collected sandbox files to the host, refusing anything outside the destination.
 
-    A file the sandbox created on the mounted volume belongs to the sandbox UID, so the host
-    user cannot overwrite it in place; the entry is removed and recreated instead.
+    Validate every relative path and payload before replacing files. No sandbox symlink or
+    host symlink is followed, and each replacement is atomic.
     """
-    destination = Path(destination)
-    written = []
+    destination = Path(destination).resolve()
+    written, prepared, total = [], [], 0
+    if not isinstance(items, dict) or len(items) > 4096:
+        raise ValueError('SANDBOX_SYNC_PATH')
     for relative, payload in items.items():
-        parts = Path(relative).parts
-        if not relative or relative.startswith('/') or '\\' in relative or '..' in parts:
+        if not isinstance(relative, str) or not isinstance(payload, str):
+            raise ValueError('SANDBOX_SYNC_PATH')
+        parts = relative.split('/')
+        if not relative or relative.startswith('/') or '\\' in relative or any(p in ('', '.', '..') for p in parts):
             raise ValueError('SANDBOX_SYNC_PATH')
         target = destination / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        data = base64.b64decode(payload)
-        if target.is_file() and not target.is_symlink() and target.read_bytes() == data:
-            continue
+        if any(path.is_symlink() for path in (target, *target.parents) if path != destination):
+            raise ValueError('SANDBOX_SYNC_PATH')
+        if not target.resolve().is_relative_to(destination):
+            raise ValueError('SANDBOX_SYNC_PATH')
         try:
-            target.write_bytes(data)
-        except PermissionError:
-            try:
-                target.unlink(missing_ok=True)
-                target.write_bytes(data)
-            except PermissionError as error:
-                raise ValueError('SANDBOX_SYNC_TARGET_LOCKED') from error
+            data = base64.b64decode(payload, validate=True)
+        except (ValueError, TypeError):
+            raise ValueError('SANDBOX_SYNC_PATH') from None
+        total += len(data)
+        if total > MAX_SYNC_BYTES:
+            raise ValueError('SANDBOX_SYNC_TOO_LARGE')
+        prepared.append((relative, target, data))
+    for relative, target, data in prepared:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.is_file() and target.read_bytes() == data:
+            continue
+        with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as temporary:
+            temporary.write(data)
+            staged = Path(temporary.name)
+        staged.chmod(0o644)
+        staged.replace(target)
         written.append(str(relative))
     return written
 
@@ -118,6 +139,7 @@ def connection(timeout=120):
             or evidence.get('agent_image') != os.environ.get('OPENSHELL_AGENT_IMAGE')
             or evidence.get('agent_uid') != AGENT_UID
             or evidence.get('work_volume') != WORK_VOLUME or evidence.get('work_dir') != str(WORK.resolve())
+            or evidence.get('transport') != 'rpc-copy' or evidence.get('host_mounts') is not False
             or evidence.get('bundle_sha256') != bundle
             or evidence.get('expires_ns', 0) < time.time_ns()
             or evidence.get('ca_sha256') != hashlib.sha256((root / 'ca.crt').read_bytes()).hexdigest()):
@@ -136,9 +158,9 @@ def policy(root):
     from openshell._proto import sandbox_pb2 as pb
     # No network policy at all: model calls leave from the host harness, never from here.
     return pb.SandboxPolicy(version=1,
-        filesystem=pb.FilesystemPolicy(include_workdir=True,
-            read_only=['/bin', '/usr', '/lib', '/etc', '/proc', '/opt/demo', '/dev/urandom', '/var/log', str(root/'workspace')],
-            read_write=['/tmp', '/dev/null', str(root/'workspace/src')]),
+        filesystem=pb.FilesystemPolicy(include_workdir=False,
+            read_only=['/bin', '/usr', '/lib', '/etc', '/proc', '/opt/demo', '/dev/urandom', '/var/log', '/sandbox'],
+            read_write=['/tmp', '/dev/null']),
         landlock=pb.LandlockPolicy(compatibility='hard_requirement'),
         process=pb.ProcessPolicy(run_as_user=str(AGENT_UID), run_as_group=str(AGENT_UID)))
 
@@ -153,11 +175,8 @@ class Sandbox:
         self.closed = False
         spec = pb.SandboxSpec(template=pb.SandboxTemplate(image=os.environ['OPENSHELL_AGENT_IMAGE']),
                               policy=policy(root), command=['/bin/sleep', 'infinity'])
-        # Only this run's subpath of the labeled work volume is visible; it is the host folder
-        # under WORK, so files persist across fresh sandboxes. A root outside WORK fails here.
-        ParseDict({'docker': {'mounts': [{'type': 'volume', 'source': WORK_VOLUME, 'target': str(root),
-                                          'subpath': str(root.relative_to(WORK)), 'read_only': False}]}},
-                  spec.template.driver_config)
+        # No operator/host volume enters a workload. Public bytes travel over exec stdin and
+        # bounded copy-out; Docker Desktop ownership cannot weaken this boundary.
         ParseDict({'limits': {'cpu': '1', 'memory': '1Gi'}}, spec.template.resources)
         try:
             self.ref = self.client.create(workspace='default', name=self.name, spec=spec,
@@ -174,7 +193,7 @@ class Sandbox:
         if self.closed:
             raise ValueError('SANDBOX_CLOSED')
         return self.client.exec(self.name, command, workspace='default', env=env, stdin=stdin,
-                                workdir=str(workdir) if workdir else None, no_login_shell=True, timeout_seconds=timeout)
+                                workdir=str(workdir) if workdir else '/tmp', no_login_shell=True, timeout_seconds=timeout)
 
     def seed_in(self, files, destination=SANDBOX_OUT):
         """Copy host files into the sandbox work directory before an agent starts."""

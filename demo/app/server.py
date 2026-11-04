@@ -130,8 +130,9 @@ def _factory_tick_loop():
     while True:
         try:
             factory.tick()
-        except Exception:
-            pass
+        except Exception as error:
+            print(json.dumps({"event": "factory.tick.failed", "error_type": type(error).__name__}),
+                  file=_sys.stderr, flush=True)
         time.sleep(0.4)
 
 
@@ -212,11 +213,11 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path in {"/assets/agent-atelier.png", "/fonts/Manrope.woff2", "/fonts/CormorantGaramond.woff2"}:
             content_type = "image/png" if self.path.endswith(".png") else "font/woff2"
             self.respond(200, (Path(__file__).parent / self.path[1:]).read_bytes(), content_type)
-        elif self.path in {"/", "/app.js", "/style.css"}:
-            name = "index.html" if self.path == "/" else self.path[1:]
+        elif self.path in {"/lab", "/lab/", "/app.js", "/style.css"}:
+            name = "index.html" if self.path in {"/lab", "/lab/"} else self.path[1:]
             content_type = {"index.html": "text/html; charset=utf-8", "app.js": "text/javascript", "style.css": "text/css"}[name]
             self.respond(200, (Path(__file__).parent / name).read_text(), content_type)
-        elif self.path in {"/factory", "/factory/"}:
+        elif self.path in {"/", "/factory", "/factory/"}:
             self.respond(200, (Path(__file__).parent / "factory.html").read_text(), "text/html; charset=utf-8")
         elif self.path == "/factory.js":
             self.respond(200, (Path(__file__).parent / "factory.js").read_text(), "text/javascript")
@@ -275,7 +276,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond(status, body, headers=headers)
             except ApiError as exc:
                 self.respond(exc.status, {"error": exc.code})
-        elif self.path in {"/api/factory/catalog", "/api/factory/board"}:
+        elif self.path in {"/api/factory/catalog", "/api/factory/board"} or re.fullmatch(r'/api/factory/spec/[0-9]{3}', self.path):
             if not host_origin_ok(self.headers.get("Host", "")):
                 self.respond(403, {"error": "origin_denied"})
                 return
@@ -283,7 +284,14 @@ class Handler(BaseHTTPRequestHandler):
             if session is None:
                 self.respond(401, {"error": "unauthorized"})
                 return
-            status, body, headers = factory.catalog_view(session) if self.path == "/api/factory/catalog" else factory.board(session)
+            try:
+                if self.path.startswith('/api/factory/spec/'):
+                    status, body, headers = factory.spec_view(session, self.path.rsplit('/', 1)[1])
+                else:
+                    status, body, headers = factory.catalog_view(session) if self.path == "/api/factory/catalog" else factory.board(session)
+            except ApiError as exc:
+                self.respond(exc.status, {'error': exc.code})
+                return
             self.respond(status, body, headers=headers)
         elif urlparse(self.path).path == "/api/factory/events":
             self.factory_sse()

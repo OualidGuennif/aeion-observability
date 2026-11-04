@@ -13,6 +13,7 @@ import os
 import subprocess
 from pathlib import Path
 
+from .agent_files import grader_tampered
 from .review import content_digest
 
 MAX_CONTENT_BYTES = 512 * 1024
@@ -113,6 +114,9 @@ def validate_artifact(repo, write_scopes):
         text, problem = _read_text(repo / path)
         if problem:
             rejected.append({"path": path, "reason": problem})
+            continue
+        if grader_tampered(path, text):
+            rejected.append({"path": path, "reason": "grader_tampered"})
             continue
         files[path] = text
         allowed.append(path)

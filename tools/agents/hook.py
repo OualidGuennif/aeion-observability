@@ -23,8 +23,10 @@ DROID_KNOWN = {*DROID_TOOLS, 'Bash', 'Read', 'Edit', 'MultiEdit', 'Write', 'Grep
 # Antigravity nests the call as toolCall {name, args}. Its own tools use PascalCase arguments, MCP tools any
 # case; an argument at any depth named like a path, file, directory or URI (AbsolutePath, TargetDirectories,
 # file_path, Uri) names files for the guards.
-ANTIGRAVITY_TOOLS = {'run_command': 'Bash', 'view_file': 'Read', 'write_to_file': 'Write',
-                     'replace_file_content': 'Edit', 'multi_replace_file_content': 'Edit', 'grep_search': 'Grep'}
+ANTIGRAVITY_TOOLS = {'run_command': 'Bash', 'view_file': 'Read', 'read_file': 'Read',
+                     'write_to_file': 'Write', 'write_file': 'Write',
+                     'replace_file_content': 'Edit', 'multi_replace_file_content': 'Edit',
+                     'edit_file': 'Edit', 'grep_search': 'Grep'}
 ANTIGRAVITY_PATH_KEY = re.compile(r'(paths?|files?|dirs?|directory|directories|uris?)$')
 # view_code_item's NodePaths are code symbols (Cache.key), not files.
 ANTIGRAVITY_SYMBOL_KEYS = {'nodepath', 'nodepaths'}
@@ -192,7 +194,7 @@ def antigravity_event(event):
         data['workdir'] = unquote(urlsplit(workdirs[0]).path) if workdirs[0][:5].lower() == 'file:' else workdirs[0]
     # The guard cannot know which other argument a shell tool runs in, so on a shell call every argument
     # besides the command and its directory must be a flag or a number (run_command's Blocking, WaitMsBeforeAsync).
-    if command is not None and any(argument_name(key) not in {'commandline', 'command', 'cwd', 'workdir'}
+    if command is not None and any(argument_name(key) not in {'commandline', 'command', 'cwd', 'workdir', 'toolsummary'}
                                    and not isinstance(value, (bool, int, float)) for key, value in args.items()):
         raise ValueError('the Antigravity shell call carries an argument the guards cannot place')
     # Every path-like argument meets the guards, not only the first: one call can name several files.

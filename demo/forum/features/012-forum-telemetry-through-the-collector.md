@@ -1,15 +1,18 @@
 ---
 id: 012
+sequence: 12
 title: "Forum telemetry through the collector"
 area: foundation
 size: M
 parallel: false
 phase: P0
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/"]
 depends_on: [001, 011, 009]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 012 — Forum telemetry through the collector
@@ -21,9 +24,19 @@ Export forum spans to the existing OTel collector with the same attribute allowl
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_a.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Construct bounded metadata-only forum spans using the existing collector.
+2. Keep export disabled until all OTLP content surfaces pass canary checks.
+3. Verify stored-backend readback and bounded failure during collector outage.
+
+**Scope:**
 
 - Use the existing collector through a bounded OTLP/HTTP exporter; export remains disabled until all OTLP surfaces are qualified.
 - Construct span names/routes/status from fixed code catalogs; remove content-bearing events/link attributes/resource fields and scrub log bodies before export.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_a.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

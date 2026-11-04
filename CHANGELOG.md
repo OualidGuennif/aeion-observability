@@ -2,6 +2,69 @@
 
 ## Unreleased
 
+- Let Qwen/Haiku launch complete bounded inputs without treating a byte cost estimate as an
+  exact context count. Gate continuation on measured API usage including cache; retain budgets,
+  unknown-usage stops and isolation. Check bootstrap documentation against the actual PR diff.
+  Refresh protected product main through an isolated read-key process before freezing a task,
+  preserving local HEAD and operator edits and refusing rewritten or concurrently changed refs.
+  Materialize that exact main from shallow checkouts even when it exists only as a remote ref,
+  keeping operator edits intact and removing incomplete clones on fetch failure. Refuse candidate
+  JUnit extensions, service providers, platform properties, foreign packages and skipped or
+  unreported contract XML results in the protected check and artifact gates, after reproducing
+  and blocking an `InvocationInterceptor` bypass against exact product `main`. Map Antigravity
+  `read_file`, `write_file`, `edit_file` and `run_command` `toolSummary` in `tools/agents/hook.py`,
+  defer `Telemetry` import in `FactorySession` so Docker-free host checks run without the
+  OpenTelemetry SDK, collect intermediate sandbox writes during handover preparation, and implement
+  seed/collect/sync on LocalSandbox for development verification.
+
+- Enforce explicit DeepSeek reasoning effort and bounded, known-cost recovery for complete
+  bootstrap reviews. Keep effort metadata comparable and preserve historical memory documents.
+  Refuse completion/publication staging from an expired worker even before restart reconciliation.
+  Allow explicit publication recovery from a known effect-free permission refusal only after
+  confirming unchanged main, frozen bytes and absence of the remote branch/PR.
+
+- Qualify Chromium with its sandbox enabled and pinned current seccomp rules, isolate disposable
+  PostgreSQL administrator/migration/application roles, and require PostgreSQL/React plus real
+  protected-main evidence before factory activation. Support complete maintainer bootstrap reviews
+  with bounded output and retained known-cost failures; publication remains gated by two approvals.
+
+- Bind factory completion to the current specification, preserve versioned integration history,
+  qualify a disposable PostgreSQL check boundary, and distinguish queued/publication activity
+  and scripted simulation honestly in the cockpit. Live activation remains pending.
+
+- Replace the direct-call factory engine with Flue/Pi roles, shared automatic Java MD preparation,
+  independent baseline assertions, complete acceptance/spec/artifact reviews and persistent measured
+  routing. Add durable credential-separated PR/CI/main continuation, generation-checked progress,
+  remote-effect reconciliation and precise cockpit blockers/MD preview. Protect evaluator reads and
+  cleanup against candidate symlink swaps. Export bounded role outcomes to both memory backends.
+  PostgreSQL/React qualification, product bootstrap and real main publication remain gated.
+
+- Regenerate all 100 Agora feature contracts for Quarkus/Java, PostgreSQL and React web.
+  Preserve stable IDs, add dependency-first sequence and three bounded delivery steps per MD,
+  narrow separate-product write scopes, freeze the shared architecture digest, repair missing
+  prerequisites and clarify migration/restore, CSRF, audit, appeals and reply provenance.
+  The cockpit displays that sequence; catalog regeneration does not certify runtime migration.
+
+- Connect feature 007 to the canonical product with a pinned target, a protected content
+  sanitization contract and isolated operator-path qualification. Give the author bounded
+  complete main-Java context from the exact Git commit, reject unsafe/missing/oversized blobs
+  and refuse oversized briefs instead of silently truncating them. Completed-feature locks,
+  budget gates and independent review remain required.
+
+- Complete the direct feature-017 repair in its canonical product repository and verify the
+  exact local commit through the independent external contract before recording a locked
+  baseline. Persist baseline proof/trace metadata and replay verification idempotently. Expose
+  sanitized compiler diagnostics, accept complete review inputs up to 24000 characters, fix
+  macOS workspace aliases, refuse the legacy paid-review-only CLI and use project trace links.
+
+- Serialize build claims and final transitions across processes; size leases for real checks,
+  hold interrupted attempts without automatic paid retries, retain held-attempt evidence and
+  refuse another launch until a held request is explicitly cancelled. Reject malformed queue
+  values with HTTP 400 and emit bounded telemetry on builder failure. Allow 180 seconds for
+  authoring while retaining 60-second review transports.
+
+- Resolve validated live targets per selected feature, including the new feature-017 strict-request-validation contract. Persist unexpected worker failures as visible holds, refuse unsupported work before reserving budget, and require the independent review circuit for paid builders.
+
 - Make the operator cockpit the default view, with searchable feature availability, persistent completed/in-progress launch locks, recent build evidence, separate simulation history and daily budgets. Keep the scenario lab at `/lab` and load the release drill only on demand.
 
 - Update the harness connectors to Æion Factory **v1.9.3**. The factory added

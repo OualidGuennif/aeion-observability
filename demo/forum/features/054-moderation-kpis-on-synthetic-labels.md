@@ -1,15 +1,18 @@
 ---
 id: 054
+sequence: 55
 title: "Moderation KPIs on synthetic labels"
 area: moderation
 size: M
 parallel: false
 phase: P2
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/"]
 depends_on: [046]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 054 — Moderation KPIs on synthetic labels
@@ -21,9 +24,19 @@ Measure deterministic-engine precision/recall on a held-out labelled synthetic f
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_c.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Freeze separate tuning and held-out synthetic label sets.
+2. Compute per-code confusion, denominators and precision/recall.
+3. Weaken a rule and prove the held-out threshold fails without retuning labels.
+
+**Scope:**
 
 - Two hundred labelled synthetic cases split by stable IDs into 100 tuning and 100 held-out cases.
 - Report engine per-code confusion, precision and recall; optional moderator proposal evaluation waits for qualified 050.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_c.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

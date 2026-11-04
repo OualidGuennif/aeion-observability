@@ -30,6 +30,11 @@ def with_path(path, text="reviewed bytes\n"):
 
 
 class SensitivePathTests(unittest.TestCase):
+    def test_gradle_policy_requires_review_before_remote_effects(self):
+        for name in ('build.gradle','settings.gradle.kts','gradle.properties','libs.versions.toml','gradlew'):
+            with self.subTest(name=name):
+                self.assertTrue(is_sensitive_path('demo/forum-app/'+name))
+
     def test_markers(self):
         self.assertTrue(is_sensitive_path("demo/forum/product/auth/x.py"))
         self.assertTrue(is_sensitive_path("demo/forum/product/migrations/001.sql"))
@@ -41,10 +46,11 @@ class SensitivePathTests(unittest.TestCase):
 
 class CircuitIndependenceTests(unittest.TestCase):
     def test_two_votes_from_one_family_are_not_independent(self):
-        circuit = {"status": "approved", "votes": [
-            {"model": "a", "family": "one"}, {"model": "b", "family": "one"}]}
+        circuit = {"status": "approved", "author_model": "glm-5.3-flash", "votes": [
+            {"model": "qwen-3.8-flash", "family": "qwen", "verdict": "approve"},
+            {"model": "claude-haiku-5.5", "family": "qwen", "verdict": "approve"}]}
         self.assertFalse(independent_circuit(circuit))
-        circuit["votes"][1]["family"] = "two"
+        circuit["votes"][1]["family"] = "anthropic"
         self.assertTrue(independent_circuit(circuit))
 
     def test_missing_family_or_two_votes_is_not_independent(self):

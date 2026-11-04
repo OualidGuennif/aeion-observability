@@ -1,27 +1,34 @@
-"""Real GitHub forge behind the publisher policy.
+"""Pinned atomic GitHub publication and exact-head protected merging.
 
-The token is read from ``GH_API_KEY`` at call time and never printed, logged or stored.
-Every write is idempotent against a deterministic branch name derived from the attempt
-id, so an uncertain result is reconciled by looking the pull request up, never by
-re-publishing. ``dry_run`` defaults to true: no remote object is created until the
-operator explicitly disables it, and merging is a separate explicit flag.
+Spec: knowledge/components/factory-flue.md
+
+The isolated publisher creates a single tree/commit on a deterministic feature branch.
+The isolated release role checks the actual protection, CI issuer/head and main ancestry.
+An uncertain write is reconciled by reads; no direct or force update of main exists here.
 """
+import hashlib
 import json
 import os
+import re
 import ssl
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 
-API = "https://api.github.com"
+from .review import content_digest
+
+API = 'https://api.github.com'
 MAX_FILE_BYTES = 512 * 1024
+MAX_TOTAL_BYTES = 1024 * 1024
+PRODUCT_ROOTS = ('demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/')
+SHA = re.compile(r'[a-f0-9]{40}')
 
 
 class GitHubError(ValueError):
-    """A GitHub operation that cannot be trusted or completed."""
+    """A fixed operational refusal, with no credential or remote response content."""
 
 
 def tls_context():
-    """The demo venv ships no OS trust store; prefer certifi when it is installed."""
     try:
         import certifi
         return ssl.create_default_context(cafile=certifi.where())
@@ -30,152 +37,281 @@ def tls_context():
 
 
 def branch_name(attempt_id):
-    return f"aeion/build-{attempt_id[:24]}"
+    if not isinstance(attempt_id, str) or not re.fullmatch('[a-f0-9]{32}', attempt_id):
+        raise GitHubError('invalid_attempt_id')
+    return 'aeion/build-' + attempt_id[:24]
 
 
-def _urllib_transport(method, url, payload, headers, timeout=30):
-    data = json.dumps(payload).encode("utf-8") if payload is not None else None
-    request = urllib.request.Request(url, data=data, method=method)
-    for key, value in headers.items():
-        request.add_header(key, value)
+def _urllib_transport(method, url, payload, headers, timeout=20):
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *_args, **_kwargs): return None
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect(),
+        urllib.request.HTTPSHandler(context=tls_context()))
+    request = urllib.request.Request(url, data=json.dumps(payload).encode() if payload is not None else None,
+                                     method=method, headers=headers)
     try:
-        with urllib.request.urlopen(request, timeout=timeout, context=tls_context()) as response:
-            body = response.read().decode("utf-8")
-            return response.status, (json.loads(body) if body else {})
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", "replace")
+        response = opener.open(request, timeout=timeout)
+    except urllib.error.HTTPError as error:
+        response = error
+    with response:
+        data = response.read(4194305)
+        if len(data) > 4194304:
+            raise GitHubError('forge_response_too_large')
         try:
-            parsed = json.loads(body) if body else {}
-        except ValueError:
-            parsed = {"message": body[:200]}
-        return exc.code, parsed
+            return response.code, json.loads(data) if data else {}
+        except (UnicodeError, ValueError):
+            raise GitHubError('forge_response_invalid') from None
+
+
+def _sha(value):
+    if not isinstance(value, str) or not SHA.fullmatch(value):
+        raise GitHubError('invalid_commit_identity')
+    return value
+
+
+def _blob(text):
+    raw = text.encode('utf-8')
+    return hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
 
 
 class GitHubForge:
-    """Forge adapter with the same ``publish``/``reconcile`` contract as ``FakeForge``."""
-
-    def __init__(self, repo, token=None, transport=None, base_branch="main",
-                 dry_run=True, allow_merge=False):
-        self.repo = repo
-        self.token = token if token is not None else os.environ.get("GH_API_KEY")
+    def __init__(self, repo, token=None, transport=None, base_branch='main', dry_run=True,
+                 allow_merge=False, before_write=None):
+        if not isinstance(repo, str) or not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repo):
+            raise GitHubError('invalid_repository')
+        if base_branch not in {'main', 'develop'}:
+            raise GitHubError('invalid_base_branch')
+        self.repo, self.base_branch = repo, base_branch
+        self.token = token if token is not None else os.environ.get('GH_API_KEY')
         self.transport = transport or _urllib_transport
-        self.base_branch = base_branch
-        self.dry_run = bool(dry_run)
-        self.allow_merge = bool(allow_merge)
+        self.dry_run, self.allow_merge = bool(dry_run), bool(allow_merge)
         self.calls = []
+        self.before_write = before_write
 
-    # ------------------------------------------------------------------ plumbing
     def _request(self, method, path, payload=None):
         if not self.token:
-            raise GitHubError("publisher_unconfigured")
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "aeion-factory",
-        }
-        url = path if path.startswith("https://") else f"{API}{path}"
+            raise GitHubError('publisher_unconfigured')
+        if not path.startswith('/repos/' + self.repo + '/'):
+            raise GitHubError('forbidden_forge_endpoint')
+        if method != 'GET' and self.before_write is not None and not self.before_write():
+            raise GitHubError('publication_revoked')
+        url = API + path
         self.calls.append((method, url))
-        status, body = self.transport(method, url, payload, headers)
-        return status, body
+        return self.transport(method, url, payload, {
+            'Authorization': 'Bearer ' + self.token, 'Accept': 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'aeion-factory'})
 
     def _ref(self, branch):
-        return f"/repos/{self.repo}/git/ref/heads/{branch}"
+        return '/repos/' + self.repo + '/git/ref/heads/' + quote(branch, safe='/')
 
-    # ------------------------------------------------------------------ operations
     def base_sha(self):
-        status, body = self._request("GET", self._ref(self.base_branch))
-        if status != 200 or "object" not in body:
-            raise GitHubError(f"base_unreadable:{status}")
-        return body["object"]["sha"]
+        status, data = self._request('GET', self._ref(self.base_branch))
+        if status != 200:
+            raise GitHubError('base_unreadable:' + str(status))
+        return _sha((data.get('object') or {}).get('sha'))
 
-    def ensure_branch(self, branch, sha):
-        status, _ = self._request("GET", self._ref(branch))
-        if status == 200:
-            return "exists"
-        if status != 404:
-            raise GitHubError(f"branch_probe_failed:{status}")
-        status, body = self._request("POST", f"/repos/{self.repo}/git/refs",
-                                     {"ref": f"refs/heads/{branch}", "sha": sha})
-        if status not in (200, 201):
-            raise GitHubError(f"branch_create_failed:{status}")
-        return "created"
+    def _commit(self, sha):
+        status, data = self._request('GET', f'/repos/{self.repo}/git/commits/{_sha(sha)}')
+        if status != 200:
+            raise GitHubError('commit_unreadable:' + str(status))
+        return data
 
-    def commit_files(self, branch, files, message):
-        """Commit each reviewed file on the branch; the content is what the gate approved."""
-        committed = []
-        for path, text in sorted(files.items()):
-            if len(text.encode("utf-8")) > MAX_FILE_BYTES:
-                raise GitHubError(f"file_too_large:{path}")
-            status, current = self._request("GET", f"/repos/{self.repo}/contents/{path}?ref={branch}")
-            sha = current.get("sha") if status == 200 else None
-            payload = {"message": message, "content": _b64(text), "branch": branch}
-            if sha:
-                payload["sha"] = sha
-            status, body = self._request("PUT", f"/repos/{self.repo}/contents/{path}", payload)
-            if status not in (200, 201):
-                raise GitHubError(f"file_commit_failed:{path}:{status}")
-            committed.append(path)
-        return committed
+    def _files(self, request):
+        files = request.get('files')
+        if not isinstance(files, dict) or not files or len(files) > 100:
+            raise GitHubError('publisher_no_content')
+        total = 0
+        for path, text in files.items():
+            if (not isinstance(path, str) or not path.startswith(PRODUCT_ROOTS)
+                    or not re.fullmatch(r'[A-Za-z0-9_./-]+', path)
+                    or any(not p or p.startswith('.') for p in path.split('/'))
+                    or not isinstance(text, str) or '\0' in text):
+                raise GitHubError('forbidden_product_content')
+            size = len(text.encode('utf-8')); total += size
+            if size > MAX_FILE_BYTES or total > MAX_TOTAL_BYTES:
+                raise GitHubError('publisher_content_too_large')
+        if request.get('artifact_digest') != content_digest(files):
+            raise GitHubError('artifact_digest_mismatch')
+        return files
 
-    def open_pull_request(self, branch, title, body):
-        status, existing = self._request("GET", f"/repos/{self.repo}/pulls?state=open&head={self.repo.split('/')[0]}:{branch}")
-        if status == 200 and existing:
-            return existing[0]
-        status, body_json = self._request("POST", f"/repos/{self.repo}/pulls", {
-            "title": title, "head": branch, "base": self.base_branch, "body": body,
-        })
-        if status not in (200, 201):
-            raise GitHubError(f"pr_open_failed:{status}")
-        return body_json
+    def _matches_commit(self, head, base, files):
+        commit = self._commit(head)
+        if [p.get('sha') for p in commit.get('parents', [])] != [base]:
+            return False
+        status, diff = self._request('GET', f'/repos/{self.repo}/compare/{base}...{head}')
+        changed = diff.get('files', []) if isinstance(diff, dict) else []
+        if (status != 200 or len(changed) != len(files)
+                or {p.get('filename') for p in changed} != set(files)
+                or any(p.get('status') not in {'added', 'modified'}
+                       or p.get('sha') != _blob(files[p['filename']]) for p in changed)):
+            return False
+        tree = _sha((commit.get('tree') or {}).get('sha'))
+        status, listing = self._request('GET', f'/repos/{self.repo}/git/trees/{tree}?recursive=1')
+        if status != 200 or listing.get('truncated') is not False:
+            return False
+        entries = {p.get('path'): p for p in listing.get('tree', [])}
+        return all(entries.get(path, {}).get('mode') == '100644'
+                   and entries[path].get('type') == 'blob'
+                   and entries[path].get('sha') == _blob(text) for path, text in files.items())
 
     def find_pull_request(self, branch):
-        status, existing = self._request("GET", f"/repos/{self.repo}/pulls?state=all&head={self.repo.split('/')[0]}:{branch}")
-        if status != 200:
-            raise GitHubError(f"pr_probe_failed:{status}")
-        return existing[0] if existing else None
+        query = quote(self.repo.split('/')[0] + ':' + branch, safe=':/')
+        status, found = self._request('GET', f'/repos/{self.repo}/pulls?state=all&head={query}&per_page=100')
+        if status != 200 or not isinstance(found, list) or len(found) > 1:
+            raise GitHubError('pr_probe_failed:' + str(status))
+        return found[0] if found else None
 
-    # ------------------------------------------------------------------ forge contract
+    def open_pull_request(self, branch, title, body):
+        existing = self.find_pull_request(branch)
+        if existing:
+            return existing
+        status, data = self._request('POST', f'/repos/{self.repo}/pulls',
+            {'title': title, 'head': branch, 'base': self.base_branch, 'body': body})
+        if status not in {200, 201}:
+            existing = self.find_pull_request(branch)
+            if existing:
+                return existing
+            raise GitHubError('pr_open_failed:' + str(status))
+        return data
+
+    def _pr_result(self, pr, head=None, base=None):
+        number = pr.get('number')
+        if type(number) is not int or number < 1:
+            raise GitHubError('invalid_pr_identity')
+        return {'simulated': False, 'dry_run': False, 'pr_number': number,
+                'html_url': f'https://github.com/{self.repo}/pull/{number}',
+                'head_sha': head or (pr.get('head') or {}).get('sha'),
+                'base_sha': base or (pr.get('base') or {}).get('sha'),
+                'merged': bool(pr.get('merged') or pr.get('merged_at')),
+                'merge_sha': pr.get('merge_commit_sha')}
+
     def publish(self, request):
-        branch = branch_name(request["attempt_id"])
-        files = request.get("files") or {}
-        if not files:
-            raise GitHubError("publisher_no_content")
+        if request.get('merge'):
+            raise GitHubError('merge_requires_release_role')
+        files = self._files(request)
+        base, branch = _sha(request.get('base')), branch_name(request.get('attempt_id'))
         if self.dry_run:
-            return {"status": "published", "pr": {"simulated": False, "dry_run": True,
-                                                  "branch": branch, "pr_number": None, "merged": False}}
-        sha = self.base_sha()
-        self.ensure_branch(branch, sha)
-        self.commit_files(branch, files, request.get("title") or f"Feature {request.get('feature_id')}")
-        pr = self.open_pull_request(branch, request.get("title") or f"Feature {request.get('feature_id')}",
-                                    "Produced by the Aeion factory. Reviewed diff, frozen base and protected checks passed.")
-        merged = False
-        if self.allow_merge and request.get("merge"):
-            merged = self.merge(pr["number"])
-        return {"status": "published", "pr": {"simulated": False, "dry_run": False, "branch": branch,
-                                              "pr_number": pr.get("number"), "html_url": pr.get("html_url"),
-                                              "merged": merged}}
+            return {'status': 'dry_run', 'pr': {'simulated': False, 'dry_run': True, 'merged': False,
+                                                'pr_number': None, 'branch': branch}}
+        status, existing = self._request('GET', self._ref(branch))
+        if status == 200:
+            head = _sha((existing.get('object') or {}).get('sha'))
+            if not self._matches_commit(head, base, files):
+                raise GitHubError('branch_content_mismatch')
+        elif status == 404:
+            if self.base_sha() != base:
+                raise GitHubError('stale_base')
+            base_tree = _sha((self._commit(base).get('tree') or {}).get('sha'))
+            status, tree = self._request('POST', f'/repos/{self.repo}/git/trees', {
+                'base_tree': base_tree, 'tree': [{'path': p, 'mode': '100644', 'type': 'blob', 'content': t}
+                                                for p, t in sorted(files.items())]})
+            if status != 201:
+                raise GitHubError('tree_create_failed:' + str(status))
+            tree_sha = _sha(tree.get('sha'))
+            status, commit = self._request('POST', f'/repos/{self.repo}/git/commits', {
+                'message': f"Feature {request.get('feature_id')} / {request['attempt_id']}\n\nArtifact: {request['artifact_digest']}",
+                'tree': tree_sha, 'parents': [base]})
+            if status != 201:
+                raise GitHubError('commit_create_failed:' + str(status))
+            head = _sha(commit.get('sha'))
+            status, _ = self._request('POST', f'/repos/{self.repo}/git/refs',
+                                      {'ref': 'refs/heads/' + branch, 'sha': head})
+            if status not in {200, 201}:
+                # A competing create or unknown response may have succeeded; read, never overwrite.
+                status, ref = self._request('GET', self._ref(branch))
+                observed = (ref.get('object') or {}).get('sha')
+                if status != 200 or not self._matches_commit(observed, base, files):
+                    raise GitHubError('branch_reconciliation_required')
+                head = observed
+        else:
+            raise GitHubError('branch_probe_failed:' + str(status))
+        if not self._matches_commit(head, base, files):
+            raise GitHubError('branch_content_mismatch')
+        pr = self.open_pull_request(branch, str(request.get('title') or 'Factory feature')[:200],
+            'Protected factory checks and two independent reviews bind this exact artifact.\n\n'
+            + 'Artifact: `' + request['artifact_digest'] + '`\nBase: `' + base + '`')
+        return {'status': 'published', 'pr': {**self._pr_result(pr, head, base), 'branch': branch}}
 
-    def merge(self, number):
-        status, _ = self._request("PUT", f"/repos/{self.repo}/pulls/{number}/merge", {"merge_method": "squash"})
+    def protection(self):
+        status, data = self._request('GET', f'/repos/{self.repo}/branches/{self.base_branch}/protection')
         if status != 200:
-            raise GitHubError(f"merge_failed:{status}")
-        return True
+            return {'status': 'held', 'reason': 'protection_unreadable', 'http_status': status}
+        checks = data.get('required_status_checks') or {}
+        required = checks.get('checks') or [{'context': name, 'app_id': 15368} for name in checks.get('contexts', [])]
+        if (checks.get('strict') is not True or not required
+                or (data.get('enforce_admins') or {}).get('enabled') is not True
+                or (data.get('allow_force_pushes') or {}).get('enabled') is not False
+                or (data.get('allow_deletions') or {}).get('enabled') is not False
+                or any(not isinstance(c.get('context'), str) or not c['context']
+                       or c.get('app_id') not in {None, 15368} for c in required)):
+            return {'status': 'held', 'reason': 'protection_unqualified'}
+        return {'status': 'qualified', 'checks': sorted({c['context'] for c in required})}
+
+    def _ci(self, head, required):
+        status, body = self._request('GET', f'/repos/{self.repo}/commits/{head}/check-runs?per_page=100&filter=latest')
+        if status != 200 or type(body.get('total_count')) is not int or body['total_count'] > 100:
+            return {'status': 'held', 'reason': 'ci_unreadable'}
+        valid = {c['name']: c for c in body.get('check_runs', []) if c.get('head_sha') == head
+                 and (c.get('app') or {}).get('id') == 15368}
+        if any(name not in valid or valid[name].get('status') != 'completed' for name in required):
+            return {'status': 'pending', 'reason': 'ci_pending'}
+        if any(valid[name].get('conclusion') != 'success' for name in required):
+            return {'status': 'held', 'reason': 'ci_failed'}
+        return {'status': 'passed', 'checks': required}
+
+    def _confirmed_merge(self, pr):
+        merge_sha = _sha(pr.get('merge_commit_sha'))
+        main = self.base_sha()
+        if main != merge_sha:
+            status, compare = self._request('GET', f'/repos/{self.repo}/compare/{merge_sha}...{main}')
+            if status != 200 or compare.get('status') not in {'ahead', 'identical'}:
+                return {'status': 'held', 'reason': 'merge_not_confirmed', 'merge_sha': merge_sha}
+        return {'status': 'merged', 'merge_sha': merge_sha, 'main_sha': main, 'confirmed_main': True,
+                'pr': self._pr_result(pr)}
+
+    def merge(self, number, *, expected_head, expected_base):
+        head, base = _sha(expected_head), _sha(expected_base)
+        if type(number) is not int or number < 1 or not self.allow_merge:
+            raise GitHubError('merge_requires_release_role')
+        if self.dry_run:
+            return {'status': 'dry_run'}
+        path = f'/repos/{self.repo}/pulls/{number}'
+        status, pr = self._request('GET', path)
+        if status != 200:
+            return {'status': 'held', 'reason': 'pr_unreadable'}
+        if ((pr.get('head') or {}).get('sha') != head
+                or ((pr.get('head') or {}).get('repo') or {}).get('full_name') != self.repo
+                or ((pr.get('base') or {}).get('repo') or {}).get('full_name') != self.repo
+                or (pr.get('base') or {}).get('ref') != self.base_branch):
+            return {'status': 'held', 'reason': 'stale_head'}
+        if pr.get('merged') is True:
+            return self._confirmed_merge(pr)
+        if (pr.get('base') or {}).get('sha') != base or self.base_sha() != base:
+            return {'status': 'held', 'reason': 'stale_base'}
+        protection = self.protection()
+        if protection['status'] != 'qualified':
+            return protection
+        ci = self._ci(head, protection['checks'])
+        if ci['status'] != 'passed':
+            return ci
+        if pr.get('state') != 'open' or pr.get('mergeable') is not True or pr.get('mergeable_state') != 'clean':
+            return {'status': 'pending', 'reason': 'mergeability_pending'}
+        # Re-read immediately before the effect. Strict protected checks also enforce base freshness.
+        status, current = self._request('GET', path)
+        if status != 200 or (current.get('head') or {}).get('sha') != head or self.base_sha() != base:
+            return {'status': 'held', 'reason': 'stale_head_or_base'}
+        status, result = self._request('PUT', path + '/merge', {'merge_method': 'squash', 'sha': head})
+        if status != 200 or result.get('merged') is not True:
+            # Do not repeat a potentially accepted merge; the next call only reads until reconciled.
+            return {'status': 'pending', 'reason': 'merge_reconciliation_required'}
+        status, final = self._request('GET', path)
+        if status != 200 or final.get('merged') is not True:
+            return {'status': 'pending', 'reason': 'merge_reconciliation_required'}
+        return self._confirmed_merge(final)
 
     def reconcile(self, attempt_id):
-        branch = branch_name(attempt_id)
         try:
-            pr = self.find_pull_request(branch)
-        except GitHubError as exc:
-            return {"status": "unknown", "reason": str(exc)}
-        if pr is None:
-            return {"status": "absent"}
-        return {"status": "published", "pr": {"simulated": False, "branch": branch,
-                                              "pr_number": pr.get("number"),
-                                              "html_url": pr.get("html_url"),
-                                              "merged": bool(pr.get("merged_at"))}}
-
-
-def _b64(text):
-    import base64
-    return base64.b64encode(text.encode("utf-8")).decode("ascii")
+            pr = self.find_pull_request(branch_name(attempt_id))
+            return {'status': 'published', 'pr': self._pr_result(pr)} if pr else {'status': 'absent'}
+        except (GitHubError, OSError, TimeoutError):
+            return {'status': 'unknown', 'reason': 'forge_reconciliation_unavailable'}

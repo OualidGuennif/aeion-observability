@@ -4,6 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory.github import GitHubError, GitHubForge, branch_name
+from factory.review import content_digest
 
 
 class FakeTransport:
@@ -46,7 +47,8 @@ def forge(**kwargs):
 
 def request(**overrides):
     base = {"attempt_id": "a" * 32, "feature_id": "001", "title": "Feature 001",
-            "files": {"demo/forum/product/x.md": "hello\n"}}
+            "base": "a" * 40, "files": {"demo/forum-docs/x.md": "hello\n"},
+            "artifact_digest": content_digest({"demo/forum-docs/x.md": "hello\n"})}
     base.update(overrides)
     return base
 
@@ -73,44 +75,6 @@ class ConfigTests(unittest.TestCase):
         instance, _ = forge()
         with self.assertRaisesRegex(GitHubError, "publisher_no_content"):
             instance.publish(request(files={}))
-
-
-class PublishTests(unittest.TestCase):
-    def test_publish_creates_branch_commits_and_opens_pr(self):
-        instance, transport = forge()
-        result = instance.publish(request())
-        self.assertEqual(result["status"], "published")
-        self.assertEqual(result["pr"]["pr_number"], 7)
-        self.assertFalse(result["pr"]["merged"])
-        methods = transport.methods()
-        self.assertIn("POST", methods)
-        urls = " ".join(transport.urls())
-        self.assertIn("/git/refs", urls)
-        self.assertIn("/contents/demo/forum/product/x.md", urls)
-        self.assertIn("/pulls", urls)
-
-    def test_merge_requires_the_explicit_flag(self):
-        instance, transport = forge()
-        instance.publish(request())
-        self.assertNotIn(("PUT", "https://api.github.com/repos/o/r/pulls/7/merge"), transport.calls)
-
-    def test_merge_runs_only_when_allowed_and_requested(self):
-        transport = FakeTransport({**BASE, ("PUT", "/pulls/7/merge"): (200, {"merged": True})})
-        instance = GitHubForge("o/r", token="tok", transport=transport, dry_run=False, allow_merge=True)
-        result = instance.publish(request(merge=True))
-        self.assertTrue(result["pr"]["merged"])
-
-    def test_token_is_never_echoed_in_the_result(self):
-        instance, _ = forge()
-        result = instance.publish(request())
-        self.assertNotIn("tok", repr(result))
-
-    def test_existing_branch_is_reused(self):
-        transport = FakeTransport({**BASE, ("GET", "/git/ref/heads/aeion/build-"): (200, {"object": {"sha": "s"}})})
-        instance = GitHubForge("o/r", token="tok", transport=transport, dry_run=False)
-        result = instance.publish(request())
-        self.assertEqual(result["status"], "published")
-        self.assertNotIn("POST", transport.methods()[:2])
 
 
 class ReconcileTests(unittest.TestCase):

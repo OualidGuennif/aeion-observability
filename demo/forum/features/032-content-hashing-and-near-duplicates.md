@@ -1,15 +1,18 @@
 ---
 id: 032
+sequence: 30
 title: "Content hashing and near-duplicates"
 area: forum
 size: M
 parallel: false
 phase: P1
 tier: 3
-write_paths: ["demo/forum/product/"]
+write_paths: ["demo/forum-app/"]
 depends_on: [021, 007]
 owner: builder
 status: proposed
+architecture: quarkus-postgresql-react-web-v1
+architecture_digest: 33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e
 ---
 
 # 032 — Content hashing and near-duplicates
@@ -21,9 +24,19 @@ Hash every normalized body and detect near-duplicates with a shingle comparison,
 ## Data sources
 
 Frozen feature brief and merged dependency interfaces from [PLAN.md](../PLAN.md).
+The approved [product architecture](../ARCHITECTURE.md) is Quarkus/Java + PostgreSQL +
+React DOM/TypeScript web. Paths refer to the separate product repository, not Observability.
 Content and model output are untrusted. Canonical definition: `tools/specs_b.py`.
 
 ## Inputs
+
+**Delivery steps:**
+
+1. Hash the shared normalized source and compute bounded five-token shingles.
+2. Return exact/Jaccard duplicate evidence without changing visibility.
+3. Pin numeric threshold boundaries and the declared comparison window.
+
+**Scope:**
 
 - Store SHA-256 of normalized source; whitespace normalization is the shared sanitizer contract.
 - Compute five-token shingles and Jaccard similarity; flag at score >= 0.80 within the last 24 hours.
@@ -33,6 +46,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_b.py`
 
 An artifact restricted to the declared write scopes, with checks and refusals described below.
 The protected factory independently validates it; builder reports cannot certify completion.
+Backend tests use JUnit/Quarkus and disposable PostgreSQL; browser behavior uses the React
+production build. A previous SQLite/Expo receipt does not qualify this architecture.
 
 ## Invariants
 

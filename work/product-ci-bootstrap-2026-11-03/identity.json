@@ -1,0 +1,7 @@
+{
+  "local_product_base": "a50d6075b7aecff8f7c54fa47b5f385c16f4ccbb",
+  "path": ".github/workflows/ci.yml",
+  "before_sha256": "115d0c8600c435caed69802e615584da577da942e9d0a1cfb9d6f34aff1c8db9",
+  "after_sha256": "a746c6a3a56fc474364208927a452f17db71133bb1248909f1ac2581c72e7b6e",
+  "published": false
+}
