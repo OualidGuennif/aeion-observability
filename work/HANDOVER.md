@@ -1,3 +1,33 @@
+## CURRENT TEST PASS — requested 2026-11-04, all final checks passed
+
+Read [current.md](current.md) and [the dated test report](test-pass-2026-11-04.md) FIRST.
+The owner asked for a full rerun and current-main verification, not a new product implementation.
+Fresh fetch: observer mainae5a6ef1441a418402e42e61619424b11435a01c, HEAD/origin-develop
+10f072791a2378adad48789a91788c0d37bf0337. Before this pass only current.md/validation.md differed
+from main; source is identical. The0/81 history count reflects retained pre-squash history,
+not81 missing code changes. Working tree was initially clean; this pass changes documentation only.
+
+Final public-source run /private/tmp/aeion-tests-20261104-sm4buts3:683demo/0skips,33examples,
+19Flue,16client,21catalog, Factory PASS;15native Deno/Graphify cases cover initial optional skips.
+Knowledge/doc-links/repo-health/source lock/catalog consistency pass. Main's four check runs were
+freshly read back green. Native OpenShell security/scenarios, all three Flue tiers, review-positive/
+unknown-cost refusal, PostgreSQL, Chromium, Java factory and automatic Java preparation ALL PASS.
+Java factory276.94s, preparation205.44s; the latter proves a negative baseline, repair/handover,
+independent votes excluding preparer/author, four allowed models and actual metadata readbacks.
+All test generator inference was LOCAL SCRIPTED; simulated_complete is never a real implementation,
+merge, efficacy score or product qualification. No production database migration or app reload.
+
+Initial setup/archive failure,7missing-product skips and3missing-public-tool skips are retained,
+resolved and rerun; no assertions weakened. First native-preparation wrapper timed out at300s;
+owned temporary checker/workload names were checked absent. Fresh900s wrapper passed205.44s;
+no engine deadline/budget/scope/qualification was changed. results-final.json records final exits,
+timings and log hashes. Current.md SHA256 cd82ced9b58aef7aa9daaca8a766484395f1cd85e6fe721f998133aa59845720 (exact readback/fsync).
+Operator factory activation marker is STILL ABSENT; PG template qualified=false. Completing
+actual PostgreSQL/React transitions, operator activation, real product/main/demo flow and cockpit
+is still open. PR18/main integration and JUnit hardening are COMPLETE; older pending blocks below
+are historical and must not restart those tasks. No paid provider generation, subagent or new
+schedule was started. Preserve operator data, role separation and the existing hard daily budget.
+
 ## CURRENT DETAILED CHECKPOINT — 2026-11-04
 
 Read [work/current.md](current.md) FIRST. The owner explicitly requested maximum useful detail;
