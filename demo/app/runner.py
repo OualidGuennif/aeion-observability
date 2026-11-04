@@ -59,7 +59,11 @@ def acceptance(workspace, sandbox, task_id="pricing-js-v1", artifact=None):
     digest(path)
     # The artifact the checker reads is the one seeded into the sandbox, not the host mount:
     # on Docker Desktop the mount reports writes it did not make visible and refuses listings.
-    target = artifact or str(path)
+    if artifact is None and hasattr(sandbox, "seed_in"):
+        sandbox.seed_in({"src/pricing.js": path.read_bytes()}, SANDBOX_WORKSPACE)
+        target = SANDBOX_WORKSPACE + "/src/pricing.js"
+    else:
+        target = artifact or str(path)
     task = SCENARIOS[task_id]
     # Agent code runs as the sandbox user with read access to the artifact only. Expected
     # results travel on stdin and never exist in the agent's image or workspace.
