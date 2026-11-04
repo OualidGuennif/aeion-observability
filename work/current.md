@@ -34,13 +34,13 @@ Updated 2026-11-03, Europe/Paris. Read this first; older HANDOVER blocks are his
 - Blocker: These two approvals certify this exact baseline packet, not future features or general model superiority. Resource estimates are not additional bank invoices. Recalled memory, traces and model votes cannot grant permissions or override checks.
 - Evidence: Ignored v6/telemetry-readback.json confirms Langfuse generation counts and exact Hindsight documents; claude-mem execution checkpoints were also read back. [Telemetry contract](../knowledge/operations/telemetry-contract.md) and [Flue factory contract](../knowledge/components/factory-flue.md).
 
-## Observability backlog and main synchronization — AUTHORIZED, PENDING
+## Observability backlog and main synchronization — PR #18 OPEN, QUALIFYING
 
 - Owner decision: Merge all approved aeion-observability work into main after verifying it is clean and ready; no force-push or protection bypass.
-- State: Last fetched observer develop/HEAD/origin-develop is 786e3ff47f26fa960c2c705de18f9d2d07155457. origin/main is ca9532a0edd4a8c46eb6cd4244fdfffd2925ef64: develop is 76 commits ahead and zero behind, plus the current uncommitted factory/catalog/cockpit work. No observer PR was open at the last read. Main enforces admins and strict required docker-demo/offline-examples checks.
-- Next: Agent finishes supported functionality, inventories tracked/new/deleted files without secrets, records exact-head independent review, pushes the approved delivery, waits for current required CI and confirms protected main. Re-fetch refs/protection before that action.
-- Blocker: No observer commit, push or merge has been performed for this delivery. Product PR 4 is a separate repository result. Do not describe the 76-commit backlog as integrated while this entry is pending.
-- Evidence: Configured git/gh read-only metadata checks, [handover](HANDOVER.md), [validation journal](validation.md), and the PR/sign-off rules already read for the authorized scope.
+- State: PR #18 opened for develop -> main (77 commits ahead of ca9532a0edd4a8c46eb6cd4244fdfffd2925ef64). Hardened runner acceptance artifact resolution and handover collection for unmounted OpenShell sandboxes; all 3 tiers qualified.
+- Next: Commit runner/local_sandbox updates, record review, push to origin/develop, verify green CI on PR #18, and merge into main via merge commit.
+- Blocker: Awaiting CI completion on PR #18 before merge. No protection bypass or squash-merge allowed.
+- Evidence: [PR #18](https://github.com/OualidGuennif/aeion-observability/pull/18), local qualify_flue (all 3 tiers pass), qualify_scenarios (4/4 pass), 683 unit tests pass.
 
 ## Execution, isolation and recovery — IMPLEMENTED LOCALLY
 

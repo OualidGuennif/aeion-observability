@@ -13,8 +13,9 @@
   unreported contract XML results in the protected check and artifact gates, after reproducing
   and blocking an `InvocationInterceptor` bypass against exact product `main`. Map Antigravity
   `read_file`, `write_file`, `edit_file` and `run_command` `toolSummary` in `tools/agents/hook.py`,
-  and defer `Telemetry` import in `FactorySession` so Docker-free host checks run without the
-  OpenTelemetry SDK.
+  defer `Telemetry` import in `FactorySession` so Docker-free host checks run without the
+  OpenTelemetry SDK, collect intermediate sandbox writes during handover preparation, and implement
+  seed/collect/sync on LocalSandbox for development verification.
 
 - Enforce explicit DeepSeek reasoning effort and bounded, known-cost recovery for complete
   bootstrap reviews. Keep effort metadata comparable and preserve historical memory documents.

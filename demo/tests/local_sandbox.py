@@ -2,12 +2,16 @@
 
 It has no isolation and never writes qualification evidence; real qualification uses OpenShell.
 """
+import base64
+import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 from types import SimpleNamespace
+
+from sandbox import COLLECT_SCRIPT, MAX_SYNC_BYTES, SANDBOX_OUT, SEED_SCRIPT, materialize
 
 DEMO = Path(__file__).resolve().parents[1]
 IMAGE_PATHS = {"/opt/demo/fs-helper.py": str(DEMO / "agent/fs-helper.py"),
@@ -29,6 +33,33 @@ class LocalSandbox:
         done = subprocess.run(argv, input=stdin, capture_output=True, cwd=workdir, timeout=timeout,
                               env={"PATH": os.environ["PATH"], "HOME": os.environ.get("HOME", "/tmp"), **(env or {})})
         return SimpleNamespace(stdout=done.stdout, stderr=done.stderr, exit_code=done.returncode)
+
+    def seed_in(self, files, destination=SANDBOX_OUT):
+        encoded = {}
+        total = 0
+        for relative, data in files.items():
+            blob = base64.b64encode(data).decode("ascii")
+            total += len(blob)
+            if total > MAX_SYNC_BYTES:
+                raise ValueError("SANDBOX_SEED_TOO_LARGE")
+            encoded[relative] = blob
+        result = self.exec(["python3", "-c", SEED_SCRIPT, destination],
+                           stdin=json.dumps(encoded).encode("utf-8"), timeout=60)
+        if result.exit_code != 0:
+            raise ValueError("SANDBOX_SEED_FAILED")
+        return int(result.stdout.strip() or 0)
+
+    def collect(self, source=SANDBOX_OUT):
+        result = self.exec(["python3", "-c", COLLECT_SCRIPT, source, str(MAX_SYNC_BYTES)], timeout=60)
+        if result.exit_code != 0:
+            raise ValueError("SANDBOX_SYNC_FAILED")
+        try:
+            return json.loads(result.stdout)
+        except ValueError as exc:
+            raise ValueError("SANDBOX_SYNC_UNREADABLE") from exc
+
+    def sync_out(self, destination, source=SANDBOX_OUT):
+        return materialize(self.collect(source), destination)
 
     def close(self):
         self.closed = True

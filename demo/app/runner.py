@@ -182,9 +182,15 @@ class Runner:
     def check(self, run, workspace, sandbox):
         if run.get("runtime") == TRIAGE:
             return triage.check(workspace / triage.ARTIFACT, run.get("task_id"))
-        return acceptance(workspace, sandbox, run.get("task_id", "pricing-js-v1"))
+        artifact = SANDBOX_WORKSPACE + "/src/pricing.js" if (self.copies_out(run) and sandbox is self.active_sandbox) else None
+        return acceptance(workspace, sandbox, run.get("task_id", "pricing-js-v1"), artifact=artifact)
 
     def prepare_handover(self, run, workspace, observed, basis="native_report"):
+        if self.copies_out(run) and self.active_sandbox:
+            try:
+                self.collect_workspace(self.active_sandbox, workspace)
+            except Exception:
+                pass
         # Informational check in the live sandbox; the authoritative verdict uses a fresh one.
         check = self.check(run, workspace, self.active_sandbox)
         artifact = artifact_name(run)
