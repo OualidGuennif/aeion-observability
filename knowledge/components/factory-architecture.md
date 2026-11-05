@@ -33,6 +33,8 @@ sources:
     title: "External product verification boundary"
   - resource: ../../demo/factory/publication.py
     title: "Credential-separated protected publication"
+  - resource: ../../demo/factory/review_context.py
+    title: "Operator-only old-envelope reassessment"
 ---
 
 # Æion Factory architecture
@@ -66,6 +68,13 @@ are not product workspaces. Fixed PostgreSQL migration/restore oracles, a separa
 database and frozen React build/Vitest tools belong to that supervisor boundary. Ordinary workers
 cannot modify them or the maintainer-only CI update program. PostgreSQL/React product delivery and a demo require their own actual
 checks and deployment receipts; capability qualification alone never claims them complete.
+
+Review envelope v2 binds a diff from the exact frozen Git base alongside complete candidate
+files, the MD and protected acceptance. One explicit operator command can reassess an old
+full-files-only rejection when base/task/artifact and known usage remain unchanged, with no
+prior publication. The state transaction archives that rejection and increments its generation;
+the shared judgment path reruns external gates and two fresh reviewer families, including the
+original rejecting reviewer. It grants no worker/HTTP retry authority, approval or author charge.
 
 Langfuse receives bounded role, request, tool and failure metadata via the privacy-filtering
 collector. The local ledger and verified artifacts retain authority independently of dashboard
