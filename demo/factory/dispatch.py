@@ -26,7 +26,7 @@ from .routing import OutcomeTelemetry, cohort_for
 from .agent_files import BuilderError
 from .publish import FakeForge, Publisher
 from .review import content_digest, review
-from .review_circuit import two_vote_review, baseline_diff, CircuitError
+from .review_circuit import two_vote_review, baseline_diff, CircuitError, MAX_SUBSTITUTIONS
 from .store import FAILED, LIVE_COMPLETE, SIMULATED_COMPLETE
 from .target import TargetError
 from .preparation import PreparationError
@@ -299,7 +299,9 @@ class DispatchWorker:
         review_seconds = getattr(self.review_complete, 'timeout_seconds', 0)
         preparation_seconds = getattr(self.preparer,'timeout_seconds',0)
         if self.preparer is not None:check_seconds=max(check_seconds,900)
-        lease_ns = (preparation_seconds + check_seconds + author_seconds + 2 * review_seconds + 60) * 1_000_000_000
+        # Two votes plus the bounded substitute for a busy reviewer (review_circuit.MAX_SUBSTITUTIONS).
+        lease_ns = (preparation_seconds + check_seconds + author_seconds
+                    + (2 + MAX_SUBSTITUTIONS) * review_seconds + 60) * 1_000_000_000
         build = self.store.claim_next(self.catalog, lease_ns=lease_ns)
         if build is None:
             return None
@@ -530,7 +532,8 @@ class DispatchWorker:
         rejecting=next((v.get('model') for v in previous_votes
             if v.get('verdict')==('error' if retry_failed_review else 'reject')),None)
         if rejecting is None:raise CircuitError('review_context_not_eligible')
-        lease_ns=(target.protected_check.timeout_seconds+2*getattr(self.review_complete,'timeout_seconds',900)+60)*10**9
+        lease_ns=(target.protected_check.timeout_seconds
+            +(2+MAX_SUBSTITUTIONS)*getattr(self.review_complete,'timeout_seconds',900)+60)*10**9
         build=self.store.claim_review_context(build_id,self.catalog,
             hashlib.sha256(row['receipt'].encode()).hexdigest(),lease_ns,retry_failed_review=retry_failed_review)
         if build is None:raise CircuitError('review_context_not_eligible')

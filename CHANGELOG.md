@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Keep a busy model provider from holding a passed build: the relay retries HTTP 429/5xx twice
+  (honouring a short `Retry-After`), names what remains `PROVIDER_RATE_LIMITED` or
+  `PROVIDER_UNAVAILABLE`, and a review vote that produced nothing goes once to the next eligible
+  independent reviewer. The cockpit shows each vote with its provider HTTP status, the replaced
+  reviewer, and the one-time operator retry instead of advising a full relaunch.
 - Make the author agent's time window configurable in `demo/budget.conf`
   (`AUTHOR_TIMEOUT_MINUTES`, 5 to 180 minutes, default 30; the shipped file sets 180). The worker
   lease grows with it and `AUTHOR_MAX_USD` still stops spending first.

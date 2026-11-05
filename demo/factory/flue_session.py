@@ -146,6 +146,8 @@ class FactorySession(Runner):
                 'sessions': len(run['sessions']), 'trace_id': run.get('trace_id'),
                 'session_id': run['langfuse_session_id'], 'forwarded_count': run.get('forwarded_count', 0),
                 'failure': run.get('failure'), 'finish_reason':run.get('last_finish_reason'),
+                'provider_http_status':run.get('provider_http_status'),
+                'provider_retries':run.get('provider_retries',0),
                 'process_exit_code':run.get('cli_exit_code'), 'cli_steps':run.get('cli_steps'),
                 'retained_files_count':run.get('retained_files_count'),
                 'retained_artifact_digest':run.get('retained_artifact_digest'),

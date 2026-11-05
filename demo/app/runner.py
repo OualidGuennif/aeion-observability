@@ -36,6 +36,7 @@ AGENTS = {"flue-openshell": "src/agents/coder.ts", "flue-local": "src/agents/loc
 TRIAGE = "flue-just-bash"
 FAILURES = {"USAGE_UNKNOWN", "COST_UNKNOWN", "INVALID_ARTIFACT", "INVALID_CHECK_OUTPUT", "PROVIDER_CONTEXT_VIOLATION",
             "CONTEXT_ACCOUNTING_MISMATCH", "CONTEXT_UNKNOWN", "PROVIDER_REJECTED", "CLI_CLIENT_REQUIRED",
+            "PROVIDER_RATE_LIMITED", "PROVIDER_UNAVAILABLE",
             "PROVIDER_TIMEOUT", "TRANSPORT_ERROR",
             "GO_SUBSCRIPTION_REQUIRED", "MODEL_DISABLED", "PROVIDER_ERROR", "CLI_FAILED", "CLI_PROTOCOL_ERROR",
             "HARNESS_COMPACTION", "AGENT_TIMEOUT", "BUDGET_STOP", "STEP_LIMIT", "HANDOVER_NOT_READY",
@@ -650,4 +651,7 @@ class Runner:
             run.setdefault('provider_usages', []).extend(relay.reported_usage)
             run['provider_accounting_complete'] = relay.accounting_complete
             run['forwarded_count'] = run.get('forwarded_count', 0) + relay.forwarded_count
+            run['provider_retries'] = run.get('provider_retries', 0) + relay.provider_retries
+            if relay.last_http_status is not None:
+                run['provider_http_status'] = relay.last_http_status
             run['projected_cost_usd'] = str(Decimal(run.get('projected_cost_usd', '0')) + relay.projected_cost)

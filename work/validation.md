@@ -1,3 +1,10 @@
+## Busy provider retry and reviewer substitution — 2026-11-05
+
+- Build ac5b5ce1 (001, GLM 5.3 Flash author, about 34 min): protected gate passed for the first time, Qwen 3.8 Flash approved, DeepSeek 4.1 Flash vote failed `PROVIDER_REJECTED` with zero tokens 3.3 s after its first request. The one-time operator `--retry-failed-review` ran DeepSeek first and failed the same way; the build is held `reviewer_failed`. The local privacy-filtered OTel log (`otel-logs` volume, metadata only) shows `aeion.http.status` 429 at both failures and no other refusing status today; DeepSeek had served 159 earlier requests, so the model id was valid. DeepSeek never finished a factory vote (fe0e69f0: TRANSPORT_ERROR).
+- Defects: a 429 was folded into the generic refusal code; the status reached only Langfuse; nothing retried a busy provider; a busy reviewer held a passed build; the cockpit read "timeout or no typed verdict" and advised a full relaunch.
+- Fix: bounded relay retry (2 retries, 5 s/20 s or `Retry-After` ≤ 30 s) for 408/425/429/5xx/529 before any byte; `PROVIDER_RATE_LIMITED`/`PROVIDER_UNAVAILABLE`; status and retry count in execution metadata; one substitution of a busy reviewer that produced zero output tokens, kept as `unavailable_reviewers` so publication still sees exactly two approvals; lease allows the extra vote; cockpit shows votes, status and the operator retry.
+- Checks: demo 757 OK (12 skipped) in an isolated worktree; cockpit JS 28 PASS. Relay retries never re-claim a forward; refusals (400/401/402/403/404), timeouts and billed answers are never retried or substituted.
+
 ## Author window and stall protections — 2026-11-05
 
 - Build 15398c1d (001, DeepSeek v4.1 Flash) ended AGENT_TIMEOUT at its 30-min window (process.retired 21:33:16); three draft self-tests and the final gate failed product_unit_tests_failed on `DatabaseLessBootTest > livenessAnswersWithoutADatabase()`; author cost 0.09768907 USD. Langfuse showed steady steps with 3–4.5 min silent gaps (long Gradle runs), so the window, not a hang, ended it.

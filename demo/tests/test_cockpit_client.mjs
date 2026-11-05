@@ -230,7 +230,8 @@ test('the next step names one plain owner action and never presents a simulation
   const step = run('nextStep({mode:"live"}, fixture, [held])');
   assert.match(step.title, /Feature 001 is on hold/);
   assert.match(step.detail, /could not finish its vote/);
-  assert.match(step.detail, /Cancel this request, then launch the feature again/);
+  assert.match(step.detail, /rerun the votes once without rerunning the author/);
+  assert.match(step.detail, /cancel and launch the feature again/);
   context.rejected = { ...held, receipt: JSON.stringify({ circuit: { reason: 'reviewer_rejected' } }) };
   assert.match(run('nextStep({mode:"live"}, fixture, [rejected]).detail'), /Relaunching unchanged will likely be rejected/);
   context.running = { feature_id: '001', status: 'dispatched', receipt: '{}', created_ns: 3 };
@@ -280,4 +281,23 @@ test('agent clock appears only while the author runs', () => {
   context.receipt.progress.phase = 'process.retired';
   assert.equal(run('agentClock({status:"dispatched"}, receipt, 10800)'), '');
   assert.equal(run('agentClock({status:"dispatched"}, {progress:{phase:"building"}}, 10800)'), '');
+});
+
+test('a failed review vote names the provider status and the retries it already used', () => {
+  const { run } = client();
+  const text = run(`voteText({model: "deepseek-4.1-flash", verdict: "error",
+    execution: {failure: "PROVIDER_REJECTED", provider_http_status: 503, provider_retries: 2}})`);
+  assert.equal(text, 'deepseek-4.1-flash error · PROVIDER_REJECTED · provider HTTP 503 · 2 provider retries');
+  assert.equal(run('voteText({model: "qwen-3.8-flash", verdict: "approve", execution: {provider_retries: 0}})'),
+    'qwen-3.8-flash approve');
+  const html = run(`receiptSummary(JSON.stringify({circuit: {votes: [{model: "<b>", verdict: "error",
+    execution: {provider_http_status: "503"}}]}}))`);
+  assert.match(html, /&lt;b&gt; error/);
+  assert.doesNotMatch(html, /provider HTTP/);
+  const substituted = run(`receiptSummary(JSON.stringify({circuit: {status: "approved",
+    votes: [{model: "qwen-3.8-flash", verdict: "approve"}, {model: "claude-haiku-5.5", verdict: "approve"}],
+    unavailable_reviewers: [{model: "deepseek-4.1-flash", verdict: "error",
+      execution: {failure: "PROVIDER_RATE_LIMITED", provider_http_status: 429, provider_retries: 2}}]}}))`);
+  assert.match(substituted, /Busy reviewer replaced/);
+  assert.match(substituted, /deepseek-4\.1-flash error · PROVIDER_RATE_LIMITED · provider HTTP 429 · 2 provider retries/);
 });
