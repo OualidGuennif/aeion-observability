@@ -28,6 +28,23 @@ from json_input import loads
 # bound the whole session. Measured: a 45s bound cut a DeepSeek review at 45.4s with zero tokens.
 UPSTREAM_IDLE_SECONDS = 300
 
+# A provider that answers "busy" (rate limit, overload, gateway error) has refused the request
+# before producing any token, so the same request may be sent again a bounded number of times.
+# Measured 2026-11-05: one DeepSeek review vote failed on a provider HTTP error with zero tokens
+# and held a build whose gate had passed. Any other status, a timeout or a transport error is
+# not retried: those may have consumed provider work or point at a lasting cause.
+RETRYABLE_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504, 529})
+PROVIDER_RETRY_DELAYS = (5, 20)
+RETRY_AFTER_CEILING_SECONDS = 30
+
+
+def retry_delay(error, fallback):
+    """Seconds before the next attempt: an integer Retry-After within the ceiling, else fallback."""
+    raw = str((error.headers.get('Retry-After') if error.headers is not None else None) or '').strip()
+    if raw.isascii() and raw.isdigit() and len(raw) <= 4:
+        return min(int(raw), RETRY_AFTER_CEILING_SECONDS)
+    return fallback
+
 
 class ContextRelay:
     def __init__(self, model, api_key, limit, checkpoint, event, *, upstream=None, counter=None, bind=None, admission=None,
@@ -66,6 +83,11 @@ class ContextRelay:
         self.forwarded_count = 0
         self.forwarded_counts = []
         self.last_error_code = None
+        # The last provider HTTP status that refused a request, kept as local metadata so a
+        # failed vote says why without opening the trace backend; retries are counted too.
+        self.last_http_status = None
+        self.provider_retries = 0
+        self.stopping = threading.Event()
         # Harnesses sometimes submit the same turn twice — once as a prompt and once as a
         # JSON payload. An identical body with no new conversation state is a duplicate and
         # would be paid twice, so it is refused instead of forwarded.
@@ -198,7 +220,25 @@ class ContextRelay:
                         self.deny(409,'RELAY_CLOSED')
                         return
                     usage = ReportedUsage()
-                    with opener.open(request, timeout=UPSTREAM_IDLE_SECONDS) as response:
+                    attempt = 0
+                    while True:
+                        try:
+                            opened = opener.open(request, timeout=UPSTREAM_IDLE_SECONDS)
+                            break
+                        except urllib.error.HTTPError as busy:
+                            relay.last_http_status = busy.code
+                            if (busy.code not in RETRYABLE_STATUSES or attempt >= len(PROVIDER_RETRY_DELAYS)
+                                    or relay.closed):
+                                raise
+                            delay = retry_delay(busy, PROVIDER_RETRY_DELAYS[attempt])
+                            busy.close()
+                            attempt += 1
+                            relay.provider_retries += 1
+                            relay.event("provider.retry", **{"aeion.http.status": busy.code})
+                            if relay.stopping.wait(delay) or relay.closed:
+                                relay.last_error_code = relay.last_error_code or 'RELAY_CLOSED'
+                                return self.deny(409, 'RELAY_CLOSED')
+                    with opened as response:
                         relay.responses.append(response)
                         self.send_response(response.status)
                         self.send_header("Content-Type", "text/event-stream")
@@ -241,6 +281,12 @@ class ContextRelay:
                         code = "MODEL_DISABLED"
                     if error.code == 402:
                         code = "INSUFFICIENT_FUNDS"
+                    # A busy provider is named apart from a refusal: it produced nothing, and a
+                    # review circuit may give its vote to another eligible reviewer.
+                    if code == "PROVIDER_REJECTED" and error.code == 429:
+                        code = "PROVIDER_RATE_LIMITED"
+                    elif code == "PROVIDER_REJECTED" and error.code in RETRYABLE_STATUSES:
+                        code = "PROVIDER_UNAVAILABLE"
                     relay.last_error_code = code
                     relay.event("provider.reason", **{"aeion.failure.code": code})
                     self.deny(error.code, code)
@@ -285,6 +331,7 @@ class ContextRelay:
     def close(self):
         with self.dispatch_lock:
             self.closed = True
+        self.stopping.set()
         for response in self.responses[:]:
             response.close()
         self.server.shutdown()

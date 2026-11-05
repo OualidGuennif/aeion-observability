@@ -43,7 +43,7 @@ function reasonText(info) {
     qualification_missing: "The independent acceptance check is missing or unqualified. The factory must prepare and verify it before implementation.",
     target_feature_mismatch: "This feature does not match the configured execution target.",
     owner_review_required: "Owner review is required before proceeding.",
-    reviewer_failed: "A reviewer could not finish its vote (timeout or no typed verdict). Nothing was published.",
+    reviewer_failed: "A reviewer could not finish its vote (timeout, provider refusal or no typed verdict). Nothing was published; Review votes shows which one and why.",
     reviewer_rejected: "An independent reviewer rejected the change. Nothing was published; the reason is in Build evidence.",
     worker_error: "The worker stopped unexpectedly. The request is held for review; no automatic paid retry.",
     reconciliation_needed: "An interrupted attempt or remote action needs reconciliation. Another launch stays locked while its effects are unknown.",
@@ -76,7 +76,7 @@ function reasonText(info) {
     profile_expired: "The model profile needs requalification." })[reason] || (reason ? `Waiting: ${reason}. Inspect the request evidence.` : "Ready for automatic preparation and build.");
 }
 const OWNER_ACTIONS = {
-  reviewer_failed: "Cancel this request, then launch the feature again.",
+  reviewer_failed: "The operator may rerun the votes once without rerunning the author (review_context --retry-failed-review); otherwise cancel and launch the feature again.",
   reviewer_rejected: "Read the reviewer reason in Build evidence, then cancel this request. Relaunching unchanged will likely be rejected again.",
   worker_error: "Cancel this request, then launch the feature again.",
   catalog_changed: "Cancel this request, then launch the feature again with the current MD.",
@@ -238,6 +238,15 @@ function setFilter(filter) {
   });
   renderCards();
 }
+function voteText(vote) {
+  const execution = vote?.execution || {};
+  const parts = [`${vote?.model || "unknown"} ${vote?.verdict || "unknown"}`];
+  if (execution.failure) parts.push(String(execution.failure));
+  if (Number.isInteger(execution.provider_http_status)) parts.push(`provider HTTP ${execution.provider_http_status}`);
+  if (Number.isInteger(execution.provider_retries) && execution.provider_retries > 0)
+    parts.push(`${execution.provider_retries} provider retr${execution.provider_retries === 1 ? "y" : "ies"}`);
+  return parts.join(" · ");
+}
 function parseReceipt(raw) {
   try { return raw ? JSON.parse(raw) : {}; } catch { return {}; }
 }
@@ -269,6 +278,8 @@ function receiptSummary(raw) {
     ["Base", r.base_sha && esc(String(r.base_sha))],
     ["Model", r.author_model && esc(String(r.author_model))],
     ["Agent failure", r.execution?.failure && esc(String(r.execution.failure))],
+    ["Review votes", Array.isArray(r.circuit?.votes) && r.circuit.votes.length && esc(r.circuit.votes.map(voteText).join("; "))],
+    ["Busy reviewer replaced", Array.isArray(r.circuit?.unavailable_reviewers) && r.circuit.unavailable_reviewers.length && esc(r.circuit.unavailable_reviewers.map(voteText).join("; "))],
     ["CLI exit", Number.isInteger(r.execution?.process_exit_code) && String(r.execution.process_exit_code)],
     ["Model requests", Number.isInteger(r.execution?.forwarded_count) && String(r.execution.forwarded_count)],
     ["Retained draft files", Number.isInteger(r.execution?.retained_files_count) && String(r.execution.retained_files_count)],

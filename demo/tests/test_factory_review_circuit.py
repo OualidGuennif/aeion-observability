@@ -23,6 +23,50 @@ class CircuitTelemetryTests(unittest.TestCase):
             execution_for_vote=lambda:execution)
         self.assertEqual(result['votes'][0]['execution'],execution)
         self.assertEqual(result['votes'][0]['reason'],'REVIEW_RESULT_MISSING')
+    def busy_circuit(self,busy,failure='PROVIDER_RATE_LIMITED',output_tokens=0,**kwargs):
+        calls=[];state={}
+        def complete(model,_prompt):
+            calls.append(model)
+            if model in busy:
+                state['execution']={'failure':failure,'provider_http_status':429,'provider_retries':2,
+                    'forwarded_count':1,'usage':{'complete':False,'input_tokens':0,'output_tokens':output_tokens}}
+                raise ValueError(failure)
+            state['execution']={'failure':None,'forwarded_count':1,'usage':{'complete':True,'output_tokens':9}}
+            return {'verdict':'approve','reason':'fixture'}
+        result=two_vote_review('glm-5.3-flash','001',FILES,Router(Telemetry()),complete,
+            execution_for_vote=lambda:state['execution'],**kwargs)
+        return result,calls
+
+    def test_a_busy_reviewer_hands_its_vote_once_to_the_next_independent_one(self):
+        from factory.publisher import independent_circuit
+        result,calls=self.busy_circuit({'deepseek-4.1-flash'})
+        self.assertEqual(result['status'],'approved')
+        self.assertEqual(len(calls),3)
+        self.assertEqual([v['model'] for v in result['votes']],[calls[0],calls[2]])
+        self.assertNotIn('deepseek-4.1-flash',[v['model'] for v in result['votes']])
+        self.assertEqual([(v['model'],v['reason']) for v in result['unavailable_reviewers']],
+            [('deepseek-4.1-flash','PROVIDER_RATE_LIMITED')])
+        self.assertEqual([v['vote'] for v in result['votes']],[1,2])
+        self.assertTrue(independent_circuit(result))
+
+    def test_only_one_substitution_and_never_for_a_refusal_or_a_billed_answer(self):
+        result,calls=self.busy_circuit({'deepseek-4.1-flash','claude-haiku-5.5'},failure='PROVIDER_UNAVAILABLE')
+        self.assertEqual((result['status'],result['reason'],len(calls)),('held','reviewer_failed',3))
+        self.assertEqual(len(result['unavailable_reviewers']),1)
+        self.assertEqual(result['votes'][-1]['verdict'],'error')
+        for failure,tokens in (('PROVIDER_REJECTED',0),('PROVIDER_TIMEOUT',0),('PROVIDER_RATE_LIMITED',5),
+                               ('PROVIDER_RATE_LIMITED',None)):
+            with self.subTest(failure=failure,tokens=tokens):
+                result,calls=self.busy_circuit({'deepseek-4.1-flash'},failure=failure,output_tokens=tokens)
+                self.assertEqual((result['status'],result['reason']),('held','reviewer_failed'))
+                self.assertNotIn('unavailable_reviewers',result)
+
+    def test_a_pinned_first_reviewer_that_is_busy_is_still_substituted(self):
+        result,calls=self.busy_circuit({'deepseek-4.1-flash'},first_reviewer='deepseek-4.1-flash')
+        self.assertEqual(calls[0],'deepseek-4.1-flash')
+        self.assertEqual(result['status'],'approved')
+        self.assertEqual(len(result['votes']),2)
+
     def test_baseline_diff_distinguishes_inherited_code_and_includes_untracked_additions(self):
         from factory.review_circuit import baseline_diff
         with tempfile.TemporaryDirectory() as folder:

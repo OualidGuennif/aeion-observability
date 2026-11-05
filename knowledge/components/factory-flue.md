@@ -215,6 +215,17 @@ artifact; the archived votes are never reused and an earlier unknown reservation
 The host relay tolerates up to 300s of upstream silence (connect or between bytes), because a
 reasoning reviewer can think for minutes before its first byte; role deadlines still bound the
 session. A stall is reported as `PROVIDER_TIMEOUT`, other socket failures as `TRANSPORT_ERROR`.
+A busy provider (HTTP 408, 425, 429, 500, 502, 503, 504 or 529 before any byte) is retried
+twice on the same claimed request, after 5s then 20s or an integer `Retry-After` capped at 30s;
+closing the relay ends the wait. Other statuses, timeouts and socket failures are never retried.
+A remaining 429 is `PROVIDER_RATE_LIMITED` and other busy statuses `PROVIDER_UNAVAILABLE`; the
+last refusing HTTP status and the retry count stay in the role's execution metadata. A review
+vote that ends with one of those two codes and zero output tokens produced no verdict, so its
+slot goes once (`MAX_SUBSTITUTIONS`) to the next eligible reviewer outside the author, preparer
+and earlier families; the busy attempt is kept as `unavailable_reviewers`, never as a vote, and
+publication still needs exactly two independent approvals. A refusal, timeout or billed answer
+still holds (test_factory_review_circuit, test_relay_budget_settlement). Measured 2026-11-05:
+DeepSeek answered 429 twice on build ac5b5ce1 after its gate passed.
 All100MDs declare their two owning product documentation files. Their shared scopes require
 serial builds; completion still depends on the current contract and confirmed publication.
 Preparation, the builder's repair feedback and the final gate share the same supervisor-selected

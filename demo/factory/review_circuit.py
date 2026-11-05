@@ -116,6 +116,21 @@ def _normalise(answer):
     return {"verdict": verdict, "reason": reason}
 
 
+# A reviewer whose provider answered "busy" after the relay's bounded retries produced no verdict
+# and no output; its vote goes once to the next eligible independent reviewer. Measured
+# 2026-11-05: DeepSeek answered HTTP 429 twice and held a build whose gate had passed.
+UNAVAILABLE_FAILURES = frozenset({'PROVIDER_RATE_LIMITED', 'PROVIDER_UNAVAILABLE'})
+MAX_SUBSTITUTIONS = 1
+
+
+def _unavailable(execution):
+    """True only for a busy-provider failure that produced no output token."""
+    if not isinstance(execution, dict) or execution.get('failure') not in UNAVAILABLE_FAILURES:
+        return False
+    usage = execution.get('usage')
+    return isinstance(usage, dict) and usage.get('output_tokens') == 0
+
+
 def two_vote_review(author_model, feature_id, files, router, complete, telemetry=None,
                     usage_for_vote=None, specification='', observed_for_vote=None,
                     acceptance='', preparer_model=None, execution_for_vote=None,
@@ -149,15 +164,18 @@ def two_vote_review(author_model, feature_id, files, router, complete, telemetry
     if preparer_model is not None:
         used_models.append(preparer_model)
         used_families.append(family(preparer_model))
-    for index in (1, 2):
+    unavailable = []
+    index = 1
+    while index <= 2:
         try:
-            excluded=used_models
-            if index==1 and first_reviewer is not None:
+            excluded=[*used_models,*(entry['model'] for entry in unavailable)]
+            if index==1 and first_reviewer is not None and not unavailable:
                 from .models import MODELS
                 excluded=[*used_models,*(model for model in MODELS if model!=first_reviewer)]
             model = router.select("review", exclude_models=excluded, exclude_families=used_families)
         except RoutingError:
-            return {"status": "held", "reason": "no_independent_reviewer", "votes": votes,**context}
+            return {"status": "held", "reason": "no_independent_reviewer", "votes": votes,
+                    **({'unavailable_reviewers': unavailable} if unavailable else {}),**context}
         if family(model) in used_families:
             return {"status": "held", "reason": "same_family_reviewer", "votes": votes,**context}
         started = time.monotonic()
@@ -173,12 +191,18 @@ def two_vote_review(author_model, feature_id, files, router, complete, telemetry
         if answer is None:
             if observed:
                 telemetry.record(model, "review", "error", latency_ms=latency_ms, cost_usd=cost)
-            votes.append({"vote": index, "model": model, "family": family(model),
+            failed = {"vote": index, "model": model, "family": family(model),
                           "verdict": "error", "reason": (execution.get('failure')
                               if isinstance(execution,dict) and isinstance(execution.get('failure'),str)
                               and re.fullmatch('[A-Z][A-Z0-9_]{1,63}',execution['failure']) else 'malformed_or_failed'),
-                          **({'execution':execution} if isinstance(execution,dict) else {})})
-            return {"status": "held", "reason": "reviewer_failed", "votes": votes,**context}
+                          **({'execution':execution} if isinstance(execution,dict) else {})}
+            if _unavailable(execution) and len(unavailable) < MAX_SUBSTITUTIONS:
+                # No verdict was produced, so none is discarded; the slot is kept for the next one.
+                unavailable.append(failed)
+                continue
+            votes.append(failed)
+            return {"status": "held", "reason": "reviewer_failed", "votes": votes,
+                    **({'unavailable_reviewers': unavailable} if unavailable else {}),**context}
         if observed:
             telemetry.record(model, "review", _OUTCOME[answer["verdict"]], latency_ms=latency_ms, cost_usd=cost)
         votes.append({"vote": index, "model": model, "family": family(model),
@@ -187,7 +211,11 @@ def two_vote_review(author_model, feature_id, files, router, complete, telemetry
         used_models.append(model)
         used_families.append(family(model))
         if answer["verdict"] != "approve":
-            return {"status": "held", "reason": "reviewer_rejected", "votes": votes,**context}
+            return {"status": "held", "reason": "reviewer_rejected", "votes": votes,
+                    **({'unavailable_reviewers': unavailable} if unavailable else {}),**context}
+        index += 1
+    if unavailable:
+        context['unavailable_reviewers'] = unavailable
     body = {"status": "approved", "votes": votes, "author_model": author_model,
             'spec_digest': hashlib.sha256(specification.encode('utf-8')).hexdigest(),
             'acceptance_digest': hashlib.sha256(acceptance.encode('utf-8')).hexdigest(),
