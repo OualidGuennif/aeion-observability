@@ -66,7 +66,9 @@ Activity refreshes retain expanded build evidence and keyboard focus. An unchang
 not replaced, so reading evidence does not race the ten-second poll or SSE progress events.
 The exact registered001/002/014 contracts prepare deterministically without model requests or cost;
 changed MD bytes require fresh independent preparation. Missing acceptance format, explicit model
-refusal, budget exhaustion and unknown usage have distinct bounded messages. Private proposal
+refusal, budget exhaustion, an invalid `demo/budget.conf` (`budget_config_invalid`) and unknown
+usage have distinct bounded messages. A review vote that failed keeps its failure code (for example
+`REVIEW_RESULT_MISSING` or `PROVIDER_TIMEOUT`) in the build evidence instead of a generic label. Private proposal
 artifacts remain outside default telemetry. PostgreSQL/React helpers are not product delivery.
 The transition baseline explains an absent registered migration operator or browser source.
 A stopped author proposal can continue only with validated files, confirmed removal, complete

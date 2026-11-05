@@ -26,7 +26,9 @@ share every gate, memory and telemetry path:
 | 2 · Local assistant (`flue-local`) | read/write/edit confined to the run workspace (writes in `src/`), strict skill, no shell | Four frozen Deno JavaScript contracts | Protected checks in OpenShell |
 | 3 · Autonomous coding (`flue-openshell`) | bash/read/write/edit/grep/glob in OpenShell through a Flue sandbox adapter | Same four contracts | Protected checks in OpenShell |
 
-Model calls leave from the host through the supervisor's counting relay. The product under test is
+Model calls leave from the host through the supervisor's counting relay. It tolerates up to 300s
+of upstream silence before reporting `PROVIDER_TIMEOUT`; other socket failures are
+`TRANSPORT_ERROR` and both are recognized run failures. The product under test is
 the **Agora forum** (`demo/forum-app/`, Quarkus/Java). Nine observation services use Docker; a
 private native mTLS gateway owns OpenShell sandboxes through its Docker compute driver. This is an
 explicitly authorized local pilot, not a production OPS boundary or general model benchmark.

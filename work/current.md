@@ -6,7 +6,7 @@ No final operational Go or actual product feature merge is claimed.
 ## Secure factory delivery — ACTIVE
 
 - Owner decision: finish MD→Flue/Pi/OpenShell tier3→external acceptance→two independent reviewer families→PR/exact-head CI→confirmed main, with Quarkus/PostgreSQL/React, preserved data and15USD/day per repository.
-- State: Observer main f1be05c (PR21) and develop ae6d929 are green and identical in source. Local develop adds the typed-verdict finish hook, failed-review retry and relay idle-bound fix (735 tests PASS), not yet committed/reviewed/pushed. Local owner notes remain uncommitted.
+- State: Observer main f1be05c (PR21) and develop ae6d929 are green and identical in source. Local develop 528f465 adds the typed-verdict finish hook, failed-review retry, relay idle-bound fix and `demo/budget.conf` (742 demo tests PASS); GLM approved it, the second family review is pending, not pushed. Local owner notes remain uncommitted.
 - Next: a fresh 001 build from the cockpit (owner cancels the held row); independent review and PR of this develop batch (who: agent, owner for the cockpit action).
 - Blocker: no product feature has completed the whole circuit. Product deployment and002/014 remain open. No false all-green claim.
 - Evidence: [Delivery report](factory-delivery-2026-11-05.md); [execution contract](../knowledge/components/factory-flue.md); https://github.com/OualidGuennif/aeion-observability/pull/20 .
@@ -30,7 +30,7 @@ No final operational Go or actual product feature merge is claimed.
 ## Qualification, independent review and telemetry — VERIFIED BASE
 
 - Owner decision: publish only exact reviewed source, keep metadata-only diagnostics and source-backed graphs.
-- State: native v16 PASS (budget.conf bounds, relay300s idle, typed verdict hook), protocole7b346ef4041ea31080b68b6e2a01c8b570438ef0771819e7c69fbeeefade223, proof demo/.local/factory/admission-e2hb4h7b/proof.json, controller PID75794 reloaded with no active build. Full demo742 PASS. Same-chantier review consent remains valid within the total3USD ceiling.
+- State: native v16 PASS (budget.conf bounds, relay300s idle, typed verdict hook), protocole7b346ef4041ea31080b68b6e2a01c8b570438ef0771819e7c69fbeeefade223, proof demo/.local/factory/admission-e2hb4h7b/proof.json, controller PID77547 restarted with `AEION_FACTORY_EXECUTION=live` and no active build. Full demo742 PASS. Same-chantier review consent remains valid within the total3USD ceiling.
 - Next: qualify any protocol correction before controller reload; fresh diagnostics readback and final docs/checks/review/publish after correction (who: agent).
 - Blocker: source edits intentionally revoke admission until native qualification/reload. Collector latest recovered-candidate metadata allowlist still needs safe collector-only reload. No zero-loss telemetry claim.
 - Evidence: /private/tmp/aeion-engine-tests-final-v13.log; /private/tmp/aeion-host-tests-final.log; .aeion/reviews/138c6336aecc4f3825aa7e3a9b7a3241bf823649.md; main9c CI/Architecture green.
