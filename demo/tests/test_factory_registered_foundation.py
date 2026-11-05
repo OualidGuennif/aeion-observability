@@ -36,10 +36,10 @@ class RegisteredFoundationTests(unittest.TestCase):
             'tier':3,'parallel':False,'depends_on':[],'write_paths':['demo/forum-app/'],'file':'001.md',
             'architecture_digest':hashlib.sha256(architecture.read_bytes()).hexdigest()}
 
-    def prepare(self):
+    def prepare(self, reason="application_start_failed"):
         class Checker:
             def check_target(_,target,repo,frozen):
-                return False,{'reason':'application_start_failed'}
+                return False,{'reason':reason}
         catalog=Catalog({'schema_version':2,'count':1,'features':[self.feature]})
         return TaskPreparer(self.root,self.source,role=self.role,checker=Checker(),base_ref='HEAD',product=True).prepare(
             build={'feature_id':'001','build_id':'a'*32,'attempt_id':'b'*32},catalog=catalog,spec_dir=self.specs,
@@ -55,6 +55,15 @@ class RegisteredFoundationTests(unittest.TestCase):
         self.assertEqual(evidence['preparation_kind'],'registered_static_acceptance')
         self.assertEqual(self.budget.spent('aeion-autonomous-forum'),0)
         self.assertTrue(evidence['synthetic'])  # Unit checker/role are synthetic, not activation evidence.
+
+    def test_a_registered_database_less_startup_rejection_is_a_negative_control(self):
+        _,evidence=self.prepare('explicit_database_less_startup_rejected')
+        self.assertEqual(evidence['negative_control'],'registered_foundation_startup_rejection')
+        self.assertEqual(self.role.calls,[])
+
+    def test_arbitrary_compiler_failure_is_never_a_registered_negative_control(self):
+        with self.assertRaisesRegex(PreparationError,'negative_control_missing'):
+            self.prepare('product_compile_failed')
 
     def test_registered_task_persists_without_inventing_a_preparer_model(self):
         _,evidence=self.prepare()

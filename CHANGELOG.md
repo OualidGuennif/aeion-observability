@@ -15,6 +15,9 @@
 - Expose real failure status, cause, duration and bounded usage in Langfuse; retain expanded
   cockpit evidence and visible implementation stages. Extend source-backed architecture coverage
   to the actual cockpit/worker/checker/publication runtime and correct obsolete product instructions.
+- Run startup-refusal probes before the main app occupies their loopback port, avoid false
+  disclosure matches on short numbers and preserve the last checker cause after interruption.
+  Refuse changed-source qualification for a stale loaded runtime; isolate old checker outcomes.
 
 - Let Qwen/Haiku launch complete bounded inputs without treating a byte cost estimate as an
   exact context count. Gate continuation on measured API usage including cache; retain budgets,

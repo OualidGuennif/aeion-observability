@@ -1,11 +1,19 @@
 """Registered startup refusal probes; generated secrets and logs never leave the checker."""
 import json
+import re
 import secrets
 import time
 import uuid
 
 BOUNDS=('AGORA_REQUEST_MAX_BYTES','AGORA_TEXT_MAX_CODEPOINTS','AGORA_RENDERED_MAX_BYTES')
 CANARY='aeion-unknown-setting-public-fixture'
+
+
+def bound_disclosed(content, values, key):
+    # Long fixture values are unique; short numbers also occur in unrelated diagnostics.
+    return any(value in content if len(value)>=8 else
+        any(key in line and re.search(r'(?<![\w-])'+re.escape(value)+r'(?![\w])',line)
+            for line in content.splitlines()) for value in values.values())
 
 
 def startup_refusals(runner, package, database):
@@ -47,8 +55,8 @@ def startup_refusals(runner, package, database):
                     break
                 time.sleep(.1)
             logs=runner._call(['logs',name]);content=logs.stdout+logs.stderr
-            if (secret and secret in content) or CANARY in content:
-                return False,'startup_disclosed_settings'
+            if secret and secret in content:return False,reason+'_disclosed_secret'
+            if CANARY in content:return False,reason+'_disclosed_unknown_setting'
             if expected_key is None:
                 if not healthy:return False,reason+'_startup_rejected'
                 continue
@@ -57,6 +65,9 @@ def startup_refusals(runner, package, database):
             if code.returncode or not code.stdout.strip().isdigit() or int(code.stdout)==0:
                 return False,'startup_refusal_not_confirmed'
             if expected_key not in content:return False,'startup_refusal_key_missing'
-            if any(value in content for value in extra.values()):return False,'startup_disclosed_settings'
+            # Short numeric values also occur in thread names and stack traces. Require
+            # the setting key and a separate value token on the same line to prove echo.
+            if bound_disclosed(content,extra,expected_key):
+                return False,'invalid_bound_disclosed_value'
         finally:runner._kill(name)
     return True,'startup_refusals_passed'

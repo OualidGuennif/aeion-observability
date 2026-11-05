@@ -9,7 +9,8 @@ import json
 from .models import Telemetry, known
 from app.profiles import PROFILE_VERSION
 
-METHOD = 'flue-factory-routing-v3'
+METHOD = 'flue-factory-routing-v4'
+# v3 used the colliding startup probes. Preserve those rows, never rank the corrected checker with them.
 
 
 def cohort_for(feature, check_profile, runtime='flue-openshell', execution_bounds=None):

@@ -114,6 +114,18 @@ with the real CLI and a local scripted endpoint: before correction no request re
 endpoint; after correction the unchanged MD reached it once. The native automatic-preparation
 fixture now begins with frontmatter and exercises all role/acceptance/review paths.
 
+Database-less startup probes run before the main app binds their shared owned loopback port.
+Otherwise a refusal probe can read the already running app and report a false failure. Numeric
+fixture values require unambiguous matching so thread numbers do not masquerade as disclosure.
+The registered001 baseline accepts only its known database-less startup rejection or actual
+failed external assertions; arbitrary compiler failure remains invalid negative evidence.
+Loaded runtime identity is captured separately from the current disk proof. Requalifying changed
+source cannot authorize stale Python objects: that process needs a clean reload. Same-source
+freshness recovery preserves unstarted queued attempts. Routingv4 excludes outcomes collected
+by the former colliding startup checker without deleting those historical rows.
+The last fixed checker status/reason/digest survives later agent events and an interrupted role.
+Its retained-file count is evidence, not approval to publish partial work or settle unknown usage.
+
 The PostgreSQL check boundary uses a new disposable PostgreSQL 17 container per check, network
 `none`, RAM-only data, no host paths or published ports. A non-root checker joins only that
 container's network namespace; localhost reaches the disposable database, external routes stay

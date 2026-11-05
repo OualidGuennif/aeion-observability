@@ -47,6 +47,15 @@ class AttributeTests(unittest.TestCase):
         self.assertNotIn('langfuse.observation.metadata.failure_code',rejected)
         self.assertNotIn('langfuse.observation.metadata.measured_cost_usd',rejected)
 
+    def test_interrupted_build_keeps_the_last_protected_cause_and_retained_count(self):
+        attrs=telemetry.build_attributes('b'*32,'001','a'*32,gate_status='builder_error',diagnostics={
+            'failure_code':'AGENT_TIMEOUT','check':{'status':'failed','reason':'missing_secret_accepted'},
+            'retained_files_count':11,'stderr':'private-canary'})
+        self.assertEqual(attrs['langfuse.observation.metadata.check_status'],'failed')
+        self.assertEqual(attrs['langfuse.observation.metadata.check_reason'],'missing_secret_accepted')
+        self.assertEqual(attrs['langfuse.observation.metadata.retained_files_count'],11)
+        self.assertNotIn('private-canary',str(attrs))
+
 
 class EmitTests(unittest.TestCase):
     def test_disabled_emitter_does_not_load_the_sdk(self):

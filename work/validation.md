@@ -1838,3 +1838,37 @@ Final post-documentation checks: knowledge-check0problems, doc-links121, repo-he
 git diff --check and28relative links all pass. Native cleanup confirms zero owned checker/workload
 containers, removes only the temporary TLS symlink, and preserves the existing operator gateway.
 Only work/HANDOVER.md, work/current.md, work/validation.md and the new dated test report are changed.
+
+
+## Real factory checker, runtime identity and architecture — 2026-11-05
+
+- Observer upgrade PR19/main48d1ae4 has actual exact-head and post-main green CI/Architecture.
+  Owner-approved exact leased develop alignment preserved the old head/archive and all local work.
+  Only main/develop remain as remote heads; local97f3ff8 is the subsequent reviewed engine slice.
+- Full engine710tests PASS (/private/tmp/aeion-product-full-tests-20261105-v10.log), cockpit22,
+  Flue19, catalog21, examples33 and complete foundation factory-tests PASS. Knowledge/doc-links133
+  and repo-health passed. The fullv9 fixture-only missing protocol mock was corrected, not hidden.
+- The startup-port regression failed before correction, then4boundary tests PASS. Registered
+  startup negative control5PASS; startup/diagnostic2PASS; loaded-runtime stamp14PASS. Nativev11
+  all6capabilities plus registered foundation PASS, protocolef76e49e5451ab565148e30e791707d8337bec0a810ca0187d5bef9d6d24cc26,
+  proof demo/.local/factory/admission-iigyr8l3/proof.json. These fixtures use local scripted
+  inference and claim execution mechanisms only.
+- Real001v6 timed out with52forwards/51accountedsteps,11retained files and incomplete cost.
+  Its reservation remains counted. The actual retained worker artifact subsequently PASSed
+  corrected independent compile/unit/startup/privacy/HTTP in128922ms with teardown; no new
+  main merge is claimed. Controller5713 now runs fresh qualification; normal API attemptv7
+  ee701adcf55b496da219e6b877282f98 is in progress.
+- Langfuse synthetic diagnostic/privacy readback5d168ca966ca3afb0a1b550391f56f37 PASSes ERROR,
+  AGENT_TIMEOUT,1250ms, failed checker cause,11retained files, removed content and empty root I/O.
+  The real interrupted build summarya7cc4ea9e1173db5fdfbd8aa8ea7739b was also backend-confirmed.
+- Exact97f3ff8 Graphify/Archify PASS:604sources,112runtime files,537required files covered,
+  6574nodes/13923edges. Architecture/workflow/lifecycle all native gates, including browser-check,
+  PASS. Final corrected-commit and main refresh remain required; manual file-URL browser preview
+  was policy-blocked without workaround.
+- Two real reviewers approved all4parts of97f3ff8 with complete usage. Qwen's part2 rejection
+  was retained and reassessed with primary context proving product doc ownership and automatic
+  frozen acceptance. Checker fixes found by real execution are subsequent source and still
+  require their own review. No false formal receipt or bypass of branch protection was used.
+- Unwired PostgreSQL unit-fixture native probe PASSes its own admin/loopback, absent host keys,
+  denied external egress and teardown; it is not product002/003 delivery. PG/React/proxy wiring,
+  product deployment and actual complete feature-to-main remain open.

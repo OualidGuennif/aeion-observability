@@ -327,7 +327,10 @@ class TaskPreparer:
             effective = detail.get('contract_assertion_failures', 0) > 0
             # A registered foundation transition also checks startup against deliberately
             # unavailable storage. Startup rejection is an explicit baseline, not compiler failure.
-            effective |= static_contract is not None and task.feature_id == '001' and detail.get('reason') == 'application_start_failed'
+            registered_startup_rejection = (static_contract is not None and task.feature_id == '001'
+                and detail.get('reason') in {'application_start_failed',
+                    'explicit_database_less_startup_rejected','default_database_less_startup_rejected'})
+            effective |= registered_startup_rejection
             if passed or not effective:
                 raise PreparationError('preparation_negative_control_missing')
         elif (passed or detail.get('failure_kind') != 'tests_failed'
@@ -338,7 +341,7 @@ class TaskPreparer:
             raise PreparationError('preparation_revoked')
         evidence = {**task.identity(), 'task_digest':task.digest(), 'acceptance_digest':_digest(text),
                     'preparer_model':model, 'negative_control':('registered_foundation_startup_rejection' if self.product and
-                        detail.get('reason')=='application_start_failed' else 'failed_contract_assertion'),
+                        registered_startup_rejection else 'failed_contract_assertion'),
                     'synthetic':not self.role.paid}
         if self.product:
             evidence.update(schema_version=2, preparation_kind=('registered_static_acceptance'

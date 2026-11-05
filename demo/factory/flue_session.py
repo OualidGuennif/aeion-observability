@@ -21,6 +21,18 @@ MODEL_PROFILE = {'glm-5.3-flash': 'glm', 'deepseek-4.1-flash': 'deepseek',
                  'qwen-3.8-flash': 'qwen', 'claude-haiku-5.5': 'haiku'}
 
 
+def check_evidence(check):
+    """Keep fixed checker status/cause across later agent events and interrupted roles."""
+    result = {'status':check.get('status') if check.get('status') in {'passed','failed','held'} else 'not_run'}
+    reason=check.get('reason')
+    if isinstance(reason,str) and re.fullmatch('[a-z][a-z0-9_]{1,95}',reason):
+        result['reason']=reason
+    digest=check.get('artifact_digest')
+    if isinstance(digest,str) and re.fullmatch('[a-f0-9]{64}',digest):
+        result['artifact_digest']=digest
+    return result
+
+
 def new_run(model, build_id, role, cost_limit, synthetic=False):
     if model not in MODEL_PROFILE:
         raise ValueError('MODEL_NOT_ALLOWED')
@@ -107,7 +119,7 @@ class FactorySession(Runner):
         measured = usage(run)
         run['usage_complete'] = measured['complete']
         check = self.last_check
-        run['check'] = {'status':check.get('status') if check.get('status') in {'passed','failed','held'} else 'not_run'}
+        run['check'] = check_evidence(check)
         if isinstance(check.get('artifact_digest'),str) and re.fullmatch('[a-f0-9]{64}',check['artifact_digest']):
             run['artifact_sha256'] = check['artifact_digest']
         outcome = {'schema':'factory-outcome-v1','build_id':run['build_id'],'run_id':run['id'],

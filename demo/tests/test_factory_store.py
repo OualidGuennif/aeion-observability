@@ -67,6 +67,15 @@ class StoreTests(unittest.TestCase):
     def store(self, concurrency=1):
         return Store(Path(self.tmp.name) / "factory.db", active_concurrency=concurrency)
 
+    def test_a_later_agent_event_does_not_erase_the_last_bounded_check_cause(self):
+        store=self.store();store.admit(['f1'],'draft-check',self.catalog);build=store.claim_next(self.catalog)
+        store.record_progress(build['attempt_id'],build['attempt_generation'],'protected_check.finished',
+            {'status':'failed','reason':'missing_secret_accepted','stderr':'private-canary'})
+        store.record_progress(build['attempt_id'],build['attempt_generation'],'model.step.started',{})
+        receipt=json.loads(store.board()[0]['receipt'])
+        self.assertEqual(receipt['draft_check'],{'status':'failed','reason':'missing_secret_accepted'})
+        self.assertNotIn('private-canary',str(receipt))
+
     def test_admit_root_is_queued(self):
         s = self.store()
         r = s.admit(["f1"], "k1", self.catalog)

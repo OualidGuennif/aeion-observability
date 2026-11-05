@@ -43,7 +43,7 @@ Native capability admission v9 passed on protocol
 `1061e7bc4d7d55c908735fc26780cc7f315a9ddaab2f43570d88060b7fd0117c`, evidence
 `demo/.local/factory/admission-2ebq2_kc/proof.json`. It explicitly claims tools, not product delivery.
 The safely reloaded controller admitted fresh real001 attempt
-`85abd667488948ada3d5e819f73d3d80`. Its final result is pending; no feature merge is claimed here.
+`85abd667488948ada3d5e819f73d3d80`. It failed STEP_LIMIT after12 forwarded requests, known resourceUSD0.03470440. The relay had retained a lab12-request cap despite factory200-step bounds; that cap is corrected. A subsequent real attempt made52 requests and retained11 files before timeout; its missing final usage remains unresolved and reserved. No new feature merge is claimed here.
 
 ## Useful Langfuse diagnostics
 
@@ -77,8 +77,8 @@ synthetic privacy/diagnostic mechanism check, not a successful product build. Pr
 The interface now preserves expanded build evidence and keyboard focus during poll/SSE refresh,
 does not replace unchanged lists, exposes the full build session and external product check
 diagnostics, and moves successful results for older MD contracts into historical attempts.
-The19 client checks pass. Current full engine regression passed694 tests; later focused receipt
-checks also passed. These counts do not replace actual main/product/browser verification.
+The latest22 client checks and710engine tests pass. Later focused/native checks are recorded
+in current work. These counts do not replace actual main/product/browser verification.
 
 PostgreSQL/React draft helpers still need complete trusted integration and real worker-produced
 product changes. Compile the production package before candidate unit tests; isolate test and
@@ -87,6 +87,34 @@ production React/browser behavior. A fixed-upstream product proxy has passed syn
 cookie canaries but is not yet wired into deployment. Separate localhost ports do not isolate
 browser cookies. A real demo must sit behind the trusted cookie-filtering proxy.
 
-Native admission freshness must also be rechecked dynamically, with truthful progress and safe
-automatic requalification rather than a permanently cached startup decision. Actual protected
+Native admission freshness is rechecked dynamically and binds loaded code, with truthful
+progress. Automatic same-source expiry renewal remains open; changed code requires reload. Actual protected
 publication, verified product deployment and final browser acceptance remain necessary before Go.
+
+
+## Corrected startup checker and exact architecture evidence
+
+The real worker's later refusal diagnostics exposed a supervisor bug: startup-refusal probes
+shared the already running main app's loopback port8080, so they could read the wrong process.
+The regression failed before correction and passes after running the probes before main launch.
+Short numeric fixture values also matched unrelated log numbers; unique long canaries remain
+globally checked, while short values require their setting key and a separate token.
+The actual retained worker artifact then passed compile, unit, startup refusal/privacy and
+external HTTP acceptance in128922ms with confirmed disposable teardown. This does not promote
+the interrupted attempt, reconcile its unknown usage or claim main integration.
+
+Runtime admission additionally stamps loaded source: a fresh proof for changed disk bytes cannot
+authorize stale Python objects. Last checker status/cause and retained counts survive later agent
+events and failure receipts; default telemetry still excludes payloads. Routingv4 isolates prior
+outcomes measured by the defective startup checker. Fresh native qualification and a normal real
+build are required after these changes.
+
+The exact local97f3ff8 Graphify/Archify baseline passed:604public source files,112runtime files,
+537required files covered,6574nodes/13923edges. All architecture/workflow/lifecycle native
+validate/deliver/check/browser-check gates passed. This is neither the uncommitted correction
+nor the final published main baseline. Documentation now distinguishes ordered dependencies,
+current-contract delivery, old mobile snapshots, capability checks and actual product deployment.
+
+Review source export was initially refused by automatic approval, then explicitly authorized
+by the owner for GLM/Qwen and this97f3ff8 lot, maximum3USD. Real votes and any rejections remain
+private immutable evidence; no formal approval or publication is claimed until complete coverage.

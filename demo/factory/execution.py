@@ -12,7 +12,7 @@ from .isolation import DockerCheckRunner
 from .inference_config import available as provider_available
 from .target import TargetError, load_target
 from .telemetry import FactoryTelemetry
-from .flue_qualification import ready as flue_factory_ready
+from .flue_qualification import ready as flue_factory_ready, protocol_hash
 from .preparation import TaskPreparer
 from .source import SourceSynchronizer
 
@@ -140,8 +140,11 @@ def resolve(repo_root, mode):
     from .flue_review import FlueReview
     reviews=FlueReview(cost_limit='1.00',max_output_tokens=65536)
     reviews.timeout_seconds=900
+    loaded_protocol=protocol_hash(repo_root)
     execution = {"mode": "live", "preparer": preparer, "target_errors": errors,
-            "admission_check": lambda: flue_factory_ready(repo_root),
+            # A fresh disk proof must not authorize old Python objects after an edit.
+            # Same-protocol expiry can recover; changed code requires a clean reload.
+            "admission_check": lambda: protocol_hash(repo_root)==loaded_protocol and flue_factory_ready(repo_root),
             "builder": FlueBuilder(repo_root, {}, check_sandbox=checker),
             "review_complete": reviews, 'engine': 'flue-pi', 'runtime': 'flue-openshell', 'tier': 3,
             "publication": True,

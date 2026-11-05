@@ -241,6 +241,12 @@ class ProductCheckRunner(DockerCheckRunner):
                         # A second process with the app role must not gain schema authority.
                         if database.sql("SELECT has_schema_privilege(current_user,'public','CREATE')",role='application')!='f':
                             return False, {'reason':'application_can_create_schema'}
+                    if target.feature_id=='001':
+                        # All probes share this owned loopback. Run them before the main
+                        # app binds8080, or their health reads could hit that other process.
+                        from .product_startup import startup_refusals
+                        startup_ok,startup_reason=startup_refusals(self,package,database)
+                        if not startup_ok:return False, {'reason':startup_reason}
                     name='aeion-product-app-'+uuid.uuid4().hex[:12]
                     try:
                         flags=self._runtime_flags(name,database)
@@ -265,10 +271,6 @@ class ProductCheckRunner(DockerCheckRunner):
                             if alive.returncode or alive.stdout.strip()!='true':break
                             time.sleep(.25)
                         if not healthy: return False, {'reason':'application_start_failed'}
-                        if target.feature_id=='001':
-                            from .product_startup import startup_refusals
-                            startup_ok,startup_reason=startup_refusals(self,package,database)
-                            if not startup_ok:return False, {'reason':startup_reason}
                         passed,detail=self._verify(target,database)
                     finally:self._kill(name)
                 return passed, {**detail,'acceptance_sha256':digest,'duration_ms':int((time.monotonic()-started)*1000),

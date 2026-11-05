@@ -62,6 +62,49 @@ class ProductBoundaryTests(unittest.TestCase):
             self.assertTrue(detail['isolation']['production_packaged_before_tests'])
             self.assertEqual(len(calls),2)
 
+    def test_startup_refusals_never_probe_a_port_owned_by_the_main_app(self):
+        from factory.product_checks import ProductCheckRunner, APP
+        from factory.isolation import DockerCheckRunner
+        from factory.target import Target, ProtectedCheck
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);source=root/'source';app=source/APP;app.mkdir(parents=True)
+            for filename in ('build.gradle','settings.gradle'):(app/filename).write_text('// Public fixture\n')
+            for args in (['init','-q'],['config','user.name','Fixture'],['config','user.email','fixture@example.invalid'],
+                         ['add','.'],['commit','-qm','fixture']):
+                subprocess.run(['git','-C',str(source),*args],check=True,capture_output=True)
+            sha=subprocess.check_output(['git','-C',str(source),'rev-parse','HEAD'],text=True).strip()
+            contract=root/'acceptance.mjs';contract.write_text('// Public fixture\n')
+            target=Target('startup-port-fixture','001','o/r',root,source,sha,[APP],contract,
+                ProtectedCheck('prepared_product',[],{},contract,'EXTERNAL.mjs',60))
+            state={'main_app_running':False,'startup_checked':False}
+            def gradle(_runner,command,cwd,**_kwargs):
+                if 'quarkusBuild' in command:
+                    package=Path(cwd)/(APP+'build/quarkus-app');package.mkdir(parents=True)
+                    (package/'quarkus-run.jar').write_bytes(b'fixture')
+                return subprocess.CompletedProcess(command,0,stdout='',stderr='')
+            class Database:
+                name='owned-fixture'
+                def __init__(self,*_):pass
+                def __enter__(self):return self
+                def __exit__(self,*_):pass
+            def call(args,**_kwargs):
+                if 'run' in args:state['main_app_running']=True
+                return subprocess.CompletedProcess(args,0,stdout='',stderr='')
+            def refusals(*_args):
+                self.assertFalse(state['main_app_running'], 'Refusal probes would read another app on port8080')
+                state['startup_checked']=True
+                return True,'passed'
+            runner=ProductCheckRunner(root)
+            with patch.object(DockerCheckRunner,'__call__',gradle), \
+                    patch.object(runner,'qualification',return_value={'status':'qualified'}), \
+                    patch('factory.product_checks.DisposablePostgres',Database), \
+                    patch.object(runner,'_call',side_effect=call),patch.object(runner,'_kill'), \
+                    patch('factory.product_startup.startup_refusals',side_effect=refusals), \
+                    patch.object(runner,'_verify',return_value=(True,{'reason':'passed'})):
+                passed,_detail=runner.check_target(target,source)
+            self.assertTrue(passed)
+            self.assertTrue(state['startup_checked'])
+
     def test_nested_git_configuration_cannot_hide_unreviewed_product_files(self):
         for name in ('.gitignore', '.gitattributes', '.gitmodules', '.GITignore'):
             with self.subTest(name=name), self.assertRaises(BuilderError):

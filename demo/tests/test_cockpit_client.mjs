@@ -207,3 +207,14 @@ test('no ready selection during active work explains progress rather than a glob
   run('state.builds=[]');
   assert.match(run('executionNotice({mode:"live"},0)'),/No new implementation can start/);
 });
+
+
+test('an interrupted worker still exposes its checked draft cause and preserved files', () => {
+  const {context,run}=client();
+  context.receipt=JSON.stringify({execution:{failure:'AGENT_TIMEOUT',retained_files_count:11,
+    check:{status:'failed',reason:'missing_secret_accepted'}}});
+  const html=run('receiptSummary(receipt)');
+  assert.match(html,/missing_secret_accepted/);
+  assert.match(html,/Retained draft files/);
+  assert.match(html,/>11</);
+});

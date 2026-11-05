@@ -119,6 +119,15 @@ def build_attributes(build_id, feature_id, attempt_id, artifact_digest=None, bas
     for key,low,high in (('process_exit_code',-255,255),('cli_steps',0,10000),('forwarded_count',0,10000)):
         value=diagnostic.get(key)
         if type(value) is int and low<=value<=high:attributes['langfuse.observation.metadata.'+key]=value
+    check=diagnostic.get('check')
+    if isinstance(check,dict):
+        if isinstance(check.get('status'),str) and check['status'] in {'passed','failed','held','not_run'}:
+            attributes['langfuse.observation.metadata.check_status']=check['status']
+        if isinstance(check.get('reason'),str) and re.fullmatch('[a-z][a-z0-9_]{1,95}',check['reason']):
+            attributes['langfuse.observation.metadata.check_reason']=check['reason']
+    retained=diagnostic.get('retained_files_count')
+    if type(retained) is int and 0<=retained<=32:
+        attributes['langfuse.observation.metadata.retained_files_count']=retained
     measured=diagnostic.get('usage')
     if isinstance(measured,dict) and type(measured.get('complete')) is bool:
         attributes['langfuse.observation.metadata.usage_complete']=measured['complete']

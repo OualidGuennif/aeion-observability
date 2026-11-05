@@ -90,7 +90,8 @@ class FeatureTargetTests(unittest.TestCase):
 
     def test_live_resolver_prepares_each_md_without_a_manual_target_profile(self):
         with mock.patch('factory.execution.provider_available', return_value=True), \
-                mock.patch('factory.execution.flue_factory_ready', return_value=False):
+                mock.patch('factory.execution.flue_factory_ready', return_value=False), \
+                mock.patch('factory.execution.protocol_hash',return_value='a'*64):
             execution = resolve(self.root, 'live')
         self.assertIsNotNone(execution['preparer'])
         self.assertNotIn('targets',execution)

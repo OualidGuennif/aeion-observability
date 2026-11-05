@@ -1,3 +1,114 @@
+## NEWEST RESUME — 2026-11-05 11:28 UTC
+
+Read work/current.md (now68lines) for current state. Controller5713 runs freshlyqualifiedprotocol
+ ef76e49e5451ab565148e30e791707d8337bec0a810ca0187d5bef9d6d24cc26;
+nativev11PASS proof demo/.local/factory/admission-iigyr8l3/proof.json. Old83522retiredsafely.
+ACTIVE actual001v7 ee701adcf55b496da219e6b877282f98, normalCSRFAPI/idempotencyv7, GLMworker.
+DO NOT edit protocol while active; oldv6FAILED/history/0.50unresolvedreservationretained.
+Latest Forum0.19settled+0.50unknownv6+0.50activev7 =1.19spent/reserved of15.
+Fullenginev10 710PASS79.684s,client22PASS; v9onlyfailedfake-rootmissingprotocolmock,corrected.
+Collectorupdated/restartedonlycollector; newLangfusefieldscanary5d168ca966ca3afb0a1b550391f56f37
+PASS(check_reason/status,11retained,ERROR1250ms,contentstripped). No real feature merge yet.
+
+All97f3ff8independentreviewsCOMPLETE: GLMparts1/2/3/4approve; Qwen1approve,2initialreject,
+2contextapprove,3/4approve. Fullusage/allcostsknown, Observerday0.99USD. Sourcepacketshaand
+alloriginalvotes/rejection/contextunderobserver-engine-review/97f3ff8.../;allprocesses92777,
+38677,76263completed0. InitialQwenrejectprocess83753exit1historical. No reviewcurrentlyrunning.
+Do notissueformalOKfor97alone: realstartupcheck/runtimefixesafteritmustbereviewedonnewHEAD.
+Nextcommittrackedcorrections+startupdiagnosticstest,then2realreviewersfortheboundedfixdelta
+withpriorcoveragecontext; preserve3USDObserverjobceiling. Originalexplicitexportapprovalcovers
+97lottoGLM/Qwen; routinefixreviewmuststaywithinthatjob/noarbitrarynewsource. Ifautoreviewrejects
+newexport,followinstructionsaskconcisely; neverbypass. No currentapprovalpending.
+
+PG/ReactdraftprogressONLYuntracked,NOTinpublishedorqualifiedengine:
+ product_unit.py +2unittestsPASS; qualify_product_unit.py actualnativePASS
+ /private/tmp/aeion-product-unit-native.log, proof /private/tmp/aeion-product-unit-proof-nnh0zg0q/proof.json.
+Itprovidesownunitfixtureadmin,notgradedDB; nohostkeys,ownedloopback,externaldenied,teardown.
+ product_postgres.py restorechangedtomigrationownerandmustreapplyidempotentoperatorgrants,
+validatehistoryrightsafterrestore;stillUNWIRED.
+ checker-tools/build-web.mjs nowdisablesViteconfig/envfilesandinlinePostCSSconfig,usesfixed
+ tsconfig.web.json. ConfirmedViteAPIofficialhttps://vite.dev/config/shared-options#css-postcss
+and#envdir. ActualsyntheticReactfixturewithpoisonedVite/PostCSS/invalidTSconfigsandnpmscript:
+BEFOREfailed /private/tmp/aeion-product-web-before.log; AFTERPASS
+ /private/tmp/aeion-product-web-after.log, proof /private/tmp/aeion-frozen-web-proof-1ptpmi4e/proof.json.
+No realproductReactsourcewritten. Needwirefreeze/manifests/GradleCIandactualworker014later.
+Don'tmodifyexistingtransitions/postgres/build.gradle whilev7active:itISpartofprotocolhash.
+
+No genericpartialresume/promotionhasbeenimplemented; avoidcomplexity. Newnormalv7rebuilduses
+correctchecker; retainedoldGLMartifactalreadyPASSesitsfullcorrectedexternalcheckbutunknowncost
+stillblocksoldattempt. Donotmanuallyfakeitscompletion/review/modelidentity.
+
+## LATEST AUTHORITATIVE CHECKPOINT — 2026-11-05, supersedes all below
+
+Latest user: wants final honest Go to launch MDs; asked documentation/Graphify/Archify current.
+Answered dependencies unlock only when ALL named prerequisites current contracts are onmain,
+not always immediately preceding MD. Do not send false Go or stop at another partial report.
+
+Owner explicitly approved exact develop history alignment; DONE. Remote main/develop48d1ae4,
+localdevelop now97f3ff89aa6cca5ae1ea7316f2e4016c52b355ff (new tested local slice, NOTpushed).
+Olddevelop32dc0cd archived, sixmergedtopicheadstagsverified/deleted; onlymain/developremote.
+Workflow retained develop→PR→review/CI→main; never change main protections.
+
+REAL001v6 eaac2c3ef86d41dda617f596e0806f9f FAILED AGENT_TIMEOUT after900s author.
+52forwards/51accountedsteps, estimatedUSD0.0905546 but usageINCOMPLETE. Forum0.19settled plus
+0.50reservation remainscounted, NEVERclaim cost0orcomplete. 11validatedpartialfiles retained
+artifact39a134967ecd67d29401f1b1fcfdf948db902f5606111de14c019a4745b7c4f2.
+Actual memorybothconfirmed; authortrace251d03f151458d4e8b0592ff67fe6674,
+summarya7cc4ea9e1173db5fdfbd8aa8ea7739b backendconfirmed. No activeproductbuild/mainmerge.
+
+CRITICAL confirmed REALCHECKERBUG: startup_refusals ran after mainapp in SAMEownedPGloopback,
+so allhealthprobes could hit mainapp alreadyon8080. False missing_secret_accepted causedmodel
+rewrites/timeouts. Newregressionfailedbefore,4boundaryPASSafter movingrefusals BEFORE mainlaunch.
+Probeprivacy also mistook short '-1' substrings in unrelatedlogs for envdisclosure. Newpure
+bound_disclosed usesglobalmatchingforlongcanaries, key+separatetokenforshortnumbers;2testsPASS.
+Truepositivecodesdistinguish secret/unknown/bounddisclosurewithoutlogs. Registered001negative
+nowacceptsexplicit/defaultDBlessstartuprefusalbutNEVERarbitrarycompilerfailure;5testsPASS.
+ACTUAL retainedGLMworkerartifact nowPASSES correctedindependentexternalchecker:
+/private/tmp/aeion-retained-001-check-v3.log,128922ms compile/unit/startupmatrix/HTTP,
+0paidcalls,teardownconfirmed. This doesNOTpromotethetimedoutattempt orreconcileunknowncost.
+Product businesssource wasneverhandedited. No genericresume/importcodehasbeenimplemented;
+don'tclaimit. Considerfreshnormal001retrywithcorrectcheckerafterqualification.
+
+MoreLOCALfollowupsafter97f3ff8: runtime stampcapturesloadedprotocol; newdiskproofcannotauthorize
+oldPythonobjects. ActualResolve14PASS. Storepreservesdraft_checkreasonacrosslaterevents; rolefinish
+retainsboundedcheckstatus/reason/digest. UIreadsfailedrolecheckandretainedfilecount;collectornew
+allowlistforcheck_status/check_reason/retained_files_count. RoutingMETHODv4 isolatesbadoldchecker
+v3outcomes; oldrowsNOTdeleted. NewStore/telemetry/clientregressionsadded.
+
+RUNNING: fullenginev9 exec52729 /private/tmp/aeion-product-full-tests-20261105-v9.log;
+nativev11 exec11430 /private/tmp/aeion-native-admission-v11.log (first4capabilitiesPASSatlastread);
+clientv4 log /private/tmp/aeion-cockpit-client-v4.log. DO NOTchangeprotocolwhilev11runs.
+Controller83522idle witholdloadedcode; newsourceintentionallyunqualified. Afterv11PASS,
+safelyreloadcontroller83522 (loadedhash nowrequiresreload) thenqueue001newidempotencyv7.
+Helper /private/tmp/aeion-cockpit-client.py currentlyv6; changeonlytemphelperv7beforequeue.
+No paidproductjobactive. Noautoexpiryrefreshyet; PG/Reactdrafts/proxyremainunwired.
+
+REVIEWEXPORTAUTOREFUSAL RESOLVED byEXPLICITUSERREPLY: authorizedGLM5.3Flash+Qwen3.8Flash
+viaOpenCodeGo toreview97f3ff8,475KBdiff/704KBwithcontextpermodel,4packets,max3USDObserver.
+BothrealreviewprocessesRUNNING: exec92777GLM,83753Qwen; logs
+/private/tmp/aeion-engine-review-glm.log and aeion-engine-review-qwen.log. Nooutputatlastcheck.
+Script /private/tmp/aeion-review-engine.py enforces atomicObserver3USDceiling(sharedledger;
+existing0.58spentleaves2.42),notnew15USDlimit. Manifestpointer
+/private/tmp/aeion-engine-review-manifest-path.txt,packetsunder
+ demo/.local/factory/observer-engine-review/97f3ff89aa6cca5ae1ea7316f2e4016c52b355ff/.
+Eachreviewer4parts; preserveactualreject/cost/context. DoNOTchangeHEADduringexactheadreviews.
+FollowupcheckerfixesareUNCOMMITTEDandNOTinthe97f3ff8review; reviewcorrectedbytesbeforepush.
+NoformalReviewOK/pushfor97yet. Upgrade32dc0cdreceiptdoesNOTcovernewengine.
+
+GRAPH/DOCS: committed97fixedrootREADME+demoREADMEobsoleteoldcontract/mobileclaims.
+GraphifyimmutableconfigpreviouslyEXCLUDEDactualdemoruntime; nowexplicitpublicsubdirs.
+New16componentarchitecturetrustboundaryview; all3uniqueanchorsvalidated.
+ActualGraphify+Archify97PASS /private/tmp/aeion-architecture-97f3ff8.log:
+604sources/112runtime/537required,6574nodes13923edges; all4nativegatespassforall3views.
+ManualCUAfileURLpreviewblockedpolicy; noworkaroundattempted. TwoCUApartscompletion_summarysent.
+Workinggraph7437nodes15642edges721files;2unresolveddirectoryskillreferencesinventorylimits.
+Foundationfactory-testsPASS, examples33/catalog21/Flue19PASS. Enginev8 702PASS beforefollowups.
+NeedfinalcorrectedcommittedandmainexactSHArefresh+CIbeforeclaiminglatestpublishedgraphs.
+
+CURRENT.MD nowrewrittenastate-only68linesdetailed,notcontradictoryhistorical139lines;
+SHA46a9119cd3ba91c06a1f1ff0b9b4cd0cba6d40b27420f0b6f383d35c7eb08878.
+Recordlateststatusesagainbeforecompaction. Owneraskscontinue,noadditionalautomation/subagents.
+
 ## NEWEST CHECKPOINT — 2026-11-05 10:42 UTC
 
 User explicitly approved develop history alignment and reaffirmed develop→PR→review/CI→main.

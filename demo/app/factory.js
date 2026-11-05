@@ -202,7 +202,7 @@ function parseReceipt(raw) {
 }
 function receiptSummary(raw) {
   const r = parseReceipt(raw);
-  const check = r.gate?.results?.prepared_product?.detail || r.gate?.results?.prepared_gradle?.detail || r.gate?.results?.gradle_test?.detail || r.check || {};
+  const check = r.gate?.results?.prepared_product?.detail || r.gate?.results?.prepared_gradle?.detail || r.gate?.results?.gradle_test?.detail || r.execution?.check || r.draft_check || r.check || {};
   const telemetry = r.telemetry || {};
   const trace = telemetry.trace_id;
   const status = telemetry.status || "unknown";
@@ -228,11 +228,12 @@ function receiptSummary(raw) {
     ["Agent failure", r.execution?.failure && esc(String(r.execution.failure))],
     ["CLI exit", Number.isInteger(r.execution?.process_exit_code) && String(r.execution.process_exit_code)],
     ["Model requests", Number.isInteger(r.execution?.forwarded_count) && String(r.execution.forwarded_count)],
+    ["Retained draft files", Number.isInteger(r.execution?.retained_files_count) && String(r.execution.retained_files_count)],
     ["Preparer", r.preparation?.preparation_kind === "registered_static_acceptance" ? "Registered contract · no model request" : r.preparation?.preparer_model && esc(r.preparation.preparer_model)],
     ["Acceptance baseline", r.preparation?.negative_control === "registered_foundation_startup_rejection" ? "Untouched baseline refused the registered startup contract" : r.preparation?.negative_control === "failed_contract_assertion" && "Independent contract failed on the untouched baseline"],
     ["Working memory", r.execution?.memory?.claude_mem?.status && esc(r.execution.memory.claude_mem.status)],
     ["Hindsight", r.execution?.memory?.hindsight?.status && esc(r.execution.memory.hindsight.status)],
-    ["Check", r.gate?.status ? esc(String(r.gate.status)) : check.returncode === 0 ? "passed" : null],
+    ["Check", r.gate?.status ? esc(String(r.gate.status)) : check.status ? esc(String(check.status)) : check.returncode === 0 ? "passed" : null],
     ["Failure", check.failure_kind && esc(String(check.failure_kind))],
     ["Check detail", check.reason && esc(String(check.reason))],
     ["Compiler", Array.isArray(check.compiler_errors) && check.compiler_errors.length &&

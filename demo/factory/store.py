@@ -730,6 +730,8 @@ class Store:
             clean['runtime'] = detail['runtime']
         if isinstance(detail.get('status'), str) and detail['status'] in {'passed', 'failed', 'held', 'running'}:
             clean['status'] = detail['status']
+        if isinstance(detail.get('reason'),str) and re.fullmatch('[a-z][a-z0-9_]{1,95}',detail['reason']):
+            clean['reason']=detail['reason']
         digest = detail.get('artifact_digest')
         if isinstance(digest, str) and re.fullmatch('[a-f0-9]{64}', digest):
             clean['artifact_digest'] = digest
@@ -752,6 +754,7 @@ class Store:
                     now = self._now()
                     progress = {'phase': phase, 'detail': clean, 'time_ns': now}
                     receipt['progress'] = progress
+                    if phase=='protected_check.finished':receipt['draft_check']=clean
                     conn.execute('UPDATE builds SET receipt=?, updated_ns=? WHERE build_id=?',
                                  (json.dumps(receipt), now, row['build_id']))
                     self._event(conn, row['build_id'], now, 'supervisor', 'progress',
