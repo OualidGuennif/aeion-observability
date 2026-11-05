@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Review incremental changes against their exact frozen Git base, with complete file coverage.
+  Allow one fenced, known-cost old-envelope reassessment with fresh checks/votes and preserved
+  rejection history. Label the historical canary preview as synthetic instead of product staging.
 - Wire separate PostgreSQL unit fixtures, fixed import/restore oracles and frozen React tools.
   Prepare a maintainer-only CI update without giving workers control of their checker programs.
   Keep validated, fully accounted stopped candidates subject to external checks and both reviews;

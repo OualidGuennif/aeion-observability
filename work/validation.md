@@ -1,3 +1,11 @@
+## Frozen-base review context — 2026-11-05
+
+- Actual product001v8 reached a full passing external gate, then Qwen rejected inherited SQLite/Expo/endpoint code as new scope. Inspection confirmed its packet included current files but no base diff. No vote override or product merge occurred.
+- New envelope includes the exact frozen Git diff, complete changed files, MD and protected acceptance; regular/size/secret bounds refuse unsafe baseline reads. Coverage binds base/diff hashes even on rejection.
+- A single explicit operator-only old-envelope reassessment archives the original receipt and increments the generation. Changed contracts/base/artifact, unknown usage, cancellation, prior publication and a second v2 rejection cannot resume. It reuses the actual author's execution/cost, reruns the final gate and obtains two fresh votes including the original rejecting model. No business source was hand-edited.
+- Regression commands: controller venv full demo suite730PASS82.503s (`/private/tmp/aeion-review-context-full-v2.log`); cockpit Node22PASS; knowledge0problems; doc-links142PASS; repo-healthPASS. The first sandboxed full run failed on77denied loopback sockets; the same authorized socket-enabled command passed. The new baseline tests initially failed because the missing function did not exist; state/dispatch tests prove fencing, preserved rejection, exact artifact, fresh gates/votes and review-only cost.
+- Nativev13 qualification is running and is not yet claimed passing. No final operational Go or staging/production delivery is implied. The old advanced canary panel is now explicitly labelled a historical synthetic drill.
+
 # Research validation — 2026-10-23
 
 Scope: local research artifacts only. This is not provider, security-boundary, backend or

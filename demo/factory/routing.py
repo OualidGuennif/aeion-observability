@@ -9,8 +9,9 @@ import json
 from .models import Telemetry, known
 from app.profiles import PROFILE_VERSION
 
-METHOD = 'flue-factory-routing-v4'
-# v3 used the colliding startup probes. Preserve those rows, never rank the corrected checker with them.
+METHOD = 'flue-factory-routing-v5'
+# v3 had colliding startup probes; v4 reviews omitted the frozen-base diff. Preserve their rows,
+# but do not rank the corrected protocol with those incomparable outcomes.
 
 
 def cohort_for(feature, check_profile, runtime='flue-openshell', execution_bounds=None):
