@@ -245,3 +245,13 @@ test('the cockpit markup no longer offers the synthetic canary drill or a fake e
   assert.match(html, /Staging<\/dt><dd>Not deployed yet/);
   assert.match(html, /Production<\/dt><dd>Not deployed yet/);
 });
+
+test('an agent self-test on its draft is never labelled as the final check', () => {
+  const { run } = client();
+  const draft = run(`receiptSummary(JSON.stringify({draft_check:{status:"failed",reason:"explicit_database_less_startup_rejected"}}))`);
+  assert.match(draft, /Agent self-test \(draft\)/);
+  assert.match(draft, /not the final verdict/);
+  assert.ok(!draft.includes('<dt>Check</dt>'));
+  const gate = run(`receiptSummary(JSON.stringify({gate:{status:"failed"},draft_check:{status:"failed",reason:"x_y"}}))`);
+  assert.match(gate, /<dt>Check<\/dt><dd>failed<\/dd>/);
+});

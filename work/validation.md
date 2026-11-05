@@ -1,3 +1,7 @@
+## Draft self-test label — 2026-11-05
+
+- Owner read "Check failed · explicit_database_less_startup_rejected" during 001 as a final failure. It was the agent's self-test of its draft (registered startup contract: the app must start when explicitly configured without a database). Build evidence now labels it "Agent self-test (draft)" until a gate exists. Cockpit JS 25 PASS.
+
 ## Controller child-process crashes — 2026-11-05
 
 - Owner report: hundreds of macOS "Python quit unexpectedly" dialogs. Crash reports (4 kept by macOS, 20:01–20:10) are children of controller PID 77547 aborting 6 ms after launch with EXC_BREAKPOINT in libxpc, called from gRPC's c-ares DNS resolver on a gRPC work-stealing thread.

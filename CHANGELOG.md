@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Label the agent's in-session check as "Agent self-test (draft)" until the protected gate runs,
+  so an intermediate draft failure no longer reads as the build's final check.
 - Stop the controller's child processes from crashing on macOS ("Python quit unexpectedly"):
   gRPC, loaded by the OpenShell client, restarted its threads in every forked child before exec.
   The controller and OpenShell qualifier now disable gRPC fork support before importing it.
