@@ -247,6 +247,14 @@ class AppWiringTests(unittest.TestCase):
         self.assertEqual(view["execution"]["mode"], "offline")
         self.assertEqual(view["execution"]["hold_reason"], "execution_unavailable")
         self.assertEqual(view["execution"]["live_hold_reason"], "live_builder_unqualified")
+        self.assertIsNone(view["execution"]["author_window_seconds"])
+
+    def test_the_catalog_reports_the_configured_author_window(self):
+        from types import SimpleNamespace
+        builder = SimpleNamespace(timeout_seconds=10800, paid=False)
+        view = self.app({"mode": "offline", "hold_reason": "execution_unavailable", "builder": builder}) \
+            .catalog_view(None)[1]
+        self.assertEqual(view["execution"]["author_window_seconds"], 10800)
 
 
 if __name__ == "__main__":

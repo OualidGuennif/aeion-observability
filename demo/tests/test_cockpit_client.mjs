@@ -255,3 +255,29 @@ test('an agent self-test on its draft is never labelled as the final check', () 
   const gate = run(`receiptSummary(JSON.stringify({gate:{status:"failed"},draft_check:{status:"failed",reason:"x_y"}}))`);
   assert.match(gate, /<dt>Check<\/dt><dd>failed<\/dd>/);
 });
+
+test('agent clock shows elapsed time, silence and a stall warning without private data', () => {
+  const { run } = client();
+  const start = 1_000_000;
+  const quiet = run(`clockText(${start}, ${start + 60000}, 10800, 0, ${start + 5 * 60000})`);
+  assert.equal(quiet.attention, false);
+  assert.match(quiet.text, /Agent time 5 of 180 min · last activity 4 min ago/);
+  const stalled = run(`clockText(${start}, ${start + 60000}, 1800, 1, ${start + 15 * 60000})`);
+  assert.equal(stalled.attention, true);
+  assert.match(stalled.text, /No agent activity for 14 min/);
+  assert.match(stalled.text, /draft self-test failed 1×/);
+  const looping = run(`clockText(${start}, ${start}, 0, 3, ${start + 30000})`);
+  assert.equal(looping.attention, true);
+  assert.match(looping.text, /Agent time 0 min · last activity under a minute ago/);
+  assert.match(looping.text, /keeps failing/);
+});
+
+test('agent clock appears only while the author runs', () => {
+  const { context, run } = client();
+  context.receipt = { author_started_ns: 1e15, last_tool_ns: 2e15, draft_failures: 2, progress: { phase: 'tool.finished', time_ns: 3e15 } };
+  assert.match(run('agentClock({status:"dispatched"}, receipt, 10800)'), /data-start="1000000000" data-last="3000000000" data-window="10800" data-failures="2"/);
+  assert.equal(run('agentClock({status:"failed"}, receipt, 10800)'), '');
+  context.receipt.progress.phase = 'process.retired';
+  assert.equal(run('agentClock({status:"dispatched"}, receipt, 10800)'), '');
+  assert.equal(run('agentClock({status:"dispatched"}, {progress:{phase:"building"}}, 10800)'), '');
+});

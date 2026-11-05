@@ -31,19 +31,19 @@ CONFIG_PATH = Path(__file__).resolve().parents[1] / "budget.conf"
 CEILINGS = {"DAILY_LIMIT_USD": Decimal("15.00"), "AUTHOR_MAX_USD": Decimal("5.00"),
             "REVIEW_MAX_USD": Decimal("1.00")}
 DEFAULTS = {"DAILY_LIMIT_USD": "15.00", "AUTHOR_MAX_USD": "2.00", "REVIEW_MAX_USD": "1.00"}
+# One author agent execution's wall-clock window, in whole minutes (owner-authorized 2026-11-05).
+TIME_LIMITS = {"AUTHOR_TIMEOUT_MINUTES": (5, 180)}
+TIME_DEFAULTS = {"AUTHOR_TIMEOUT_MINUTES": "30"}
 
 
 class BudgetError(ValueError):
     """A budget decision that cannot be trusted."""
 
 
-def settings(path=None):
-    """Spending bounds from budget.conf, then exported AEION_<KEY> overrides.
-
-    An unknown key, a non-positive amount, a value above its ceiling, or one author execution
-    plus its two review votes not fitting in one day is refused as a whole: no partial config.
-    """
+def _values(path=None):
+    """Raw budget.conf values over the defaults, then exported AEION_<KEY> overrides."""
     values = dict(DEFAULTS)
+    values.update(TIME_DEFAULTS)
     try:
         lines = Path(path or CONFIG_PATH).read_text(encoding="utf-8").splitlines()
     except FileNotFoundError:
@@ -55,14 +55,41 @@ def settings(path=None):
         if not line:
             continue
         key, separator, value = line.partition("=")
-        if not separator or key.strip() not in CEILINGS:
+        if not separator or (key.strip() not in CEILINGS and key.strip() not in TIME_LIMITS):
             raise BudgetError("budget_config_invalid")
         values[key.strip()] = value.strip()
-    for key in CEILINGS:
+    for key in (*CEILINGS, *TIME_LIMITS):
         if os.environ.get("AEION_" + key) is not None:
             values[key] = os.environ["AEION_" + key]
+    return values
+
+
+def _minutes(values, key):
+    low, high = TIME_LIMITS[key]
+    raw = str(values[key]).strip()
+    if not raw.isascii() or not raw.isdigit() or len(raw) > 4 or not low <= int(raw) <= high:
+        raise BudgetError("budget_config_invalid")
+    return int(raw)
+
+
+def author_timeout_seconds(path=None):
+    """One author agent execution's window from budget.conf (5 to 180 minutes, default 30)."""
+    return _minutes(_values(path), "AUTHOR_TIMEOUT_MINUTES") * 60
+
+
+def settings(path=None):
+    """Spending bounds from budget.conf, then exported AEION_<KEY> overrides.
+
+    An unknown key, a non-positive amount, a value above its ceiling, an author window outside
+    5..180 minutes, or one author execution plus its two review votes not fitting in one day is
+    refused as a whole: no partial config.
+    """
+    values = _values(path)
+    for key in TIME_LIMITS:
+        _minutes(values, key)
     bounds = {}
-    for key, raw in values.items():
+    for key in CEILINGS:
+        raw = values[key]
         try:
             amount = _money(raw, "config")
         except BudgetError:

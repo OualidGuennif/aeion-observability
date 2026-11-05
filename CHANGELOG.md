@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Make the author agent's time window configurable in `demo/budget.conf`
+  (`AUTHOR_TIMEOUT_MINUTES`, 5 to 180 minutes, default 30; the shipped file sets 180). The worker
+  lease grows with it and `AUTHOR_MAX_USD` still stops spending first.
+- Show stalls in the cockpit: while the author runs, its card shows elapsed time against the window,
+  time since the last tool or model step and failed draft self-tests, with a warning after ten silent
+  minutes or three failed drafts.
+- Give a relaunched author the previous protected-check refusal of the same spec (reason, failing
+  test names, compiler locations) as bounded data, so it starts with the test that failed last time.
 - Add a dark mode to the cockpit and the lab: every colour comes from `demo/app/theme.css`
   (light and dark sets) with an Auto/Light/Dark toggle. Rebuild `/lab` as a showcase for
   engineers (idea, architecture diagram, each stack piece and how it connects, circuit) that keeps

@@ -177,7 +177,13 @@ and isolated publisher bind approval to those exact bytes. An arbitrary request 
 approve another dependency. Nested Git control files are forbidden at both export/artifact
 boundaries, preventing candidate ignore rules from hiding unreviewed code. Existing ignore rules are also checked before export reaches the host, so hidden environment or dependency files cannot influence acceptance outside the review packet. Product test harness
 files may change only under the external checker; its program and contract are never writable.
-The ordinary live author default is1800s; preparation/review remain at most900s per model session.
+The live author window comes from `demo/budget.conf` `AUTHOR_TIMEOUT_MINUTES` (5..180, default 30;
+the shipped file sets 180, owner decision 2026-11-05); the worker lease grows with it and
+`AUTHOR_MAX_USD` still stops spending first. Preparation/review remain at most900s per model session.
+When the latest failed attempt at the exact same spec digest has a protected-check refusal, the
+author prompt carries it as labelled data: the reason code, at most eight pattern-checked failing
+test names and eight compiler locations, never output or source, and only while the prompt stays
+within its 16000-byte bound (`Store.previous_check_failure`, test_factory_store/work_limits).
 Explicit operator bounds remain. `demo/budget.conf` sets the daily purse (at most $15), one
 author execution (at most $5, reserved and relay-enforced) and one review vote (at most $1);
 an invalid file holds builds as `budget_config_invalid` and admits no spending. A soft stop can retain a proposed candidate

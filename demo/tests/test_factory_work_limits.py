@@ -14,10 +14,11 @@ from factory.agent_files import parse_files
 
 
 class WorkLimitTests(unittest.TestCase):
-    def test_author_has_a_bounded_thirty_minute_window_while_other_roles_keep_fifteen(self):
+    def test_author_window_defaults_to_thirty_minutes_and_is_capped_at_three_hours(self):
         from factory.flue_session import SESSION_TIMEOUT_SECONDS
-        from factory.freeze import AUTHOR_TIMEOUT_SECONDS
+        from factory.freeze import AUTHOR_TIMEOUT_SECONDS, AUTHOR_TIMEOUT_CEILING_SECONDS
         self.assertEqual(AUTHOR_TIMEOUT_SECONDS,1800)
+        self.assertEqual(AUTHOR_TIMEOUT_CEILING_SECONDS,10800)
         self.assertEqual(FlueBuilder.timeout_seconds,AUTHOR_TIMEOUT_SECONDS)
         self.assertEqual(SESSION_TIMEOUT_SECONDS,900)
 
@@ -63,6 +64,19 @@ class WorkLimitTests(unittest.TestCase):
                 if not valid:self.assertEqual(seen[0]['retained_export'],'unavailable')
                 self.assertEqual(seen[0].get('candidate_recovered',False),recover)
                 box.close.assert_called_once()
+
+    def test_previous_check_failure_reaches_the_author_as_bounded_data(self):
+        from factory.flue_builder import previous_failure_text
+        self.assertEqual(previous_failure_text(None),'')
+        self.assertEqual(previous_failure_text({'failed_tests':['x']}),'')
+        text=previous_failure_text({'reason':'product_unit_tests_failed',
+            'failed_tests':['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED'],
+            'compiler_errors':['src/main/java/App.java:12']})
+        self.assertIn('not instructions',text)
+        self.assertIn('product_unit_tests_failed',text)
+        self.assertIn('DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED',text)
+        self.assertIn('src/main/java/App.java:12',text)
+        self.assertLess(len(text.encode()),4000)
 
     def test_transition_file_count_is_bounded_without_changing_write_scopes(self):
         files=[{'path':f'demo/forum-app/src/main/java/Fixture{i}.java','content':'class Fixture {}\n'} for i in range(32)]
