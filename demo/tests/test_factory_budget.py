@@ -144,5 +144,63 @@ class BudgetDayTests(unittest.TestCase):
                 self.assertEqual(b.summary()["aeion-observability"]["day"], "2026-11-03")
 
 
+class BudgetSettingsTests(unittest.TestCase):
+    """budget.conf may lower the owner ceilings, never raise them; invalid means no spending."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.conf = Path(self.tmp.name) / "budget.conf"
+        patcher = mock.patch.dict("os.environ", {}, clear=False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        for key in budget_module.CEILINGS:
+            budget_module.os.environ.pop("AEION_" + key, None)
+
+    def settings(self, text):
+        self.conf.write_text(text)
+        return budget_module.settings(self.conf)
+
+    def test_the_shipped_file_is_valid_and_within_the_owner_ceilings(self):
+        bounds = budget_module.settings()
+        self.assertLessEqual(bounds["DAILY_LIMIT_USD"], Decimal("15.00"))
+        self.assertLessEqual(bounds["AUTHOR_MAX_USD"], Decimal("5.00"))
+        self.assertLessEqual(bounds["REVIEW_MAX_USD"], Decimal("1.00"))
+
+    def test_owner_values_up_to_each_ceiling_are_accepted(self):
+        bounds = self.settings("DAILY_LIMIT_USD=15.00\nAUTHOR_MAX_USD=5.00  # extreme case\nREVIEW_MAX_USD=0.50\n")
+        self.assertEqual(bounds["AUTHOR_MAX_USD"], Decimal("5.00"))
+        self.assertEqual(bounds["REVIEW_MAX_USD"], Decimal("0.50"))
+
+    def test_values_above_a_ceiling_unknown_keys_or_nonsense_are_refused_whole(self):
+        for text in ("AUTHOR_MAX_USD=5.01\n", "DAILY_LIMIT_USD=16\n", "REVIEW_MAX_USD=2\n",
+                     "AUTHOR_MAX_USD=0\n", "AUTHOR_MAX_USD=-1\n", "AUTHOR_MAX_USD=NaN\n",
+                     "AUTHOR_MAX_USD=Infinity\n", "AUTHOR_MAX_USD=abc\n", "TASK_MAX=3\n", "AUTHOR_MAX_USD\n",
+                     "DAILY_LIMIT_USD=2.00\nAUTHOR_MAX_USD=1.00\nREVIEW_MAX_USD=0.60\n"):
+            with self.subTest(text=text), self.assertRaisesRegex(BudgetError, "budget_config_invalid"):
+                self.settings(text)
+
+    def test_an_exported_override_wins_but_cannot_pass_a_ceiling(self):
+        budget_module.os.environ["AEION_AUTHOR_MAX_USD"] = "3.00"
+        self.assertEqual(self.settings("AUTHOR_MAX_USD=1.00\n")["AUTHOR_MAX_USD"], Decimal("3.00"))
+        budget_module.os.environ["AEION_AUTHOR_MAX_USD"] = "50"
+        with self.assertRaisesRegex(BudgetError, "budget_config_invalid"):
+            self.settings("AUTHOR_MAX_USD=1.00\n")
+
+    def test_an_invalid_file_leaves_a_zero_purse_that_admits_nothing(self):
+        self.conf.write_text("DAILY_LIMIT_USD=999\n")
+        with mock.patch.object(budget_module, "CONFIG_PATH", self.conf):
+            b = DailyBudget(Path(self.tmp.name) / "ledger.jsonl", today=lambda: DAY)
+            self.assertEqual(b.remaining("aeion-autonomous-forum"), Decimal("0"))
+            with self.assertRaisesRegex(BudgetError, "budget_unavailable"):
+                b.admit("aeion-autonomous-forum", "0.01")
+
+    def test_the_daily_purse_follows_the_file(self):
+        self.conf.write_text("DAILY_LIMIT_USD=6.00\nAUTHOR_MAX_USD=2.00\nREVIEW_MAX_USD=1.00\n")
+        with mock.patch.object(budget_module, "CONFIG_PATH", self.conf):
+            b = DailyBudget(Path(self.tmp.name) / "ledger.jsonl", today=lambda: DAY)
+            self.assertEqual(b.remaining("aeion-autonomous-forum"), Decimal("6.00"))
+
+
 if __name__ == "__main__":
     unittest.main()

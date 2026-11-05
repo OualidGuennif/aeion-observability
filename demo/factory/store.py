@@ -54,6 +54,8 @@ HOLD_REASONS = {
     "live_builder_unqualified",
     # Live is configured but the provider credential is absent; no attempt is started.
     "provider_unconfigured",
+    # demo/budget.conf is unreadable, unknown, above its owner ceiling or inconsistent.
+    "budget_config_invalid",
     "flue_factory_unqualified", "publication_blocked", "catalog_changed", "preparation_unavailable",
 }
 
@@ -644,7 +646,7 @@ class Store:
             finally:
                 conn.close()
 
-    def claim_review_context(self, build_id, catalog, expected_receipt_digest, lease_ns):
+    def claim_review_context(self, build_id, catalog, expected_receipt_digest, lease_ns, retry_failed_review=False):
         """One explicit v1→v2 context reassessment, with no previous remote publication.
 
         The caller revalidates the exact base/spec/artifact before claiming. This transaction
@@ -676,26 +678,34 @@ class Store:
                         return None
                     receipt=json.loads(row['receipt']);circuit=receipt.get('circuit') or {}
                     execution=receipt.get('execution') or {};votes=circuit.get('votes') or []
-                    if (receipt.get('simulated') is not False or receipt.get('review_context')
+                    context=receipt.get('review_context') or {}
+                    eligible_circuit=(circuit.get('reason')=='reviewer_failed' and circuit.get('review_input_version')==2
+                        and not context.get('retry_failed_review') and any(v.get('verdict')=='error' for v in votes)
+                        and all(v.get('verdict') in ('approve','error') for v in votes)) if retry_failed_review else (
+                        not context and circuit.get('reason')=='reviewer_rejected' and circuit.get('review_input_version',1)==1
+                        and any(v.get('verdict')=='reject' for v in votes))
+                    if (receipt.get('simulated') is not False or not eligible_circuit
                             or not known(receipt.get('author_model'))
                             or (receipt.get('gate') or {}).get('status')!='passed'
                             or (receipt.get('review') or {}).get('status')!='approved'
-                            or circuit.get('status')!='held' or circuit.get('reason')!='reviewer_rejected'
-                            or circuit.get('review_input_version',1)!=1 or not votes
+                            or circuit.get('status')!='held' or not votes
                             or not measured(execution) or execution.get('role')!='author'
                             or execution.get('build_id')!=build_id
                             or execution.get('failure') and not (
                                 execution.get('failure') in ('AGENT_TIMEOUT','AGENT_DEADLINE','STEP_LIMIT','OUTPUT_LIMIT')
                                 and execution.get('candidate_recovered') is True
                                 and execution.get('retained_artifact_digest')==receipt.get('artifact_digest'))
-                            or not any(v.get('verdict')=='reject' for v in votes)
-                            or any(not known(v.get('model')) or not measured(v.get('execution') or {}) for v in votes)):
+                            or any(not known(v.get('model')) or not retry_failed_review
+                                and not measured(v.get('execution') or {}) for v in votes)):
                         return None
                     now=self._now();generation=row['cancellation_generation']+1
                     self._event(conn,build_id,now,'supervisor','review_context_reassessment',
                         json.dumps({'previous_receipt':receipt,'previous_receipt_digest':expected_receipt_digest}),generation)
-                    receipt['review_context']={'from_version':1,'to_version':2,
-                        'previous_receipt_digest':expected_receipt_digest,'author_reused':True}
+                    receipt['review_context']={'from_version':2 if retry_failed_review else 1,'to_version':2,
+                        'previous_receipt_digest':expected_receipt_digest,'author_reused':True,
+                        'retry_failed_review':bool(retry_failed_review)}
+                    for key in ('gate','review','circuit','reason','telemetry'):
+                        receipt.pop(key,None)  # Archived above; these are not results of the new pass.
                     conn.execute('UPDATE builds SET status=?,hold_reason=NULL,attempt_generation=?,cancellation_generation=?, '
                         'lease_until_ns=?,updated_ns=?,receipt=? WHERE build_id=?',
                         (DISPATCHED,generation,generation,now+lease_ns,now,json.dumps(receipt),build_id))

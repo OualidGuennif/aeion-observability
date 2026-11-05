@@ -1,6 +1,7 @@
 """Daily USD budget ledger for the two repositories that may spend.
 
-The demo has two independent purses, each capped at $15.00 per local day:
+The demo has two independent purses, each capped per local day by ``demo/budget.conf``
+(at most $15.00):
 ``aeion-observability`` for the cockpit's own runs and ``aeion-autonomous-forum`` for the
 factory workers that build the product. A reservation is journaled before a paid action and
 settled with the actual cost after it; an open reservation counts against the day so two
@@ -22,14 +23,56 @@ from decimal import Decimal, InvalidOperation, ROUND_CEILING
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-DEFAULT_LIMIT_USD = Decimal("15.00")
 SCOPES = ("aeion-observability", "aeion-autonomous-forum")
 BUDGET_ZONE = "Europe/Paris"
 _LEDGER_VERSION = 1
+CONFIG_PATH = Path(__file__).resolve().parents[1] / "budget.conf"
+# Owner-authorized maxima (2026-11-05). budget.conf or AEION_<KEY> may lower them, never raise them.
+CEILINGS = {"DAILY_LIMIT_USD": Decimal("15.00"), "AUTHOR_MAX_USD": Decimal("5.00"),
+            "REVIEW_MAX_USD": Decimal("1.00")}
+DEFAULTS = {"DAILY_LIMIT_USD": "15.00", "AUTHOR_MAX_USD": "2.00", "REVIEW_MAX_USD": "1.00"}
 
 
 class BudgetError(ValueError):
     """A budget decision that cannot be trusted."""
+
+
+def settings(path=None):
+    """Spending bounds from budget.conf, then exported AEION_<KEY> overrides.
+
+    An unknown key, a non-positive amount, a value above its ceiling, or one author execution
+    plus its two review votes not fitting in one day is refused as a whole: no partial config.
+    """
+    values = dict(DEFAULTS)
+    try:
+        lines = Path(path or CONFIG_PATH).read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        lines = []
+    except (OSError, UnicodeError):
+        raise BudgetError("budget_config_invalid") from None
+    for line in lines:
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        key, separator, value = line.partition("=")
+        if not separator or key.strip() not in CEILINGS:
+            raise BudgetError("budget_config_invalid")
+        values[key.strip()] = value.strip()
+    for key in CEILINGS:
+        if os.environ.get("AEION_" + key) is not None:
+            values[key] = os.environ["AEION_" + key]
+    bounds = {}
+    for key, raw in values.items():
+        try:
+            amount = _money(raw, "config")
+        except BudgetError:
+            raise BudgetError("budget_config_invalid") from None
+        if amount <= 0 or amount > CEILINGS[key]:
+            raise BudgetError("budget_config_invalid")
+        bounds[key] = amount
+    if bounds["AUTHOR_MAX_USD"] + 2 * bounds["REVIEW_MAX_USD"] > bounds["DAILY_LIMIT_USD"]:
+        raise BudgetError("budget_config_invalid")
+    return bounds
 
 
 @dataclass(frozen=True)
@@ -81,7 +124,12 @@ class DailyBudget:
         self.path = Path(path)
         self.path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         self.lock_path = self.path.with_suffix(self.path.suffix + ".lock")
-        configured = limits or {scope: DEFAULT_LIMIT_USD for scope in SCOPES}
+        if not limits:
+            try:
+                daily = settings()["DAILY_LIMIT_USD"]
+            except BudgetError:
+                daily = Decimal("0")  # An invalid budget.conf admits no paid work at all.
+        configured = limits or {scope: daily for scope in SCOPES}
         self.limits = {str(scope): _money(limit, "limit") for scope, limit in configured.items()}
         if not self.limits or any(not scope or "/" in scope for scope in self.limits):
             raise BudgetError("invalid_budget_scopes")

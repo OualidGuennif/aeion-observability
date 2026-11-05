@@ -35,6 +35,7 @@ function reasonText(info) {
     execution_unavailable: "The product repository or task preparation adapter is unavailable to the factory.",
     sandbox_unqualified: "The isolated checker needs qualification.",
     budget_unavailable: "The daily budget is unavailable or exhausted.",
+    budget_config_invalid: "demo/budget.conf is invalid or above its ceiling ($15/day, $5 per author execution, $1 per review vote). No paid work starts until it is fixed.",
     STEP_LIMIT: "The worker reached its allowed model-step limit. This attempt is preserved; the feature has not been implemented.",
     CLI_STARTUP_FAILED: "The agent CLI stopped before its first model request. The factory must repair its launcher; no implementation was started.",
     builder_error: "Implementation stopped. Open Build evidence for the exact agent failure and the full Langfuse session.",

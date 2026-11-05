@@ -64,7 +64,7 @@ def qualify(activate=False):
             env=environment,stdout=output,stderr=subprocess.STDOUT,timeout=1200)
     if result.returncode:raise RuntimeError('registered_foundation_failed:'+str(log))
     proof['capabilities']['preparation_and_publication']['registered_evidence_sha256']=hashlib.sha256(log.read_bytes()).hexdigest()
-    for name,script in (('closed_candidate','qualify_closed_candidate.py'),
+    for name,script in (('review_verdict','qualify_review_verdict.py'),('closed_candidate','qualify_closed_candidate.py'),
             ('product_unit','qualify_product_unit.py'),('product_web','qualify_product_web.py')):
         log=folder/(name+'.log')
         with log.open('xb') as output:

@@ -1,3 +1,13 @@
+## Typed review verdict and relay idle bound — 2026-11-05
+
+- Measured: DeepSeek review run44bef4bd ended with one known-cost request and no `submit_review` call (REVIEW_RESULT_MISSING). Fix: Flue2.3 `useAgentFinish` appends one result-required signal guarded by `usePersistentState`; the packet system text now points to the typed tool. Native fixture `qualify_review_verdict.py` failed before the hook (REVIEW_RESULT_MISSING) and passes after it (3 scripted requests, one continuation, zero provider requests).
+- Failed circuit votes now keep trusted execution metadata and the failure code. `--retry-failed-review` allows one operator retry after a v2 hold with only approve/error votes; tests cover replacement of both votes, no author rerun, a second failure staying held and unknown reservations staying counted.
+- Native v14 qualification PASS, protocol28b65bec, proof `demo/.local/factory/admission-sosnp6_4/proof.json`; controller reloaded as PID66026 with health/live/sandbox ready.
+- Actual 001 retry (generation2): external gate PASS, then DeepSeek failed `TRANSPORT_ERROR` with zero tokens. Langfuse trace d52dbac0 shows preflight 18:11:52.779Z and provider.failed 18:12:38.157Z: 45.4s, the relay's fixed 45s socket bound. The previous DeepSeek review request lasted 174s. The one-time retry is consumed; the build stays held and no product publication occurred.
+- Fix: relay upstream idle bound 300s (`UPSTREAM_IDLE_SECONDS`), stalls classified `PROVIDER_TIMEOUT`. New relay test fails without the change and passes with it. Full demo suite735PASS75.9s; Flue npm test PASS; root tests33PASS; fixtures PASS; knowledge0problems; doc-links144PASS; repo-health PASS.
+- Native v15 qualification after the relay fix PASS, protocol5c03f914, proof `demo/.local/factory/admission-8cwj4ey3/proof.json`; controller reloaded as PID70968, health/live/sandbox ready, no active build.
+- Owner decision 2026-11-05: up to $15/day and $5 per author execution in the extreme case, configurable, with safeguards. `demo/budget.conf` (DAILY_LIMIT_USD15, AUTHOR_MAX_USD2 default, REVIEW_MAX_USD1) is validated against code ceilings 15/5/1 plus author+2 votes within the day; an invalid file holds `budget_config_invalid` and zeroes the purses. 7 new tests; full demo742PASS79.7s, cockpit22PASS, Flue19PASS, root33PASS, knowledge/doc-links144/repo-health PASS.
+
 ## Frozen-base review context — 2026-11-05
 
 - Actual product001v8 reached a full passing external gate, then Qwen rejected inherited SQLite/Expo/endpoint code as new scope. Inspection confirmed its packet included current files but no base diff. No vote override or product merge occurred.

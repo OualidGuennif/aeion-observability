@@ -24,10 +24,13 @@ def cohort_for(feature, check_profile, runtime='flue-openshell', execution_bound
 
 
 class OutcomeTelemetry(Telemetry):
-    def __init__(self, store, cohort, attempt_id, synthetic=False):
+    def __init__(self, store, cohort, attempt_id, synthetic=False, generation=None):
         super().__init__()
         self.store, self.cohort, self.attempt_id = store, cohort, attempt_id
         self.synthetic = bool(synthetic)
+        if generation is not None and (type(generation) is not int or generation<0):
+            raise ValueError('invalid_routing_generation')
+        self.generation=generation
         self.records = [] if self.synthetic else store.routing_read(cohort)
 
     def record(self, model, purpose, outcome, latency_ms=None, cost_usd=None):
@@ -52,7 +55,11 @@ class OutcomeTelemetry(Telemetry):
         if self.synthetic:
             super().record(model, purpose, outcome, latency_ms, cost)
             return
-        identity = hashlib.sha256(json.dumps([self.cohort, self.attempt_id, purpose, model]).encode()).hexdigest()
+        key=[self.cohort,self.attempt_id,purpose,model]
+        if self.generation is not None:
+            key.append(self.generation)
+            row['generation']=self.generation
+        identity = hashlib.sha256(json.dumps(key).encode()).hexdigest()
         self.store.routing_record(identity, self.cohort, row)
         self.records = self.store.routing_read(self.cohort)
 

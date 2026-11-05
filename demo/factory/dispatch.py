@@ -480,7 +480,7 @@ class DispatchWorker:
         """Only a build with no paid builder and no model review can prove zero spend."""
         return not self.paid and self.review_complete is None
 
-    def reassess_review_context(self,build_id):
+    def reassess_review_context(self,build_id,retry_failed_review=False):
         """Explicit operator repair for the old full-files-only review envelope.
 
         No author is rerun or charged twice. A stale base, changed artifact/contract, unknown
@@ -527,11 +527,12 @@ class DispatchWorker:
                 or _read(repo.parent/'BRIEF.md',12000)!=task.specification):
             raise CircuitError('review_context_artifact_changed')
         previous_votes=(prior.get('circuit') or {}).get('votes') or []
-        rejecting=next((v.get('model') for v in previous_votes if v.get('verdict')=='reject'),None)
-        if rejecting is None:raise CircuitError('review_context_rejection_missing')
+        rejecting=next((v.get('model') for v in previous_votes
+            if v.get('verdict')==('error' if retry_failed_review else 'reject')),None)
+        if rejecting is None:raise CircuitError('review_context_not_eligible')
         lease_ns=(target.protected_check.timeout_seconds+2*getattr(self.review_complete,'timeout_seconds',900)+60)*10**9
         build=self.store.claim_review_context(build_id,self.catalog,
-            hashlib.sha256(row['receipt'].encode()).hexdigest(),lease_ns)
+            hashlib.sha256(row['receipt'].encode()).hexdigest(),lease_ns,retry_failed_review=retry_failed_review)
         if build is None:raise CircuitError('review_context_not_eligible')
         self.review_context=json.loads(build['receipt'])['review_context']
         self.reused_execution=prior['execution']
@@ -539,7 +540,7 @@ class DispatchWorker:
         self.preparation_evidence=preparation;self.last_usage=None
         self.started_build_ns=time.time_ns()
         self.router=Router(OutcomeTelemetry(self.store,cohort_for(self.catalog.by_id[build['feature_id']],
-            target.protected_check.id),build['attempt_id'],synthetic=False))
+            target.protected_check.id),build['attempt_id'],synthetic=False,generation=build['attempt_generation']))
         self.review_complete.authorization_check=lambda:self._attempt_authorized(build)
         registered=dict(DEFAULT_CHECKS)
         registered[target.protected_check.id]=target_check(target,work_root=self.work_root,sandbox=self.check_sandbox)

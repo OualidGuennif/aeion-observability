@@ -61,6 +61,7 @@ publisher refuses anything unreviewed. Nothing auto-merges.
 | `AEION_LOCAL_DIR` | `demo/.local` | owner-only state root (mode `0700`) |
 | `AEION_DATA_DIR` | `demo/.local/data` | cockpit data |
 | `AEION_WORK_DIR` | `demo/.local/work` | >= disposable work trees |
+| `AEION_DAILY_LIMIT_USD`, `AEION_AUTHOR_MAX_USD`, `AEION_REVIEW_MAX_USD` | from `demo/budget.conf` | spending bounds, never above $15/day, $5/execution, $1/vote |
 
 Never pass a secret on the command line or in a unit file. The factory prints nothing from the
 environment. The first start writes `demo/.local/factory/admin.token` (mode `0600`); that token is
@@ -217,6 +218,8 @@ without a migration.
 | build held `owner_review_required` | the diff touches a sensitive scope | owner reviews, then re-admits |
 | build held `reconciliation_needed` | a stale base/head was refused | reconcile before retrying |
 | publisher `uncertain` | forge effect unknown | the publisher reconciles; never re-publish |
+| build held `reviewer_rejected` (old v1 envelope) | reviewed without the base diff | once: `python -m factory.review_context BUILD_ID` from `demo/` |
+| build held `reviewer_failed`, vote `REVIEW_RESULT_MISSING` | no typed verdict, no rejection | once: add `--retry-failed-review`; a second failure stays held |
 
 ## 12. What this runbook does not qualify
 

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Require reviewers to submit their verdict through the typed tool: a Flue finish hook asks once
+  when a session ends without it. Failed votes keep their failure code and metadata, and one
+  explicit operator retry reruns gates and both votes after a hold with no rejection.
+- Make spending bounds owner-configurable in `demo/budget.conf`: daily purse (at most $15), one
+  author execution (at most $5, default $2) and one review vote (at most $1). Invalid values hold
+  builds and admit no spending.
+- Let the relay wait up to 300s for a silent reasoning provider instead of cutting it at 45s,
+  and report a stall as `PROVIDER_TIMEOUT` rather than a generic transport error.
 - Review incremental changes against their exact frozen Git base, with complete file coverage.
   Allow one fenced, known-cost old-envelope reassessment with fresh checks/votes and preserved
   rejection history. Label the historical canary preview as synthetic instead of product staging.

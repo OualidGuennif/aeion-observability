@@ -15,6 +15,14 @@ FILES = {"demo/forum/product/x.py": "print('ok')\n"}
 
 
 class CircuitTelemetryTests(unittest.TestCase):
+    def test_failed_vote_keeps_its_actual_typed_channel_diagnostics(self):
+        execution={'engine':'flue-pi','failure':'REVIEW_RESULT_MISSING','trace_id':'a'*32,
+                   'forwarded_count':1,'usage':{'complete':True,'cost_usd':'0.01'}}
+        def fail(*_):raise ValueError('REVIEW_RESULT_MISSING')
+        result=two_vote_review('glm-5.3-flash','001',FILES,Router(Telemetry()),fail,
+            execution_for_vote=lambda:execution)
+        self.assertEqual(result['votes'][0]['execution'],execution)
+        self.assertEqual(result['votes'][0]['reason'],'REVIEW_RESULT_MISSING')
     def test_baseline_diff_distinguishes_inherited_code_and_includes_untracked_additions(self):
         from factory.review_circuit import baseline_diff
         with tempfile.TemporaryDirectory() as folder:

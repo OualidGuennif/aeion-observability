@@ -259,15 +259,24 @@ provider-account settings; the demo does not change them. Missing native usage/c
 unresolved, never a zero-cost winner. Failed attempts count. Infrastructure and memory CPU costs
 are not included in the model estimate. The four small contracts support exploratory comparisons only.
 
-### Two independent daily purses ($15.00 each)
+### Two independent daily purses (at most $15.00 each)
 
 `demo/factory/budget.py` keeps one append-only JSONL journal with two scopes. The cockpit's live
 runs spend from `aeion-observability`; the forum workers spend from `aeion-autonomous-forum`.
-Each scope is capped at **$15.00 per local day** and one scope can never borrow from the other.
+Each scope is capped per Europe/Paris day by `DAILY_LIMIT_USD` in [`demo/budget.conf`](budget.conf)
+(at most **$15.00**), and one scope can never borrow from the other.
 A run journals a reservation before it can call a model, then settles the actual cost; an open
 reservation counts against the day, so two runs cannot spend the same last dollar. A missing,
 corrupt or unreadable journal fails closed. The cockpit stops a live run with `BUDGET_STOP` and
 the factory holds a build with `budget_unavailable` before opening a session or builder.
+
+`demo/budget.conf` also bounds one author agent execution (`AUTHOR_MAX_USD`, at most $5.00,
+reserved up front and enforced by the relay) and one review vote (`REVIEW_MAX_USD`, at most
+$1.00). The file is not secret and the owner may edit it; the code ceilings can only be lowered.
+An exported `AEION_<KEY>` overrides a line. An unknown key, a non-positive amount, a value above
+its ceiling, or an author cap plus two votes exceeding the day refuses the whole file: new
+builds hold as `budget_config_invalid` and the purses admit no spending. A change applies to
+builds admitted after a cockpit restart; an admitted build keeps its frozen reservation.
 
 The default journal is `demo/.local/budget/ledger.jsonl` (mode `0600`); `AEION_BUDGET_LEDGER`
 overrides it. Inspect the current day without spending:
