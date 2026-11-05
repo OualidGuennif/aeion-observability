@@ -29,7 +29,7 @@ PROTOCOL_FILES = (
     'demo/factory/transitions/react/identity.json','demo/factory/transitions/react/acceptance.mjs',
     'demo/factory/transitions/react/package.json','demo/factory/transitions/react/package-lock.json',
     'demo/factory/routing.py', 'demo/factory/models.py', 'demo/factory/store.py', 'demo/factory/manifest.py',
-    'demo/factory/review.py', 'demo/factory/review_circuit.py', 'demo/factory/checks.py',
+    'demo/factory/review.py', 'demo/factory/review_circuit.py', 'demo/factory/review_context.py', 'demo/factory/checks.py',
     'demo/factory/artifact.py', 'demo/factory/freeze.py', 'demo/factory/isolation.py', 'demo/factory/postgres.py',
     'demo/factory/publication.py', 'demo/factory/publication_role.py', 'demo/factory/github.py',
     'demo/factory/publish.py', 'demo/factory/publisher.py', 'demo/factory/execution.py',

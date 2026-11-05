@@ -4,6 +4,8 @@ title: "Flue factory execution"
 description: "Deterministic supervision of untrusted Flue/Pi workers, isolated tools and protected publication."
 status: draft
 sources:
+  - resource: ../../demo/factory/review_context.py
+    title: "One-time operator repair of the old review envelope"
   - resource: ../../demo/factory/product_unit.py
     title: "Separate candidate unit-test database"
   - resource: ../../demo/factory/product_postgres.py
@@ -183,6 +185,18 @@ or vote is inferred: the final external gate and both independent reviews still 
 revocation and export/removal failures refuse recovery. A slow trace exporter uses a bounded SDK
 batch queue so it cannot block native accounting; role shutdown flushes it. The private journal
 remains authoritative when telemetry delivery fails.
+
+Review envelope v2 includes a unified diff from the frozen Git base and the complete changed
+files, MD and protected acceptance. Inherited code is distinguished from new work; future MDs
+are not requirements for this incremental feature. Baseline blobs must be bounded, regular,
+public UTF-8 files without credential-shaped values. Coverage and approvals bind base/diff
+hashes; missing context holds before inference. Routing v5 preserves but excludes incomparable
+old envelope outcomes. An explicit operator-only v1→v2 reassessment may reuse a known-cost
+Flue proposal only when its exact main/task/artifact remains unchanged and publication never
+started. A transaction archives the original rejection and increments the generation. It
+reruns external gates and two fresh votes, including the original rejecting reviewer, excluding
+the author/preparer. It never reruns or bills the author, imports a vote or repeats a v2 rejection.
+Unknown usage, changed contracts, cancellation and prior remote work refuse this repair.
 All100MDs declare their two owning product documentation files. Their shared scopes require
 serial builds; completion still depends on the current contract and confirmed publication.
 Preparation, the builder's repair feedback and the final gate share the same supervisor-selected

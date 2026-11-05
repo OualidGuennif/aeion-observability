@@ -1,6 +1,8 @@
 """A valid reviewer vote is a successful reviewer response, not a routing failure."""
 import sys
 import hashlib
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -13,6 +15,44 @@ FILES = {"demo/forum/product/x.py": "print('ok')\n"}
 
 
 class CircuitTelemetryTests(unittest.TestCase):
+    def test_baseline_diff_distinguishes_inherited_code_and_includes_untracked_additions(self):
+        from factory.review_circuit import baseline_diff
+        with tempfile.TemporaryDirectory() as folder:
+            repo=Path(folder)
+            def git(*args):
+                return subprocess.check_output(['git','-C',folder,*args],text=True).strip()
+            git('init','-q')
+            (repo/'settings.properties').write_text('database=sqlite\nlimit=1\n')
+            git('add','settings.properties')
+            git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','base')
+            base=git('rev-parse','HEAD')
+            (repo/'settings.properties').write_text('UNTRUSTED WORKTREE BASE\n')
+            files={'settings.properties':'database=sqlite\nlimit=2\n','new.txt':'new\n'}
+            diff=baseline_diff(repo,base,files)
+            self.assertIn(' database=sqlite',diff)
+            self.assertIn('-limit=1\n+limit=2',diff)
+            self.assertIn('--- /dev/null\n+++ b/new.txt',diff)
+            self.assertNotIn('UNTRUSTED',diff)
+            seen=[]
+            result=two_vote_review('glm-5.3-flash','001',files,Router(Telemetry()),
+                lambda model,prompt:seen.append(prompt) or {'verdict':'reject','reason':'fixture'},
+                baseline=diff,base_sha=base)
+            self.assertTrue(all(diff in prompt for prompt in seen))
+            self.assertEqual(result['review_input_version'],2)
+            self.assertEqual(result['base_sha'],base)
+            self.assertEqual(result['diff_sha256'],hashlib.sha256(diff.encode()).hexdigest())
+
+    def test_unsafe_or_oversized_baseline_never_reaches_a_model(self):
+        from factory.review_circuit import baseline_diff, CircuitError
+        with tempfile.TemporaryDirectory() as folder:
+            for base,files in [('invalid',{'safe.txt':'x'}),('a'*40,{'../private':'x'})]:
+                with self.assertRaises(CircuitError):baseline_diff(folder,base,files)
+        seen=[]
+        result=two_vote_review('glm-5.3-flash','001',FILES,Router(Telemetry()),
+            lambda *args:seen.append(args),baseline='x'*240001,base_sha='a'*40)
+        self.assertEqual(result['reason'],'review_input_too_large')
+        self.assertEqual(seen,[])
+
     def test_complete_large_reviews_launch_but_utf8_byte_overflow_never_sends_an_excerpt(self):
         seen=[]
         result=two_vote_review('glm-5.3-flash','002',{'src/Migration.java':'x'*30000},Router(Telemetry()),

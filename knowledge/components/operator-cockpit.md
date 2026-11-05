@@ -93,7 +93,10 @@ The root and /factory serve the same cockpit; /lab serves the existing advanced 
 3. Unsupported targets and unmet dependencies are visible before selection; backend execution gates remain authoritative (test_cockpit_admission).
 4. Default activity separates current/recent real work from historical simulations. Raw receipt data is behind details; trace confirmation remains explicit (browser fixture acceptance).
 5. Per-build target selection uses the selected feature brief/scopes/check; unknown targets hold before a budget reservation, and unexpected worker errors become visible holds without an automatic paid retry (test_factory_feature_targets).
-6. No launch or release call occurs on page load. The release drill is loaded only when its advanced panel opens (browser fixture acceptance).
+6. No launch or release call occurs on page load. The historical release drill is loaded only
+   when its advanced panel opens (browser fixture acceptance). Its synthetic preview is labelled
+   explicitly and is not a forum staging/production link. Real environment delivery requires
+   separate deployed-source/readiness evidence; the drill cannot supply it.
 7. Authentication, CSRF and loopback binding remain required. No credential is stored in browser persistent storage.
 8. Claim, completion, cancellation, hold and recovery preconditions are serialized across Store instances. The worker lease covers configured preparation, author, protected-check and two-review deadlines plus teardown. Expired attempts hold as reconciliation_needed, preserve attempt identity, and never automatically repeat an uncertain paid action (test_factory_recovery).
 9. Compiler failures expose bounded filenames, line numbers and identifiers, never source lines,

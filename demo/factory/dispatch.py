@@ -6,7 +6,9 @@ never trusts the candidate's own claims: it re-checks the frozen identity and th
 diff, then asks the publisher policy before recording anything.
 """
 import json
+import hashlib
 import subprocess
+import tempfile
 import time
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -24,7 +26,7 @@ from .routing import OutcomeTelemetry, cohort_for
 from .agent_files import BuilderError
 from .publish import FakeForge, Publisher
 from .review import content_digest, review
-from .review_circuit import two_vote_review
+from .review_circuit import two_vote_review, baseline_diff, CircuitError
 from .store import FAILED, LIVE_COMPLETE, SIMULATED_COMPLETE
 from .target import TargetError
 from .preparation import PreparationError
@@ -104,6 +106,8 @@ class DispatchWorker:
         self.author_routing = None
         self.author_ms = None
         self.started_build_ns = None
+        self.review_context = None
+        self.reused_execution = None
         # A real forge is only reachable once two independent models have approved the diff.
         self.defer_to = defer_to
         # No agent holds a GitHub key: when a gateway is configured, every attempt gets its own
@@ -148,7 +152,7 @@ class DispatchWorker:
 
     def _identity(self, build, feature, frozen, base_sha, verdict):
         """The four ids every receipt carries, so a board row reaches its trace and artifact."""
-        execution = getattr(self.builder, 'last_execution', None)
+        execution = self.reused_execution or getattr(self.builder, 'last_execution', None)
         if not isinstance(execution, dict) or execution.get('build_id') != build['build_id']:
             execution = None
         preparation_execution = getattr(getattr(self.preparer,'role',None),'last_execution',None)
@@ -171,6 +175,7 @@ class DispatchWorker:
             "artifact_digest": verdict.get("digest"),
             "routing": self.author_routing,
             "execution": execution,
+            **({'review_context':self.review_context} if self.review_context else {}),
         }
 
     def _progress(self, build, phase, detail=None):
@@ -214,7 +219,7 @@ class DispatchWorker:
         if self.telemetry is None:
             return {"status": "disabled"}
         try:
-            execution=getattr(self.builder,'last_execution',None) or {}
+            execution=self.reused_execution or getattr(self.builder,'last_execution',None) or {}
             if execution.get('build_id')!=build['build_id']:execution={}
             diagnostic={**execution,'failure_code':execution.get('failure'),
                 'execution_trace_id':execution.get('trace_id'),'phase':'building' if (gate or {}).get('status')=='builder_error' else 'checking'}
@@ -284,6 +289,7 @@ class DispatchWorker:
             if publication is not None:
                 return publication
         self.last_usage = None
+        self.review_context = self.reused_execution = None
         # Cover the longest admitted check, one author call, two votes and teardown.
         # Expiry is recovery from an interrupted process, not an ordinary slow check.
         targets = list((self.targets or {}).values()) or ([self.target] if self.target else [])
@@ -474,6 +480,77 @@ class DispatchWorker:
         """Only a build with no paid builder and no model review can prove zero spend."""
         return not self.paid and self.review_complete is None
 
+    def reassess_review_context(self,build_id):
+        """Explicit operator repair for the old full-files-only review envelope.
+
+        No author is rerun or charged twice. A stale base, changed artifact/contract, unknown
+        usage, prior publication or second request refuses the repair. Genuine v2 rejections
+        require a worker correction, not repeated votes on the same proposal.
+        """
+        from dataclasses import replace
+        from .preparation import freeze_task, _read
+        from .product_checks import prepared_target
+        from .target import _git
+        assert_worker_isolated()
+        if (not self.paid or self.preparer is None or not self.preparer.product
+                or self.review_complete is None or self.admission_check is None
+                or self.admission_check() is not True):
+            raise CircuitError('review_context_execution_unavailable')
+        row=next((r for r in self.store.board() if r['build_id']==build_id),None)
+        if row is None or not row.get('receipt'):
+            raise CircuitError('review_context_receipt_missing')
+        prior=json.loads(row['receipt']);preparation=prior.get('preparation') or {}
+        if preparation.get('synthetic') is not False or not self.catalog.matches_contract(row):
+            raise CircuitError('review_context_contract_changed')
+        base=self.preparer.synchronize() if self.preparer.synchronize else None
+        if base!=prior.get('base_sha'):
+            raise CircuitError('review_context_base_changed')
+        task=freeze_task(self.catalog,row['feature_id'],self.spec_dir,
+            self.preparer.root/'demo/forum/ARCHITECTURE.md',base,product=True)
+        task=replace(task,catalog_digest=row['catalog_digest'])
+        if task.digest()!=preparation.get('task_digest'):
+            raise CircuitError('review_context_task_changed')
+        repo=self.work_root/build_id/'repo'
+        head=_git(['-C',str(repo),'rev-parse','HEAD'])
+        if head.returncode or head.stdout.strip()!=base:
+            raise CircuitError('review_context_checkout_changed')
+        acceptance=_read(repo.parent/'prepared/acceptance.mjs',48000)
+        folder=Path(tempfile.mkdtemp(prefix='review-context-',dir=repo.parent))
+        target=prepared_target(self.preparer.root,self.preparer.source,task,folder,acceptance)
+        frozen=freeze_build(row,self.catalog,self.spec_dir,base,
+            {**self.config,**({'dependency_changes':dict(target.dependency_changes)} if target.dependency_changes else {})},
+            write_scopes=target.write_paths,spec_path=target.brief,acceptance_path=target.protected_check.contract_test)
+        artifact=validate_artifact(repo,frozen.write_scopes)
+        if (frozen.digest()!=prior.get('frozen_digest') or not artifact['accepted']
+                or artifact.get('digest')!=prior.get('artifact_digest')
+                or hashlib.sha256(acceptance.encode()).hexdigest()!=preparation.get('acceptance_digest')
+                or _read(repo.parent/'BRIEF.md',12000)!=task.specification):
+            raise CircuitError('review_context_artifact_changed')
+        previous_votes=(prior.get('circuit') or {}).get('votes') or []
+        rejecting=next((v.get('model') for v in previous_votes if v.get('verdict')=='reject'),None)
+        if rejecting is None:raise CircuitError('review_context_rejection_missing')
+        lease_ns=(target.protected_check.timeout_seconds+2*getattr(self.review_complete,'timeout_seconds',900)+60)*10**9
+        build=self.store.claim_review_context(build_id,self.catalog,
+            hashlib.sha256(row['receipt'].encode()).hexdigest(),lease_ns)
+        if build is None:raise CircuitError('review_context_not_eligible')
+        self.review_context=json.loads(build['receipt'])['review_context']
+        self.reused_execution=prior['execution']
+        self.author_model=prior['author_model'];self.author_routing=prior.get('routing')
+        self.preparation_evidence=preparation;self.last_usage=None
+        self.started_build_ns=time.time_ns()
+        self.router=Router(OutcomeTelemetry(self.store,cohort_for(self.catalog.by_id[build['feature_id']],
+            target.protected_check.id),build['attempt_id'],synthetic=False))
+        self.review_complete.authorization_check=lambda:self._attempt_authorized(build)
+        registered=dict(DEFAULT_CHECKS)
+        registered[target.protected_check.id]=target_check(target,work_root=self.work_root,sandbox=self.check_sandbox)
+        try:
+            return self._judge_and_publish(build,None,repo,frozen,self.catalog.by_id[build['feature_id']],
+                target,base,ProtectedChecks(registered),[*DEFAULT_REQUIRED_CHECKS,target.protected_check.id],
+                first_reviewer=rejecting)
+        except Exception as error:
+            self.store.hold_dispatched(build_id,'worker_error')
+            return {'build_id':build_id,'result':{'status':'held','reason':'worker_error','error_type':type(error).__name__}}
+
     def _run(self, build, session, target_override=None):
         feature = self.catalog.by_id[build["feature_id"]]
         progress = lambda phase, detail=None: self._progress(build, phase, detail)
@@ -560,6 +637,13 @@ class DispatchWorker:
             return {"build_id": build["build_id"], "result": result}
         finally:
             self.author_ms = int((time.monotonic() - started_author) * 1000)
+        return self._judge_and_publish(build,session,repo,frozen,feature,target,base_sha,checks,required_checks)
+
+    def _judge_and_publish(self,build,session,repo,frozen,feature,target,base_sha,checks,required_checks,
+                           first_reviewer=None):
+        """One shared gate/review/publication path for fresh work and the bounded context repair."""
+        progress=lambda phase,detail=None:self._progress(build,phase,detail)
+        target_repo=target.target_repo if target is not None else self.target_repo
         verdict = validate_artifact(repo, frozen.write_scopes)
         files = verdict.pop("files", {})
         if verdict["accepted"] and not self._content_bound(files, verdict):
@@ -633,6 +717,14 @@ class DispatchWorker:
                 self.store.hold_dispatched(build["build_id"], "owner_review_required")
                 return {"build_id": build["build_id"], "result": {
                     "status": "held", "reason": "review_circuit_unconfigured"}}
+            try:
+                diff=baseline_diff(repo,frozen.base_sha,files)
+            except CircuitError as error:
+                self.store.hold_dispatched(build['build_id'],'owner_review_required',receipt={
+                    **self._identity(build,feature,frozen,base_sha,verdict),'gate':gate,'review':review_verdict,
+                    'reason':str(error),'circuit':{'status':'held','reason':str(error),'votes':[],
+                        'review_input_version':2}})
+                return {'build_id':build['build_id'],'result':{'status':'held','reason':str(error)}}
             circuit = two_vote_review(self.author_model, feature["id"], files,
                                       self.router, self._review_vote,
                                       usage_for_vote=lambda: getattr(self.review_complete, 'last_usage', None),
@@ -641,7 +733,8 @@ class DispatchWorker:
                                         or bool((getattr(self.review_complete, 'last_execution', None) or {}).get('forwarded_count')),
                                       specification=(repo.parent / 'BRIEF.md').read_bytes().decode('utf-8'),
                                       preparer_model=(self.preparation_evidence or {}).get('preparer_model'),
-                                      acceptance=target.protected_check.contract_test.read_bytes().decode('utf-8') if target else '')
+                                      acceptance=target.protected_check.contract_test.read_bytes().decode('utf-8') if target else '',
+                                      baseline=diff,base_sha=frozen.base_sha,first_reviewer=first_reviewer)
             if circuit["status"] != "approved":
                 self.store.hold_dispatched(build["build_id"], "owner_review_required", receipt={
                     **self._identity(build, feature, frozen, base_sha, verdict),
