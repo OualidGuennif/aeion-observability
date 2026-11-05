@@ -33,15 +33,30 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def registry(name):
+    path = ROOT / 'tools/skills' / name
+    return json.loads(path.read_text()) if path.exists() else []
+
+
 def materialized_bytes(path):
-    """Apply only reviewed, exact-source-bound scanner annotations; preserve runtime behavior."""
+    """Apply reviewed security patches in order, then scanner annotations, each bound to the exact upstream file."""
     data = path.read_bytes()
-    registry = ROOT / 'tools/skills/annotations.json'
-    annotations = json.loads(registry.read_text()) if registry.exists() else []
-    for annotation in annotations:
-        if path.relative_to(WORKSPACE).as_posix() != annotation['file']:
+    relative = path.relative_to(WORKSPACE).as_posix()
+    source_hash = hashlib.sha256(data).hexdigest()
+    # A patch rewrites runtime behavior, so it applies only to the exact upstream bytes it was reviewed against.
+    for patch in registry('patches.json'):
+        if relative != patch['file']:
             continue
-        if hashlib.sha256(data).hexdigest() != annotation['source_sha256']:
+        if source_hash != patch['source_sha256']:
+            raise ValueError(f'Security patch against changed upstream source: {path}')
+        text = data.decode('utf-8')
+        if text.count(patch['needle']) != 1:
+            raise ValueError(f'Patch target is missing or ambiguous: {path}')
+        data = text.replace(patch['needle'], patch['replacement'], 1).encode('utf-8')
+    for annotation in registry('annotations.json'):
+        if relative != annotation['file']:
+            continue
+        if source_hash != annotation['source_sha256']:
             raise ValueError(f'Review annotation against changed upstream source: {path}')
         text = data.decode('utf-8')
         needle = annotation['needle']

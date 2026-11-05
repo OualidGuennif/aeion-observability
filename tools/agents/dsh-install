@@ -7,7 +7,11 @@ its own folder. Pointed at a working tree, the running app follows every edit ma
 broken develop reaches the app and no review can name the version that ran. This copies one tag's
 plugin into the profile and links the entry at that copy.
 
-    tools/agents/dsh-install --tag v1.8.4
+The plugin runs a project's hooks only for a project the user trusts: `--trust` records one in the
+profile, beside the link, so a tools/agents/hook.py planted above a session's folder never runs.
+
+    tools/agents/dsh-install --tag v1.8.4 --trust ~/code/my-project
+    tools/agents/dsh-install --trust ~/code/another-project
     tools/agents/dsh-install --check
 """
 import argparse
@@ -23,6 +27,7 @@ ENTRY = "aeion-factory"
 VENDOR = "vendor"
 PREFIX = ENTRY + "-"
 DISPLACED = ENTRY + ".replaced"
+TRUSTED = ENTRY + ".trusted"
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -94,6 +99,21 @@ def install(repo, profiles, profile, tag, force):
     return 0
 
 
+def trust(profiles, profile, project):
+    folder = profiles / profile
+    if not folder.is_dir():
+        raise Refused(f"no profile directory: {folder}")
+    project = project.resolve()
+    if not (project / "tools/agents/hook.py").is_file():
+        raise Refused(f"{project} has no tools/agents/hook.py; trust the root of an Æion Factory project")
+    listed = folder / TRUSTED
+    lines = listed.read_text().splitlines() if listed.is_file() else []
+    if str(project) not in lines:
+        listed.write_text("".join(f"{line}\n" for line in [*lines, str(project)]))
+    print(f"trusted {project}")
+    return 0
+
+
 def check(repo, profiles, profile):
     require_repository(repo)
     folder = profiles / profile
@@ -141,6 +161,8 @@ def main():
     )
     parser.add_argument("--tag", help="the release tag to install, e.g. v1.8.4")
     parser.add_argument("--check", action="store_true", help="verify the loaded copy against its tag")
+    parser.add_argument("--trust", action="append", default=[], metavar="PROJECT",
+                        help="let the plugin run this project's hooks (repeatable)")
     parser.add_argument("--profile", default="desktop", help="the profile folder (default: desktop)")
     parser.add_argument("--profile-dir", default=str(Path.home() / ".dsh" / "profiles"),
                         help="the profiles folder (default: ~/.dsh/profiles)")
@@ -150,10 +172,13 @@ def main():
     try:
         if arguments.check:
             return check(Path(arguments.repo), Path(arguments.profile_dir), arguments.profile)
-        if not arguments.tag:
-            parser.error("--tag is required unless --check is given")
-        return install(Path(arguments.repo), Path(arguments.profile_dir), arguments.profile,
-                       arguments.tag, arguments.force)
+        if not arguments.tag and not arguments.trust:
+            parser.error("--tag or --trust is required unless --check is given")
+        if arguments.tag:
+            install(Path(arguments.repo), Path(arguments.profile_dir), arguments.profile, arguments.tag, arguments.force)
+        for project in arguments.trust:
+            trust(Path(arguments.profile_dir), arguments.profile, Path(project))
+        return 0
     except Refused as refusal:
         print(f"dsh-install: {refusal}", file=sys.stderr)
         return 2

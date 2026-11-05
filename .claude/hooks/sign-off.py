@@ -5,8 +5,8 @@
 Input: the Stop event on stdin. Only the files this session edited count (after-edit.py records
 them). When one of them is code whose covering doc did not change (tools/knowledge/doc-links L3),
 work/current.md did not change, or it opened a new top-level folder without AGENTS.md changing, it
-blocks with the findings not shown yet in this session; a second stop always passes. Local mode
-(git config aeion.mode local) always passes.
+blocks with the findings not shown yet in this session; a second stop always passes. It runs only
+in the team flow (git config aeion.mode team); the default local mode always passes.
 """
 import hashlib
 import json
@@ -40,8 +40,8 @@ try:
         sys.exit(0)
 except (OSError, subprocess.SubprocessError):
     sys.exit(0)
-# Local play (git config aeion.mode local) has no task-closure ritual to remind of.
-if git("config", "--local", "--get", "aeion.mode").stdout.strip() == "local":
+# Local mode, the default, has no task-closure ritual to remind of; only the team flow does.
+if git("config", "--local", "--get", "aeion.mode").stdout.strip() != "team":
     sys.exit(0)
 session = event.get("session_id", "none")
 if not isinstance(session, str) or not session or any(char in session for char in "/\\\0"):

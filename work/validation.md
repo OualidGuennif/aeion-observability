@@ -1773,3 +1773,68 @@ this small local correction; protected observer CI/review is still pending, not 
   in `demo/tests/test_sandbox_unmounted.py`, and updated `demo/tests/test_forum_content_target.py`
   for automatic `TaskPreparer` wiring so all `683` tests in `demo/tests` pass under
   `demo/.local/venv/bin/python` and Docker-free host unit tests pass under system `python3`.
+
+## Observability PR #18 release and green main synchronization — 2026-11-04
+
+- Opened PR #18 to merge the 77+ commit backlog from `develop` into protected `main`:
+  - Fixed runner acceptance artifact resolution in `demo/app/runner.py` for unmounted OpenShell
+    sandboxes (`host_mounts=False`, `include_workdir=False`), seeding candidate source when `artifact`
+    is not pre-resolved.
+  - Fixed candidate write preservation across agent sessions during handover: `prepare_handover`
+    now collects unmounted sandbox writes to the host workspace before creating `HANDOVER.md` and
+    evaluates against the in-sandbox workspace path without re-seeding the initial stub.
+  - Implemented `seed_in`, `collect`, and `sync_out` on `LocalSandbox` in `demo/tests/local_sandbox.py`
+    to allow complete three-tier development qualification without OpenShell.
+- CI and reviews:
+  - Recorded exact-head reviews (`707ed37`, `35282cb`, `4fabe16`) with commit review comments and PR reviews.
+  - PR #18 CI passed all required workflows: `docker-demo` (2m28s, 4/4 scenarios and 3/3 tiers pass),
+    `offline-examples` (50s), `Knowledge, links and repository health` (5s), and `Architecture refresh` (29s).
+  - Merged PR #18 to `origin/main` as commit `ae5a6ef1441a418402e42e61619424b11435a01c`.
+  - Post-merge CI runs on `main` both succeeded: `CI` (databaseId `41798806347`) and `Architecture refresh`
+    (databaseId `41798806370`).
+  - Synced `develop` with `origin/main` at merge commit `4557d1463640aa0d9dfe76328232b941f6e579a9`;
+    local `main` fast-forwarded to `ae5a6ef`. `develop` and `main` trees are byte-for-byte identical.
+
+
+## Full repository regression on current main code — 2026-11-04 request
+
+Fresh fetch succeeded: HEAD/origin-develop10f072791a2378adad48789a91788c0d37bf0337;
+origin-mainae5a6ef1441a418402e42e61619424b11435a01c. Tree difference before this pass was only
+work/current.md and work/validation.md; source matches merged PR18/main. Initial worktree clean.
+Host Python3.15.2/Node26.12.1/Docker29.9.2; five Flue packages match their exact declared versions.
+All testing used715public tracked files, an empty environment and isolated state, committed-only
+product Git objects and existing public tools/caches. No operator .env/database/worktree copied.
+
+Final results:683demo tests with zero skips;33examples;19Flue;16cockpit client;21catalog;
+catalog --check, synthetic fixtures/comparison, read-only source lock, Factory PASS. Three optional
+architecture skips in Factory were fully covered by15native Deno/Graphify tests, all passing.
+Initial archive failure was a missing HEAD in the public snapshot; fixed only snapshot setup.
+Initial7demo skips were rerun with a committed-only local product fixture, then the full683 rerun
+passed with zero skips. All initial logs remain separate; no project assertion/code was changed.
+
+Native checks passed: OpenShell0.1.5 isolation/teardown;54positive JS cases plus broken/unloadable
+negative controls; real Flue/Pi all3tiers with exact request/session/handover and usage assertions;
+complete170062byte Qwen review and USAGE_UNKNOWN final-cost refusal; disposable PostgreSQL17
+transactions, app privileges/DDL refusal, denied egress and both teardown paths; Chromium156
+sandbox/namespaces/Seccomp-BPF/TSYNC with no host mount/socket/egress (Yama unavailable).
+Full Java factory fixture passed276.94s, with repair feedback,2sessions, passed gate,2independent
+votes and separate adaptive-medium Haiku probe. Automatic Java preparation passed205.44s:
+complete frozen acceptance, failing baseline assertion, repair/handover,4distinct allowlisted models,
+independent quorum and claude-mem/Hindsight metadata confirmed for all4roles.
+
+First native-preparation attempt hit the temporary launcher's300s wrapper during final checks;
+it is preserved as incomplete/exit124. Its owned checker/workload names were confirmed absent.
+A fresh isolated run with900s wrapper passed205.44s. Engine deadlines, assertions, scopes, budget
+and qualification controls were unchanged. Every inference endpoint for these generators was
+local scripted data; no real feature, provider-quality score, deployment or merge is claimed.
+Factory activation marker remains absent and PostgreSQL template qualified=false.
+
+Fresh hosted exact-main readback: offline-examples, docker-demo, Knowledge/links/health,
+Graphify/Archify all completed/success. Report: work/test-pass-2026-11-04.md. Full logs,
+exit codes, timings, initial attempts and SHA256 index: /private/tmp/aeion-tests-20261104-sm4buts3/.
+Current/HANDOVER updated with exact readback/fsync; no application code changed by this pass.
+
+Final post-documentation checks: knowledge-check0problems, doc-links121, repo-health/current131lines,
+git diff --check and28relative links all pass. Native cleanup confirms zero owned checker/workload
+containers, removes only the temporary TLS symlink, and preserves the existing operator gateway.
+Only work/HANDOVER.md, work/current.md, work/validation.md and the new dated test report are changed.

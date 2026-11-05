@@ -20,11 +20,13 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Prepare mandatory architecture baseline
         run: tools/architecture/setup && tools/architecture/refresh --target HEAD
       - uses: anthropics/claude-code-action@a5a423f75c251dcbff8a74e99f83b2cb03c72bfa # v1
         env:
           AEION_LOOP_READ_ONLY: '1'
+          AEION_LOOP: outer
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ github.event.schedule == '0 6 * * 1' && 'Follow loops/prompts/security.md.' || 'Follow loops/prompts/outer.md, then loops/prompts/docs.md.' }}

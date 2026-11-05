@@ -20,6 +20,8 @@ def emit(record):
 
 mode = os.environ.get('FAKE_MODE', 'normal')
 delay = float(os.environ.get('FAKE_COMPACTION_DELAY', '0'))
+if mode == 'exit':
+    sys.exit(3)
 for line in sys.stdin:
     try:
         command = json.loads(line)
@@ -94,6 +96,14 @@ class PiRpcTests(unittest.TestCase):
         result = self.run_client('--prompt-file', str(prompt), mode='echo', prompt=None)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, 'from a file\n')
+
+    def test_pi_that_exits_before_reading_is_one_line_not_a_traceback(self):
+        prompt = self.dir / 'prompt.txt'
+        prompt.write_text('x' * 1_000_000)
+        result = self.run_client('--prompt-file', str(prompt), mode='exit', prompt=None)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('pi-rpc: Pi exited before accepting the prompt', result.stderr)
+        self.assertNotIn('Traceback', result.stderr)
 
     def test_refused_prompt_exits_one(self):
         result = self.run_client(mode='error')

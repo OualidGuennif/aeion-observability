@@ -152,6 +152,23 @@ class DshInstallTests(unittest.TestCase):
         self.assertEqual(code, 0, output)
         self.assertIn('ok v1.0.0', output)
 
+    def test_trust_records_a_project_once_beside_the_link(self):
+        project = self.base / 'project'
+        (project / 'tools/agents').mkdir(parents=True)
+        (project / 'tools/agents/hook.py').write_text('')
+        # It may come with an install, or alone; a second --trust of the same project changes nothing.
+        self.assertEqual(self.run_tool('--tag', 'v1.0.0', '--trust', str(project / '.'))[0], 0)
+        code, output = self.run_tool('--trust', str(project))
+        self.assertEqual(code, 0, output)
+        self.assertEqual((self.profile / 'aeion-factory.trusted').read_text(), f'{project}\n')
+        self.assertEqual(self.target_of(), 'vendor/aeion-factory-v1.0.0')
+
+    def test_trust_refuses_a_folder_without_the_factory_hooks(self):
+        code, output = self.run_tool('--trust', str(self.base))
+        self.assertEqual(code, 2, output)
+        self.assertIn('tools/agents/hook.py', output)
+        self.assertFalse((self.profile / 'aeion-factory.trusted').exists())
+
     def test_check_refuses_a_foreign_link(self):
         os.symlink(self.repo / PLUGIN, self.entry)
         code, output = self.run_tool('--check')

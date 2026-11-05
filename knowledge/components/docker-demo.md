@@ -80,8 +80,11 @@ HTTP traces. Primary integration references, checked 2026-10-27:
   Docker driver [volume admission](https://github.com/NVIDIA/OpenShell/blob/bdb956f2cd65a635f1294fccf1d138d263bf650f/crates/openshell-core/src/resource_admission.rs)
   (operator labels; raw host paths refused) and [host-backed volumes](https://github.com/NVIDIA/OpenShell/blob/bdb956f2cd65a635f1294fccf1d138d263bf650f/crates/openshell-driver-docker/src/lib.rs)
   (`enable_bind_mounts`).
-- [Langfuse OTLP](https://langfuse.com/integrations/native/opentelemetry) and the installed
-  4.49.0 OpenAPI schema, including observations v2, native cost details and boolean scores.
+- [Langfuse OTLP](https://langfuse.com/integrations/native/opentelemetry), observations v2, native
+  cost details and boolean scores. Current server pins are4.75.0; the prior4.49.0 schema
+  qualification stays historical. The upgrade verifies actual migrations, metadata-only ingestion
+  and preserved historical observations. Reasoning-effort enums survive both privacy filters;
+  prompts, outputs and hidden reasoning remain excluded.
 - [Hindsight configuration](https://hindsight.vectorize.io/developer/configuration) and the
   running 1.1.0 OpenAPI schema for retain/recall; `chunks` mode uses no extraction LLM.
 - [claude-mem explicit saves](https://github.com/thedotmack/claude-mem/blob/93c82aac6ce14e1cbda02dff9aa4c16e0edfce57/src/services/memory/save-memory.ts),

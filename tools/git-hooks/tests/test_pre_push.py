@@ -18,6 +18,8 @@ class PrePushTests(unittest.TestCase):
         self.git("init", "-q", "--bare", str(remote), cwd=self.tmp.name)
         self.git("init", "-q", "-b", "main", str(self.root), cwd=self.tmp.name)
         self.git("remote", "add", "origin", str(remote))
+        # The gate runs in the team flow only.
+        self.git("config", "aeion.mode", "team")
         self.commit("initial")
         self.git("push", "-q", "origin", "main")
         self.git("switch", "-q", "-c", "develop")
@@ -64,11 +66,13 @@ class PrePushTests(unittest.TestCase):
         self.assertEqual(self.push("refs/tags/v1.3.0", sha).returncode, 0)
         self.assertEqual(self.push("refs/heads/task/x", sha).returncode, 0)
 
-    def test_local_mode_pushes_main_without_the_team_flow(self):
+    def test_local_mode_the_default_pushes_main_without_the_team_flow(self):
         sha = self.commit("play")
         self.git("config", "aeion.mode", "local")
         self.assertEqual(self.push("refs/heads/main", sha).returncode, 0)
         self.git("config", "--unset", "aeion.mode")
+        self.assertEqual(self.push("refs/heads/main", sha).returncode, 0)
+        self.git("config", "aeion.mode", "team")
         self.assertEqual(self.push("refs/heads/main", sha).returncode, 1)
 
     def test_a_symlinked_review_is_not_a_verdict(self):

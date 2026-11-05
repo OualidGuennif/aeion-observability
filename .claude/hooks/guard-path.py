@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 # Spec: knowledge/policies/security.md
 """Refuse secret paths and unbounded large reads before native tool execution (exit 2)."""
+import fnmatch
 import json
+import os
 import posixpath
 import re
 import sys
 from pathlib import Path, PurePosixPath
-from secret_names import brace_variants, is_secret, named_secrets
+from secret_names import brace_variants, inside_git, is_secret, named_secrets, secret_under, shell_pattern
+
+ROOT = Path(__file__).resolve().parents[2]
 
 MAX_INTAKE_BYTES, MAX_INTAKE_LINES = 65536, 400
 MAX_SCAN_BYTES = 1024 * 1024
@@ -76,17 +80,34 @@ elif not isinstance(path, str) or (not path and event.get("tool_name") != "Grep"
     deny("the tool path must be a nonempty string")
 if "\0" in path:
     deny("the tool path contains a null byte")
-name = PurePosixPath(path).name
-if is_secret(name):
-    print(f"Blocked by .claude/hooks/guard-path.py: {name} holds secrets and is never opened "
-          f"(knowledge/policies/security.md).", file=sys.stderr)
-    sys.exit(2)
-# Writing the git config file sets aeion.mode or core.hooksPath without guard-bash's git config checks.
-# The path is normalized and case folded: .git//config and .GIT/Config are the same file on APFS.
-if event.get("tool_name") not in {"Read", "Grep", "Glob"} and re.search(
-        r"(^|/)\.git/(config|config\.worktree|worktrees/[^/]+/config\.worktree)$", posixpath.normpath(path).lower()):
-    deny("the git config file is changed with git config, never edited directly")
+# A symlink with an ordinary name may point at a secret or the git config file, so its target counts too.
+try:
+    cwd = event.get("cwd") if isinstance(event.get("cwd"), str) else "."
+    paths = [path, str((Path(cwd) / path).resolve())] if path else [path]
+except (OSError, RuntimeError):
+    deny("the path could not be resolved; name the file itself")
+for candidate in paths:
+    name = PurePosixPath(candidate).name
+    if is_secret(name):
+        print(f"Blocked by .claude/hooks/guard-path.py: {name} holds secrets and is never opened "
+              f"(knowledge/policies/security.md).", file=sys.stderr)
+        sys.exit(2)
+    # Writing the git config file sets aeion.mode or core.hooksPath without guard-bash's git config checks.
+    # The path is normalized and case folded: .git//config and .GIT/Config are the same file on APFS.
+    if event.get("tool_name") not in {"Read", "Grep", "Glob"} and re.search(
+            r"(^|/)\.git/(config|config\.worktree|worktrees/[^/]+/config\.worktree)$", posixpath.normpath(candidate).lower()):
+        deny("the git config file is changed with git config, never edited directly")
+target = Path(paths[-1]) if path else Path(cwd).resolve()
+# A loop reads and writes its own project only; the retro also reads this project's session transcripts.
+loop = os.environ.get("AEION_LOOP")
+if loop:
+    allowed = [ROOT]
+    if loop == "retro" and event.get("tool_name") in {"Read", "Grep", "Glob"}:
+        allowed.append(Path.home() / ".claude/projects" / re.sub(r"[^A-Za-z0-9-]", "-", str(ROOT)))
+    if not any(target == a or a in target.parents for a in allowed):
+        deny(f"the {loop} loop works inside {ROOT} only")
 # Grep's glob filter picks the files it reads, so a glob that names a secret is a read of it.
+names = None
 if event.get("tool_name") == "Grep" and tool_input.get("glob") is not None:
     if not isinstance(tool_input["glob"], str):
         deny("the Grep glob must be a string")
@@ -94,7 +115,16 @@ if event.get("tool_name") == "Grep" and tool_input.get("glob") is not None:
         names = [PurePosixPath(p).name for p in brace_variants(tool_input["glob"])]
     except ValueError:
         deny("the Grep glob could not be verified; name the files explicitly")
-    if any(is_secret(n) or named_secrets(n) for n in names):
+    # A negated glob (!.env) leaves a file out, so it names nothing that is read.
+    if any(is_secret(n) or named_secrets(n) for n in names if not n.startswith("!")):
         deny("the Grep glob names a secret file, which is never opened")
+# Outside a git work tree Grep honours no .gitignore and reads every file under its folder.
+if event.get("tool_name") == "Grep" and target.is_dir() and not inside_git(target):
+    globs = None if not names or any(n.startswith("!") for n in names) else [shell_pattern(n).lower() for n in names]
+    found = secret_under(target, keep=globs and (lambda n: any(fnmatch.fnmatchcase(n.lower(), g) for g in globs)))
+    if found is None:
+        deny(f"Grep would search {target}, too many files to check for secret files; search a smaller folder")
+    if found:
+        deny(f"Grep would read the secret file {found} under {target}")
 check_intake(path, event.get("tool_name", "Read"), tool_input)
 sys.exit(0)

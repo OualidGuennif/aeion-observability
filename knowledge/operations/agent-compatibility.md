@@ -49,9 +49,13 @@ sources:
     title: "compaction.js, which names this doc as its spec"
   - resource: ../../.dsh/plugins/factory/seam.js
     title: "seam.js, which names this doc as its spec"
+  - resource: ../../.pi/README.md
+    title: "Pi integration and its headless limitation"
+  - resource: ../../.opencode/README.md
+    title: "OpenCode integration and its live note"
 generated:
   by: aeion-factory/1.6
-  at: 2026-10-29
+  at: 2026-11-02
 ---
 
 # Agent compatibility
@@ -59,7 +63,8 @@ generated:
 AGENTS.md, Knowledge, task state, checker commands and the reviewed PR workflow are shared.
 Claude Code remains the original integration. Codex, OpenCode, Pi, dsh, Devin, Droid and Antigravity use their
 documented native configuration and small adapters to the existing guards/checkpoints; copying a
-directory does not establish loaded hooks or identical runtime guarantees.
+directory does not establish loaded hooks or identical runtime guarantees. `tools/agents/run` stops
+with one line naming a missing agent binary and the setup link, exit 1.
 
 ## Contract
 
@@ -70,7 +75,10 @@ directory does not establish loaded hooks or identical runtime guarantees.
   compaction, so a compaction that comes before the verified handover runs, and closure is owed right
   after it. Its rollout is not a stable token API.
 - OpenCode 2.1.4+ loads root `opencode.json` and `.opencode/plugins/factory/index.js`. The plugin reads each
-  step's tokens (`session.step.ended`) and compacts itself at 250k once the handover is verified.
+  step's tokens (`session.step.ended`) and compacts itself at 250k once the handover is verified. A live
+  2.2.0 run on 2026-11-02 compacted a 272k step on a turn with two tool calls; a one-tool turn can miss the
+  trigger because that event arrives after the tool hook, so the next tool or turn sees it. See
+  [the OpenCode integration note](../../.opencode/README.md).
 - Pi 1.4.0+ reads `AGENTS.md`/`CLAUDE.md` from its folder and every parent, and project
   `.agents/skills` from its folder or a parent, so the shared rules and skills need no copy. It loads
   `.pi/extensions/factory/index.js` from **its start folder only**, once the project is trusted; started
@@ -85,20 +93,24 @@ directory does not establish loaded hooks or identical runtime guarantees.
   notification without a verified handover) to `tools/agents/hook.py pi`. `bash` and `powershell` are
   Bash, `read`/`edit`/`write`/`grep` name their file in `path`, `find` and `ls` are Glob and LS, and an
   unknown tool carrying a `command` string is a shell call. `tools/agents/run pi` requires 1.4.0+.
-  Its compaction aborts the running turn, so it never starts from a `tool_result`: the extension
-  waits for `agent_before_settle`, sends `ctx.getContextUsage()` as the Stop payload's
-  `observed_tokens`, and only then asks the shared rule. When the handover is verified at 250k, an
-  interactive run calls `ctx.compact()` at settlement and resumes the task from the handover. A
-  one-shot `-p` run has no UI to take that resume message, so it ends cleanly and points at the
-  verified handover instead of aborting before its summary. The 250k alert names the checkpoint
-  command, and closure admits a project's
+  Its compaction aborts the running turn, so once it is done the extension sends a message that resumes
+  the task from the handover. `tools/agents/run pi rpc` starts the factory's headless RPC runner instead
+  (`tools/agents/pi-rpc`): one `pi --mode rpc` process with the extension, one prompt over JSONL, and
+  the run waits through the settlement compaction and the resumed run, so headless Pi can compact and
+  continue without a TUI; a Pi that exits before reading the prompt is one `pi-rpc:` line, exit 1.
+  Print/JSON mode still does not compact (see the Pi note).
+  The extension sends `ctx.getContextUsage()` to the shared rule and calls `ctx.compact()` at 250k once
+  the handover is verified; the 250k alert names the checkpoint command, and closure admits a project's
   Markdown docs. `agent_before_settle` sends Stop: a sign-off finding becomes a displayed
   `custom_message` entry with `continue: true` (one more request); the hook shows each finding once, so
   the next settlement passes. A terminal stop (`continue: false`: a stopped run, invalid or unavailable
   usage) settles at once and shows its reason in the UI, never as another request. A closure refusal
   repeats at most three times and then settles with the
-  reason in the UI, so one alert cannot spin forever. Not yet qualified live: the events follow the
-  1.4.0 docs and published type declarations.
+  reason in the UI, so one alert cannot spin forever. The guards are qualified live headless (2026-11-01);
+  the 250k compaction is not (2026-11-02): the extension's `ctx.compact()` aborts the headless run and its
+  error handler exits on a stale ctx, so no compaction entry is written, and `agent_before_settle` sends
+  Stop without `observed_tokens`. See [the Pi note](../../.pi/README.md) and
+  [Qualification and limits](#qualification-and-limits).
 - Token feedback (narration between tools, full-file rewrites; advisory, never blocking) covers
   Claude Code natively and Codex through its rollout transcript. Devin, Droid and Antigravity pass
   no transcript the hook can read and the OpenCode and Pi extensions pass no assistant text, so they get the
@@ -108,46 +120,44 @@ directory does not establish loaded hooks or identical runtime guarantees.
   from a subfolder, or nested in another repository, does not find `tools/agents/hook.py`; Codex and
   Antigravity then refuse every tool call (fail closed). Start the agent at the project root.
   Inside a git repository a subfolder such as `demo/` works: the hook commands resolve the git root,
-  and the OpenCode and Pi extensions use the nearest folder above their start folder that has
-  `tools/agents/hook.py`.
+  and the OpenCode and Pi extensions run the hooks three folders above their own file, never a
+  `tools/agents/hook.py` found above a session's folder (one could be planted); with none there, every call is refused.
+- Patches and file filters, every harness: a patch header (`*** Add File:`, `Update File`,
+  `Delete File`, `Move to`) is read as harness parsers read it, trimmed, in any case. An empty path or
+  one with a colon, any other `*** Word:` header, or two patch texts is refused. On every non-shell tool,
+  each string at any depth under `include`, `glob`, `globPattern`, `filePattern` or `includePattern`
+  (any case, `_`/`-` ignored, plurals too; never `pattern`, the search regex) meets the Grep `glob`
+  check ([security](../policies/security.md)); OpenCode's grep filter is `include`.
 - Both adapters enforce supported Bash/path refusals, edit feedback and a verified handover,
   and a Pi compaction the checkpoint did not verify still runs and owes that closure after it
   instead of trapping the session at its window; the first refused compaction creates the skeleton to fill.
   Native token stops and strict pre-request 300k admission are unqualified.
-- dsh (DeepSeek Harness, CLI `dsh`, 0.2.1-rc.3) reads `AGENTS.md`/`CLAUDE.md` from the project root down
-  to its folder and skills from `.dsh/skills` and `.agents/skills`, so the shared rules and skills need no
-  copy. It loads project plugins only from a patch overlay: `tools/agents/run dsh [web|headless]` (web, a
-  browser UI, by default; dsh ships no `tui` profile) passes `--patch .dsh/factory.patch.yml`, which
-  inserts `.dsh/plugins/factory/index.js` (the guards) and `compaction.js` (the compaction service, shared
-  through `seam.js`). The web profile keeps `compaction` inside each agent preset, not at its root, so there
-  the second entry stays pending ("waiting for service: compaction") while the guards run. One web server
-  serves many projects, so the plugin finds `tools/agents/hook.py` above each session's own directory
-  (`ctx.workingDirectory.get(session)`, which follows the working-directory tool), not the launch folder;
-  a session outside an Æion Factory project is left alone. The plugin's
-  `ctx.tools.guard` sends every tool call as PreToolUse to `tools/agents/hook.py dsh` (a returned reason
-  denies it and no later policy can undo that; a call without an agent is refused), with
-  `ctx.tokenMeter.measure(session).totalTokens` as the usage; `tools/post-execute` sends PostToolUse.
-  dsh has no hook that adds text to the prompt, so the SessionStart context (the checkpoint profile and
-  recovery pointer) is steered to the agent on its first guarded call; `agent/turn-stopping` sends Stop,
-  and a sign-off finding is steered as one more step (shown once per session, so it cannot loop). An
-  answer of `continue: false` is the hook's terminal stop: the turn ends with its reason and is never
-  steered, because a steered terminal stop starts a turn that closes the same way.
-  Once a verified handover asks for compaction, the next `agent/pre-step` sends PreCompact and, when
-  allowed, compacts through `ctx.compaction.compactIfNeeded(agent, 'context-overflow')`, then steers a
-  message that resumes from the handover. Without the root service (web) the plugin cannot start a
-  compaction, so it tells the shared rule that compaction is unavailable: the 250k/300k gate becomes
-  advisory, the handover stays required for recovery, and dsh's own compaction continues ungated
-  instead of waiting for a human to type `/compact`; a token measure that falls to under half between
-  two calls marks that compaction, so the next call sends SessionStart with `source: compact`.
-  `bash` is Bash, `read`/`write`/`edit` name `file_path`,
-  `str_replace_editor` is Edit (Read for `view`), `glob`/`grep` are Glob/Grep. dsh's own pressure
-  compaction (about 55% of a 1M window) is not refused; past 300k only closure runs, so it is reached
-  only if closure never completes. A dsh launched without the patch has no Æion Factory hooks.
-  Its sandbox ("workspace-write") writes only below the launch folder and headless has no approval
-  channel: launched in a subfolder (`demo/`), it cannot write the root's `.git`, `work/current.md` or
-  `work/handovers/`, so whoever drives the run commits and writes the closure files there; launched at
-  the root, closure works. Programs that keep state in the home folder need it moved inside the
-  workspace, e.g. `DOCKER_CONFIG=$PWD/.docker` (with the CLI plugins linked) for `docker compose`.
+- dsh (DeepSeek Harness, `dsh` 0.2.1+) reads `AGENTS.md`/`CLAUDE.md` and `.agents/skills` natively. It
+  loads project plugins only from a patch: `tools/agents/run dsh [web|headless]` passes
+  `--patch .dsh/factory.patch.yml`, which loads `.dsh/plugins/factory/index.js` (the guards) and
+  `compaction.js` (compaction, shared through `seam.js`); a dsh started without it is unguarded.
+  - **Guards.** Each tool call goes to `tools/agents/hook.py dsh` as PreToolUse (a call without an agent
+    is refused), with `ctx.tokenMeter.measure(session).totalTokens` as usage; `tools/post-execute` sends
+    PostToolUse and `agent/turn-stopping` sends Stop. The plugin finds the hook above each session's own
+    directory, so one web server guards every factory project and leaves other folders alone. It runs
+    that project's hooks only if it is the project the plugin ships in (the `tools/agents/run dsh`
+    overlay) or one the profile trusts: `tools/agents/dsh-install --trust PROJECT` lists it in
+    `aeion-factory.trusted` beside the profile's link, read on each call. Any other project's calls are
+    refused with that command, so a planted `tools/agents/hook.py` never runs. `bash` is
+    Bash, `read`/`write`/`edit` name `file_path`, `str_replace_editor` is Edit (Read for `view`), and
+    `glob`/`grep` are Glob/Grep.
+  - **Messages.** dsh cannot add prompt text, so the start context is steered on the first guarded call.
+    Every steered message carries an `id` and `role: "user"`, without which dsh refuses to reopen the
+    session. A sign-off finding is steered once; `continue: false` ends the turn and is never steered.
+  - **Compaction.** After a verified handover, the next `agent/pre-step` sends PreCompact and compacts
+    (headless: the root service; web: the `/compact` command once the agent is idle), then resumes from
+    the handover. A profile with no compaction service gets the advisory gate, and a token measure that
+    falls by over half marks dsh's own compaction as SessionStart `source: compact`. dsh's pressure
+    compaction (about 55% of a 1M window) is not refused. If compaction does not run, the messages say to
+    stop and resume from the verified handover. Live 2026-11-02: headless compacted at 250k and resumed.
+  - **Sandbox.** It writes only below the launch folder: started in `demo/`, it cannot write the root's
+    `.git` or `work/`, so start it at the root. Move home-folder state into the workspace, e.g.
+    `DOCKER_CONFIG=$PWD/.docker` for `docker compose`.
 - Devin CLI reads `AGENTS.md` and `.agents/skills` natively. By default it also imports
   `.claude/settings.json` hooks, but its tools are named `exec`, `read`, `edit`, `write` and
   `apply_patch`, so Claude matchers never fire and the matcher-less Claude budget hook reads a
@@ -181,8 +191,8 @@ directory does not establish loaded hooks or identical runtime guarantees.
   <event>`: the payload names no hook event or session, so the event is an argument and the
   session key is per clone, as for Devin. The adapter reads `toolCall {name, args}`, maps
   `run_command` (`CommandLine`) to Bash, `view_file` and `read_file` to Read, `write_to_file` and
-  `write_file` to Write and `replace_file_content`/`multi_replace_file_content`/`edit_file` to
-  Edit and `grep_search` to Grep. For any
+  `write_file` to Write, `replace_file_content`/`multi_replace_file_content`/`edit_file` to Edit and
+  `grep_search` to Grep. For any
   tool, including MCP tools, every nonempty string at any depth under an argument whose name,
   ignoring case and `_`/`-`, ends in path, file, dir, directory or uri, or their plurals
   (`AbsolutePath`, `TargetDirectories`, `file_path`, `Uri`; a `file:` URI is decoded to its path),
@@ -196,9 +206,9 @@ directory does not establish loaded hooks or identical runtime guarantees.
   with its limits; a non-string filter is refused. Any tool with a `CommandLine` goes through the
   shell guard, as does a `command` or `commandLine` argument in any case; a call with two is
   refused. `Cwd` or `workdir` in any case (a `file:` URI decoded) is the shell's directory; two
-  or a non-string one are refused. On a shell call any other argument besides `toolSummary` must be
-  a flag or a number, since the guard cannot tell which one a tool runs in; any other text, list or
-  object is refused.
+  or a non-string one are refused. On a shell call any other argument must be a flag or a
+  number, since the guard cannot tell which one a tool runs in; a text, list or object is refused,
+  except AGY 2.0's required `toolSummary` string, the line shown to the user, which is never run.
   The guards see only fields the adapter derives, never a raw `limit` or output mode from the
   model. A pre-tool payload without `toolCall` is refused. A pre-tool answer is always an
   explicit `{"decision": "allow"}` or `{"decision": "deny", "reason": ...}`, since Antigravity
@@ -273,7 +283,8 @@ Edit semantics, so checking a patch never becomes an accidental full-file Read r
 ## Keeping a copy in step
 
 A project that adopts the factory carries its own copy of every connector: the shared adapter
-(`tools/agents/hook.py`), the context rule (`tools/context/budget.py`), the Claude hooks, the dsh
+(`tools/agents/hook.py`), the context rule (`tools/context/budget.py`), the launcher and the headless
+Pi RPC runner it dispatches to (`tools/agents/run` and `tools/agents/pi-rpc`), the Claude hooks, the dsh
 plugin, the Pi extension, the OpenCode plugin and the native registrations. A copy that drifts from
 the factory does not fail loudly. The harness keeps loading whatever is there, or silently drops a
 module that no longer parses, and nothing in the session says so: that is how a desktop dsh profile
@@ -296,12 +307,21 @@ without following it, and `executable(mode)` reads the executable bit from eithe
 or a `stat` mode. A copy that predates them cannot answer a check that imports them.
 
 It prints one line per connector: `ok`, `DRIFT` with both sizes and the exact `cp` that repairs it,
-`UNWIRED` for a native config that names a file which is not there, `invalid` for a config that
-is not valid JSON, and `UNIDENTIFIED` with its line for a `steer` call that carries no id. A
+`UNWIRED` for a native config that names a `.py`, `.js` or `.sh` script which is not there (a `.json`
+path, such as a credentials file in a deny rule, is not a script), `invalid` for a config that
+is not valid JSON, `LINKED` for a connector or one of its parent folders that is a symlink, `MODE`
+for a launcher that lost its executable bit, and `UNIDENTIFIED` with its line for a
+`steer`/`inject`/`followup` call that carries no id and `UNROLED` for one that carries no role. A
 connector the project does not carry is `absent`: listed under `--verbose`, and
 a failure only under `--strict`, because a Claude-only project legitimately has no Pi extension.
-Exit code 0 is clean, 1 is drift, broken wiring or an unidentified steer, 2 is a bad root or the
-script's own copy.
+Exit code 0 is clean, 1 is drift, broken wiring, a linked connector, a non-executable launcher, or
+an unidentified/unroled steer, 2 is a bad root or the script's own copy.
+
+A connector must be a regular file owned by the project. A symlink is reported as `LINKED` and
+never followed: comparing the file it points at would call a file outside the project a match. The
+same rule protects the update below, which refuses a linked destination instead of writing through
+it. The executable bit is part of the contract: `tools/agents/run` is recorded as `100755` in the
+release tree, and a copy that reads `0644` fails `MODE` even when every byte matches.
 
 Configs a project merges with its own settings are not compared byte for byte —
 `.claude/settings.json`, `.codex/config.toml`, `.devin/config.json` — but their commands are: every
@@ -319,77 +339,139 @@ Every `steer({...})` the factory ships carries an `id`; a call without one is re
 
 ## Updating a project to a new release
 
-An adopted project carries its own copies of every connector, and its own instructions, settings and
-knowledge next to them. An update must move the copies and leave the project's own text alone.
+An adopted project carries its own copies of the factory's files next to its own instructions,
+settings and knowledge. An update must move every factory file the release changed, keep each edit
+the project made, and leave the project's own text alone.
 
 ### Intent
 
-Move a project from the release it adopted to another reference, writing only the files a harness
-loads and naming the rest, so a local instruction, setting or document survives the update.
+Move a project from the factory release it adopted to another reference, deciding each file the
+factory changed between the two, and each factory file the project still holds as an older
+release's untouched copy, on its own, so a connector matches its release byte for byte, an
+untouched factory file follows the release, a project edit survives, and a conflict or a project-owned
+file goes to a human. The application's `VERSION` is not factory provenance: it is neither read as
+the baseline nor written.
 
 ### Data sources
 
 | Source | What is read | Owner | Freshness |
 | --- | --- | --- | --- |
-| the project's `VERSION` | the release it adopted | the project | at each update |
-| the reference's tree | every contract file's bytes | the release, or `main`/`develop` | at each update |
-| the diff between the two | which merge files the factory changed | the factory | at each update |
+| `--from-ref`, else the project's `.aeion-factory` marker | the factory release or commit the project adopted | the caller; the last update or `release --new-project` | at each update |
+| the factory's `vX.Y.Z` tags | every tagged tree's object ids, against the project's files | the releases | at each update: the inferred baseline, and the release an untouched older copy came from |
+| the project's tree and git state | file bytes, executable modes, links, tracked changes, `develop`, `aeion.mode` | the project | at each update |
+| the baseline and target trees | every changed file's bytes and git mode, the target's `CHANGELOG.md` | the factory | at each update |
 
 ### Inputs
 
 ```bash
-tools/agents/template-update --ref v1.8.4 --root ../app
-tools/agents/template-update --ref main --root ../app --check
+tools/agents/template-update --ref v2.0.1 --root ../app --check
+tools/agents/template-update --ref v2.0.1 --root ../app
+tools/agents/template-update --from-ref v1.8.5 --ref main --root ../app
 ```
 
-- `--ref`: a tag, `main`, `develop` or a commit id. A branch moves, so `--check` reports when it did.
-- `--root`: the project that adopted the factory.
-- `--repo`: the factory repository holding the reference (default: this checkout).
-- `--check` writes nothing; `--force` permits moving to an older release.
+- `--from-ref`: the factory reference the project adopted. Optional: without it the tool reads the
+  project's `.aeion-factory` (`<ref> [<commit>]`, the commit preferred because a branch moves), and
+  without a marker it infers the release tag whose files the project matches best, newest on ties.
+  A write on an inferred baseline needs every contract connector to match it; a partial match runs
+  `--check` only. It is never read from the project's `VERSION`.
+- `--ref`: the target tag, `main`, `develop` or a commit id.
+- `--root`: the project that adopted the factory; `--repo`: the factory repository holding both
+  references (default: the checkout the tool runs from). A project's own copy of the tool cannot
+  see a newer release, so `--root` and `--repo` must differ: run it from the factory clone.
+- `--check` writes nothing; `--force` permits moving to an older factory release.
 
 ### Outputs
 
-One line per contract file: `written <file>`, or `skipped <file> — not in <ref>` when the reference
-predates the file. One `merge <file>` line per project-owned file the factory changed between the
-project's reference and the target, with the `untouched:` list naming `knowledge/`, `work/`,
-`CHANGELOG.md` and the merge set. The project's `VERSION` is written from the reference, so the next
-update starts there. Exit code 0 when nothing needs a human, 1 in `--check` when a file differs or
-when a merge is owed, and 2 on a refusal: `no such reference: <ref>`,
-`not an adopted project: no VERSION in <path>`, `refusing to downgrade <a> to <b>`, and
-`<path> is the factory itself, not a project that adopted it`.
+The header names the baseline and how it was found (`--from-ref`, `.aeion-factory` or
+`inferred: <n>/<m> factory files and <c>/<k> connectors match`), a `MAJOR a.x → b.x` banner when the
+major version grows, and the target's `CHANGELOG.md` sections newer than the baseline (80 lines at
+most). Then one line per file, in these classes:
+
+| Class | Files | Line |
+| --- | --- | --- |
+| contract | `connectors.CONTRACT` | `written`, `mode`, `skipped — not in <ref>`; `DRIFT`/`MODE` under `--check` |
+| project-owned | `VERSION`, `CHANGELOG.md`, `.aeion-factory`, `work/`, `knowledge/`, `demo/` | never written; a changed `knowledge/` doc is `review <file>` |
+| merge | `connectors.MERGE` (`AGENTS.md`, merged settings) | never written; `merge <file> — proposal: <path>` |
+| three-way | every other changed file, and every factory file still an older release's copy | `updated` (the project kept the baseline, or an older release's copy: `— untouched since <tag>`), `added` (new, its folder exists), `removed` (deleted upstream, untouched here), `merged` (`git merge-file` was clean), `conflict` (left as it is, with a proposal), `review` (removed upstream but edited here, or a link the project changed), `link`, `mode` |
+
+An update before 2.0.1 moved only the connectors, so a project can hold a factory file byte for byte
+as an older release had it; such a file diffs from that release, not from the baseline, and takes
+the target even when the factory left it alone since the baseline. Files the project deleted, and
+new files in a folder the project never adopted, stay out and are counted on one `untouched` line.
+A proposal (the three-way result, conflict markers included) is written under
+`.aeion/template-update/<ref>/` on a write; that folder carries its own `.gitignore`, so a project
+that does not ignore `.aeion/` never sees the proposals as files to commit. A `migrate` line names what
+the owner must run for a release crossed, such as `git config aeion.mode team` for 2.0.0 when the
+project has a `develop` branch and no team mode; the tool never runs it. A write ends by recording
+`<ref> <commit>` in `.aeion-factory` and naming the verification and the commit.
+
+Exit code 0 when nothing needs a human, 1 when a merge, conflict, review or migration remains (and,
+under `--check`, when anything would change or the inferred baseline is partial), and 2 on a refusal:
+`no such reference: <ref>`, `.aeion-factory names <ref>, unknown in <repo>`,
+`baseline <tag> inferred: …; confirm it with --from-ref <tag>`, `no VERSION at the baseline <ref>`,
+`<root> has uncommitted changes`, `not an adopted project: no factory connector in <path>`,
+`refusing linked [connector] destination <path> below <root>`,
+`refusing non-regular [connector] destination <relative>`, `refusing to downgrade <a> to <b>`, and
+`refusing to update <root> from its own repository; run template-update from the Æion Factory clone`.
 
 ### Invariants
 
-1. The project's `AGENTS.md`, `knowledge/` and `CHANGELOG.md` are never written —
-   `test_writes_the_reference_and_keeps_the_project_text`.
-2. `--check` writes nothing —
-   `test_check_writes_nothing`.
-3. A branch is a valid reference —
+1. The project's `AGENTS.md`, `knowledge/`, `CHANGELOG.md` and `VERSION` are never written —
+   `test_writes_the_reference_and_keeps_the_project_text`,
+   `test_the_application_version_is_never_written`, `test_knowledge_is_listed_never_written`.
+2. `--check` writes nothing — `test_check_writes_nothing`.
+3. Both references are validated and a branch is valid on either side —
    `test_a_branch_is_a_valid_reference`.
 4. A downgrade needs `--force` —
-   `test_it_refuses_a_downgrade`.
-5. A project without `VERSION` is refused —
-   `test_it_refuses_a_project_with_no_version`.
-6. The factory refuses to update itself —
-   `test_it_refuses_the_factory_itself`.
+   `test_it_refuses_a_downgrade`, `test_a_downgrade_with_force_is_allowed`.
+5. The baseline comes from the flag, then the marker, then an exact inference; an unknown marker or
+   a partial inference never writes — `test_the_marker_is_written_then_used`,
+   `test_a_new_project_marker_names_its_release`, `test_an_unknown_marker_is_refused`,
+   `test_an_exact_inference_writes`, `test_a_partial_inference_only_checks`.
+6. Repeating the same from/to pair keeps naming an unpaid merge even when every connector matches —
+   `test_a_merge_only_check_keeps_naming_the_merge`.
+7. A linked destination file or parent, or a linked proposal folder, is refused before the first
+   write — `test_a_linked_connector_is_refused_before_any_write`, `test_a_linked_parent_is_refused`,
+   `test_a_linked_proposal_folder_is_refused`.
+8. A created or repaired launcher carries the reference's executable mode —
+   `test_a_missing_launcher_is_written_executable`,
+   `test_a_launcher_that_lost_its_mode_is_repaired`.
+9. A directory with no connector is not an adopted project, and a repository never updates itself
+   (the factory, or a project running its own copy) — `test_it_refuses_a_project_with_no_connector`,
+   `test_it_refuses_to_update_a_repository_from_itself`.
+10. An untouched factory file takes the target, an edit merges, a conflict keeps the project's file
+    with a proposal in a folder that ignores itself, and a file the project deleted stays deleted —
+    `test_an_untouched_factory_file_takes_the_target`, `test_a_project_edit_merges_with_the_target`,
+    `test_a_conflicting_edit_is_kept_with_a_proposal`, `test_a_file_the_project_deleted_stays_deleted`.
+11. A write refuses tracked uncommitted changes, so the update is one revertible commit —
+    `test_a_dirty_project_refuses_a_write`.
+12. The notes, the major banner and a migration hint are printed, and the mode switch is left to
+    the owner — `test_notes_major_and_the_mode_migration`.
+13. A factory file the project holds as an older release's untouched copy takes the target, even
+    when the factory left it alone since the baseline; an edited one is never caught up —
+    `test_an_older_untouched_copy_takes_the_target`, `test_an_edited_older_copy_is_never_caught_up`.
 
 ### Determinism
 
-deterministic: bytes come from git, the file list is sorted, and nothing is stamped with a clock.
+The same project tree and references always give the same decisions and the same output: bytes,
+object ids and modes come from git objects, `git merge-file` is deterministic, destination links are
+checked before the first write, paths are sorted, and only the marker records the target commit.
 
 ### Acceptance checks
 
 ```bash
 python3 tools/agents/tests/test_template_update.py
 python3 tools/agents/tests/test_adapter_check.py
+python3 tools/release/tests/test_release.py
 tools/factory-tests
 ```
 
 ### Out of scope
 
-- merging a file for the project: a merge file is named, never edited.
-- committing, pushing or opening a pull request.
-- creating the tag: `tools/release/release` owns the version.
+- resolving a conflict or a merge file for the project: each gets a proposal, never an edit.
+- running a migration step such as `git config aeion.mode team`: the owner runs it.
+- fetching: the factory checkout must already hold both references (`git fetch --tags`).
+- committing, pushing or opening a pull request; creating the tag: `tools/release/release` owns the version.
 
 ## Installing the desktop plugin at a tag
 
@@ -414,11 +496,13 @@ cannot reach it, and make the loaded tag checkable.
 ### Inputs
 
 ```bash
-tools/agents/dsh-install --tag vX.Y.Z [--profile desktop] [--profile-dir PATH] [--repo PATH]
+tools/agents/dsh-install [--tag vX.Y.Z] [--trust PROJECT ...] [--profile desktop] [--profile-dir PATH] [--repo PATH]
 tools/agents/dsh-install --check   [--profile desktop] [--profile-dir PATH] [--repo PATH]
 ```
 
 - `--tag`: an existing tag in the repository, the whole name (`v1.8.4`); annotated or lightweight.
+- `--trust`: a project whose hooks the plugin may run (repeatable); its root must hold
+  `tools/agents/hook.py`. It is recorded once, resolved, in `<profile>/aeion-factory.trusted`.
 - `--profile`: a folder under the profile directory, default `desktop`.
 - `--profile-dir`: default `~/.dsh/profiles`; a test passes its own temporary one.
 - `--repo`: the repository the tag is read from, default this checkout.
@@ -428,6 +512,7 @@ tools/agents/dsh-install --check   [--profile desktop] [--profile-dir PATH] [--r
 
 - Install writes `<profile>/vendor/aeion-factory-<tag>/` with the tag's files, then makes
   `<profile>/aeion-factory` a relative symlink to that folder. Prints `installed <tag> → <path>`.
+- `--trust` prints `trusted <project>`, or refuses `<project> has no tools/agents/hook.py; …`.
 - `--check` prints `ok <tag>` when every file matches the tag, otherwise one `DRIFT <file>` or
   `MISSING <file>` line per difference.
 - Exit codes: 0 clean, 1 drift or an incomplete copy, 2 a refusal. Refusals name the condition:
@@ -448,6 +533,8 @@ tools/agents/dsh-install --check   [--profile desktop] [--profile-dir PATH] [--r
 6. `--check` fails on one hand-edited byte — `test_check_names_a_hand_edited_copy`.
 7. `--check` fails on a link that does not name a vendored tag —
    `test_check_refuses_a_foreign_link`.
+9. `--trust` records a project once, refuses one without hooks, and the plugin runs only trusted ones —
+   `test_trust_records_a_project_once_beside_the_link`, `test_trust_refuses_a_folder_without_the_factory_hooks`, `test_dsh.mjs`.
 8. `adapter-check` reports a `steer` call without an id —
    `test_steer_without_id_is_unidentified`, fails a copy that steers unidentified —
    `test_a_steering_copy_fails_the_check`, and passes the shipped adapters —
@@ -509,7 +596,9 @@ tool inputs follow the 1.4.0 docs and its published type declarations (`types.d.
 Unverified: that a thrown `before_agent_start` handler stops the run (the tool guards refuse anyway),
 and that symlinked `.agents/skills` folders are followed. Qualify it like Devin with `tools/agents/run
 pi`: `cat .env` and a read of that file refused with the guard's reason, an edit naming its covering
-doc, and `/compact` cancelled until the checkpoint passes.
+doc, and `/compact` cancelled until the checkpoint passes. A 1.9.2 re-run at 264k stopped cleanly at the gate with the verified handover (exit 0, no crash);
+the one-shot print run cannot finish the summary, so headless Pi stops and the next session continues
+from the handover. Interactive Pi compacts at settlement.
 
 Droid is not yet qualified live either. docs.factory.ai was unreachable from the container that
 added it, so the payload shape, tool names and `$FACTORY_PROJECT_DIR` follow search excerpts of
@@ -526,9 +615,10 @@ workspace hooks (a forum report says its PostToolUse did not fire). A hook that 
 times out blocks the call. Qualify it with `agy`: `cat .env` and a view of that file refused
 with the guard's reason, and an edit naming its covering doc; then repeat in the IDE.
 
-OpenCode 2.1.4 is the qualified V2 target. Legacy 1.19.4 can discover skills but does not dispatch
-these V2 callbacks; do not claim its guards are working from discovery alone. The plugin is a
-directory with a default id/setup entrypoint and uses no SDK dependency.
+OpenCode 2.1.4 is the qualified V2 target; 2.2.0 also passed the 2026-11-02 live 272k compaction on a
+two-tool turn. Legacy 1.19.4 can discover skills but does not dispatch these V2 callbacks; do not
+claim its guards are working from discovery alone. The plugin is a directory with a default id/setup
+entrypoint and uses no SDK dependency.
 
 OpenCode consumes a verified receipt before each compaction attempt. A retry must verify a new
 checkpoint; it never silently reuses a receipt from an earlier compaction. The plugin imports only
@@ -543,3 +633,23 @@ were witnessed, and independent documentation/diff checks passed. OpenCode's den
 no completed-tool event. This qualifies bounded tool dispatch, not long-context admission.
 Run disposable repositories outside a configured ancestor project: OpenCode inherits parent
 configuration and can select that ancestor's plugin instead of the instrumented local copy.
+
+### Live 250k qualification, 2026-11-02
+
+Method: clean v1.9.1 worktrees, real calls with `deepseek-v4.1-flash` (1M window), a 1.0–1.35 MB
+context fill, a completed handover and a receipt created with
+`python3 tools/context/budget.py checkpoint --session <key> --base HEAD --verify`, then one measured
+turn. Versions: dsh 0.2.1-rc.5 headless, Pi 1.4.0, OpenCode 2.2.0, Python 3.15.2.
+
+| Harness | Live result |
+| --- | --- |
+| dsh headless (patched) | 1 MB user turn; the plugin's meter crossed 250k; compacted, epoch 1, resumed from the handover. PASS. |
+| OpenCode 2.2.0 | 272k-token step; a two-tool turn compacted (epoch 1, RECOVERING). A one-tool turn missed it: `session.step.ended` arrived after `tool.execute.after`, so the next tool or turn triggers. |
+| Pi 1.4.0 headless | 264,275 measured (1.9.2 re-run). The gate latched `HANDOVER_REQUIRED`; Stop now carries `observed_tokens`; the run exits 0 with a stderr notice and no compaction entry, and the verified handover is the next session's start. The 1.9.1 crash (mid-turn `ctx.compact()`, stale ctx, exit 1) is fixed. Headless auto-compaction remains unavailable in print mode; TUI compaction at settlement is implemented but not live-tested. |
+| Pi via `tools/agents/pi-rpc` | `tools/agents/run pi rpc --provider opencode-go --model deepseek-v4.1-flash --prompt-file <1.35 MB prompt>`. A 1,350,333-character prompt reached the gate; the model filled the handover and its checkpoint verified; at settlement the extension compacted (`tokensBefore` 288,668; usage input 262,002, output 1,753; cost $0.0403521), the `onComplete` resume message started a new run in the same process, and that run read the handover and continued. The runner was stopped during the resumed work, so this run does not prove exit 0; the fake-RPC compaction test and a real short RPC call cover the exit path. The compaction entry's `fromHook: false` means Pi generated the summary (the extension supplied none), not that Pi started the compaction. PASS for headless RPC compaction and resume. |
+
+Limits: headless CLIs only (the TUI path was not re-tested), fresh receipts (the stale-receipt
+branch is covered by the deterministic suites, not this run), one model/provider, no clean exit
+observed on the compaction run, and no Devin, Droid or Antigravity run. The Pi 1.9.2 fix remains the
+print-mode clean stop; headless auto-compaction is provided by the RPC runner above, and the
+limitation and workaround are in [the Pi note](../../.pi/README.md).

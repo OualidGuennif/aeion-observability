@@ -1,7 +1,8 @@
 // Spec: knowledge/operations/agent-compatibility.md
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { seam } from './seam.js';
 
 export const name = 'aeion-factory';
@@ -18,6 +19,12 @@ const LOCAL = new Set(['Read', 'Grep', 'Glob', 'LS', 'Edit', 'Write', 'MultiEdit
 // The hook refuses a payload over 2 MB; a larger result is not forwarded rather than truncated mid-text.
 const MAX_RESULT = 256 * 1024;
 
+// This plugin's own folder, links resolved: the factory's .dsh/plugins/factory, or a profile's vendored copy.
+const HERE = realpathSync(dirname(fileURLToPath(import.meta.url)));
+// The project this plugin ships in, and the profile's list of projects `dsh-install --trust` recorded.
+const OWN = resolve(HERE, '../../..');
+const TRUSTED = resolve(HERE, '../../aeion-factory.trusted');
+
 // A session may work in a subfolder (demo/), so the hooks live in the nearest folder above that has them;
 // a session outside any Æion Factory project has none, and the plugin leaves it alone.
 function projectRoot(directory) {
@@ -25,6 +32,22 @@ function projectRoot(directory) {
     if (existsSync(resolve(folder, 'tools/agents/hook.py'))) return folder;
     if (dirname(folder) === folder) return undefined;
   }
+}
+
+// A project's hooks run only when the user trusted it: a tools/agents/hook.py planted above a session's folder
+// would otherwise run as the user. The list is read on each call, so a new --trust needs no restart.
+function trustedRoot(directory) {
+  const root = projectRoot(directory);
+  if (root === undefined) return undefined;
+  const real = realpathSync(root);
+  let listed = [];
+  try {
+    listed = readFileSync(TRUSTED, 'utf8').split('\n').map((line) => line.trim()).filter(Boolean);
+  } catch { /* no list: only the project this plugin ships in */ }
+  const same = (path) => { try { return realpathSync(path) === real; } catch { return false; } };
+  if (real === OWN || listed.some(same)) return root;
+  throw new Error(`Æion Factory: ${root} is not trusted by this dsh profile, so its hooks do not run and its tools `
+    + `are refused. If it is yours: tools/agents/dsh-install --trust ${root}`);
 }
 
 function invoke(root, event) {
@@ -48,7 +71,7 @@ function toolName(exec) {
 
 export function apply(ctx) {
   // Each session's own directory, not the launch folder: one dsh web server serves many projects.
-  const rootOf = (agent) => projectRoot(ctx.workingDirectory.get(agent.session));
+  const rootOf = (agent) => trustedRoot(ctx.workingDirectory.get(agent.session));
   // Sessions given the factory's start context; a compaction removes one, so its next call is told again.
   const started = new Set();
   const compacted = new Set();

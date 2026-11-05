@@ -145,7 +145,19 @@ def main(argv: list[str]) -> int:
         process.stdin.write(json.dumps(record) + '\n')
         process.stdin.flush()
 
-    send({'id': 'prompt-1', 'type': 'prompt', 'message': prompt})
+    # A Pi that exits before reading the prompt closes the pipe; say so instead of a traceback.
+    try:
+        send({'id': 'prompt-1', 'type': 'prompt', 'message': prompt})
+    except OSError:
+        print('pi-rpc: Pi exited before accepting the prompt', file=sys.stderr)
+        process.kill()
+        process.wait()
+        try:
+            assert process.stdin is not None
+            process.stdin.close()
+        except OSError:
+            pass
+        return 1
 
     deadline = time.monotonic() + timeout
     accepted = False

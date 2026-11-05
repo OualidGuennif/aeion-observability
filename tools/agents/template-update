@@ -1,29 +1,45 @@
 #!/usr/bin/env python3
 # Spec: knowledge/operations/agent-compatibility.md
-"""Move an adopted project from one factory reference to another, keeping the project's own content.
+"""Move an adopted project from one factory release to another, keeping the project's own content.
 
-The project's text wins. This writes only the contract files a project must not edit — the ones a
-harness loads as they are — and names the files it leaves alone, so a local instruction, setting or
-document is never replaced by the factory's. It never writes knowledge/, work/ or CHANGELOG.md.
+Every file the factory changed between the project's baseline and the target is decided on its own:
+- contract connectors (connectors.CONTRACT) are copied byte for byte, as a harness loads them;
+- the project's own files (VERSION, CHANGELOG.md, work/, knowledge/, demo/, the marker) are never
+  written; changed knowledge/ docs are listed for review;
+- AGENTS.md and the merged settings (connectors.MERGE) are never written; a merge proposal is;
+- every other file is a three-way update: untouched since the baseline takes the target, an edited
+  one is merged with git merge-file, and a conflict leaves the project's file as it is;
+- a factory file the project still holds as an older release's untouched copy (an update before 2.0.1
+  moved only the connectors) diffs from that release, so it takes the target too.
 
-The project's VERSION belongs to the application, not to the factory release it adopted, so the
-upstream baseline is explicit and never guessed from that file:
+The baseline is --from-ref, else the tracked marker .aeion-factory a previous update or
+`release --new-project` wrote, else the release tag whose files the project matches best. The
+project's VERSION belongs to the application and is never read as the baseline.
 
-    tools/agents/template-update --from-ref v1.8.5 --ref v1.9.1 --root ../app
-    tools/agents/template-update --from-ref v1.8.5 --ref main --root ../app --check
+    tools/agents/template-update --ref v2.0.1 --root ../app --check
+    tools/agents/template-update --ref v2.0.1 --root ../app
+    tools/agents/template-update --from-ref v1.8.5 --ref main --root ../app
 """
 import argparse
 import re
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 FACTORY = Path(__file__).resolve().parents[2]
 
 sys.path.insert(0, str(FACTORY / "tools/agents"))
 from connectors import CONTRACT, MERGE, executable, linked  # noqa: E402
-from refs import Refused, ref_bytes, ref_diff, ref_exists, ref_mode, require_repository  # noqa: E402
+from refs import Refused, git, ref_bytes, ref_diff, ref_exists, ref_mode, require_repository  # noqa: E402
 
 SEMVER = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+MARKER = ".aeion-factory"
+OWNED_FILES = ("VERSION", "CHANGELOG.md", MARKER)
+OWNED_FOLDERS = ("work/", "knowledge/", "demo/")
+LINK, GITLINK = "120000", "160000"
+NOTES_CAP = 80
+PROPOSALS = ".aeion/template-update"
 
 
 def version(repo, ref):
@@ -34,98 +50,399 @@ def version(repo, ref):
         return None
 
 
+def semver(name):
+    found = SEMVER.search(name or "")
+    return tuple(map(int, found.groups())) if found else None
+
+
 def allowed(baseline, target):
     """Whether baseline to target is an update; None when either name is not SemVer."""
-    old, new = SEMVER.search(baseline or ""), SEMVER.search(target or "")
+    old, new = semver(baseline), semver(target)
     if not old or not new:
         return None
-    return tuple(map(int, new.groups())) >= tuple(map(int, old.groups()))
+    return new >= old
 
 
-def merge_needed(repo, baseline, ref):
-    """The project-owned files the factory changed between the project's reference and the target."""
-    if not baseline:
-        return []
+def owned(relative):
+    return relative in OWNED_FILES or relative.startswith(OWNED_FOLDERS)
+
+
+def tree(repo, ref):
+    """Every path at a reference with its (mode, object id); one git call per reference."""
+    entries = {}
+    for record in git(repo, "ls-tree", "-r", "-z", ref).split(b"\0"):
+        metadata, separator, path = record.partition(b"\t")
+        if separator:
+            mode, _kind, object_id = metadata.decode("ascii").split(" ")
+            entries[path.decode("utf-8", "surrogateescape")] = (mode, object_id)
+    return entries
+
+
+def release_trees(repo):
+    """Every vX.Y.Z tag's tree, oldest first."""
+    names = git(repo, "tag", "--list", "v*", text=True).split()
+    tags = sorted((name for name in names if re.fullmatch(r"v\d+\.\d+\.\d+", name)), key=semver)
+    return {tag: tree(repo, tag) for tag in tags}
+
+
+def project_blobs(repo, root, paths):
+    """The git object id of each regular project file, without writing an object or applying a filter."""
+    present = [path for path in sorted(paths)
+               if not linked(root, path) and (root / path).is_file()]
+    if not present:
+        return {}
+    listing = subprocess.run(["git", "--no-pager", "hash-object", "--no-filters", "--stdin-paths"],
+                             cwd=repo, input="\n".join(str(root / path) for path in present),
+                             capture_output=True, text=True)
+    if listing.returncode:
+        raise Refused(listing.stderr.strip() or "git hash-object failed")
+    return dict(zip(present, listing.stdout.split()))
+
+
+def infer(repo, root, trees):
+    """The release tag the project matches best (newest on ties), its file score and its connector score."""
+    if not trees:
+        raise Refused("no release tag in the factory repository to infer the baseline from; "
+                      "pass --from-ref, or git fetch --tags")
+    paths = {path for entries in trees.values() for path, (mode, _) in entries.items()
+             if not owned(path) and mode not in (LINK, GITLINK)}
+    blobs = project_blobs(repo, root, paths)
+    best = None
+    for tag, entries in trees.items():
+        files = [path for path in entries if path in paths]
+        matching = sum(1 for path in files if blobs.get(path) == entries[path][1])
+        connectors = sum(1 for path in CONTRACT if blobs.get(path) == entries.get(path, (None, None))[1])
+        # Oldest first, so >= keeps the newest of equally matching releases.
+        if best is None or matching >= best[1]:
+            best = (tag, matching, len(files), connectors)
+    return best
+
+
+def read_marker(repo, root):
+    """The marker's reference and the commit to diff from, or None when the project has no marker."""
+    marker = root / MARKER
+    if linked(root, MARKER) or not marker.is_file():
+        return None
+    words = marker.read_text(encoding="utf-8").split()
+    if not words:
+        raise Refused(f"{MARKER} is empty; pass --from-ref")
+    name, commit = words[0], (words[1] if len(words) > 1 else None)
+    # A branch moves after the update; the recorded commit is what the project actually took.
+    for candidate in (commit, name):
+        if candidate and ref_exists(repo, candidate):
+            return name, candidate
+    raise Refused(f"{MARKER} names {' '.join(words[:2])}, unknown in {repo}; git fetch --tags, or pass --from-ref")
+
+
+def baseline(repo, root, from_ref, check, trees):
+    """The reference the project's factory files came from, and how it was established."""
+    if from_ref:
+        if not ref_exists(repo, from_ref):
+            raise Refused(f"no such reference: {from_ref}; git fetch --tags, or check the name")
+        return from_ref, from_ref, "--from-ref", True
+    marked = read_marker(repo, root)
+    if marked:
+        return marked[0], marked[1], MARKER, True
+    tag, matching, files, connectors = infer(repo, root, trees)
+    how = f"inferred: {matching}/{files} factory files and {connectors}/{len(CONTRACT)} connectors match"
+    exact = connectors == len(CONTRACT)
+    # A partial match is a guess about which release the project's edits started from: report, never write.
+    if not exact and not check:
+        raise Refused(f"baseline {tag} {how}; confirm it with --from-ref {tag} (or the release you adopted)")
+    return tag, tag, how, exact
+
+
+def notes(repo, ref, baseline_version, target_version):
+    """The target's changelog sections newer than the baseline, up to the target, and Unreleased lines."""
     try:
-        return [name for name in ref_diff(repo, baseline, ref) if name in MERGE]
+        changelog = ref_bytes(repo, ref, "CHANGELOG.md").decode("utf-8")
     except Refused:
         return []
+    old, new = semver(baseline_version), semver(target_version)
+    kept, keep = [], False
+    for line in changelog.splitlines():
+        if line.startswith("## ["):
+            name = line[4:line.index("]")] if "]" in line else ""
+            number = semver(name)
+            keep = (name == "Unreleased") or bool(number and old and number > old and (not new or number <= new))
+        if keep and line.strip():
+            kept.append(line)
+    # An empty Unreleased heading says nothing.
+    return [line for index, line in enumerate(kept)
+            if not (line == "## [Unreleased]" and (index + 1 == len(kept) or kept[index + 1].startswith("## [")))]
 
 
-def preflight(root):
-    """Refuse every linked or non-regular destination before the first write."""
-    for relative in CONTRACT:
-        link = linked(root, relative)
-        if link:
-            raise Refused(f"refusing linked connector destination {link} below {root}")
-        found = root / relative
-        if found.exists() and not found.is_file():
-            raise Refused(f"refusing non-regular connector destination {relative}")
+def local_git(root, *arguments):
+    done = subprocess.run(["git", "--no-pager", *arguments], cwd=root, capture_output=True, text=True)
+    return done.stdout.strip() if done.returncode == 0 else ""
+
+
+def develop_without_team_mode(root):
+    """2.0.0 made local mode the default; a project with a develop branch probably ran the team flow."""
+    has_develop = any(local_git(root, "rev-parse", "--verify", "--quiet", name)
+                      for name in ("refs/heads/develop", "refs/remotes/origin/develop"))
+    return has_develop and local_git(root, "config", "--local", "--get", "aeion.mode") != "team"
+
+
+# (release, applies to this project, what the owner runs): the tool never runs these itself.
+MIGRATIONS = (
+    ("2.0.0", develop_without_team_mode,
+     "the git lifecycle is now off unless aeion.mode is team; this project has a develop branch, so the "
+     "owner runs `git config aeion.mode team` in each clone to keep the team flow"),
+)
+
+
+def dirty(root):
+    """Tracked changes below root, so an update lands as one commit the owner can review or revert."""
+    if not local_git(root, "rev-parse", "--is-inside-work-tree"):
+        return False
+    return bool(local_git(root, "status", "--porcelain", "--untracked-files=no", "--", "."))
+
+
+def three_way(ours, base, theirs):
+    """git merge-file's result and whether it is clean; a binary file never merges."""
+    with tempfile.TemporaryDirectory() as folder:
+        files = []
+        for name, data in (("project", ours), ("baseline", base), ("factory", theirs)):
+            path = Path(folder) / name
+            path.write_bytes(data)
+            files.append(str(path))
+        done = subprocess.run(["git", "merge-file", "-p", "-L", "project", "-L", "baseline", "-L", "factory",
+                               *files], capture_output=True)
+    if done.returncode < 0 or done.returncode > 127:
+        return theirs, False
+    return done.stdout, done.returncode == 0
+
+
+def ref_entry(repo, ref, relative):
+    """(mode, bytes) of one path at a reference, or (None, None) when the reference lacks it."""
+    mode = ref_mode(repo, ref, relative)
+    return (mode, ref_bytes(repo, ref, relative)) if mode else (None, None)
+
+
+def project_entry(root, relative):
+    """('link', target) for a symlink, ('file', bytes) for a regular file, or (None, None)."""
+    found = root / relative
+    if found.is_symlink():
+        return "link", str(Path(found.readlink())).encode()
+    if found.is_file():
+        return "file", found.read_bytes()
+    return None, None
+
+
+def plan_file(repo, root, base, ref, relative):
+    """One factory file's decision: (label, data to write or None, mode, proposal or None)."""
+    base_mode, base_data = ref_entry(repo, base, relative)
+    mode, data = ref_entry(repo, ref, relative)
+    kind, ours = project_entry(root, relative)
+    # Symlinks (skill links, CLAUDE.md) are replaced only where the project still has the factory's link.
+    if LINK in (base_mode, mode) or kind == "link":
+        if kind == "link" and mode == LINK and ours == data:
+            return "current", None, mode, None
+        if (kind is None and base_mode is None) or (kind == "link" and base_mode == LINK and ours == base_data):
+            return ("link" if mode else "removed"), data, mode, None
+        return "review", None, mode, None
+    if kind is None:
+        if base_mode is not None:
+            return "kept-deleted", None, mode, None
+        if mode is None:
+            return "current", None, mode, None
+        # A partial adoption leaves whole folders out; a new file follows its folder in.
+        parent = Path(relative).parent
+        if parent != Path(".") and not (root / parent).is_dir():
+            return "skipped", None, mode, None
+        return "added", data, mode, None
+    if mode is None:
+        return ("removed", None, mode, None) if ours == base_data else ("review", None, mode, None)
+    if ours == data:
+        stale_mode = executable(mode) and not executable((root / relative).stat().st_mode)
+        return ("mode" if stale_mode else "current"), None, mode, None
+    if base_data is not None and ours == base_data:
+        return "updated", data, mode, None
+    merged, clean = three_way(ours, base_data or b"", data)
+    return ("merged", merged, mode, None) if clean else ("conflict", None, mode, merged)
 
 
 def update(root, repo, ref, from_ref, check, force):
-    if root == FACTORY:
-        raise Refused(f"{root} is the factory itself, not a project that adopted it")
+    # A project's own copy reads releases from the project, which never holds the new one.
+    if root == repo:
+        raise Refused(f"refusing to update {root} from its own repository; run template-update from the "
+                      f"Æion Factory clone: <factory>/tools/agents/template-update --ref <tag> --root {root}")
     if not root.is_dir():
         raise Refused(f"no such project: {root}")
     if not ref_exists(repo, ref):
-        raise Refused(f"no such reference: {ref}")
-    if not ref_exists(repo, from_ref):
-        raise Refused(f"no such reference: {from_ref}")
+        raise Refused(f"no such reference: {ref}; git fetch --tags, or check the name")
     if not any((root / relative).is_symlink() or (root / relative).exists() for relative in CONTRACT):
         raise Refused(f"not an adopted project: no factory connector in {root}")
-    # A repair must not write through a link into a file the project does not own.
-    preflight(root)
-    baseline = version(repo, from_ref)
-    if baseline is None:
-        raise Refused(f"no VERSION at --from-ref {from_ref}")
-    target = version(repo, ref) or "unknown"
-    if allowed(baseline, target) is False and not force:
-        raise Refused(f"refusing to downgrade {baseline} to {target}; pass --force to do it anyway")
+    trees = release_trees(repo)
+    name, base, how, exact = baseline(repo, root, from_ref, check, trees)
+    baseline_version = version(repo, base)
+    if baseline_version is None:
+        raise Refused(f"no VERSION at the baseline {name}")
+    target_version = version(repo, ref) or "unknown"
+    if allowed(baseline_version, target_version) is False and not force:
+        raise Refused(f"refusing to downgrade {baseline_version} to {target_version}; pass --force to do it anyway")
+    if not check and dirty(root):
+        raise Refused(f"{root} has uncommitted changes; commit or stash them so the update is one reviewable commit")
 
-    print(f"template-update: {baseline} ({from_ref}) → {target} ({ref}) at {root}")
+    print(f"template-update: {baseline_version} ({name}, {how}) → {target_version} ({ref}) at {root}")
+    old, new = semver(baseline_version), semver(target_version)
+    if old and new and new[0] > old[0]:
+        print(f"\nMAJOR {old[0]}.x → {new[0]}.x: read the notes below; a major release changes a default.")
+    release_notes = notes(repo, ref, baseline_version, target_version)
+    if release_notes:
+        print(f"\nRelease notes ({name} → {ref}):")
+        for line in release_notes[:NOTES_CAP]:
+            print(f"  {line}")
+        if len(release_notes) > NOTES_CAP:
+            print(f"  … {len(release_notes) - NOTES_CAP} more line(s): git -C {repo} show {ref}:CHANGELOG.md")
+    print()
 
-    changed = 0
+    # Decide every file before the first write, so a refusal leaves the project as it was.
+    contract = []
     for relative in CONTRACT:
         try:
             expected = ref_bytes(repo, ref, relative)
         except Refused:
-            # A file added after the project's reference has no released bytes to copy.
+            # A connector added after the target has no released bytes to copy.
             print(f"skipped   {relative} — not in {ref}")
             continue
         mode = ref_mode(repo, ref, relative)
         found = root / relative
-        if found.is_file() and found.read_bytes() == expected:
+        if found.is_file() and not found.is_symlink() and found.read_bytes() == expected:
             # A byte-identical launcher that lost its executable bit is still a broken connector.
             if executable(mode) and not executable(found.stat().st_mode):
-                changed += 1
-                if check:
-                    print(f"MODE      {relative} — not executable")
-                else:
-                    found.chmod(0o755)
-                    print(f"mode      {relative} → executable")
+                contract.append(("mode", relative, None, mode))
             continue
-        changed += 1
+        contract.append(("written", relative, expected, mode))
+    diff = set(ref_diff(repo, base, ref))
+    reviews = sorted(relative for relative in diff if relative.startswith("knowledge/"))
+    target_tree, base_tree = tree(repo, ref), tree(repo, base)
+    factory_files = {relative for relative in diff | set(target_tree)
+                     if relative not in CONTRACT and not owned(relative)}
+    blobs = project_blobs(repo, root, factory_files)
+
+    def origin(relative):
+        """The baseline, unless the project's copy is byte for byte an older release's: then that release."""
+        mine = blobs.get(relative)
+        if mine is None or mine == base_tree.get(relative, (None, None))[1]:
+            return base
+        return next((tag for tag in reversed(trees) if trees[tag].get(relative, (None, None))[1] == mine), base)
+
+    # Before 2.0.1 an update moved only the connectors, so an untouched older copy lags behind the
+    # baseline even where the factory has not changed it since.
+    stale = {relative for relative in factory_files - diff
+             if blobs.get(relative) not in (None, target_tree[relative][1]) and origin(relative) != base}
+    decisions, merges = [], []
+    for relative in sorted((factory_files & diff) | stale):
+        since = origin(relative)
+        label, data, mode, proposal = plan_file(repo, root, since, ref, relative)
+        if relative in MERGE:
+            # The project's instructions and settings win; the factory's change becomes a proposal.
+            ours = project_entry(root, relative)[1] or b""
+            if label not in ("current", "kept-deleted"):
+                merged, _ = three_way(ours, ref_entry(repo, since, relative)[1] or b"",
+                                      ref_entry(repo, ref, relative)[1] or b"")
+                merges.append((relative, merged))
+            continue
+        decisions.append((label, relative, data, mode, proposal, None if since == base else since))
+    # A write must not go through a link into a file the project does not own; a factory symlink
+    # (a skill link) is itself the destination, so only its folders are checked.
+    writes = [(relative, relative) for relative in CONTRACT] + [
+        (str(Path(relative).parent) if label == "link" else relative, relative)
+        for label, relative, *_ in decisions if label in ("added", "updated", "merged", "removed", "link", "mode")]
+    for checked, relative in writes:
+        link = linked(root, checked)
+        kind = "connector destination" if relative in CONTRACT else "destination"
+        if link:
+            raise Refused(f"refusing linked {kind} {link} below {root}")
+        found = root / relative
+        if found.exists() and not found.is_symlink() and not found.is_file():
+            raise Refused(f"refusing non-regular {kind} {relative}")
+    link = linked(root, PROPOSALS)
+    if link and (merges or any(label == "conflict" for label, *_ in decisions)):
+        raise Refused(f"refusing linked destination {link} below {root}")
+
+    proposals = root / PROPOSALS / re.sub(r"[^A-Za-z0-9._-]", "_", ref)
+
+    def propose(relative, data):
         if check:
-            print(f"DRIFT     {relative}")
+            return "on write"
+        target = proposals / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        # Proposals are merge material, never committed, even where the project does not ignore .aeion/.
+        (root / PROPOSALS / ".gitignore").write_text("*\n", encoding="utf-8")
+        target.write_bytes(data)
+        return target.relative_to(root).as_posix()
+
+    counts = {}
+    for label, relative, data, mode in contract:
+        counts[label] = counts.get(label, 0) + 1
+        if check:
+            print(f"{'MODE' if label == 'mode' else 'DRIFT':<9} {relative}")
             continue
-        found.parent.mkdir(parents=True, exist_ok=True)
-        found.write_bytes(expected)
+        found = root / relative
+        if data is not None:
+            found.parent.mkdir(parents=True, exist_ok=True)
+            found.write_bytes(data)
         # The release tree records the launcher's executable bit; a fresh copy must carry it too.
         if executable(mode):
             found.chmod(0o755)
-        print(f"written   {relative}")
+        print(f"{'mode' if label == 'mode' else 'written':<9} {relative}")
+    for label, relative, data, mode, proposal, since in decisions:
+        counts[label] = counts.get(label, 0) + 1
+        if label in ("current", "kept-deleted", "skipped"):
+            continue
+        note = {"review": " — the factory changed it and so did the project; compare by hand",
+                "conflict": f" — kept yours; proposal: {propose(relative, proposal) if proposal else 'none'}",
+                "merged": " — your edits kept"}.get(label, f" — untouched since {since}" if since else "")
+        print(f"{label.upper() if check else label:<9} {relative}{note}")
+        if check or label in ("review", "conflict"):
+            continue
+        found = root / relative
+        if label == "removed" or (label == "link" and found.is_symlink()):
+            found.unlink(missing_ok=True)
+        if label == "link" and data is not None:
+            found.parent.mkdir(parents=True, exist_ok=True)
+            found.symlink_to(data.decode())
+        elif label in ("added", "updated", "merged"):
+            found.parent.mkdir(parents=True, exist_ok=True)
+            found.write_bytes(data)
+        if label != "removed" and label != "link" and executable(mode or "0"):
+            found.chmod(0o755)
+    for relative, merged in merges:
+        print(f"merge     {relative} — the factory changed it; proposal: {propose(relative, merged)}")
+    for relative in reviews:
+        print(f"review    {relative}")
+    if reviews:
+        print(f"          factory knowledge the project owns; compare: git -C {repo} diff {base} {ref} -- knowledge/")
+    hints = [message for release, applies, message in MIGRATIONS
+             if old and semver(release) > old and (not new or semver(release) <= new) and applies(root)]
+    for message in hints:
+        print(f"migrate   {message}")
+    skipped = counts.get("skipped", 0) + counts.get("kept-deleted", 0)
+    if skipped:
+        print(f"untouched {skipped} file(s) the project removed or never adopted; "
+              "VERSION, CHANGELOG.md, work/ and knowledge/ are never written")
 
-    merges = merge_needed(repo, from_ref, ref)
-    for relative in merges:
-        print(f"merge     {relative} — the factory changed it between {from_ref} and {ref}")
-    print(f"               untouched: VERSION, knowledge/, work/, CHANGELOG.md and {', '.join(MERGE)}")
-
+    pending = counts.get("conflict", 0) + counts.get("review", 0) + len(merges) + len(reviews) + len(hints)
+    changed = sum(counts.get(label, 0) for label in ("written", "mode", "added", "updated", "merged", "removed", "link"))
+    summary = ", ".join(f"{counts[label]} {label}" for label in
+                        ("written", "mode", "added", "updated", "merged", "removed", "link", "conflict", "review")
+                        if counts.get(label))
+    if merges:
+        summary += f"{', ' if summary else ''}{len(merges)} to merge"
+    if reviews:
+        summary += f"{', ' if summary else ''}{len(reviews)} knowledge doc(s) to review"
+    print(f"\n{'would change' if check else 'done'}: {summary or 'nothing to do'}")
     if check:
-        print(f"\n{changed} file(s) differ from {ref}" + (f", {len(merges)} to merge" if merges else ""))
-        return 1 if changed or merges else 0
-    print(f"\n{changed} file(s) written" + (f", {len(merges)} to merge" if merges else ""))
-    return 1 if merges else 0
+        return 1 if changed or pending or not exact else 0
+    commit = local_git(repo, "rev-parse", f"{ref}^{{commit}}")
+    (root / MARKER).write_text(f"{ref} {commit}\n", encoding="utf-8")
+    print(f"marker    {MARKER} → {ref} {commit[:12]}")
+    print(f"next      tools/agents/adapter-check --root {root} --ref {ref}; the project's tests; "
+          f"then one commit: chore: update Æion Factory to {ref}")
+    return 1 if pending else 0
 
 
 def main():
@@ -133,8 +450,8 @@ def main():
         prog="template-update",
         description="Move an adopted project's factory files to a release, keeping the project's own content.",
     )
-    parser.add_argument("--from-ref", required=True,
-                        help="the factory reference the project adopted (tag, branch or commit)")
+    parser.add_argument("--from-ref",
+                        help="the factory reference the project adopted; default: .aeion-factory, else inferred")
     parser.add_argument("--ref", required=True, help="the target release tag, or main/develop for a branch")
     parser.add_argument("--root", required=True, help="the project that adopted the factory")
     parser.add_argument("--repo", default=str(FACTORY), help="the repository holding the reference")

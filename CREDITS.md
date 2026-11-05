@@ -66,3 +66,15 @@ Source fingerprints identify consulted material; full upstream pages are not rep
 - **models.dev contributors** — the public OpenCode Go catalog subset used by the earlier
   OpenCode harness evidence, retrieved 2026-10-26 from [the catalog](https://models.dev/api.json).
   The current profiles carry their own Go prices and limits; neither is an account entitlement check.
+
+
+## Factory security maintenance
+
+Æion Factory v2.0.3 supplies source-hash-bound patch recipes for the skill-creator eval viewer
+and ECC continuous-learning importer in `tools/skills/patches.json`. This project's passive
+catalog intentionally remains empty; no upstream skill or agent was materialized by this update.
+Project-specific OpenShell, Langfuse and models.dev attribution above remains authoritative.
+
+The bundled Factory guide also preserves the upstream Superpowers MIT notice in
+[docs/licenses/superpowers-MIT.txt](docs/licenses/superpowers-MIT.txt), copied unchanged from
+Factoryv2.0.3. This notice grants no license to unrelated proprietary tools or services.

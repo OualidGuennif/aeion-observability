@@ -11,12 +11,23 @@ root = Path(__file__).resolve().parents[2]
 if len(sys.argv) < 2 or sys.argv[1] not in {'claude', 'codex', 'opencode', 'pi', 'dsh', 'devin', 'droid', 'antigravity'}:
     sys.exit('usage: tools/agents/run <claude|codex|opencode|pi|dsh|devin|droid|antigravity> [native arguments]')
 provider, arguments = sys.argv[1], sys.argv[2:]
+
+
+def launch(command):
+    """Runs the agent and exits with its code; a missing binary is one line, not a traceback."""
+    try:
+        sys.exit(subprocess.run(command, cwd=root, shell=False).returncode)
+    except (FileNotFoundError, PermissionError):
+        sys.exit(f'{command[0]} is not installed, not on PATH or not executable; '
+                 'see knowledge/operations/getting-started.md#prepare-your-agent')
+
+
 if '--strict' in arguments:
     sys.exit('UNSUPPORTED: strict pre-request 300k admission is not qualified for any Æion Factory adapter.')
 os.chdir(root)
 os.environ['PWD'] = str(root)
 if provider == 'claude':
-    sys.exit(subprocess.run(['./tools/context/run', *arguments], cwd=root, shell=False).returncode)
+    launch(['./tools/context/run', *arguments])
 # The baseline needs local installs, which the user approves; its absence is a warning, not a refusal.
 if subprocess.run([str(root / 'tools/architecture/refresh'), '--check', '--target', 'HEAD'], cwd=root).returncode:
     print('Æion Factory: no verified Graphify/Archify baseline for this commit. It is strongly recommended and never '
@@ -52,20 +63,20 @@ if provider == 'pi':
     # `pi rpc` is the factory's headless runner: it owns the RPC framing and the extension, so a 250k
     # compaction can finish and the resumed run settles in the same process.
     if arguments[:1] == ['rpc']:
-        sys.exit(subprocess.run([str(root / 'tools/agents/pi-rpc'), *arguments[1:]], cwd=root, shell=False).returncode)
-    sys.exit(subprocess.run(['pi', *arguments], cwd=root, shell=False).returncode)
+        launch([str(root / 'tools/agents/pi-rpc'), *arguments[1:]])
+    launch(['pi', *arguments])
 if provider == 'dsh':
     # dsh loads project plugins only from a patch overlay; the profile comes first. dsh ships no tui profile:
     # web (a browser UI) is the interactive one, headless answers one task.
     profile, rest = (arguments[0], arguments[1:]) if arguments and not arguments[0].startswith('-') else ('web', arguments)
     patch = ['--patch', str(root / '.dsh/factory.patch.yml')]
-    sys.exit(subprocess.run(['dsh', '--profile', profile, *patch, *rest], cwd=root, shell=False).returncode)
+    launch(['dsh', '--profile', profile, *patch, *rest])
 if provider == 'codex':
-    sys.exit(subprocess.run(['codex', *arguments], cwd=root, shell=False).returncode)
+    launch(['codex', *arguments])
 if provider == 'devin':
-    sys.exit(subprocess.run(['devin', *arguments], cwd=root, shell=False).returncode)
+    launch(['devin', *arguments])
 if provider == 'droid':
-    sys.exit(subprocess.run(['droid', *arguments], cwd=root, shell=False).returncode)
+    launch(['droid', *arguments])
 if provider == 'antigravity':
-    sys.exit(subprocess.run(['agy', *arguments], cwd=root, shell=False).returncode)
-sys.exit(subprocess.run(['opencode', *arguments], cwd=root, shell=False).returncode)
+    launch(['agy', *arguments])
+launch(['opencode', *arguments])

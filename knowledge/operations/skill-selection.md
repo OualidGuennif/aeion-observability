@@ -12,6 +12,8 @@ sources:
     title: "Maintained native definitions"
   - resource: ../../tools/skills/annotations.json
     title: "Exact-source-bound scanner annotations"
+  - resource: ../../tools/skills/patches.json
+    title: "Exact-source-bound security patches"
   - resource: ../../tools/skills/pool.py
     title: "Deterministic pool inventory and search"
   - resource: ../../tools/skills/lint
@@ -88,3 +90,10 @@ The three reviewed ECC SAST false positives use per-rule inline annotations, not
 exclusion: a fixed verifier argv call and two generated-XML self-checks. The registry
 binds each comment to an exact original file hash and line. Catalog entries retain both
 original and materialized hashes; a changed upstream file requires renewed review.
+
+Two pooled scripts carry behavior patches from `tools/skills/patches.json`: the skill-creator
+eval viewer serves only its own localhost origin and escapes its embedded data and every
+benchmark value its page writes (quotes included), and the
+continuous-learning-v2 instinct import refuses redirects. Each patch is bound to the exact
+upstream file hash and a unique needle, applies in order before the annotations, and its
+lines say "Æion Factory security patch"; the [pool policy](../../skills/README.md) has the detail.

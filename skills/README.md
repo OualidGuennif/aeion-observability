@@ -93,3 +93,16 @@ The native scanner still scans the pool. `tools/skills/annotations.json` records
 path, source-file SHA-256, rule ID and reviewed reason. Refresh refuses if an annotated
 upstream file changes. Both original and materialized hashes remain in the catalog;
 there is no folder-wide exclusion, rule disable or executable behavior change.
+
+## Security-patched resources
+
+Claude Security found three pooled files unsafe to run as shipped, so the materializer patches
+them; each patched line says "Æion Factory security patch". The skill-creator eval viewer
+answers only its own origin on `localhost` or `127.0.0.1` (Host and Origin checked, feedback
+saved only as JSON) and escapes `&`, `<` and `>` in the data it embeds, so an eval output
+cannot close its script element; its page (`viewer.html`) escapes quotes too and escapes every
+benchmark value it writes, so grader evidence cannot add an attribute or markup. The continuous-learning-v2 `instinct-cli.py` import refuses
+redirects, which would reach a host its address check never saw. `tools/skills/patches.json`
+records each patch with its exact path, source-file SHA-256, unique needle, replacement and
+reason. Patches apply in order before the annotations, which stay bound to the upstream bytes;
+refresh refuses a changed upstream file or a needle that is missing or not unique.

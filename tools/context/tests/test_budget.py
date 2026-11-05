@@ -22,6 +22,8 @@ class BudgetTests(unittest.TestCase):
         subprocess.run(["git", "init", "-q", str(self.root)], check=True)
         subprocess.run(["git", "-C", str(self.root), "-c", "user.name=Test", "-c", "user.email=test@example.invalid",
                         "commit", "-qm", "initial", "--allow-empty"], check=True)
+        # The team flow owes a work/current.md entry; the default local mode does not.
+        subprocess.run(["git", "-C", str(self.root), "config", "aeion.mode", "team"], check=True)
         self.transcript = self.root / "test-session.jsonl"
         self.event = {"session_id": "test-session", "hook_event_name": "PreToolUse", "tool_name": "Edit",
                       "tool_input": {"file_path": str(self.root / "src.py")}, "transcript_path": str(self.transcript)}
@@ -192,6 +194,8 @@ class BudgetTests(unittest.TestCase):
             budget.git(self.root, 'config', 'aeion.mode', 'local')
             budget.checkpoint(self.root, 'test-session', 'HEAD')
             budget.git(self.root, 'config', '--unset', 'aeion.mode')
+            budget.checkpoint(self.root, 'test-session', 'HEAD')
+            budget.git(self.root, 'config', 'aeion.mode', 'team')
             # An included file cannot switch the mode: only the repository's own config counts.
             outside = tempfile.TemporaryDirectory()
             self.addCleanup(outside.cleanup)

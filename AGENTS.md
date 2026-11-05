@@ -2,7 +2,7 @@
 
 Research and design workspace with an opt-in local Docker demo. Read [README](README.md) and the
 [framework specification](knowledge/components/observability.md) before extending it. The
-repository follows the [Æion Factory](https://github.com/OualidGuennif/aeion-factory) v1.9.0
+repository follows the [Æion Factory](https://github.com/OualidGuennif/aeion-factory) v2.0.3
 development template: `tools/`, `efficiency/` and the native harness folders come from it.
 
 ## Working rules
@@ -24,6 +24,8 @@ development template: `tools/`, `efficiency/` and the native harness folders com
 - Prefer a small catalog of tested profiles over automatic tuning of every parameter.
 - Synthetic examples are not benchmark evidence. Preserve their explicit synthetic labels.
 - Follow Factory's eight-section component spec and concise current-work format.
+- Keep the protected team workflow. The owner selects `aeion.mode team` in each clone;
+  the Factory marker `.aeion-factory` tracks adoption independently of application `VERSION`.
 
 ## Repository map
 
@@ -33,6 +35,7 @@ examples/    offline synthetic fixtures, their arithmetic and validation
 tests/       unit tests for examples/
 demo/        opt-in local Docker pilot: Langfuse, OTel, Flue + Pi, OpenShell, cockpit
 work/        current.md (open task state), validation.md, dated evidence
+docs/        preserved upstream license notices shipped with the Factory guide
 tools/       Factory checks, agent launchers, architecture (Graphify/Archify)
 efficiency/  Factory's seven-phase engineering guide (read 00-EFFICIENCY.md first)
 loops/       Factory's loop jobs: orchestrator, prompts, schedules, Decisions API client

@@ -83,8 +83,7 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/prompt-defense.py\""
           }
         ]
-      }
-,
+      },
       {
         "hooks": [
           {
@@ -112,8 +111,7 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/sign-off.py\""
           }
         ]
-      }
-,
+      },
       {
         "hooks": [
           {
@@ -164,5 +162,14 @@
   "autoCompactWindow": 250000,
   "env": {
     "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "250000"
+  },
+  "permissions": {
+    "deny": [
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.git-credentials)",
+      "Read(~/.claude/.credentials.json)"
+    ]
   }
 }

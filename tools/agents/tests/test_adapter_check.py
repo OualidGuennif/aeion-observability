@@ -140,6 +140,14 @@ class AdapterCheckTests(unittest.TestCase):
         self.assertEqual(code, 1, output)
         self.assertIn('UNWIRED   .codex/config.toml → tools/agents/removed-hook.py', output)
 
+    def test_a_json_path_in_a_config_is_not_a_script(self):
+        # A deny rule names a credential file under ~/.claude; its .json must not read as a .js script.
+        config = self.project / '.codex/config.toml'
+        config.write_text((ROOT / '.codex/config.toml').read_text() + '\n# ~/.claude/.credentials.json and .dsh/plugin.jsonc\n')
+        code, output = self.run_check()
+        self.assertNotIn('UNWIRED', output)
+        self.assertEqual(code, 0, output)
+
     def test_steer_without_id_is_unidentified(self):
         self.assertEqual(check.unidentified("  agent.steer({ content: [], source: { kind: 'x' } });\n"), [1])
         self.assertEqual(check.unidentified("  agent.steer({ id: randomUUID(), content: [] });\n"), [])

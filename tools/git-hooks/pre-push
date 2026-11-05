@@ -4,7 +4,8 @@
 
 Git passes one line per ref: <local ref> <local sha> <remote ref> <remote sha>. A push to develop needs
 .aeion/reviews/<local sha>.md starting with "Review: OK" (skill pr-review writes it). Deletions and tags pass.
-Local mode (git config --local aeion.mode local) has no review or release flow: pushing is the user's call."""
+It gates only the team flow (git config --local aeion.mode team); the default local mode has no review or
+release flow, so pushing is the user's call."""
 import subprocess
 import sys
 from pathlib import Path
@@ -32,7 +33,7 @@ def main():
     # Read from this clone's own config only, so an included or global file cannot switch the gate off.
     mode = subprocess.run(["git", "config", "--local", "--get", "aeion.mode"], cwd=root, capture_output=True,
                           text=True, check=False).stdout.strip()
-    if mode == "local":
+    if mode != "team":
         return 0
     refused = []
     for line in sys.stdin:

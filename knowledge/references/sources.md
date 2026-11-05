@@ -157,3 +157,16 @@ The [qualification plan](../operations/implementation-plan.md) lists the evidenc
 change that status. Current external docs can drift; refresh selected releases before coding.
 
 Attribution and license boundaries are summarized in [CREDITS](../../CREDITS.md).
+
+
+## Foundation and runtime updates — verified 2026-11-04
+
+- Æion Factory v2.0.3, commit `162ca035292941f75752d2b1a4ffb2db955194d6`: release notes,
+  connector bytes, guard changes and project-updater behavior read from the exact official tag,
+  whose SHA was independently read back from origin. This does not establish live hook trust.
+  [Pinned source](https://github.com/OualidGuennif/aeion-factory/tree/v2.0.3).
+- Langfuse v4.75.0, official release published2026-11-04: patch/minor startup migrations,
+  background migration monitoring and ClickHouse25.12 minimum checked against upstream docs.
+  [Release](https://github.com/langfuse/langfuse/releases/tag/v4.75.0),
+  [upgrade](https://langfuse.com/self-hosting/upgrade),
+  [ClickHouse compatibility](https://langfuse.com/self-hosting/deployment/infrastructure/clickhouse).
