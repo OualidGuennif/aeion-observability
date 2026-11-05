@@ -64,6 +64,15 @@ def qualify(activate=False):
             env=environment,stdout=output,stderr=subprocess.STDOUT,timeout=1200)
     if result.returncode:raise RuntimeError('registered_foundation_failed:'+str(log))
     proof['capabilities']['preparation_and_publication']['registered_evidence_sha256']=hashlib.sha256(log.read_bytes()).hexdigest()
+    for name,script in (('closed_candidate','qualify_closed_candidate.py'),
+            ('product_unit','qualify_product_unit.py'),('product_web','qualify_product_web.py')):
+        log=folder/(name+'.log')
+        with log.open('xb') as output:
+            log.chmod(0o600)
+            result=subprocess.run([sys.executable,'demo/tests/'+script],cwd=ROOT,env=environment,
+                stdout=output,stderr=subprocess.STDOUT,timeout=1200)
+        if result.returncode:raise RuntimeError(name+'_failed:'+str(log))
+        proof['capabilities']['preparation_and_publication'][name+'_evidence_sha256']=hashlib.sha256(log.read_bytes()).hexdigest()
     sys.path.insert(0,str(ROOT/'demo/app'))
     from sandbox import cli_qualified,connection
     if not cli_qualified():raise RuntimeError('native_cli_not_qualified')

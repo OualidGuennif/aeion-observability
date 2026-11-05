@@ -42,7 +42,7 @@ class RegisteredFoundationTests(unittest.TestCase):
                 return False,{'reason':reason}
         catalog=Catalog({'schema_version':2,'count':1,'features':[self.feature]})
         return TaskPreparer(self.root,self.source,role=self.role,checker=Checker(),base_ref='HEAD',product=True).prepare(
-            build={'feature_id':'001','build_id':'a'*32,'attempt_id':'b'*32},catalog=catalog,spec_dir=self.specs,
+            build={'feature_id':self.feature['id'],'build_id':'a'*32,'attempt_id':'b'*32},catalog=catalog,spec_dir=self.specs,
             destination=self.root/'prepared',budget=self.budget,router=Router(),authorized=lambda:True)
 
     def test_known_spec_uses_registered_acceptance_without_model_or_cost(self):
@@ -65,6 +65,10 @@ class RegisteredFoundationTests(unittest.TestCase):
         with self.assertRaisesRegex(PreparationError,'negative_control_missing'):
             self.prepare('product_compile_failed')
 
+    def test_missing_checker_reason_is_never_a_registered_negative_control(self):
+        with self.assertRaisesRegex(PreparationError,'negative_control_missing'):
+            self.prepare(None)
+
     def test_registered_task_persists_without_inventing_a_preparer_model(self):
         _,evidence=self.prepare()
         catalog=Catalog({'schema_version':2,'count':1,'features':[self.feature]})
@@ -83,5 +87,40 @@ class RegisteredFoundationTests(unittest.TestCase):
         with self.assertRaisesRegex(PreparationError,'runtime_mismatch'):self.prepare()
         self.assertEqual(len(self.role.calls),1)
         self.assertTrue((self.root/'prepared/proposed-acceptance.json').is_file())
+
+    def select_transition(self,feature):
+        kind={'002':'postgres','014':'react'}[feature]
+        shutil.copytree(ROOT/'demo/factory/transitions'/kind,self.root/'demo/factory/transitions'/kind)
+        spec=next((ROOT/'demo/forum/features').glob(feature+'-*.md'))
+        self.spec=self.specs/(feature+'.md');self.spec.write_bytes(spec.read_bytes())
+        self.feature.update(id=feature,file=self.spec.name)
+        if feature=='014':self.feature['write_paths'].append('demo/forum-web/')
+        else:
+            original=(ROOT/'demo/forum-app/build.gradle').read_bytes()
+            (self.source/'demo/forum-app/build.gradle').write_bytes(original)
+            subprocess.run(['git','-C',str(self.source),'add','.'],check=True,capture_output=True)
+            subprocess.run(['git','-C',str(self.source),'commit','-qm','public transition baseline'],check=True,capture_output=True)
+
+    def test_postgres_transition_freezes_dependencies_without_granting_worker_verifier_control(self):
+        self.select_transition('002')
+        target,evidence=self.prepare('registered_postgres_operator_missing')
+        self.assertEqual(evidence['negative_control'],'registered_transition_source_missing')
+        self.assertEqual(self.role.calls,[])
+        self.assertEqual(len(target.dependency_changes),1)
+        self.assertIn('demo/forum-app/build.gradle',target.write_paths)
+        self.assertFalse(any(path.startswith(('tools/','.github/')) for path in target.write_paths))
+
+    def test_web_transition_seeds_only_the_exact_frozen_dependency_pair(self):
+        self.select_transition('014')
+        target,evidence=self.prepare('registered_web_source_missing')
+        self.assertEqual(evidence['negative_control'],'registered_transition_source_missing')
+        self.assertEqual(self.role.calls,[])
+        self.assertEqual({name for name,_ in target.dependency_changes},
+            {'demo/forum-web/package.json','demo/forum-web/package-lock.json'})
+
+    def test_transition_compiler_failure_does_not_qualify_a_registered_absence(self):
+        self.select_transition('014')
+        with self.assertRaisesRegex(PreparationError,'negative_control_missing'):
+            self.prepare('product_compile_failed')
 
 if __name__=='__main__':unittest.main()

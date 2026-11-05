@@ -1,0 +1,11 @@
+{
+  "acceptance_sha256": "b2121d4a44f296d1622fbc0fa0d033151b3f8eacec644e776d44455dfdc8dbbc",
+  "architecture_sha256": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e",
+  "dependencies": {
+    "package-lock.json": "3f57ef8c70127adec635375f73538d0f090d0a44a57fa96fe6284f4ad96b70bc",
+    "package.json": "c29d233cb44f913a7b1b17ccdae8708060784986266ab303571fb247bd9011fb"
+  },
+  "feature_id": "014",
+  "schema_version": 1,
+  "spec_sha256": "6fd08f6920e3eb5e0ad99187399e45436f689e7162383795effa5b95a4b96586"
+}

@@ -20,6 +20,7 @@ from .observer import Observer
 from .store import Store, StoreError
 from .sse import SseHub
 from .dispatch import DispatchWorker
+from .freeze import AUTHOR_TIMEOUT_SECONDS
 from .gateway import Gateway, SessionError
 from .releases import ReleaseError, ReleaseService
 
@@ -93,7 +94,7 @@ class FactoryApp:
         if self.execution_mode == 'live' and getattr(self.execution.get('builder'),'paid',False):
             worker_config.update(mode='live',profile='flue-pi')
             if config is None:
-                worker_config['deadline_ns'] = 900 * 1_000_000_000
+                worker_config['deadline_ns'] = AUTHOR_TIMEOUT_SECONDS * 1_000_000_000
         if self.execution.get("cost_reservation_usd") is not None:
             worker_config["cost_reservation_usd"] = self.execution["cost_reservation_usd"]
         return worker_config

@@ -149,6 +149,7 @@ class FactorySession(Runner):
                 'process_exit_code':run.get('cli_exit_code'), 'cli_steps':run.get('cli_steps'),
                 'retained_files_count':run.get('retained_files_count'),
                 'retained_artifact_digest':run.get('retained_artifact_digest'),
+                'candidate_recovered':run.get('candidate_recovered') is True,
                 'reasoning_effort':run.get('inference_effort','default'), 'memory':memories}
 
     def end_span(self, span, run, error=None):

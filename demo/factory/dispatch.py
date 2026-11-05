@@ -218,6 +218,10 @@ class DispatchWorker:
             if execution.get('build_id')!=build['build_id']:execution={}
             diagnostic={**execution,'failure_code':execution.get('failure'),
                 'execution_trace_id':execution.get('trace_id'),'phase':'building' if (gate or {}).get('status')=='builder_error' else 'checking'}
+            for result in ((gate or {}).get('results') or {}).values():
+                if isinstance(result,dict) and isinstance(result.get('detail'),dict):
+                    diagnostic['check']={'status':result.get('status'),'reason':result['detail'].get('reason')}
+                    if result.get('status')=='failed':break
             if execution.get('failure')=='CLI_STARTUP_FAILED':diagnostic['phase']='startup'
             evidence = self.telemetry.emit(
                 build_id=build["build_id"], feature_id=feature["id"],

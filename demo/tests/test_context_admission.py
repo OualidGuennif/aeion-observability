@@ -88,6 +88,12 @@ class ContextAdmissionTests(unittest.TestCase):
                 self.assertEqual(len(self.calls),before+1)
                 self.assertEqual(box.last_error_code,'USAGE_UNKNOWN')
 
+    def test_supervisor_stop_reason_survives_the_refused_request(self):
+        box=self.relay(admission=lambda:'STEP_LIMIT')
+        self.assertEqual(self.send(box),409)
+        self.assertEqual(self.calls,[])
+        self.assertEqual(box.last_error_code,'STEP_LIMIT')
+
     def test_actual_300k_violation_is_distinct_from_a_handover(self):
         self.usage.update(input_tokens=299999,output_tokens=10)
         box=self.relay()

@@ -56,6 +56,14 @@ class AttributeTests(unittest.TestCase):
         self.assertEqual(attrs['langfuse.observation.metadata.retained_files_count'],11)
         self.assertNotIn('private-canary',str(attrs))
 
+    def test_known_candidate_recovery_is_a_warning_and_never_masks_a_failed_gate(self):
+        diagnostic={'failure_code':'AGENT_TIMEOUT','candidate_recovered':True}
+        attrs=telemetry.build_attributes('b'*32,'001','a'*32,gate_status='passed',diagnostics=diagnostic)
+        self.assertEqual(attrs['langfuse.observation.level'],'WARNING')
+        self.assertEqual(attrs['langfuse.observation.status_message'],'AUTHOR_LIMIT_CANDIDATE')
+        failed=telemetry.build_attributes('b'*32,'001','a'*32,gate_status='failed',diagnostics=diagnostic)
+        self.assertEqual(failed['langfuse.observation.level'],'ERROR')
+
 
 class EmitTests(unittest.TestCase):
     def test_disabled_emitter_does_not_load_the_sdk(self):

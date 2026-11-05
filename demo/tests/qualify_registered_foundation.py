@@ -38,6 +38,18 @@ def main():
         'cost_usd':'0','product_delivery_claimed':False,'base_sha':target.base_sha,
         'task_digest':evidence['task_digest'],'acceptance_digest':evidence['acceptance_digest'],
         'negative_control':evidence['negative_control'],'durable_binding':'passed','source_unchanged':True}
+    proof['transitions']={}
+    for feature in ('002','014'):
+        store=Store(folder/('state-'+feature+'.db'));store.seed_merged('001',catalog)
+        store.admit([feature],'native-registered-'+feature,catalog)
+        build=store.claim_next(catalog,lease_ns=1800*1_000_000_000)
+        target,evidence=preparer.prepare(build=build,catalog=catalog,spec_dir=ROOT/'demo/forum/features',
+            destination=folder/('prepared-'+feature),budget=None,router=Router(),authorized=lambda:True)
+        assert evidence['preparer_model'] is None
+        assert evidence['negative_control']=='registered_transition_source_missing'
+        assert store.record_preparation(build['attempt_id'],build['attempt_generation'],evidence)
+        proof['transitions'][feature]={'negative_control':evidence['negative_control'],
+            'acceptance_digest':evidence['acceptance_digest'],'frozen_dependency_count':len(target.dependency_changes)}
     (folder/'proof.json').write_text(json.dumps(proof,indent=2)+'\n')
     print(json.dumps({'evidence':str(folder/'proof.json'),**proof}))
 

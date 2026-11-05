@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Wire separate PostgreSQL unit fixtures, fixed import/restore oracles and frozen React tools.
+  Prepare a maintainer-only CI update without giving workers control of their checker programs.
+  Keep validated, fully accounted stopped candidates subject to external checks and both reviews;
+  allow a bounded30-minute author window and prevent slow trace export from blocking accounting.
 - Adopt Factory2.0.3 while preserving protected team mode. Upgrade Langfuse to pinned4.75.0
   after verified cold backups and preserve bounded effort metadata through the collector.
 - Refuse Git transport program overrides and explicit remote-helper URLs in the shared

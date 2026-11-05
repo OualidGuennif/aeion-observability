@@ -1872,3 +1872,16 @@ Only work/HANDOVER.md, work/current.md, work/validation.md and the new dated tes
 - Unwired PostgreSQL unit-fixture native probe PASSes its own admin/loopback, absent host keys,
   denied external egress and teardown; it is not product002/003 delivery. PG/React/proxy wiring,
   product deployment and actual complete feature-to-main remain open.
+
+## 2026-11-05 — PostgreSQL/React checker wiring and stopped-candidate follow-up
+
+Full engine721PASS in99.838s (/private/tmp/aeion-engine-tests-final-v13.log); client22PASS.
+Registered preparation native001/002/014PASS with no model, durable identity and unchanged owner checkout
+(/private/tmp/aeion-registered-foundation-xitml0rs/proof.json). Registered-negative9PASS; missing checker
+reason regression failed before the explicit feature restriction and passes afterward.
+Frozen React build plus positive/negative Vitest nativePASS with poisoned candidate configs/scripts
+(/private/tmp/aeion-frozen-web-proof-cok96xnh/proof.json). Slow trace-export accounting regression failed
+before batching and passes afterward. These are mechanisms, not product delivery.
+Exact maintainer CI bundle6104ba6a passed product knowledge/link/health/foundation checks and isolated
+backend tests/package. GLM actualapproveUSD0.01168080; Qwen still pending.
+Native admissionv12 is running on the current protocol; no live launch/main merge/new Go claimed.

@@ -136,10 +136,13 @@ def build_attributes(build_id, feature_id, attempt_id, artifact_digest=None, bas
         if measured['complete'] and cost.is_finite() and 0<=cost<=1000:
             attributes['langfuse.observation.metadata.measured_cost_usd']=str(cost)
     code=attributes.get('langfuse.observation.metadata.failure_code')
-    failed=bool(code) or gate_status in ('failed','builder_error','rejected')
-    attributes['langfuse.observation.level']='ERROR' if failed else 'DEFAULT' if gate_status=='passed' else 'WARNING'
+    recovered=diagnostic.get('candidate_recovered') is True
+    if recovered:attributes['langfuse.observation.metadata.candidate_recovered']=True
+    failed=(bool(code) and not recovered) or gate_status in ('failed','builder_error','rejected')
+    attributes['langfuse.observation.level']='ERROR' if failed else 'WARNING' if recovered else 'DEFAULT' if gate_status=='passed' else 'WARNING'
     if failed:
         attributes['langfuse.observation.status_message']=code or 'PROTECTED_CHECK_FAILED'
+    elif recovered:attributes['langfuse.observation.status_message']='AUTHOR_LIMIT_CANDIDATE'
     return attributes
 
 

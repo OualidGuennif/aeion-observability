@@ -1,5 +1,7 @@
 {
-  "after_sha256": "6d7c42641b5fd59f4446e51bd6ecec1c7de4dde5aa8e9b0638536529321fb7fb",
+  "acceptance_sha256": "89d93bd67087719c84d2a7657f5d67944db9b6bf9415addda6164c5f4bd544c9",
+  "after_sha256": "c7b224da2e1797b2bad04019ee24512516b9d13f4b4886ac17e0dd345f35f45e",
+  "architecture_sha256": "33e7246cc390bdacfbf8da5d7a0b2d7ff48b0774f1833155ac725cb519f06c2e",
   "base_reference": "63bdece8056136209e0e3d2e68dbf0879005fec9",
   "before_sha256": "f7b21e65ca79d30bee41a3fc9ff7840f395f2dcaf3c0d4be250ea9099c3010c7",
   "feature_id": "002",
@@ -8,5 +10,6 @@
   "qualified": false,
   "quarkus_bom": "3.40.1",
   "schema_version": 1,
+  "spec_sha256": "b8f1a2ba55c14cc423f1716e82e9d2beafe1081bf7fd2a01654f6efebbce1950",
   "sqlite_scope": "operator_and_test_only"
 }

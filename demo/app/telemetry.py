@@ -7,7 +7,7 @@ from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags, Status, StatusCode
 from opentelemetry.proto.collector.logs.v1.logs_service_pb2 import ExportLogsServiceRequest
 
@@ -17,10 +17,12 @@ from settings import OTEL_LOGS, OTEL_TRACES
 class Telemetry:
     def __init__(self):
         self.provider = TracerProvider(resource=Resource.create({"service.name": "aeion-demo"}))
-        self.provider.add_span_processor(SimpleSpanProcessor(OTLPSpanExporter(
+        # Native usage events must advance even when the Collector is slow. Role shutdown
+        # flushes this bounded queue; the private journal remains the authority on failure.
+        self.provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(
             endpoint=OTEL_TRACES,
             timeout=5,
-        )))
+        ),max_queue_size=1024,max_export_batch_size=64,schedule_delay_millis=200))
         self.tracer = self.provider.get_tracer("aeion.demo", "1")
 
     def emit(self, run, name, **attributes):

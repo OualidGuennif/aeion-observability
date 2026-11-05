@@ -677,10 +677,11 @@ class Store:
                 or path in ('knowledge/components/agora-product.md','knowledge/components/factory-architecture.md')
                 or path=='demo/forum-app/build.gradle' and evidence.get('feature_id') in ('002','014'))
         static=modern and evidence.get('preparation_kind')=='registered_static_acceptance'
-        model_ok=(evidence.get('preparer_model') is None and evidence.get('feature_id')=='001') if static else (
+        model_ok=(evidence.get('preparer_model') is None and evidence.get('feature_id') in ('001','002','014')) if static else (
             isinstance(evidence,dict) and isinstance(evidence.get('preparer_model'),str) and known(evidence['preparer_model']))
         negative_ok=isinstance(evidence,dict) and (evidence.get('negative_control')=='failed_contract_assertion'
-            or static and evidence.get('negative_control')=='registered_foundation_startup_rejection')
+            or static and evidence.get('negative_control')=='registered_foundation_startup_rejection' and evidence.get('feature_id')=='001'
+            or static and evidence.get('negative_control')=='registered_transition_source_missing' and evidence.get('feature_id') in ('002','014'))
         if (not isinstance(evidence,dict) or set(evidence) != allowed or any(not isinstance(evidence.get(k),str)
                 or not re.fullmatch('[a-f0-9]{64}',evidence[k]) for k in required)
                 or not model_ok or modern and evidence.get('preparation_kind') not in ('flue_prepared','registered_static_acceptance')

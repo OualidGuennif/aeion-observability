@@ -51,7 +51,8 @@
     "demo/compose.yaml",
     "demo/otel-collector.yaml",
     "demo/run.py",
-    "demo/README.md"
+    "demo/README.md",
+    "work/product-ci-adapters-2026-11-05/**"
   ],
   "architecture_spec": "knowledge/components/factory-architecture.md"
 }

@@ -105,6 +105,17 @@ class ProductBoundaryTests(unittest.TestCase):
             self.assertTrue(passed)
             self.assertTrue(state['startup_checked'])
 
+    def test_checker_teardown_requires_confirmed_absence(self):
+        from factory.product_checks import ProductCheckRunner
+        from factory.isolation import DockerCheckRunner,IsolationError
+        runner=ProductCheckRunner('/public-fixture')
+        for code,output in ((0,''),(0,'still-running-id'),(1,'')):
+            with self.subTest(code=code,output=output),patch.object(DockerCheckRunner,'_kill'), \
+                    patch('factory.product_checks.subprocess.run',return_value=subprocess.CompletedProcess([],code,stdout=output,stderr='')):
+                if code or output:
+                    with self.assertRaisesRegex(IsolationError,'teardown_unconfirmed'):runner._kill('aeion-owned-fixture')
+                else:runner._kill('aeion-owned-fixture')
+
     def test_nested_git_configuration_cannot_hide_unreviewed_product_files(self):
         for name in ('.gitignore', '.gitattributes', '.gitmodules', '.GITignore'):
             with self.subTest(name=name), self.assertRaises(BuilderError):

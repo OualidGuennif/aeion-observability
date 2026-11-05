@@ -40,9 +40,9 @@ def validate_acceptance(text):
 
 
 def registered_acceptance(root, task):
-    if task.feature_id != '001':
+    if task.feature_id not in ('001','002','014'):
         return None
-    folder=Path(root)/'demo/factory/transitions/foundation'
+    folder=Path(root)/'demo/factory/transitions'/({'001':'foundation','002':'postgres','014':'react'}[task.feature_id])
     try:
         identity=json.loads((folder/'identity.json').read_text())
         text=(folder/'acceptance.mjs').read_text()
@@ -90,6 +90,16 @@ def prepared_target(root, source, task, folder, text):
             raise PreparationError('dependency_base_changed')
         seeds.append((path, seed))
         dependencies.append((path, identity['after_sha256']))
+    if task.feature_id=='014':
+        folder=Path(root)/'demo/factory/transitions/react'
+        identity=json.loads((folder/'identity.json').read_text())
+        for name in ('package.json','package-lock.json'):
+            path=WEB+name;seed=folder/name;expected=identity['dependencies'][name]
+            if _digest(seed.read_text())!=expected:raise PreparationError('dependency_template_changed')
+            original=_git(['-C',str(source),'show',task.base_sha+':'+path])
+            if not original.returncode and _digest(original.stdout)!=expected:
+                raise PreparationError('dependency_base_changed')
+            seeds.append((path,seed));dependencies.append((path,expected))
     return Target('prepared-'+task.feature_id, task.feature_id, REPOSITORY, root, source,
         task.base_sha, scopes, brief, ProtectedCheck('prepared_product', [], {}, contract,
         'FACTORY_EXTERNAL_ACCEPTANCE.mjs', 900), seed_files=tuple(seeds),
@@ -116,7 +126,15 @@ class ProductCheckRunner(DockerCheckRunner):
                 '(1..32768, default32768). Invalid integers/ranges refuse startup. Unknown keys '
                 'are ignored, never logged. The supervisor independently restarts the packaged app '
                 'with missing/short secrets and invalid bounds, and checks that logs do not disclose values. ')
-        return common + ('PostgreSQL uses QUARKUS_DATASOURCE_* and migration-owner credentials exist '
+        original=_git(['-C',str(target.base_source),'show',target.base_sha+':'+APP+'build.gradle'])
+        postgres=target.feature_id=='002' or 'quarkus-jdbc-postgresql' in original.stdout
+        web=('The React package/lock are frozen by the supervisor. Tests use Vitest in Node; '
+            'production assets are built by fixed tools and included in Quarkus. Do not add Vite/PostCSS '
+            'configuration or change npm scripts. Use one main.tsx, semantic DOM and relative API requests. '
+            'Candidate backend tests have separate fixture-only PostgreSQL admin settings '
+            'AEION_TEST_POSTGRES_JDBC_URL/USERNAME/PASSWORD for their test resource. ')
+        if not postgres:return common+web
+        return common+web+('PostgreSQL uses QUARKUS_DATASOURCE_* and migration-owner credentials exist '
             'only in a separate operator JVM. Provide local.aeion.forum.DatabaseOperator with '
             'migrate, validate, and import-sqlite <readonly path> commands. Commands use the same '
             'datasource environment, return nonzero on failure and never print data/credentials. '
@@ -129,6 +147,17 @@ class ProductCheckRunner(DockerCheckRunner):
                 timeout=timeout, env={'PATH':os.environ.get('PATH','/usr/local/bin:/usr/bin:/bin')})
         except (OSError, subprocess.TimeoutExpired):
             raise IsolationError('product_check_process_failed') from None
+
+    def _kill(self, name):
+        super()._kill(name)
+        try:
+            result=subprocess.run([self.docker,'ps','-aq','--filter','name=^/'+name+'$'],
+                capture_output=True,text=True,timeout=15,
+                env={'PATH':os.environ.get('PATH','/usr/local/bin:/usr/bin:/bin')})
+        except (OSError,subprocess.TimeoutExpired):
+            raise IsolationError('product_teardown_unconfirmed') from None
+        if result.returncode or result.stdout.strip():
+            raise IsolationError('product_teardown_unconfirmed')
 
     def _runtime_flags(self, name, database, image=None):
         return ['run','--rm','--name',name,'--network','container:'+database.name,
@@ -145,15 +174,16 @@ class ProductCheckRunner(DockerCheckRunner):
             '-e','QUARKUS_DATASOURCE_DEVSERVICES_ENABLED=false',
             '-e','QUARKUS_FLYWAY_MIGRATE_AT_START=false']
 
-    def _operator(self, snapshot, database, command):
+    def _operator(self, snapshot, database, command, *, fixtures=None):
         name='aeion-product-operator-'+uuid.uuid4().hex[:12]
         try:
             # The classpath contains only packaged runtime and the registered SQLite import
             # driver. No application gets the migration password or this input mount.
             flags=self._runtime_flags(name,database)+self._database_env(database,True)
+            if fixtures is not None:flags += ['-v',str(Path(fixtures).resolve())+':/fixtures:ro']
             flags += ['-e','AGORA_SESSION_SECRET='+secrets.token_urlsafe(40),
                 '-v',str(snapshot / (APP+'build'))+':/product:ro',
-                self.verifier_image,'java','-cp','/product/quarkus-app/app/*:/product/quarkus-app/lib/main/*:/product/operator-libs/*',
+                self.verifier_image,'java','-cp','/fixtures:/product/quarkus-app/app/*:/product/quarkus-app/lib/main/*:/product/operator-libs/*',
                 'local.aeion.forum.DatabaseOperator',*command]
             return self._call(flags,timeout=90)
         finally:
@@ -205,8 +235,31 @@ class ProductCheckRunner(DockerCheckRunner):
                     local=snapshot/(APP+path)
                     if original.returncode or local.is_symlink() or not local.is_file() or _digest(local.read_text())!=expected:
                         return False, {'reason':'build_program_changed'}
+                postgres='quarkus-jdbc-postgresql' in (snapshot/(APP+'build.gradle')).read_text()
+                if target.feature_id=='002' and not (snapshot/(APP+'src/main/java/local/aeion/forum/DatabaseOperator.java')).is_file():
+                    return False,{'reason':'registered_postgres_operator_missing'}
+                web=snapshot/'demo/forum-web'
+                has_web=(web/'package.json').is_file()
+                if target.feature_id=='014' and (not has_web or not (web/'index.html').is_file()
+                        or not (web/'src').is_dir()):
+                    return False,{'reason':'registered_web_source_missing'}
+                if has_web:
+                    from .product_web import FrozenWebRunner,prepare_web
+                    for name in ('package.json','package-lock.json'):
+                        path=WEB+name;original=_git(['-C',str(target.base_source),'show',target.base_sha+':'+path])
+                        expected=dict(target.dependency_changes).get(path,_digest(original.stdout) if not original.returncode else None)
+                        local=web/name
+                        if local.is_symlink() or not local.is_file() or _digest(local.read_text())!=expected:
+                            return False,{'reason':'web_dependency_changed'}
+                    prepare_web(web)
+                    web_runner=FrozenWebRunner(self.controller,docker=self.docker,tools_dir=self.tools_dir,cache_dir=self.cache_dir)
+                    result=web_runner(['node','/opt/aeion-checker/build-web.mjs',str(web)],cwd=snapshot,timeout=120)
+                    if result.returncode:return False,{'reason':'web_build_failed'}
+                    assets=snapshot/(APP+'src/main/resources/META-INF/resources')
+                    if assets.exists():shutil.rmtree(assets)
+                    shutil.copytree(web/'dist',assets)
                 command=[str(self.tools_dir/'gradle-9.8.2/bin/gradle'),'-p',str(snapshot/'demo/forum-app'),
-                    'quarkusBuild','--offline','--console=plain','--no-daemon']
+                    'quarkusBuild',*(['stageOperatorLibraries'] if postgres else []),'--offline','--console=plain','--no-daemon']
                 compiled=super().__call__(command,cwd=snapshot,timeout=target.protected_check.timeout_seconds)
                 if compiled.returncode:
                     output=(compiled.stdout or '')+'\n'+(compiled.stderr or '')
@@ -222,16 +275,29 @@ class ProductCheckRunner(DockerCheckRunner):
                     ignore=shutil.ignore_patterns('.git','build','node_modules'))
                 remaining=target.protected_check.timeout_seconds-(time.monotonic()-started)
                 if remaining<=0:return False, {'reason':'product_check_deadline'}
-                tested=super().__call__([str(self.tools_dir/'gradle-9.8.2/bin/gradle'),'-p',
-                    str(unit_snapshot/'demo/forum-app'),'test','--offline','--console=plain','--no-daemon'],
-                    cwd=unit_snapshot,timeout=remaining)
+                unit_command=[str(self.tools_dir/'gradle-9.8.2/bin/gradle'),'-p',
+                    str(unit_snapshot/'demo/forum-app'),'test','--offline','--console=plain','--no-daemon']
+                if postgres:
+                    from .product_unit import ProductUnitRunner
+                    unit_runner=ProductUnitRunner(self.controller,docker=self.docker,tools_dir=self.tools_dir,cache_dir=self.cache_dir)
+                    tested=unit_runner(unit_command,cwd=unit_snapshot,timeout=remaining)
+                else:tested=super().__call__(unit_command,cwd=unit_snapshot,timeout=remaining)
                 if tested.returncode:
                     output=(tested.stdout or '')+'\n'+(tested.stderr or '')
                     return False, {'reason':'product_unit_tests_failed','returncode':tested.returncode,
                         'compiler_errors':_compiler_errors(output),'failed_tests':_failed_tests(output)}
-                postgres='quarkus-jdbc-postgresql' in (snapshot/(APP+'build.gradle')).read_text()
+                if has_web:
+                    prepare_web(unit_snapshot/'demo/forum-web')
+                    tested=web_runner(['node','/opt/aeion-checker/node_modules/vitest/vitest.mjs','run',
+                        '--root',str(unit_snapshot/'demo/forum-web'),'--config','/opt/aeion-checker/vitest.config.mjs',
+                        '--configLoader','native'],cwd=unit_snapshot,timeout=120)
+                    if tested.returncode:return False,{'reason':'web_unit_tests_failed'}
                 with DisposablePostgres(self.docker) as database:
                     if postgres:
+                        if target.feature_id=='002':
+                            from .product_postgres import verify_migration
+                            passed,reason=verify_migration(self,snapshot,database)
+                            if not passed:return False,{'reason':reason}
                         migrated=self._operator(snapshot,database,['migrate'])
                         if migrated.returncode:
                             return False, {'reason':'migration_failed'}
@@ -258,7 +324,7 @@ class ProductCheckRunner(DockerCheckRunner):
                             flags += ['-e','AGORA_DATABASE_ENABLED=false',
                                 '-e','AEION_SQLITE_PATH=/proc/aeion/unavailable.db',
                                 '-e','QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://127.0.0.1:1/unavailable']
-                        elif postgres: flags += self._database_env(database)
+                        elif postgres: flags += self._database_env(database)+['-e','AGORA_DATABASE_ENABLED=true']
                         flags += [self.verifier_image,'java','-jar','/product/quarkus-run.jar']
                         launched=self._call(flags,timeout=30)
                         if launched.returncode: return False, {'reason':'application_start_failed'}

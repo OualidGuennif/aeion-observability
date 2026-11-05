@@ -330,7 +330,9 @@ class TaskPreparer:
             registered_startup_rejection = (static_contract is not None and task.feature_id == '001'
                 and detail.get('reason') in {'application_start_failed',
                     'explicit_database_less_startup_rejected','default_database_less_startup_rejected'})
-            effective |= registered_startup_rejection
+            registered_transition_absence=(static_contract is not None and task.feature_id in ('002','014') and detail.get('reason')==
+                {'002':'registered_postgres_operator_missing','014':'registered_web_source_missing'}.get(task.feature_id))
+            effective |= registered_startup_rejection or registered_transition_absence
             if passed or not effective:
                 raise PreparationError('preparation_negative_control_missing')
         elif (passed or detail.get('failure_kind') != 'tests_failed'
@@ -341,7 +343,8 @@ class TaskPreparer:
             raise PreparationError('preparation_revoked')
         evidence = {**task.identity(), 'task_digest':task.digest(), 'acceptance_digest':_digest(text),
                     'preparer_model':model, 'negative_control':('registered_foundation_startup_rejection' if self.product and
-                        registered_startup_rejection else 'failed_contract_assertion'),
+                        registered_startup_rejection else 'registered_transition_source_missing' if self.product and
+                        registered_transition_absence else 'failed_contract_assertion'),
                     'synthetic':not self.role.paid}
         if self.product:
             evidence.update(schema_version=2, preparation_kind=('registered_static_acceptance'

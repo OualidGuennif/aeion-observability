@@ -4,6 +4,24 @@ title: "Flue factory execution"
 description: "Deterministic supervision of untrusted Flue/Pi workers, isolated tools and protected publication."
 status: draft
 sources:
+  - resource: ../../demo/factory/product_unit.py
+    title: "Separate candidate unit-test database"
+  - resource: ../../demo/factory/product_postgres.py
+    title: "Fixed migration, import and restore oracles"
+  - resource: ../../demo/factory/product_web.py
+    title: "Frozen offline React runner"
+  - resource: ../../demo/factory/product_proxy.py
+    title: "Product cookie boundary, deployment not yet wired"
+  - resource: ../../demo/factory/checker-tools/build-web.mjs
+    title: "Fixed TypeScript and production build"
+  - resource: ../../demo/factory/checker-tools/vitest.config.mjs
+    title: "Fixed Vitest configuration"
+  - resource: ../../demo/factory/checker-tools/tsconfig.web.json
+    title: "Fixed frontend transform configuration"
+  - resource: ../../work/product-ci-adapters-2026-11-05/maintain.py
+    title: "Exact maintainer-only CI update"
+  - resource: ../../work/product-ci-adapters-2026-11-05/ci.yml
+    title: "PostgreSQL and React CI inputs"
   - resource: ../../demo/factory/dispatch.py
     title: "Factory supervisor, routing and publication"
   - resource: ../../demo/factory/product_checks.py
@@ -102,11 +120,13 @@ to select a repository, expand scopes, change tests, change budget or merge.
 Automatic preparation freezes the complete catalog MD, approved architecture, committed product
 base and narrower literal scopes before implementation. A tier-1 Flue preparer proposes a bounded
 external Node acceptance, never a command or policy; the historical Java profile retains JUnit.
-The exact registered001 MD/architecture uses fixed supervisor acceptance with no model request or
+The exact registered001/002/014 MDs and architecture use fixed supervisor acceptance with no model request or
 cost. A changed MD cannot reuse that oracle. Its untouched-baseline startup rejection is a
 registered negative; arbitrary compiler/toolchain failure never qualifies an acceptance contract.
 Ordinary contracts require actual failing external assertions on the untouched baseline.
-PostgreSQL transition and web product delivery still need actual qualification and implementation.
+The registered002/014 untouched baseline must lack their operator/browser source; compiler failure
+or a missing checker reason cannot stand in for that absence. Positive candidates still need the
+full migration/import/restore or production browser checks. These adapters do not implement the product.
 
 Generated MDs begin with YAML frontmatter (`---`). The launcher binds the entire message as
 `--message=<value>` so the CLI cannot parse that prefix as another option. This was reproduced
@@ -155,7 +175,14 @@ and isolated publisher bind approval to those exact bytes. An arbitrary request 
 approve another dependency. Nested Git control files are forbidden at both export/artifact
 boundaries, preventing candidate ignore rules from hiding unreviewed code. Existing ignore rules are also checked before export reaches the host, so hidden environment or dependency files cannot influence acceptance outside the review packet. Product test harness
 files may change only under the external checker; its program and contract are never writable.
-The ordinary live author default is900s, retaining explicit operator bounds and the$15 daily cap.
+The ordinary live author default is1800s; preparation/review remain at most900s per model session.
+Explicit operator bounds and the$15 daily cap remain. A soft stop can retain a proposed candidate
+only after validated export, confirmed sandbox removal, complete known usage within the frozen
+reservation and a current authorization check. Its stopped-role failure remains visible. No check
+or vote is inferred: the final external gate and both independent reviews still run; unknown usage,
+revocation and export/removal failures refuse recovery. A slow trace exporter uses a bounded SDK
+batch queue so it cannot block native accounting; role shutdown flushes it. The private journal
+remains authoritative when telemetry delivery fails.
 All100MDs declare their two owning product documentation files. Their shared scopes require
 serial builds; completion still depends on the current contract and confirmed publication.
 Preparation, the builder's repair feedback and the final gate share the same supervisor-selected

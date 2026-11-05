@@ -1,3 +1,7 @@
+## NEWEST RESUME — latest verified continuation
+
+Read work/current.md latest follow-up. Current HEAD5cc5e57, additional uncommitted recovery/PG/React drafts. No active product build; controller5713 is source-stale and admission correctly holds. v7 failed knownUSD0.11236812,12retained files. Qwen5cc stopped USAGE_UNKNOWN, finalusagecompleteUSD0.03712712, no verdict. GLM5cc approved. Latest owner consent covers subsequent same-chantier corrections/reviews under existing3USD ceiling; no question pending. Portable React Vitest fixture failed; diagnostics running. Full710/nativev11 evidence predates new local changes. Never claim new main merge or product delivery.
+
 ## NEWEST RESUME — 2026-11-05 11:28 UTC
 
 Read work/current.md (now68lines) for current state. Controller5713 runs freshlyqualifiedprotocol

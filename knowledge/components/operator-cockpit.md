@@ -64,10 +64,13 @@ it explicitly does not claim that the product is already built. Every candidate 
 its own external acceptance, two independent approvals and confirmed protected main.
 Activity refreshes retain expanded build evidence and keyboard focus. An unchanged list is
 not replaced, so reading evidence does not race the ten-second poll or SSE progress events.
-The exact registered001 contract prepares deterministically without model requests or cost;
+The exact registered001/002/014 contracts prepare deterministically without model requests or cost;
 changed MD bytes require fresh independent preparation. Missing acceptance format, explicit model
 refusal, budget exhaustion and unknown usage have distinct bounded messages. Private proposal
 artifacts remain outside default telemetry. PostgreSQL/React helpers are not product delivery.
+The transition baseline explains an absent registered migration operator or browser source.
+A stopped author proposal can continue only with validated files, confirmed removal, complete
+bounded cost and current authorization; the independent acceptance and two reviews still decide.
 Build evidence includes the preparer (or registered static kind), negative baseline, memory acknowledgments,
 publisher/CI blocker, confined PR link and confirmed main SHA. The actual user browser still
 requires sign-in after a controller restart; synthetic browser/API verification is distinct.

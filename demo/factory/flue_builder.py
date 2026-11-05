@@ -10,6 +10,7 @@ import threading
 import time
 import tempfile
 from dataclasses import replace
+from decimal import Decimal, InvalidOperation
 
 from .checks import target_check
 from .isolation import DockerCheckRunner
@@ -17,14 +18,15 @@ from .agent_files import BuilderError, parse_files
 from .preparation import _read as read_preparation_text, PreparationError
 from .models import author_model, eligibility, family
 from .review import content_digest, SECRET_PATTERNS
-from .flue_session import FactorySession, SESSION_TIMEOUT_SECONDS, new_run, usage
+from .flue_session import FactorySession, new_run, usage
+from .freeze import AUTHOR_TIMEOUT_SECONDS
 
 from sandbox import MAX_SYNC_BYTES, SANDBOX_OUT, Sandbox, materialize
 
 SOURCE_PREFIX = 'demo/forum-app/'
 SOURCE_PREFIXES = (SOURCE_PREFIX, 'demo/forum-docs/', 'demo/forum-web/', 'knowledge/components/')
 SOURCE_SUFFIXES = {'.java', '.properties', '.gradle', '.sql', '.txt', '.md', '.json', '.yaml', '.yml',
-                   '.ts', '.tsx', '.js', '.jsx', '.css', '.html', '.svg'}
+                   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.css', '.html', '.svg'}
 MAX_CHECKS = 3
 
 
@@ -88,7 +90,7 @@ def scoped_changes(collected, seeded, scopes, repo, protected=()):
 class FlueBuilder:
     engine = 'flue-pi'
     paid = True
-    timeout_seconds = SESSION_TIMEOUT_SECONDS
+    timeout_seconds = AUTHOR_TIMEOUT_SECONDS
     max_output_tokens = 65536
 
     def __init__(self, root, targets, model=None, check_sandbox=None):
@@ -138,7 +140,7 @@ class FlueBuilder:
         runtime = FactorySession(run, progress)
         runtime.authorization_check = self.authorization_check
         span = runtime.telemetry.begin(run)
-        check_lock, cache = threading.Lock(), {}
+        check_lock, cache = threading.RLock(), {}
         protected = (target.protected_check.contract_destination, acceptance_name,
                      *(name for name, _ in target.seed_files))
         if target.protected_check.id != 'prepared_product':
@@ -151,18 +153,19 @@ class FlueBuilder:
         applied_names = set()
 
         def snapshot():
-            changed = scoped_changes(runtime.active_sandbox.collect(), seeded, frozen.write_scopes, repo, protected)
-            apply = dict(changed)
-            for name, data in seeded.items():
-                if (any(name.startswith(scope) for scope in frozen.write_scopes)
-                        and name not in changed and (repo / name).read_bytes() != data):
-                    apply[name] = data.decode('utf-8')
-            materialize({path: base64.b64encode(text.encode()).decode() for path, text in apply.items()}, repo)
-            for name in applied_names - set(changed) - set(seeded):
-                (repo / name).unlink(missing_ok=True)
-            applied_names.clear()
-            applied_names.update(changed)
-            return changed
+            with check_lock:
+                changed = scoped_changes(runtime.active_sandbox.collect(), seeded, frozen.write_scopes, repo, protected)
+                apply = dict(changed)
+                for name, data in seeded.items():
+                    if (any(name.startswith(scope) for scope in frozen.write_scopes)
+                            and name not in changed and (repo / name).read_bytes() != data):
+                        apply[name] = data.decode('utf-8')
+                materialize({path: base64.b64encode(text.encode()).decode() for path, text in apply.items()}, repo)
+                for name in applied_names - set(changed) - set(seeded):
+                    (repo / name).unlink(missing_ok=True)
+                applied_names.clear()
+                applied_names.update(changed)
+                return changed
 
         def check():
             with check_lock:
@@ -197,6 +200,7 @@ class FlueBuilder:
 
         runtime.snapshot, runtime.protected_check = snapshot, check
         handover = None
+        retained = {}
         try:
             for number in range(1, 4):
                 if time.monotonic() >= deadline:
@@ -230,6 +234,7 @@ class FlueBuilder:
                 except Exception:
                     # Preserve validated partial work before retiring its isolated sandbox.
                     # A refused/unknown export never becomes a patch or masks the real failure.
+                    retained = {}
                     try:
                         retained=snapshot()
                         run['retained_files_count']=len(retained)
@@ -243,6 +248,20 @@ class FlueBuilder:
             raise BuilderError('handover_limit')
         except Exception as caught:
             error = caught
+            # A stop signal is not a verdict on the files. Only a closed, fully costed
+            # proposal may proceed to the unchanged independent gates and both votes.
+            # Revocation, transport uncertainty, export refusal and teardown failure stop.
+            measured=usage(run)
+            try:authorized=callable(self.authorization_check) and self.authorization_check() is True
+            except Exception:authorized=False
+            if (str(caught) in {'AGENT_TIMEOUT','AGENT_DEADLINE','STEP_LIMIT','OUTPUT_LIMIT'}
+                    and retained and type(run.get('forwarded_count')) is int and run['forwarded_count']>0
+                    and measured.get('complete') is True):
+                try:cost=Decimal(str(measured.get('cost_usd')));limit=Decimal(frozen.cost_reservation_usd)
+                except (InvalidOperation,TypeError,ValueError):cost=Decimal('NaN');limit=Decimal('0')
+                if authorized and cost.is_finite() and limit.is_finite() and 0<=cost<=limit:
+                    run['candidate_recovered']=True
+                    return sorted(retained)
             raise
         finally:
             self.last_usage = usage(run)

@@ -142,6 +142,7 @@ class ContextRelay:
                     stop = relay.admission() if relay.admission else None
                     if stop:
                         relay.closed = True
+                        relay.last_error_code = stop
                         relay.event("context.refused", **{"aeion.failure.code": stop})
                         return self.deny(409, stop)
                     context_count = counted

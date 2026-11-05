@@ -62,7 +62,9 @@ reviewer model families must differ from each other and from author/preparer fam
 publisher/release subprocesses open the product PR, verify exact-head CI and confirm main.
 Only integration of the current contract unlocks dependent MDs; a generated patch or old-contract
 success does not. The product has its own GitHub repository and credentials. Observer mirrors
-are not product workspaces. PostgreSQL/React product delivery and a demo require their own actual
+are not product workspaces. Fixed PostgreSQL migration/restore oracles, a separate unit-test
+database and frozen React build/Vitest tools belong to that supervisor boundary. Ordinary workers
+cannot modify them or the maintainer-only CI update program. PostgreSQL/React product delivery and a demo require their own actual
 checks and deployment receipts; capability qualification alone never claims them complete.
 
 Langfuse receives bounded role, request, tool and failure metadata via the privacy-filtering
