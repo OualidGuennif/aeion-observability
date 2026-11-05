@@ -58,6 +58,25 @@ class DispatchWorkerTests(unittest.TestCase):
         self.assertEqual(build["status"], HELD)
         self.assertEqual(build["hold_reason"], "qualification_missing")
 
+    def test_builder_failure_keeps_frozen_identity_and_exact_execution_diagnostics(self):
+        class FailingBuilder:
+            paid=False
+            last_execution=None
+            def __call__(self,repo,frozen,feature,brief):
+                self.last_execution={'build_id':frozen.build_id,'failure':'CLI_STARTUP_FAILED',
+                    'process_exit_code':1,'forwarded_count':0,'trace_id':'a'*32}
+                raise ValueError('CLI_STARTUP_FAILED')
+        self.worker.builder=FailingBuilder()
+        self.store.admit(['001'],'startup-failure',self.cat)
+        self.worker.run_once()
+        row=self.store.board()[0];receipt=json.loads(row['receipt'])
+        self.assertEqual(row['status'],FAILED)
+        self.assertEqual(receipt['error'],'CLI_STARTUP_FAILED')
+        self.assertEqual(receipt['execution']['forwarded_count'],0)
+        self.assertEqual(receipt['execution']['process_exit_code'],1)
+        self.assertEqual(len(receipt['frozen_digest']),64)
+        self.assertEqual(len(receipt['base_sha']),40)
+
 
 class DispatchSessionTests(unittest.TestCase):
     """No agent holds a GitHub key: the worker mints a session, records its id, and revokes it."""

@@ -7,7 +7,7 @@ size: S
 parallel: false
 phase: P5
 tier: 3
-write_paths: ["demo/forum-web/"]
+write_paths: ["demo/forum-web/", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [059, 060, 014]
 owner: builder
 status: proposed
@@ -54,7 +54,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 Generate SVG nodes from a fixed component and validated ID; never use arbitrary stored SVG or an HTML-string sink.
 
 This invariant and the acceptance cases belong to planned protected check `agora-087`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

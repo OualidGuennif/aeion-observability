@@ -123,6 +123,14 @@ The workflow supplies the PR base or push's previous SHA; an all-zero initial-pu
 a full baseline. Paths outside the declared scope are listed, never silently marked extracted.
 When adopting Æion Factory, update both the scope/views and the project architecture spec first.
 
+The Observability adoption includes the public `demo/app`, `demo/factory`, `demo/flue/src`,
+`demo/openshell`, `demo/deploy`, catalog/generator and test sources, explicit stack configuration,
+and offline examples. It does not analyze ignored `.local` state, credentials, model transcripts,
+databases, dependency directories or the separately owned product checkout. Read-only product
+mirrors remain outside this maintained runtime baseline. The working graph has a separate safe
+corpus and may inventory additional tracked source. A foundation-only graph is insufficient to
+claim coverage of the actual cockpit/worker/checker/publication engine.
+
 Commands: `python3 tools/architecture/tests/test_refresh.py` and the real refresh command above.
 Release/ship checks must wait for the exact merged SHA's analysis check. A rerun retries that
 same SHA; no automatic PR, message, spec rewrite, push, deploy or provider call is performed.

@@ -148,3 +148,62 @@ test('activity distinguishes a recorded queue request, worker and durable public
   context.fixture = ['queued','dispatched','pr_open','gated','cancelled','merged'].map(status => ({status}));
   assert.equal(run('activitySummary(fixture)'), '1 queued · 1 running · 2 publishing');
 });
+
+test('activity refresh keeps evidence open and restores focus only in its own list', () => {
+  const { context, run } = client();
+  let replacements = 0, focuses = 0;
+  const detail = { open: false };
+  const card = { dataset: { buildId: 'attempt-a' }, querySelector: (selector) =>
+    selector === 'details' ? detail : { focus: () => { focuses++; } } };
+  const active = { closest: () => card, matches: (selector) => selector === 'summary' };
+  const list = { contains: (node) => node === active,
+    querySelectorAll: (selector) => selector === '[data-build-id] details[open]' ? [{ closest: () => card }]
+      : selector === '[data-build-id]' ? [card] : [],
+    set innerHTML(value) { replacements++; detail.open = false; } };
+  context.document = { getElementById: () => list, activeElement: active };
+  run('updateBuildList("builds", "changed evidence")');
+  assert.equal(detail.open, true); assert.equal(focuses, 1);
+  run('updateBuildList("builds", "changed evidence")');
+  assert.equal(replacements, 1); assert.equal(focuses, 1);
+});
+
+test('old successful contracts stay historical and cannot imply current implementation', () => {
+  const { context, run } = client(); context.fixture = features;
+  run('state.catalog = fixture');
+  assert.equal(run('obsoleteProof({feature_id:"017",status:"baseline"})'), true);
+  assert.equal(run('obsoleteProof({feature_id:"001",status:"baseline"})'), false);
+  context.build = { feature_id:'017', build_id:'a'.repeat(32), status:'baseline' };
+  assert.match(run('buildCard(build)'), /Earlier contract/);
+  assert.match(run('buildCard(build)'), /does not certify the current MD/);
+});
+
+test('external product results and registered no-model preparation are visible', () => {
+  const { context, run } = client();
+  context.receipt = JSON.stringify({preparation:{preparation_kind:'registered_static_acceptance',
+    preparer_model:null,negative_control:'registered_foundation_startup_rejection'},
+    gate:{status:'failed',results:{prepared_product:{detail:{reason:'valid_database_less_startup_rejected'}}}}});
+  const html=run('receiptSummary(receipt)');
+  assert.match(html,/no model request/); assert.match(html,/registered startup contract/);
+  assert.match(html,/valid_database_less_startup_rejected/);
+});
+
+test('active work shows a stable stage without certifying draft checks as the final gate', () => {
+  const { context, run } = client();
+  context.build={status:'dispatched',receipt:JSON.stringify({preparation:{preparation_kind:'registered_static_acceptance'},
+    progress:{phase:'protected_check.started',detail:{model:'glm-5.3-flash'}}})};
+  assert.equal(run('buildStage(build)'),'building');
+  assert.match(run('stageProgress(build)'),/aria-current="step">Build/);
+  assert.match(run('stageProgress(build)'),/glm-5.3-flash/);
+  context.build.receipt=JSON.stringify({progress:{phase:'checking'}});
+  assert.equal(run('buildStage(build)'),'checking');
+  context.build.status='merged';
+  assert.equal(run('buildStage(build)'),'main');
+});
+
+test('no ready selection during active work explains progress rather than a global setup failure', () => {
+  const { run } = client();
+  run('state.builds=[{status:"dispatched"}]');
+  assert.match(run('executionNotice({mode:"live"},0)'),/A build is in progress/);
+  run('state.builds=[]');
+  assert.match(run('executionNotice({mode:"live"},0)'),/No new implementation can start/);
+});

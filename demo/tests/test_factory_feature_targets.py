@@ -8,7 +8,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from factory.api import FactoryApp
+from factory.api import FactoryApp,ApiError
 from factory.budget import DailyBudget
 from factory.dispatch import DispatchWorker
 from factory.execution import resolve
@@ -60,6 +60,33 @@ class FeatureTargetTests(unittest.TestCase):
         view = self.app.catalog_view(None)[1]
         self.assertEqual(view['execution']['target_features'], ['013', '017'])
         self.assertTrue(all(f['availability']['selectable'] for f in view['features']))
+
+    def test_expired_admission_pauses_an_unstarted_queue_and_recovers_without_restart(self):
+        fresh=[True];self.app.execution['admission_check']=lambda:fresh[0]
+        self.app.store.admit(['017'],'fresh-before-queue',self.app.catalog)
+        fresh[0]=False
+        view=self.app.catalog_view(None)[1]
+        self.assertEqual(view['execution']['hold_reason'],'flue_factory_unqualified')
+        self.assertFalse(any(f['availability']['selectable'] for f in view['features']))
+        self.assertIsNone(self.app.tick())
+        self.assertEqual(self.app.store.board()[0]['status'],'queued')
+        self.assertEqual(self.calls,[])
+        fresh[0]=True
+        self.app.tick()
+        self.assertEqual(self.app.store.board()[0]['status'],'simulated_complete')
+
+    def test_expired_admission_refuses_new_queue_and_revokes_active_model_authority(self):
+        fresh=[True];self.app.execution['admission_check']=lambda:fresh[0]
+        self.app.store.admit(['017'],'active-before-expiry',self.app.catalog)
+        build=self.app.store.claim_next(self.app.catalog)
+        self.assertTrue(self.app.worker._attempt_authorized(build))
+        fresh[0]=False
+        self.assertFalse(self.app.worker._attempt_authorized(build))
+        session=self.app.auth.login('fixture-only')
+        with self.assertRaises(ApiError) as raised:
+            self.app.queue('127.0.0.1:8088','http://127.0.0.1:8088',session,session['csrf'],
+                {'ids':['013'],'idempotency_key':'refuse-expired'})
+        self.assertEqual(raised.exception.code,'flue_factory_unqualified')
 
     def test_live_resolver_prepares_each_md_without_a_manual_target_profile(self):
         with mock.patch('factory.execution.provider_available', return_value=True), \

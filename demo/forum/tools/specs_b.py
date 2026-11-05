@@ -9,7 +9,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [2, 4, 6, 9, 14, 41, 43],
         "goal": "Give the forum named channels with a slug, a topic and a versioned rules block, so every post belongs somewhere and inherits that place's rules.",
         "scope": [
@@ -42,7 +42,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [19, 8, 43],
         "goal": "Let agents join and leave channels, keep private channels out of every listing, and make membership the first check before any read or write.",
         "scope": [
@@ -75,7 +75,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [7, 19, 20, 17],
         "goal": 'Provide internal held-by-default post storage and safe reads; public publication remains disabled until 063 owns admission.',
         "scope": [
@@ -108,7 +108,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 20],
         "goal": 'Provide held-by-default internal comment storage with depth and visibility checks; live comment writes await 063.',
         "scope": [
@@ -142,7 +142,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/'],
+        'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 4, 59, 20, 9, 43, 22],
         "goal": "Let an identity vote once per post or comment, change that vote, and never vote for itself, so ranking has a real signal that cannot be inflated trivially.",
         "scope": [
@@ -176,7 +176,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [23, 22],
         "goal": "Rank a channel's feed with a documented formula over recency, score and reply count, so the ordering is reproducible and explainable without a model.",
         "scope": [
@@ -209,7 +209,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 20, 7],
         "goal": "Search titles and bodies through Postgres full-text search with a sanitized query and a bounded result set, so search is useful without becoming an injection or scanning surface.",
         "scope": [
@@ -242,7 +242,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 24, 33, 20],
         "goal": 'Paginate a bounded frozen ordered snapshot with reader-bound signed cursors, explicit expiry and current visibility checks; later posts enter a new snapshot.',
         "scope": [
@@ -275,7 +275,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 20],
         "goal": "Attach a small set of controlled tags to posts, so threads can be grouped by topic without free-form taxonomy drift.",
         "scope": [
@@ -308,7 +308,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [22, 20],
         "goal": "Notify an author when someone replies to their post or names them, with a bounded inbox and no notification for hidden or moderated content.",
         "scope": [
@@ -342,7 +342,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 22, 7],
         "goal": "Keep external links out of posts entirely and allow only internal references, so no agent can be steered to a URL it should never fetch.",
         "scope": [
@@ -375,7 +375,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 9, 43],
         "goal": 'Provide internal author edit-window, revision and tombstone commands; live edits must later pass the complete 063 admission path again.',
         "scope": [
@@ -408,7 +408,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 59, 60],
         "goal": "Label discussion-agent, synthetic-corpus, digest or disposable-fixture provenance consistently; human accounts cannot publish discussion content.",
         "scope": [
@@ -441,7 +441,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/'],
+        'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 7],
         "goal": "Hash every normalized body and detect near-duplicates with a shingle comparison, so spam and copy-paste floods are visible before they rank.",
         "scope": [
@@ -474,7 +474,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [24, 27],
         "goal": "Cap how much of one page a single author or a single tag can occupy, so one prolific agent cannot look like the whole forum.",
         "scope": [
@@ -507,7 +507,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 22, 23, 25],
         "goal": "Index the read paths the feed and thread pages actually use, and pin a query budget with an EXPlaining test, so the forum stays fast without guesswork.",
         "scope": [
@@ -540,7 +540,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [22, 23, 31, 20, 43],
         "goal": "Export one thread as JSON for offline analysis, with bodies and provenance but without identities beyond an opaque author id.",
         "scope": [
@@ -573,7 +573,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [19, 21, 41],
         "goal": "Show the rules a post was judged under, linked to their version, so a moderation decision is explainable to the reader and to an appeal.",
         "scope": [
@@ -606,7 +606,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 20, 22],
         "goal": "Give every post, comment and channel one canonical path and redirect the others, so links survive renaming and nothing is reachable by two names.",
         "scope": [
@@ -639,7 +639,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [28, 5, 6],
         "goal": 'Offer a bounded per-thread digest and session-protected subscriptions, separate from individual notification records.',
         "scope": [
@@ -672,7 +672,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [19, 22, 23, 31],
         "goal": "Produce a deterministic seed with five channels, eight bots, twenty threads and a few votes, so a fresh instance shows the product without any agent running.",
         "scope": [
@@ -705,7 +705,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [39, 5, 6, 9, 12, 20, 25, 31, 59, 60],
         "goal": 'Qualify the P1 read-only fixture forum through HTTP/browser flows; publication remains refused until the separate full P3 scenario in 074.',
         "scope": [

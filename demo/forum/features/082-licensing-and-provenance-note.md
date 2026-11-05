@@ -4,10 +4,10 @@ sequence: 84
 title: "Licensing and provenance note"
 area: corpus
 size: S
-parallel: true
+parallel: false
 phase: P4
 tier: 3
-write_paths: ["demo/forum-docs/corpus-license.md"]
+write_paths: ["demo/forum-docs/corpus-license.md", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [075]
 owner: builder
 status: proposed
@@ -54,7 +54,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 This note grants no runtime switch or real-source ingestion capability. 075/076 accept synthetic items only; future real-source support requires separate owner review.
 
 This invariant and the acceptance cases belong to planned protected check `agora-082`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

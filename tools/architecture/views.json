@@ -3,89 +3,88 @@
     "schema_version": 1,
     "diagram_type": "architecture",
     "meta": {
-      "title": "AEion Observability - high level",
+      "title": "AEion Observability - factory trust boundaries",
       "output": "architecture.html",
       "quality_profile": "showcase"
     },
     "components": [
       {
-        "id": "knowledge",
+        "id": "catalog",
         "type": "external",
-        "label": "Knowledge and contracts",
-        "sublabel": "specs, policies, sources",
+        "label": "Ordered MD catalog",
+        "sublabel": "dependencies and literal scopes",
         "pos": [
           40,
           40
         ],
         "size": [
           190,
-          56
+          64
         ],
         "sources": [
           {
-            "path": "knowledge/index.md",
-            "anchor": "# Knowledge map"
-          }
-        ]
-      },
-      {
-        "id": "offline",
-        "type": "backend",
-        "label": "Offline examples",
-        "sublabel": "synthetic fixtures + unittest",
-        "pos": [
-          40,
-          160
-        ],
-        "size": [
-          190,
-          60
-        ],
-        "tag": "no service, no key",
-        "sources": [
-          {
-            "path": "examples/validate_fixtures.py",
-            "anchor": "def unique_pairs(items):"
-          }
-        ]
-      },
-      {
-        "id": "owner",
-        "type": "external",
-        "label": "Owner / operator",
-        "sublabel": "browser cockpit",
-        "pos": [
-          40,
-          300
-        ],
-        "size": [
-          130,
-          56
-        ],
-        "sources": [
-          {
-            "path": "AGENTS.md",
-            "anchor": "## Working rules"
+            "path": "demo/forum/features/README.md",
+            "anchor": "# Feature index"
           }
         ]
       },
       {
         "id": "cockpit",
         "type": "backend",
-        "label": "Host-native cockpit",
-        "sublabel": "demo/app: policy, lifecycle",
+        "label": "Authenticated cockpit",
+        "sublabel": "selection, stages and evidence",
         "pos": [
-          210,
-          294
+          280,
+          40
         ],
         "size": [
-          180,
-          68
+          190,
+          64
         ],
         "sources": [
           {
-            "path": "demo/app/server.py",
-            "anchor": "def report_paths():"
+            "path": "demo/factory/api.py",
+            "anchor": "class FactoryApp:"
+          }
+        ]
+      },
+      {
+        "id": "supervisor",
+        "type": "security",
+        "label": "Deterministic supervisor",
+        "sublabel": "leases, budgets and frozen tasks",
+        "pos": [
+          520,
+          40
+        ],
+        "size": [
+          190,
+          64
+        ],
+        "sources": [
+          {
+            "path": "demo/factory/dispatch.py",
+            "anchor": "class DispatchWorker:"
+          }
+        ]
+      },
+      {
+        "id": "worker",
+        "type": "backend",
+        "label": "Flue / Pi worker",
+        "sublabel": "OpenShell tier3; no host keys",
+        "pos": [
+          760,
+          40
+        ],
+        "size": [
+          190,
+          64
+        ],
+        "sources": [
+          {
+            "path": "demo/factory/flue_builder.py",
+            "anchor": "class FlueBuilder:"
           }
         ]
       },
@@ -93,16 +92,15 @@
         "id": "relay",
         "type": "security",
         "label": "Counting relay",
-        "sublabel": "admission + reservation",
+        "sublabel": "request, usage and budget controls",
         "pos": [
-          420,
-          298
+          1000,
+          40
         ],
         "size": [
-          150,
-          60
+          190,
+          64
         ],
-        "tag": "300k budget",
         "sources": [
           {
             "path": "demo/app/relay.py",
@@ -111,17 +109,17 @@
         ]
       },
       {
-        "id": "harness",
-        "type": "backend",
-        "label": "Flue + Pi harness",
-        "sublabel": "flue-openshell-v1",
+        "id": "provider",
+        "type": "cloud",
+        "label": "OpenCode Go",
+        "sublabel": "four authorized profiles",
         "pos": [
-          610,
-          298
+          1240,
+          40
         ],
         "size": [
-          160,
-          60
+          190,
+          64
         ],
         "sources": [
           {
@@ -131,57 +129,137 @@
         ]
       },
       {
-        "id": "tiers",
+        "id": "checker",
         "type": "security",
-        "label": "Execution tiers",
-        "sublabel": "triage / local / OpenShell",
+        "label": "Protected product checks",
+        "sublabel": "separate app and verifier",
         "pos": [
-          610,
-          420
+          40,
+          250
         ],
         "size": [
-          160,
-          60
+          190,
+          64
         ],
         "sources": [
           {
-            "path": "demo/app/policy.py",
-            "anchor": "def gate_value(usage, cumulative, metric):"
+            "path": "demo/factory/product_checks.py",
+            "anchor": "class ProductCheckRunner("
           }
         ]
       },
       {
-        "id": "provider",
-        "type": "cloud",
-        "label": "Inference provider",
-        "sublabel": "OpenRouter / DeepInfra / CLI",
+        "id": "review",
+        "type": "security",
+        "label": "Two independent votes",
+        "sublabel": "exclude author/preparer families",
         "pos": [
-          830,
-          294
+          280,
+          250
         ],
         "size": [
-          170,
-          60
+          190,
+          64
         ],
         "sources": [
           {
-            "path": "knowledge/references/provider-capabilities.md",
-            "anchor": "# Provider and harness capabilities"
+            "path": "demo/factory/flue_review.py",
+            "anchor": "class FlueReview:"
+          }
+        ]
+      },
+      {
+        "id": "publication",
+        "type": "security",
+        "label": "Publication coordinator",
+        "sublabel": "publisher and release roles",
+        "pos": [
+          520,
+          250
+        ],
+        "size": [
+          190,
+          64
+        ],
+        "sources": [
+          {
+            "path": "demo/factory/publication.py",
+            "anchor": "class PublicationCoordinator:"
+          }
+        ]
+      },
+      {
+        "id": "github",
+        "type": "cloud",
+        "label": "Product GitHub",
+        "sublabel": "PR, exact-head CI, confirmed main",
+        "pos": [
+          760,
+          250
+        ],
+        "size": [
+          190,
+          64
+        ],
+        "sources": [
+          {
+            "path": "demo/factory/github.py",
+            "anchor": "class GitHubForge:"
+          }
+        ]
+      },
+      {
+        "id": "routing",
+        "type": "backend",
+        "label": "Measured model routing",
+        "sublabel": "persistent comparable cohorts",
+        "pos": [
+          1000,
+          250
+        ],
+        "size": [
+          190,
+          64
+        ],
+        "sources": [
+          {
+            "path": "demo/factory/routing.py",
+            "anchor": "class OutcomeTelemetry("
+          }
+        ]
+      },
+      {
+        "id": "memory",
+        "type": "database",
+        "label": "Advisory memory",
+        "sublabel": "claude-mem and Hindsight",
+        "pos": [
+          1240,
+          250
+        ],
+        "size": [
+          190,
+          64
+        ],
+        "sources": [
+          {
+            "path": "demo/app/memory.py",
+            "anchor": "class Memory:"
           }
         ]
       },
       {
         "id": "observer",
         "type": "backend",
-        "label": "Metadata-only observer",
-        "sublabel": "telemetry.py",
+        "label": "Content-free diagnostics",
+        "sublabel": "role, request and tool metadata",
         "pos": [
-          420,
-          430
+          40,
+          460
         ],
         "size": [
-          160,
-          56
+          190,
+          64
         ],
         "sources": [
           {
@@ -192,21 +270,21 @@
       },
       {
         "id": "collector",
-        "type": "backend",
+        "type": "security",
         "label": "OTel collector",
-        "sublabel": "otel-collector.yaml",
+        "sublabel": "bounded privacy allowlist",
         "pos": [
-          210,
-          540
+          280,
+          460
         ],
         "size": [
-          160,
-          56
+          190,
+          64
         ],
         "sources": [
           {
             "path": "demo/otel-collector.yaml",
-            "anchor": "extensions: [health_check]"
+            "anchor": "  transform/privacy:"
           }
         ]
       },
@@ -214,14 +292,14 @@
         "id": "langfuse",
         "type": "database",
         "label": "Langfuse",
-        "sublabel": "web + worker",
+        "sublabel": "web, worker and observations",
         "pos": [
-          420,
-          540
+          520,
+          460
         ],
         "size": [
-          150,
-          56
+          190,
+          64
         ],
         "sources": [
           {
@@ -231,23 +309,22 @@
         ]
       },
       {
-        "id": "stores",
-        "type": "database",
-        "label": "Postgres / ClickHouse / MinIO",
-        "sublabel": "traces and objects",
+        "id": "knowledge",
+        "type": "external",
+        "label": "Knowledge and tests",
+        "sublabel": "intent and regression evidence",
         "pos": [
-          610,
-          540
+          760,
+          460
         ],
         "size": [
           190,
-          56
+          64
         ],
-        "tag": "Redis queue",
         "sources": [
           {
-            "path": "demo/compose.yaml",
-            "anchor": "  clickhouse: {condition: service_healthy}"
+            "path": "knowledge/index.md",
+            "anchor": "# Knowledge map"
           }
         ]
       }
@@ -255,108 +332,129 @@
     "boundaries": [
       {
         "kind": "security-group",
-        "label": "Local Docker pilot (opt-in)",
+        "label": "Isolated untrusted worker",
+        "wraps": [
+          "worker"
+        ]
+      },
+      {
+        "kind": "security-group",
+        "label": "Local telemetry stack",
         "wraps": [
           "collector",
-          "langfuse",
-          "stores"
+          "langfuse"
         ]
       }
     ],
     "connections": [
       {
-        "id": "owner-cockpit",
-        "from": "owner",
+        "id": "catalog-cockpit",
+        "from": "catalog",
         "to": "cockpit",
-        "label": "task",
-        "variant": "emphasis"
+        "label": "select"
       },
       {
-        "id": "cockpit-relay",
+        "id": "cockpit-supervisor",
         "from": "cockpit",
-        "to": "relay",
+        "to": "supervisor",
         "label": "admit"
+      },
+      {
+        "id": "supervisor-worker",
+        "from": "supervisor",
+        "to": "worker",
+        "label": "frozen task"
+      },
+      {
+        "id": "worker-relay",
+        "from": "worker",
+        "to": "relay",
+        "label": "inference"
       },
       {
         "id": "relay-provider",
         "from": "relay",
         "to": "provider",
-        "label": "forwarded request"
+        "label": "authorized request"
       },
       {
-        "id": "relay-harness",
-        "from": "relay",
-        "to": "harness",
-        "label": "request"
+        "id": "worker-checker",
+        "from": "worker",
+        "to": "checker",
+        "label": "candidate export"
       },
       {
-        "id": "harness-tiers",
-        "from": "harness",
-        "to": "tiers",
-        "label": "dispatch"
+        "id": "checker-review",
+        "from": "checker",
+        "to": "review",
+        "label": "verified artifact"
       },
       {
-        "id": "harness-observer",
-        "from": "harness",
+        "id": "review-publication",
+        "from": "review",
+        "to": "publication",
+        "label": "two approvals"
+      },
+      {
+        "id": "publication-github",
+        "from": "publication",
+        "to": "github",
+        "label": "PR / CI / main"
+      },
+      {
+        "id": "supervisor-routing",
+        "from": "supervisor",
+        "to": "routing",
+        "label": "measured outcomes"
+      },
+      {
+        "id": "worker-memory",
+        "from": "worker",
+        "to": "memory",
+        "label": "advisory checkpoint"
+      },
+      {
+        "id": "worker-observer",
+        "from": "worker",
         "to": "observer",
-        "label": "events, usage",
-        "variant": "dashed"
+        "label": "bounded events"
       },
       {
         "id": "observer-collector",
         "from": "observer",
         "to": "collector",
-        "label": "OTLP metadata",
-        "variant": "dashed"
+        "label": "OTLP metadata"
       },
       {
         "id": "collector-langfuse",
         "from": "collector",
         "to": "langfuse",
-        "label": "traces"
-      },
-      {
-        "id": "langfuse-stores",
-        "from": "langfuse",
-        "to": "stores",
-        "label": "persist"
-      },
-      {
-        "id": "offline-knowledge",
-        "from": "offline",
-        "to": "knowledge",
-        "label": "evidence",
-        "variant": "dashed",
-        "fromSide": "top",
-        "toSide": "bottom"
+        "label": "store observations"
       }
     ],
     "cards": [
       {
         "dot": "emerald",
-        "title": "What it optimizes",
+        "title": "Task lifecycle",
         "items": [
-          "cost per verified autonomous success",
-          "elapsed time and corrective work",
-          "bounded recommendations inside fixed authority"
+          "Prerequisites unlock after integration on main",
+          "Deterministic checks and isolated roles control publication"
         ]
       },
       {
-        "dot": "cyan",
-        "title": "What it refuses",
+        "dot": "rose",
+        "title": "Security boundary",
         "items": [
-          "raw prompts or secrets in default telemetry",
-          "widening OPS/CROA permissions or removing review gates",
-          "synthetic examples reported as measured gains"
+          "No host mounts, credentials, socket or free egress in workers",
+          "Default telemetry excludes prompts, code and tool payloads"
         ]
       },
       {
         "dot": "amber",
         "title": "Evidence limits",
         "items": [
-          "40-attempt OpenShell matrix: synthetic, real CLI calls",
-          "Flue + Pi harness qualified with fake inference only",
-          "no paid Flue campaign yet"
+          "Scripted qualification proves mechanisms, not product delivery",
+          "Only a current-contract real merge certifies completion"
         ]
       }
     ]

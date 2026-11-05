@@ -102,7 +102,8 @@ class FactorySession(Runner):
         if error:
             code = str(error)
             run['failure'] = code if re.fullmatch(r'[A-Z][A-Z0-9_]{1,63}', code) else type(error).__name__
-        self.event(run, 'task.failed' if error else 'task.passed')
+        self.event(run, 'task.failed' if error else 'task.passed',
+                   **({'aeion.failure.code':run['failure']} if error else {}))
         measured = usage(run)
         run['usage_complete'] = measured['complete']
         check = self.last_check
@@ -133,4 +134,28 @@ class FactorySession(Runner):
                 'sessions': len(run['sessions']), 'trace_id': run.get('trace_id'),
                 'session_id': run['langfuse_session_id'], 'forwarded_count': run.get('forwarded_count', 0),
                 'failure': run.get('failure'), 'finish_reason':run.get('last_finish_reason'),
+                'process_exit_code':run.get('cli_exit_code'), 'cli_steps':run.get('cli_steps'),
+                'retained_files_count':run.get('retained_files_count'),
+                'retained_artifact_digest':run.get('retained_artifact_digest'),
                 'reasoning_effort':run.get('inference_effort','default'), 'memory':memories}
+
+    def end_span(self, span, run, error=None):
+        """Close a role with its actual outcome, without automatic exception/content capture."""
+        try:
+            measured=usage(run)
+            for key,value in {'role':run['factory_role'],'runtime':run['runtime'],'run_id':run['id'],
+                    'usage_complete':measured['complete'],'forwarded_count':run.get('forwarded_count',0),
+                    'process_exit_code':run.get('cli_exit_code'),'cli_steps':run.get('cli_steps'),
+                    'accounting_basis':measured['basis']}.items():
+                if value is not None:span.set_attribute('langfuse.observation.metadata.'+key,value)
+            if measured['complete']:
+                span.set_attribute('langfuse.observation.metadata.measured_cost_usd',measured['cost_usd'])
+            if error:
+                from opentelemetry.trace import Status, StatusCode
+                code=run.get('failure','ROLE_FAILED')
+                span.set_attribute('langfuse.observation.level','ERROR')
+                span.set_attribute('langfuse.observation.status_message',code)
+                if hasattr(span,'set_status'):span.set_status(Status(StatusCode.ERROR,code))
+            span.end()
+        finally:
+            self.telemetry.provider.shutdown()

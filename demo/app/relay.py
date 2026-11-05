@@ -27,7 +27,10 @@ from json_input import loads
 class ContextRelay:
     def __init__(self, model, api_key, limit, checkpoint, event, *, upstream=None, counter=None, bind=None, admission=None,
                  api='openai-completions', prices=None, cost_limit=None, required_effort=None,max_output_tokens=4096,
-                 required_reasoning_effort=None):
+                 required_reasoning_effort=None, max_requests=12):
+        if type(max_requests) is not int or not 1<=max_requests<=200:
+            raise ValueError('STEP_LIMIT_INVALID')
+        self.max_requests=max_requests
         if type(max_output_tokens) is not int or not 1 <= max_output_tokens <= 65536:
             raise ValueError('OUTPUT_LIMIT_INVALID')
         self.max_output_tokens=max_output_tokens
@@ -131,7 +134,7 @@ class ContextRelay:
                                                        "aeion.context.reserve": PROVIDER_RESERVE,
                                                        "aeion.context.max_output": maximum,
                                                        "aeion.context.tokenizer_revision": getattr(relay.counter, "revision", "fixture")})
-                    if relay.forwarded_count >= 12:
+                    if relay.forwarded_count >= relay.max_requests:
                         relay.closed = True
                         relay.last_error_code = "STEP_LIMIT"
                         relay.event("context.refused", **{"aeion.failure.code": "STEP_LIMIT"})

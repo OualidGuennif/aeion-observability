@@ -9,14 +9,15 @@ import json
 from .models import Telemetry, known
 from app.profiles import PROFILE_VERSION
 
-METHOD = 'flue-factory-routing-v2'
+METHOD = 'flue-factory-routing-v3'
 
 
-def cohort_for(feature, check_profile, runtime='flue-openshell'):
+def cohort_for(feature, check_profile, runtime='flue-openshell', execution_bounds=None):
     """Only maintainer-controlled task metadata defines a comparable cohort."""
     fields = {'method': METHOD, 'area': feature['area'], 'size': feature['size'],
               'architecture': feature.get('architecture_digest', 'legacy'),
               'check': check_profile, 'runtime': runtime, 'profile_version':PROFILE_VERSION}
+    if execution_bounds is not None:fields['execution_bounds']=execution_bounds
     return hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()
 
 

@@ -13,7 +13,9 @@ Part of the modular [Æion SpaceShip framework](https://github.com/OualidGuennif
 [SpaceShip](https://github.com/OualidGuennif/aeion-spaceship).
 See the [module comparison and examples](https://github.com/OualidGuennif/aeion-spaceship/blob/main/docs/modules.md).
 
-**Research and framework proposal — checked 2026-10-23.**
+**Sourced framework and opt-in local factory.** Current delivery status:
+[work/current.md](work/current.md). Research proposals and dated experiments remain separate
+from the implemented runtime and its actual product results.
 
 Observe complete coding-agent tasks, connect their execution to verified outcomes, and use
 that evidence to choose models, providers and inference settings. Optimize **cost, elapsed
@@ -23,8 +25,10 @@ This folder contains a sourced design, offline examples and an opt-in [local dem
 with Langfuse, OpenTelemetry, Hindsight, claude-mem and Flue + Pi agents in three execution tiers
 (in-memory triage, folder-confined local assistant, autonomous coding whose tools run only in
 NVIDIA OpenShell), supervised by a host-native cockpit. The offline examples need no service or
-key. The demo operates on five frozen synthetic task contracts; no cost or quality improvement has been
-measured on representative Æion workloads.
+key. The historical model lab uses five frozen synthetic task contracts. The feature cockpit
+uses a separate [100-MD product catalog](demo/forum/features/README.md), Flue/Pi tier3 workers,
+external product checks, two independent reviewer families and protected PR/CI/main publication.
+No cost or quality improvement has been measured on representative Æion workloads.
 
 ## Run the local demo
 
@@ -40,7 +44,18 @@ retained CLI failures and $0.368068181 in native estimates. It also records four
 readbacks, a measured Auto build and the synthetic 250k handover. These small synthetic
 contracts with real CLI calls do not establish general model superiority or invoice costs.
 That matrix used the earlier OpenCode CLI harness (`openshell-go-v5`); the current Flue + Pi
-harness (`flue-openshell-v1`) is qualified with fake inference only and has no paid campaign yet.
+harness uses `flue-openshell-v4`. Native execution mechanisms are qualified with local scripted
+inference. Real product attempts and reviews have separate receipts and measured usage; neither
+those small samples nor the historical matrix establish general model superiority.
+
+Open [the feature cockpit](http://127.0.0.1:8088/factory), sign in with the private local token,
+select a **Ready** specification and queue it. **Waiting for prerequisites** means the named
+dependencies must first satisfy their current contracts and be integrated on product main.
+This is a dependency graph, not a rule that every MD needs its immediately preceding number.
+Implemented and active features stay locked. A global pause has a separate execution reason.
+The factory prepares executable acceptance automatically; the owner does not provision a new
+repository or worker for every MD. See the [runbook](demo/README.md) and
+[cockpit contract](knowledge/components/operator-cockpit.md) for stages and evidence.
 
 ## Try the offline example
 
@@ -139,9 +154,10 @@ tooling into a research folder. It proposes interfaces callable by Factory and c
 events; it does not modify those projects. [Original Æion material is MIT licensed](LICENSE).
 Upstream software, documentation and papers retain their own licenses; see [credits](CREDITS.md).
 
-This repository publishes the framework, research, offline examples and a local Docker pilot.
-Production runtime qualification and a routing controller remain subsequent work.
+This repository publishes the framework, research, offline examples and a local Docker pilot
+with an implemented factory supervisor and persistent outcome routing. PostgreSQL/React product
+delivery, demo deployment and operational readiness are tracked independently in current work.
 
 Document/link checks, source fingerprints, example calculations and consistency checks are
-recorded in the [research validation record](work/validation.md). Runtime qualification remains
-the separate planned work described above.
+recorded in the [validation record](work/validation.md). Tests, scripted native qualification,
+real model attempts, protected merges and deployment readbacks remain distinct evidence.

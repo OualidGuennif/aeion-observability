@@ -73,6 +73,7 @@ class DispatchWorker:
         self.budget_scope = budget_scope
         self.allow_unbudgeted = bool(allow_unbudgeted)
         self.startup_hold = startup_hold
+        self.admission_check = None
         self.paid = bool(getattr(builder, "paid", False))
         self.last_usage = None
         if checks is not None:
@@ -102,6 +103,7 @@ class DispatchWorker:
         self.preparation_evidence = None
         self.author_routing = None
         self.author_ms = None
+        self.started_build_ns = None
         # A real forge is only reachable once two independent models have approved the diff.
         self.defer_to = defer_to
         # No agent holds a GitHub key: when a gateway is configured, every attempt gets its own
@@ -162,6 +164,7 @@ class DispatchWorker:
             "contract_digest": frozen.contract_digest,
             "spec_digest": frozen.spec_digest,
             "acceptance_digest": frozen.acceptance_digest,
+            "dependency_changes": frozen.dependency_changes,
             "preparation": self.preparation_evidence,
             "preparation_execution": preparation_execution,
             "base_sha": base_sha,
@@ -174,6 +177,14 @@ class DispatchWorker:
         if self.store.record_progress(build['attempt_id'], build['attempt_generation'], phase, detail or {}):
             if self.progress:
                 self.progress(build['build_id'], phase)
+
+    def _attempt_authorized(self, build):
+        if self.admission_check is not None:
+            try:
+                if self.admission_check() is not True:return False
+            except Exception:return False
+        return self.catalog.matches_contract(build) and self.store.attempt_authorized(
+            build['attempt_id'],build['attempt_generation'])
 
     def _record_author(self, build):
         """Quality here means the bound artifact checks/reviews, not deployment success."""
@@ -203,11 +214,18 @@ class DispatchWorker:
         if self.telemetry is None:
             return {"status": "disabled"}
         try:
+            execution=getattr(self.builder,'last_execution',None) or {}
+            if execution.get('build_id')!=build['build_id']:execution={}
+            diagnostic={**execution,'failure_code':execution.get('failure'),
+                'execution_trace_id':execution.get('trace_id'),'phase':'building' if (gate or {}).get('status')=='builder_error' else 'checking'}
+            if execution.get('failure')=='CLI_STARTUP_FAILED':diagnostic['phase']='startup'
             evidence = self.telemetry.emit(
                 build_id=build["build_id"], feature_id=feature["id"],
                 attempt_id=build["attempt_id"], artifact_digest=verdict.get("digest"),
                 base_sha=base_sha, gate_status=(gate or {}).get("status"),
                 publisher_decision=(decision or {}).get("decision"), synthetic=not self.paid,
+                duration_ms=max(0,(time.time_ns()-self.started_build_ns)//1000000) if self.started_build_ns else None,
+                diagnostics=diagnostic,
             )
         except Exception as exc:  # noqa: BLE001 - observability is not a gate
             return {"status": "unavailable", "reason": type(exc).__name__}
@@ -275,16 +293,24 @@ class DispatchWorker:
         build = self.store.claim_next(self.catalog, lease_ns=lease_ns)
         if build is None:
             return None
+        self.started_build_ns = time.time_ns()
         self.author_routing, self.author_ms = None, None
         self.preparation_evidence = None
         for role in (self.builder, self.review_complete):
             if role is not None and hasattr(role, 'authorization_check'):
-                role.authorization_check = lambda: self.catalog.matches_contract(build) and self.store.attempt_authorized(
-                    build['attempt_id'], build['attempt_generation'])
+                role.authorization_check = lambda: self._attempt_authorized(build)
         feature = self.catalog.by_id[build['feature_id']]
         selected_target = (self.targets or {}).get(feature['id']) or self.target
         cohort = cohort_for(feature, selected_target.protected_check.id if selected_target else
-                            'prepared_gradle' if self.preparer is not None else 'fixture')
+                            'prepared_product' if getattr(self.preparer,'product',False) else
+                            'prepared_gradle' if self.preparer is not None else 'fixture',
+            execution_bounds={key:value for key,value in {
+                'step_cap':self.config.get('step_cap'),'deadline_ns':self.config.get('deadline_ns'),
+                'context_limit':self.config.get('context_limit'),
+                'author_output_tokens':getattr(self.builder,'max_output_tokens',None),
+                'author_seconds':author_seconds,'review_seconds':review_seconds,
+                'preparation_seconds':preparation_seconds}.items() if type(value) is int or value is None}
+                | {'cost_reservation_usd':str(self.config.get('cost_reservation_usd','unknown'))})
         self.router = Router(OutcomeTelemetry(self.store, cohort, build['attempt_id'],
             synthetic=not (self.paid and getattr(self.builder, 'engine', None) == 'flue-pi')))
         if self.startup_hold:
@@ -299,24 +325,26 @@ class DispatchWorker:
         prepared_target = None
         if self.preparer is not None:
             self._progress(build,'preparing')
+            self.preparer.role.progress = lambda phase, detail=None: self._progress(build,phase,detail)
             started=time.monotonic()
             try:
                 prepared_target,self.preparation_evidence=self.preparer.prepare(
                     build=build,catalog=self.catalog,spec_dir=self.spec_dir,
                     destination=self.work_root / build['build_id'] / 'prepared',budget=self.budget,
-                    router=self.router,authorized=lambda:self.catalog.matches_contract(build) and self.store.attempt_authorized(
-                        build['attempt_id'],build['attempt_generation']))
+                    router=self.router,authorized=lambda:self._attempt_authorized(build))
                 if not self.store.record_preparation(build['attempt_id'],build['attempt_generation'],self.preparation_evidence):
                     return {'build_id':build['build_id'],'result':{'status':'stale_attempt'}}
             except (PreparationError,TargetError,BudgetError) as error:
                 self.store.hold_dispatched(build['build_id'],'preparation_unavailable',receipt={
                     'build_id':build['build_id'],'attempt_id':build['attempt_id'],
-                    'reason':str(error) if isinstance(error,PreparationError) else 'preparation_infrastructure_unavailable'})
+                    'reason':str(error) if isinstance(error,PreparationError) else 'preparation_infrastructure_unavailable',
+                    'preparation_execution':getattr(self.preparer.role,'last_execution',None)})
                 return {'build_id':build['build_id'],'result':{'status':'held','reason':'preparation_unavailable'}}
             except Exception as error:
                 self.store.hold_dispatched(build['build_id'],'preparation_unavailable',receipt={
                     'build_id':build['build_id'],'attempt_id':build['attempt_id'],
-                    'reason':'preparation_failed','error_type':type(error).__name__})
+                    'reason':'preparation_failed','error_type':type(error).__name__,
+                    'preparation_execution':getattr(self.preparer.role,'last_execution',None)})
                 return {'build_id':build['build_id'],'result':{'status':'held','reason':'preparation_unavailable'}}
             finally:
                 role=self.preparer.role
@@ -324,7 +352,8 @@ class DispatchWorker:
                 if getattr(role,'paid',False) and execution.get('forwarded_count') and self.preparer.last_model:
                     measured=getattr(role,'last_usage',None) or {}
                     self.router.telemetry.record(self.preparer.last_model,'prepare',
-                        'passed' if self.preparation_evidence is not None else 'unknown',
+                        'passed' if self.preparation_evidence is not None else
+                        'error' if measured.get('complete') is True else 'unknown',
                         latency_ms=int((time.monotonic()-started)*1000),
                         cost_usd=measured.get('cost_usd') if measured.get('complete') is True else None)
             if hasattr(self.builder,'preparer_model'):
@@ -467,7 +496,9 @@ class DispatchWorker:
                 repo = self.work_root / build["build_id"] / "repo"
                 base_sha = target.materialize(repo)
             frozen = freeze_build(
-                build, self.catalog, self.spec_dir, base_sha, self.config,
+                build, self.catalog, self.spec_dir, base_sha,
+                {**self.config, **({'dependency_changes':dict(target.dependency_changes)}
+                    if target is not None and target.dependency_changes else {})},
                 write_scopes=target.write_paths if target is not None else None,
                 spec_path=target.brief if target is not None else None,
                 acceptance_path=target.protected_check.contract_test if target is not None else None,
@@ -514,11 +545,10 @@ class DispatchWorker:
             self._take_builder_state()
             result = self.store.complete_attempt(
                 build["attempt_id"], build["attempt_generation"],
-                {"simulated": not self.paid, "author_model": self.author_model if self.paid else None,
-                 "build_id": build["build_id"], "feature_id": feature["id"],
-                 "attempt_id": build["attempt_id"],
+                {**self._identity(build,feature,frozen,base_sha,{}),
                  "reason": "builder_error", "detail": type(exc).__name__,
-                 "error": str(exc) if isinstance(exc, BuilderError) else None,
+                 "error": (getattr(self.builder,'last_execution',None) or {}).get('failure')
+                    or (str(exc) if isinstance(exc, BuilderError) else type(exc).__name__),
                  "telemetry": self._telemetry_evidence(
                      build, feature, frozen, base_sha, {}, {"status": "builder_error"}, None)},
                 terminal=FAILED,

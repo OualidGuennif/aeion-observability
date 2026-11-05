@@ -3,6 +3,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import threading
@@ -21,8 +22,9 @@ from .flue_session import FactorySession, SESSION_TIMEOUT_SECONDS, new_run, usag
 from sandbox import MAX_SYNC_BYTES, SANDBOX_OUT, Sandbox, materialize
 
 SOURCE_PREFIX = 'demo/forum-app/'
-SOURCE_PREFIXES = (SOURCE_PREFIX, 'demo/forum-docs/')
-SOURCE_SUFFIXES = {'.java', '.properties', '.gradle', '.sql', '.txt', '.md', '.json', '.yaml', '.yml'}
+SOURCE_PREFIXES = (SOURCE_PREFIX, 'demo/forum-docs/', 'demo/forum-web/', 'knowledge/components/')
+SOURCE_SUFFIXES = {'.java', '.properties', '.gradle', '.sql', '.txt', '.md', '.json', '.yaml', '.yml',
+                   '.ts', '.tsx', '.js', '.jsx', '.css', '.html', '.svg'}
 MAX_CHECKS = 3
 
 
@@ -71,13 +73,23 @@ def scoped_changes(collected, seeded, scopes, repo, protected=()):
              if seeded.get(name) != value]
     if not files:
         return {}
-    return parse_files({'files': files}, scopes, repo=repo)
+    accepted = parse_files({'files': files}, scopes, repo=repo)
+    # Existing ignore rules can hide files too: an exported .env could influence a build
+    # while disappearing from git diff and the review packet. Check before any host write.
+    ignored = subprocess.run(['git', '-C', str(repo), 'check-ignore', '-z', '--stdin'],
+        input=b'\0'.join(name.encode() for name in accepted) + b'\0', capture_output=True)
+    if ignored.returncode == 0:
+        raise BuilderError('builder_ignored_path')
+    if ignored.returncode != 1:
+        raise BuilderError('builder_ignored_path_check_unavailable')
+    return accepted
 
 
 class FlueBuilder:
     engine = 'flue-pi'
     paid = True
     timeout_seconds = SESSION_TIMEOUT_SECONDS
+    max_output_tokens = 65536
 
     def __init__(self, root, targets, model=None, check_sandbox=None):
         self.root, self.targets = Path(root), targets
@@ -103,25 +115,35 @@ class FlueBuilder:
             brief_text = read_preparation_text(brief,12000)
         except PreparationError:
             raise BuilderError('builder_brief_unavailable') from None
+        for name, source in target.seed_files:
+            seeded[name] = Path(source).read_bytes()
+        acceptance_name = 'FROZEN_ACCEPTANCE' + target.protected_check.contract_test.suffix
+        seeded[acceptance_name] = target.protected_check.contract_test.read_bytes()
         prompt = (brief_text + '\n\n' +
                   'Use the file and shell tools in your private OpenShell workspace. '
                   'Read the existing source before editing. The supervisor owns Git and publication; '
                   'apply only scoped file changes. Do not edit the test harness or external contract. '
                   'Use run_protected_checks for independent feedback and fix failures before stopping.\n'
+                  'Read ' + acceptance_name + ' for the frozen acceptance/API contract. This file is read-only.\n'
                   'Write scopes: ' + json.dumps(frozen.write_scopes))
+        if callable(getattr(self.check_sandbox, 'instructions', None)):
+            prompt += '\nFROZEN BUILD PROTOCOL:\n' + self.check_sandbox.instructions(target)
         if len(prompt.encode()) > 16000:
             raise BuilderError('brief_too_large')
         run = new_run(self.model, build['build_id'], 'author', frozen.cost_reservation_usd, synthetic=not self.paid)
         run['task_id'] = 'factory-' + feature['id']
         run['limit'] = min(250000, frozen.context_limit)
         run['step_cap'] = frozen.step_cap
+        run['max_output_tokens'] = self.max_output_tokens
         runtime = FactorySession(run, progress)
         runtime.authorization_check = self.authorization_check
         span = runtime.telemetry.begin(run)
         check_lock, cache = threading.Lock(), {}
-        protected = (target.protected_check.contract_destination,
-                     SOURCE_PREFIX + 'src/test/java/local/aeion/forum/QuarkusTestDatabase.java',
-                     SOURCE_PREFIX + 'src/test/java/local/aeion/forum/EphemeralDatabase.java')
+        protected = (target.protected_check.contract_destination, acceptance_name,
+                     *(name for name, _ in target.seed_files))
+        if target.protected_check.id != 'prepared_product':
+            protected += (SOURCE_PREFIX + 'src/test/java/local/aeion/forum/QuarkusTestDatabase.java',
+                          SOURCE_PREFIX + 'src/test/java/local/aeion/forum/EphemeralDatabase.java')
         deadline = time.monotonic() + min(self.timeout_seconds, frozen.deadline_ns / 1_000_000_000)
         run['factory_deadline'] = deadline
         checker = self.check_sandbox or DockerCheckRunner(self.root)
@@ -164,6 +186,8 @@ class FlueBuilder:
                         timeout_seconds=min(target.protected_check.timeout_seconds, max(1, int(deadline - time.monotonic())))))
                     passed, detail = target_check(bounded, work_root=folder, sandbox=checker)(None, {'repo': str(check_repo)})
                 result = {'status': 'passed' if passed else 'failed', 'artifact_digest': digest,
+                          'reason':detail.get('reason') if isinstance(detail.get('reason'),str)
+                            and re.fullmatch('[a-z][a-z0-9_]{1,95}',detail['reason']) else 'check_failed',
                           'returncode': detail.get('returncode'), 'compiler_errors': detail.get('compiler_errors', []),
                           'failed_tests': detail.get('failed_tests', [])}
                 cache[digest] = runtime.last_check = result
@@ -184,7 +208,8 @@ class FlueBuilder:
                 try:
                     current = dict(seeded)
                     for name in frozen.write_scopes:
-                        for path in (repo / name).rglob('*'):
+                        source = repo / name
+                        for path in ([source] if source.is_file() else source.rglob('*')):
                             if path.is_file() and not path.is_symlink() and '.git' not in path.parts:
                                 current[path.relative_to(repo).as_posix()] = path.read_bytes()
                     box.seed_in({'workspace/' + name: data for name, data in current.items()})
@@ -202,6 +227,16 @@ class FlueBuilder:
                     handover = run.get('handover')
                     if not handover:
                         raise BuilderError('HANDOVER_NOT_READY')
+                except Exception:
+                    # Preserve validated partial work before retiring its isolated sandbox.
+                    # A refused/unknown export never becomes a patch or masks the real failure.
+                    try:
+                        retained=snapshot()
+                        run['retained_files_count']=len(retained)
+                        run['retained_artifact_digest']=content_digest(retained) if retained else None
+                    except Exception:
+                        run['retained_export']='unavailable'
+                    raise
                 finally:
                     runtime.active_sandbox = None
                     box.close()
@@ -214,5 +249,4 @@ class FlueBuilder:
             try:
                 self.last_execution = runtime.finish(run, error)
             finally:
-                span.end()
-                runtime.telemetry.provider.shutdown()
+                runtime.end_span(span,run,error)

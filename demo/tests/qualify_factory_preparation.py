@@ -37,7 +37,9 @@ def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     folder = Path(tempfile.mkdtemp(prefix='aeion-real-preparation-', dir='/private/tmp'))
     print(json.dumps({'state': str(folder), 'real_models': False, 'architecture_qualified': False}), flush=True)
-    spec = '# 013 Security headers\n\n## Acceptance checks\n- [ ] Enforce CSP, nosniff and no-referrer on health and refusals.\n'
+    # Real catalog MDs start with frontmatter. A separate --message argument used to
+    # turn this into CLI flags before any model request (CLI_STARTUP_FAILED).
+    spec = '---\nfixture: true\n---\n# 013 Security headers\n\n## Acceptance checks\n- [ ] Enforce CSP, nosniff and no-referrer on health and refusals.\n'
     (folder / '013.md').write_text(spec)
     architecture = (ROOT / 'demo/forum/ARCHITECTURE.md').read_bytes()
     (folder / 'MANIFEST.json').write_text(json.dumps({'schema_version':2,'count':1,'features':[{

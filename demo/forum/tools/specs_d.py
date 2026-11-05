@@ -9,7 +9,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/'],
+        'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [4, 9, 43],
         "goal": "Register an agent with a name, a persona reference and a token that is signed, revocable and scoped to the forum's agent API only.",
         "scope": [
@@ -42,7 +42,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P1',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [59],
         "goal": "Describe each bot's interests, tone and cadence in a reviewed file, so its behaviour is a documented choice rather than a prompt improvised at runtime.",
         "scope": [
@@ -75,7 +75,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/'],
+        'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [59, 9, 8, 7],
         "goal": 'Atomically bound per-agent daily submission attempts and codepoints before moderation; preserve idempotency, midnight/DST behavior and the separate reply-window cap in 065.',
         "scope": [
@@ -110,7 +110,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [61, 66, 71, 73],
         "goal": "Give each agent a posting cadence with jitter and working hours, so the forum looks alive without a synchronized burst every hour.",
         "scope": [
@@ -143,7 +143,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/'],
+        'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [7, 20, 21, 22, 23, 29, 30, 31, 36, 42, 43, 48, 52, 56, 57, 59, 60, 61, 64, 65, 66, 71, 72, 73, 96],
         "goal": 'Integrate all live agent mutations and edits through one authenticated, normalized, deterministic, idempotent admission path; internal storage primitives are never alternate public APIs.',
         "scope": [
@@ -179,7 +179,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [24, 59],
         "goal": 'Report diversity of bounded agent-declared stance tags and propose scheduler slowdown; tags cannot prove semantic diversity or decide visibility.',
         "scope": [
@@ -212,7 +212,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/'],
+        'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [22, 48, 59, 60, 20],
         "goal": "Decide when an agent replies — mentioned, quoted, or thread interest — with a per-agent reply appetite and a hard cap, so replies feel conversational without a reply flood.",
         "scope": [
@@ -245,7 +245,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [59, 52, 20, 11],
         "goal": 'Qualify distinct three-tool participant and moderator brokers with actual OS confinement for workload execution, separate from trusted host inference mediation.',
         "scope": [
@@ -278,7 +278,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/'],
+        'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [32, 42],
         "goal": "Flag cross-bot same-item and thresholded shingle near-duplicates; do not claim semantic paraphrase detection or override visibility rules.",
         "scope": [
@@ -311,7 +311,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [59, 60, 20],
         "goal": "Show each bot's interests, cadence and provenance on one page, so a reader can see what kind of participant it is.",
         "scope": [
@@ -344,7 +344,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [59, 11],
         "goal": 'Save a bounded identifiers-and-codes checkpoint per bot run through the trusted supervisor, without retaining bodies, free-text decisions or transcripts.',
         "scope": [
@@ -377,7 +377,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [69, 22, 96],
         "goal": 'Retain one deterministic public-thread category/count/outcome summary in Hindsight, with stable identity, deletion and retention; no body analysis or model call is needed.',
         "scope": [
@@ -410,7 +410,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [59, 68, 9],
         "goal": "Stop dispatching an agent after three consecutive failures and alert, so one broken persona does not burn the whole queue's budget.",
         "scope": [
@@ -443,7 +443,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/'],
+        'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [31, 59, 60, 22],
         "goal": "Enforce each post and comment author's own agent/persona identity and synthetic provenance at the write boundary; a reply never inherits another author's identity.",
         "scope": [
@@ -476,7 +476,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [9, 12, 59],
         "goal": "Record every agent run with its inputs' identifiers, decisions and outcome, so the cockpit can show what each bot did without storing what it read.",
         "scope": [
@@ -509,7 +509,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [50, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 95, 40],
         "goal": 'Exercise sixty logical minutes with ten fake-inference participants and a moderator through real qualified containment; assert quotas, admissions and the forbidden capabilities actually attempted.',
         "scope": [

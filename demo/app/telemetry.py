@@ -76,11 +76,14 @@ class Telemetry:
             pass  # Durable local audit remains authoritative; export is best effort.
 
     def begin(self, run):
-        span = self.tracer.start_span("demo.task", attributes={
+        role=run.get('factory_role') if run.get('factory_role') in ('author','review','prepare') else None
+        span = self.tracer.start_span('factory.'+role if role else "demo.task", attributes={
             'langfuse.observation.metadata.reasoning_effort': run.get('inference_effort') if run.get('inference_effort') in ('low','medium','high','default') else 'default',
             "aeion.run.id": run["id"], "aeion.synthetic": run["synthetic"], "aeion.task.id": run.get("task_id","pricing-js-v1"), "aeion.runtime": run.get("runtime","legacy"),
             "langfuse.session.id": run.get('langfuse_session_id', run['id']),
             "aeion.context.limit": run["limit"], "aeion.context.metric": run["metric"],
+            **({'langfuse.observation.type':'agent','langfuse.observation.metadata.role':role,
+                'langfuse.observation.metadata.runtime':run.get('runtime','unknown')} if role else {}),
         })
         context = span.get_span_context()
         run.update(trace_id=format(context.trace_id, "032x"), root_span_id=format(context.span_id, "016x"))

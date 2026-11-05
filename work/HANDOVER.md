@@ -1,3 +1,223 @@
+## NEWEST CHECKPOINT — 2026-11-05 10:42 UTC
+
+User explicitly approved develop history alignment and reaffirmed develop→PR→review/CI→main.
+Done: remote/local main/develop48d1ae4173ca53685de4d65e7183714fd2553673, exact lease against32dc0cd,
+old develop tag verified, worktree/index byte-preserved. Audit demo/.local/maintenance/develop-alignment-20261105.json.
+No protection changed. This supersedes the pending-approval blocks below.
+
+Nativev10 PASS all6capabilities+registeredfoundation; protocoldda0c7ccffa9e4890b0567d06c503f6685831c016f43321d2887afecf19d2840,
+proof demo/.local/factory/admission-ovkgiyp2/proof.json. Controller83522 safely reloaded.
+ACTIVE real001 build eaac2c3ef86d41dda617f596e0806f9f, idempotencyv6, admitted through normalCSRFAPI.
+Do not edit protocol files while active. Typed monitor /private/tmp/aeion-build-status.py <id>.
+Budget currently Observer0.58, Forum0.19settled+0.50reserved. No new merge claimed.
+Full enginev8 702PASS (v7 failed socket permission, environment-only); client21PASS; architecture
+regression16PASS, doc-links133PASS, knowledge0, repohealth current139lines. Actual IAB browser
+shows1running/99waiting, 001inprogress, accurate dependency IDs; evidence remains expanded.
+Currentdocs and root README had obsolete mobile/old-contract completion claims; corrected.
+Current immutable Graphify scope excluded actual demo runtime despite oldviewanchorsusingit:
+expandedexplicitpublicscope, new16component trust-boundary architectureview, uniqueanchorsall3views.
+Workinggraph refreshed7434nodes/15615edges/721files beforethese latestdocchanges. Immutable
+Graphify/Archify finalcommit refresh still needed; do not claim that new graph is published.
+
+## LATEST LIVE RESUME — 2026-11-05, supersedes all older status
+
+Newest owner steering: explain all100 prerequisites, clean GitHub main/develop/topic branches,
+and deeply improve Langfuse details from actual official docs. Continue the original complete
+secure real factory/PG/React/cockpit/main scope. Do not end with a false Go or a test-only report.
+
+CURRENT REAL001 attempt85abd667488948ada3d5e819f73d3d80 FAILED STEP_LIMIT after12 requests.
+Known resourcecost0.03470440USD; rounded Forum ledger0.19USD total. No paid job is active.
+Confirmed fixed lab cap: relay hardcoded12 despite factory200; now factory passes frozenstepcap.
+Default lab remains12. Regression5PASS; worklimits5PASS including validated partial retention.
+This old failure discarded its partial sandbox; only future failures benefit from retention.
+Routingv3 includes execution bounds so old12-step outcomes do not contaminate200-step cohorts.
+
+Controller76484 idle/maintenance. Dynamic admission now reevaluates proof freshness on catalog,
+queue, tick and role authorization; queued unstarted attempts survive expiry without being
+consumed. Real code changes intentionally invalidate old nativev9 protocol1061e7bc... proof.
+Nativev10 currently running exec68382, /private/tmp/aeion-native-admission-v10.log, scripted
+local inference only. Do not change protocol files during qualification. Safely reload idle
+controller afterward to load all changes, then fresh001 idempotencyv6. No new feature merge.
+Fullv6 engine702tests had3 failures (2 stale wiring assertions,1configuration hold regression).
+Focused13 execution tests nowPASS after preserving explicit durable configuration holds and
+asserting only guardedFlue runtime construction, never a direct-model fallback. Product compile
+now precedes candidate unit tests in a separate workspace;3boundarytestsPASS. PG test DB still
+unwired. Client failure reasons/stage progress present;21clientchecksPASS. Expiry auto-refresh
+remains open; do not weaken24h freshness or autoqualify changed source.
+
+CONFIRMED ROOT CAUSE of previous realfc82028...: CLI parsed leading YAML --- as flags in the
+separate --message argument. It failed before any provider request, known cost0. Prefixingthe
+same public MD made the actual CLI reach a scripted endpoint once. Real fix is --message=<value>;
+original unchanged MD now reaches that endpoint once and ends expected NO_PATCH. Native prep
+fixture now starts with frontmatter and all four role/check/handover mechanisms passed. Previous
+fc build FAILED/historypreserved, no cancellation needed forretry; newidempotencyv5used. Earlier
+prep37held was properlycancelled; old0.03/0.07/0.05USDcosts remain, totalforumlast0.15beforev5.
+
+UPGRADE MAIN PUBLICATION COMPLETE: PR19 https://github.com/OualidGuennif/aeion-observability/pull/19,
+reviewedhead32dc0cd3dbd91b3eda7a5ac56eb1485f698783cf; confirmedmain48d1ae4173ca53685de4d65e7183714fd2553673.
+ExactPRchecks+postmainCI+architecturegreen. Localmainfastforwarded; localdevelopHEAD32dc0cd.
+Main has required_linear_history=true. Merge-commitattemptrefused; normalsquashused, nooverride.
+Two real reviewersGLM+Qwen approvedbothparts; allpriorfalse/correctfindings,costs/contextretained.
+Finalcoverage .aeion/reviews/32dc0cd...-coverage.json, formalreceipt32dc0cd.md. TotalObserverlast0.58USD.
+No external review active. Latest original source-export approval is RESOLVED; never ask again.
+
+GITHUB HYGIENE: sixoldtopicheadsexactlymatchedmergedPRs3/4/5/6/7/8, archivedas immutabletags
+archive/2026-11-05/<oldbranch>, verified, then atomically deleted. RemoteheadsONLYmain/develop.
+Olddevelop32dc0cdarchivedarchive/2026-11-05/develop-before-sync. Privateaudit
+ demo/.local/maintenance/branch-cleanup-20261105.json. No lostcommits ordata.
+PENDING explicitasyncOWNERAPPROVAL: alignonlydevelop to main with --force-with-lease toremove84
+historicalaheadcommits; source trees already identical. Guard forbidsforcepushbydefault, so
+DO NOT rewriteuntilanswer. Ifapproved, preserve165dirty/untrackedenginefilesandindex; exacttree
+identityallowssoftrefalignmentwithouttouchingfiles. Neverdisableprotectionsorforcepushmain.
+Ifnoanswer,continueallindependentwork. Don'taskthesamequestionagain.
+
+LANGFUSE DIAGNOSTICS implementedlocal: rootERROR/statusMessage/failurecause/phase, actualduration,
+role/run/runtime/exit/request/stepcounts,knownusage/costandlinkedexecutiontrace. Role rootnames
+factory.author/review/prepareandactualerrorclosure. Builderfailureuses_identitypreservingprep/
+frozen/executionratherthandiscardingthem. Collectorboundedallowlistupdated/restartedONLYcollector.
+RealbackendcanaryPASS trace1d29b8c83137834de9a069e4301864db, ERROR CLI_STARTUP_FAILED,startup,
+exit1,requests0,knowncost0,duration1250ms,syntheticcontentremoved/rootIOempty. Privateproof
+ demo/.local/upgrades/langfuse-diagnostics-20261105/latest.json. API decodesnumericmetadatastring0
+asint0; semanticzerocomparisonrequired. NEVER interpretunknowncostas0. No rawcontentenabled.
+Officialdocsources in work/factory-delivery-2026-11-05.md: OTELmapping,levels,sessions,v2API.
+
+UIFIXES local: cacheunchangedactivityHTML; preserveopenevidenceandkeyboardfocusonchanges;
+fullbuildsessionlink; exposeprepared_productcheckdetail/staticno-modelpreparation;
+oldsuccessfulMDcontractsmovedtohistorywithEarliercontractlabel.19NodeclientchecksPASS.
+Fullengine694testPASS /private/tmp/aeion-product-full-tests-20261105-v5.log; laterfocused5receipt/
+10telemetrychecksPASS. Newend_spanclosurealsotestedbyactualnativeprepqualificationv9.
+Needfinalcurrentfulltestafterallremainingcodechanges. OriginalFactory/28connector/728hook/17loop
+checkscomplete; no needredoLangfusebackups. Langfuse4.75live/datapreserved/optionalcleanupoff.
+
+STILL OPEN: PG/React productchecks and actualdelivery/deployment. Draftproduct_postgresoracles
+andbuild-web/vitest/reactmanifestsunwired; compileimmutableproductionjarBEFOREcandidateunit
+checks in separatecloneandseparatePG. _operatorfixturesparameter/stageOperatorLibrariesstill
+missing. Noassistantproductbusinesscodeedits; Flueproductworkersmustimplement. New
+product_proxy.py +2realHTTPcanarytestsPASS(cookie/Set-Cookie/domain/headerfold/origin/framing),
+BUTproxyNOTwireddeployment. Publishonlyproxyport; backendmustnotseeFactory/Langfusecookies.
+Current source localHEADa50d6075 andmain63bdeceunchangedatlastcheck; recheckbeforereuse.
+
+CRITICAL RESILIENCE OPEN: execution.resolve/FactoryApp cachesadmissionatstartup; proofexpiry or
+sourcechangecanleaveoldcontrolleradmitting. Needdynamicreadycallbackatcatalog/queue/tickand
+pretransportauthorization,plus safeautomaticnativequalificationwhenidle/expired (no paidmodels,
+no expiry removal, no new scheduler). Do this afteractive001ends, batchwithPG/Reactchangesbefore
+freshqualification. Sessionauthiscurrentlyinmemory;reloadrequiresownerrelogin (alreadyexplained),
+clienthelperusesnamedprivateloadernormalCSRFAPI, neverprintsbootstrap/sessiontokens.
+No Codexsubagents, no newautomation. work/current139linesupdated; detailednewdeliveryreport.
+
+## LATEST RESUME CHECKPOINT — 2026-11-05, supersedes older blocks
+
+Read work/current.md first. Latest owner explicitly AUTHORIZED sending the ~384KB public
+Factory/Langfuse source/context to GLM5.3/Qwen3.8, max3USD on Observer15USD/day. Do not ask again.
+Upgrade localHEAD31771bad60efe829131daa6e10f35ed58686b8a4; no new push/PR/main yet.
+GLM approved both parts. Fresh contextual Qwen approved part1, rejected part2: Git transport
+options/remote helpers may execute programs despite subcommand allowlisting. Verify/fix this
+reachable path, preserve all rejection/context records, then obtain fresh exact-head review.
+Private packets .aeion/reviews/31771...-packets and -qwen-context; logs /private/tmp/aeion-upgrade-review-*.log.
+
+Native registered001 deterministic acceptance PASS actual baseline rejection, no LLM/budget,
+immutable base63bdece, durable schema2 Store binding; proof /private/tmp/aeion-registered-foundation-jw9upg8a/proof.json.
+New Store schema2 supports product scopes/static modelNone; schema1 retained. New3tests pass.
+Last actual001 build37d78653953a494997630f6ed6fcda17 HELD/preparation_contract_unavailable,
+Qwen complete0.04679239USD (ledger0.05). Two earlier attempts settled0.03/0.07; no unknown costs.
+No real builder/publication. Cancel only that held prep via normal API if no artifact/remote effect;
+retain history/cost and new idempotencyv4. /private/tmp/aeion-cockpit-client.py uses private named
+auth loader; never print token. Actual controller lastPID38066, recheck identity/active work before reload.
+
+Native qualification v6 RUNNING exec41251 /private/tmp/aeion-admission-20261105-v6.log;
+full engine regression v4 RUNNING exec20312 /private/tmp/aeion-product-full-tests-20261105-v4.log.
+Do not change protocol files until v6 completes. Nativev5 failed only old Store exactschema;
+registered native proof now verifies corrected durable binding. Existing loaded controller/proof
+are stale; only reload after fresh qualification. Previous full687/0skips pass; current expected690.
+Current external review exec9364 is FINISHED/reject, registered native exec27829 FINISHED/pass.
+No subagent/new automation. Product source localHEADa50d6075, originmain63bdece, recheck before mutation.
+
+OPEN: PG/React draft helpers not wired; no positive product implementation/deployment claims.
+Compile immutable production jar before candidate unit tests; unit tests in separate workspace
+and separate owned PG instance. Wire product_postgres fixtures parameter and stageOperatorLibraries,
+fixed React build/test programs/manifests. Main old baseline has no web/mobile; do not invent deletion.
+Product workers implement business code, never assistant editing the product checkout/mirrors.
+Need trustworthy demo deployment after merge, including cross-port cookie isolation: untrusted
+product must not receive Factory/Langfuse host cookies; a trusted fixed-upstream proxy strips
+nonproduct cookies and Set-Cookie. Different ports alone do not isolate browser cookies.
+Admission24h expiry/cache refresh remains open. Final Go requires actual end-to-end evidence.
+Langfuse live4.75.0 upgrade/backups/privacy readbacks complete; do not redo backups.
+
+## LATEST FACTORY DELIVERY CHECKPOINT — active, 2026-11-05
+
+Latest owner insists finish secure real MD-to-main circuit and protected observer main push.
+Factory2.0.3 and Langfuse4.75 upgrades complete; see current.md and runtime-upgrades report.
+No active subagent, no new automation. Product localHEADa50 unchanged; main63bdece still baseline.
+Native capability admission was really qualified as f67b05... using actual Flue/OpenShell,
+external Node positive/negative/skipped/spoof tests, PGfixture, Chromium sandbox, prep/publication/
+routing tests. Proof demo/.local/factory/admission-03ezl26z. It claims tools, not product delivery.
+New schema2 breaks old circular product-before-builder gate; old schema1 remains strict.
+Controller reloaded safely PID20002 (old11582 retired with no activebuild). Live API admitted
+real001 builda0f2425eb3c94be4bae734e9e0057c1c; it HELD in preparation, ValueError, before builder.
+Actual Qwen trace33ee8b71b96b46db49b0bea5f528f4b2, run58a48e9fed014117af4ffc602d590301.
+No raw model output/transcript read. Provider requests exist; actual ledger readback confirms0.03USD settled, not an unknown0.10 reservation.
+Confirmed preparer instruction conflict: TS agent/tool still demanded JUnit while frozen live
+adapter required external Node. Fixed to task-selected format; increased real prep900s/32768/
+0.50reservation and author65536output under same15daily. Added safe failurecode telemetry and
+preparation execution to heldreceipts. Earlier180s timeout is a plausible contributor, not proven.
+Native v2 admission now running exec85299, log /private/tmp/aeion-admission-20261105-v2.log.
+DO NOT mutate protocol until done/reload/retry001. Operator currently still old loaded code;
+no actual active build remains. Realclient /private/tmp/aeion-cockpit-client.py uses named admin
+loader and authenticates/queues without exposing credentials; changeidempotencykey for a new
+attempt, never clearpriorhistory. Existing owner budgets dayNov5 were15perrepo,0initial.
+
+New product_checks.py is external compiler/app/verifier controller, Node reporter run-acceptance.mjs.
+Baseline actual001 passes47legacyJUnit/package but rejects invalidDB minimalboot as expected;
+proof /private/tmp/aeion-native-product-boundary-1rb9e27x. Need fixed001 negative startup variants,
+moretimebound/cleanup/error tests, and actual Fluecode/reviews/PR/CI/main to claim delivery.
+New product_postgres.py oracles and checker-tools/build-web.mjs/vitest.config.mjs + registered
+react manifests exist BUT NOT YET WIRED/QUALIFIED/USED. Finish their integration before claiming
+PG/React. PGunit tests must run in separate owned disposablePGnamespace; compile production
+package BEFORE candidateunit tests and preserve immutable package so tests cannot rewrite it.
+PGoperatorprotocol DatabaseOperator migrate|validate|import-sqlite path; separateownerroleonly;
+need pinnedGradletask stageOperatorLibraries and proper packagedclasspath, frozen dependencyhashes.
+PGoracles cover concurrency/checksum/aheadschema/failingtransaction/import/replay/tamper/restore/
+rolegrants, not yet executedagainstactualproduct. Reactfixedtoolchain8depsderivedcheckerlock,
+no actualReactsourcewritten. Use Flue productworkers; mirrors read-only. No unsupportedclaims.
+
+All100MDcanonicalscopes now add two productknowledge docs; sharedscopes make allserial.
+CanonicalspecsA-F and generator changed/regenerated,21catalogtestsPASS. This prevents ordinary
+productCI doc-linksfailures but author/checker mustensureowningdocsupdated. Legacy2worklimit
+fixtures neededvalidnewTarget.contract andseedattrs; focused4testsPASS. Initialfull685tests
+had75sandboxsocketerrors; native rerun hadonly2fixtureerrorsbeforefix. Need finalfullrerun.
+Factoryupgradedfullsuite alreadyPASS. Worktree is dirty with upgrades+core+catalogchanges;
+lastcommit65b98ab local, no new observer push. Need independentactualmodelreview, docs/security/
+architecturechecks, protected developPR/CI/main, then cockpit and demo verification.
+Langfuse v4 traces/sessions endpoints404; use v2observations with explicit filter,timebounds,
+fieldsbasic/metadata/usage/cost and client-side sessionIdcheck. Never read source/prompt payload.
+
+## CURRENT UPGRADE / FACTORY DELIVERY — 2026-11-05
+
+Read work/current.md first. The owner explicitly reaffirms complete secure MD-to-main factory
+implementation and protected publication, without further questions. All existing budget,
+model, Flue/Pi/OpenShell, isolated credentials and independent review boundaries remain.
+
+Factory2.0.3 adoption COMPLETE locally: exact upstream162ca035292941f75752d2b1a4ffb2db955194d6,
+28connectors/57hooks/full Factory suite passed. Owner answered done to mode migration;
+actual git config reads team. Never ask again. Changes uncommitted; checkpoint65b98ab local.
+Langfuse4.75.0 REAL deployment COMPLETE. Web/worker pinned by digest in compose. Private cold
+backup of5volumes verified/hashes retained in demo/.local/backups/langfuse-pre-4.75.0-vw3sreel.
+Health4.75.0, zero restarts, historical real GLM/Qwen traces readable. Native metadata/privacy
+canary trace2dbdbcf730b0470f5fce56805f1f6382 succeeds after preserving reasoning_effort in both
+collector filters; content/secret marker removed. Readback under demo/.local/upgrades/langfuse-4.75.0.
+Prisma unfinished0/background failed0; one optional destructive old-table cleanup stays disabled.
+All prior upgrade/test sessions completed; no backup/pull/model process running at checkpoint.
+
+OPEN: product PostgreSQL/React adapter and actual feature delivery. The global qualification
+currently forms a cycle: product acceptance required before workers may implement product.
+Separate measured execution/tool capability admission from per-build product acceptance;
+do not fabricate receipts or remove per-build acceptance. Use external verifier separate from
+candidate process, frozen registered dependency bytes, disposable PG roles, read-only acceptance
+visible to author. Keep product implementation in Flue/Pi/OpenShell; observer mirrors read-only.
+Canonical source localHEADa50d6075 unchanged; product main63bdece is real baseline PR4 merge.
+No PG/React product implementation/activation/real feature merge claimed yet. No new paid model
+calls this upgrade phase; re-read budget before dispatch. No subagent/new automation.
+
 ## CURRENT TEST PASS — requested 2026-11-04, all final checks passed
 
 Read [current.md](current.md) and [the dated test report](test-pass-2026-11-04.md) FIRST.

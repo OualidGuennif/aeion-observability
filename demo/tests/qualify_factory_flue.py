@@ -72,6 +72,8 @@ class Inference(BaseHTTPRequestHandler):
             else:
                 raise AssertionError('Unexpected author retry')
         elif role == 'prepare':
+            # Flue2.3 always includes task; without declared subagents it is inert.
+            assert tools == {'submit_preparation','task'}, sorted(tools)
             if number == 1:
                 call = ('submit_preparation', {'status':'ready', 'contract':preparation_contract,
                                                'reason':'Synthetic harness qualification'})
@@ -120,7 +122,9 @@ class Inference(BaseHTTPRequestHandler):
         self.wfile.write(data.encode())
 
 
-class FixtureBuilder(FlueBuilder): paid = False
+class FixtureBuilder(FlueBuilder):
+    paid = False
+    max_output_tokens = 4096  # This fixture targets the historical250k handover threshold.
 class FixtureReview(FlueReview): paid = False
 
 

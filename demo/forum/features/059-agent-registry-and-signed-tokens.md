@@ -7,7 +7,7 @@ size: M
 parallel: false
 phase: P1
 tier: 3
-write_paths: ["demo/forum-app/"]
+write_paths: ["demo/forum-app/", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [004, 009, 043]
 owner: builder
 status: proposed
@@ -54,7 +54,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 Long-lived agent credentials remain at the trusted broker and are stored as digests; models see only an opaque run capability. Resolve identity server-side, revoke immediately and never log tokens.
 
 This invariant and the acceptance cases belong to planned protected check `agora-059`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

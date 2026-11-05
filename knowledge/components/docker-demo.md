@@ -31,12 +31,21 @@ the **Agora forum** (`demo/forum-app/`, Quarkus/Java). Nine observation services
 private native mTLS gateway owns OpenShell sandboxes through its Docker compute driver. This is an
 explicitly authorized local pilot, not a production OPS boundary or general model benchmark.
 
-The [operator cockpit](operator-cockpit.md) is the default page at `/` and `/factory`; the historical model lab is at `/lab`. Completed features are locked against another launch, available targets and missing prerequisites are visible before selection, and simulations remain in a separate history. The same host cockpit serves the feature-factory board. It resolves one explicit
-execution instead of silently simulating: `simulator`, `offline` with the pinned forum profile and
-the shared deterministic builder, or `live` with trusted per-feature targets and the shared live builder. The worker chooses the selected feature’s target, scopes, brief and isolated contract; missing targets hold before a model reservation. Feature 017 adds strict JSON request validation against a current pinned product commit, with a contract that fails the unmodified base on unknown/missing/type-invalid fields. Live
-reads the provider credential from the project's existing dotenv files and holds
-`provider_unconfigured` when absent; a missing profile or product checkout holds every build as
-`execution_unavailable`; a pinned target refuses another feature with `target_feature_mismatch`.
+The [operator cockpit](operator-cockpit.md) is the default page at `/` and `/factory`; the
+historical model lab is at `/lab`. Current-contract completion locks selection. Historical
+results for rewritten MDs remain visible without certifying the new contract. A dependency wait
+names the missing IDs and clears only after their current contracts reach product main; it
+does not impose a strictly numeric sequence. Active work exposes Prepare/Build/Check/Review/
+PR-CI/Main stages, protected evidence and a full Langfuse build-session link.
+
+Execution is explicit: `simulator`, a pinned deterministic `offline` fixture, or `live` with
+automatic acceptance preparation and a Flue/Pi tier3 builder. Native admission qualifies tools
+with scripted inference, independently of product delivery. Current protocol/freshness checks
+guard catalog admission and role execution; an unstarted queued attempt is preserved during a
+qualification pause. A named role loader consumes the provider credential; absence holds
+`provider_unconfigured`. Pinned legacy targets still refuse another feature with
+`target_feature_mismatch`. The [factory execution contract](factory-flue.md) owns the current
+external product checker, frozen dependency policy, review independence and publication gates.
 The owner authorized four workers on 2026-11-02 (`glm-5.3-flash`, `qwen-3.8-flash`,
 `deepseek-4.1-flash`, `claude-haiku-5.5`); internal display ids map to canonical wire ids and the
 authoring choice is the shared router's deterministic result. A completed paid attempt is
@@ -49,6 +58,13 @@ environment. The probe's image digest and denied network are recorded with the c
 image or failed probe holds `sandbox_unqualified`. The checker detects a contract file altered
 during its run. A verified pinned-base baseline (`demo/factory/baseline.py`) satisfies dependencies
 only with hashed paths and an isolated passing base suite; a simulated receipt never does.
+
+The current external product checker packages production before candidate unit tests and gives
+tests a different workspace. Its app and Node/browser acceptance run in different PID/filesystem
+namespaces over an owned disposable database loopback. The verifier sees neither source nor
+database credentials. Native qualifications, real model results, protected merges and actual
+PostgreSQL/React deployment remain distinct evidence. Obsolete mobile snapshot instructions
+are historical; the current product roadmap is React DOM web.
 
 ## Data sources
 

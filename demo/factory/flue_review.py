@@ -67,5 +67,4 @@ class FlueReview:
             try:
                 self.last_execution = runtime.finish(run, error)
             finally:
-                span.end()
-                runtime.telemetry.provider.shutdown()
+                runtime.end_span(span,run,error)

@@ -191,7 +191,7 @@ class PreparationTests(unittest.TestCase):
         self.role = ScriptedRole(cost=None, complete=False)
         with self.assertRaisesRegex(PreparationError,'preparation_usage_unknown'):
             self.prepare()
-        self.assertEqual(str(self.budget.spent('aeion-autonomous-forum')), '0.10')
+        self.assertEqual(str(self.budget.spent('aeion-autonomous-forum')), '0.50')
 
 
 if __name__ == '__main__':

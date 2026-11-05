@@ -25,6 +25,14 @@ sources:
   - id: views
     resource: ../../tools/architecture/views.json
     title: "Reviewed Archify views and evidence anchors"
+  - resource: ../../demo/factory/api.py
+    title: "Authenticated factory selection and current admission"
+  - resource: ../../demo/factory/dispatch.py
+    title: "Deterministic feature lifecycle"
+  - resource: ../../demo/factory/product_checks.py
+    title: "External product verification boundary"
+  - resource: ../../demo/factory/publication.py
+    title: "Credential-separated protected publication"
 ---
 
 # Æion Factory architecture
@@ -36,6 +44,33 @@ owner authorizes scope and delivery. Agents plan and edit; Python/Git checks est
 structural facts; fresh review establishes the verdict; GitHub records PR/merge/CI evidence.
 There is no application server, broker, production database or deployed Æion Factory control plane.
 Adopting projects keep their existing instructions and architecture.
+
+### This adopting repository
+
+This repository adds an opt-in host-native cockpit and a local Docker telemetry stack to that
+development foundation. Its implemented engine lives in `demo/factory/`; the Flue/Pi harness in
+`demo/flue/src/` runs product workers through OpenShell tier3. The authenticated cockpit admits
+ordered catalog MDs, freezes task identity/scopes, reserves the existing daily budget and records
+durable stages. Current native qualification is rechecked before admission and role execution.
+The [execution contract](factory-flue.md) owns these runtime facts; the
+[cockpit contract](operator-cockpit.md) owns selection and presentation.
+
+Workers propose candidate files without host credentials, mounts, a Docker socket or unrestricted
+egress. The supervisor packages production code before candidate tests, gives tests another
+workspace, and grades the product in separate application/verifier processes. Two eligible
+reviewer model families must differ from each other and from author/preparer families. Separate
+publisher/release subprocesses open the product PR, verify exact-head CI and confirm main.
+Only integration of the current contract unlocks dependent MDs; a generated patch or old-contract
+success does not. The product has its own GitHub repository and credentials. Observer mirrors
+are not product workspaces. PostgreSQL/React product delivery and a demo require their own actual
+checks and deployment receipts; capability qualification alone never claims them complete.
+
+Langfuse receives bounded role, request, tool and failure metadata via the privacy-filtering
+collector. The local ledger and verified artifacts retain authority independently of dashboard
+availability. Hindsight/claude-mem recall is advisory. Model routing compares persisted measured
+outcomes within matching contract, runtime and execution-bound cohorts, with explicit cold-start
+priors. The maintained architecture view names these boundaries and source anchors; the workflow
+and lifecycle views additionally retain the foundation's reviewed delivery and context controls.
 
 Claude Code retains its native hooks. Codex, OpenCode, Pi, dsh (DeepSeek Harness), Devin, Droid
 (factory.ai) and Google Antigravity load the same instructions and skills, with narrow adapters to

@@ -660,17 +660,34 @@ class Store:
         """Bind prepared metadata once; code remains in the private protected task directory."""
         from .models import known
         required = ('task_digest','spec_digest','architecture_digest','acceptance_digest')
+        modern=isinstance(evidence,dict) and type(evidence.get('schema_version')) is int and evidence['schema_version']==2
         allowed = {*required,'feature_id','catalog_digest','base_sha','write_paths','preparer_model','negative_control','synthetic'}
+        if modern:allowed.update(('schema_version','preparation_kind'))
+        def allowed_scope(path):
+            if (not isinstance(path,str) or not path or '\\' in path
+                    or any(p in ('','.','..') or p.startswith('.') for p in path.rstrip('/').split('/'))):
+                return False
+            if not modern:
+                return path.endswith('/') and path.startswith(('demo/forum-app/','demo/forum-docs/'))
+            roots=('demo/forum-app/src/main/java/local/aeion/forum/',
+                   'demo/forum-app/src/test/java/local/aeion/forum/',
+                   'demo/forum-app/src/main/resources/','demo/forum-app/src/test/resources/',
+                   'demo/forum-docs/','demo/forum-web/')
+            return (path.startswith(roots)
+                or path in ('knowledge/components/agora-product.md','knowledge/components/factory-architecture.md')
+                or path=='demo/forum-app/build.gradle' and evidence.get('feature_id') in ('002','014'))
+        static=modern and evidence.get('preparation_kind')=='registered_static_acceptance'
+        model_ok=(evidence.get('preparer_model') is None and evidence.get('feature_id')=='001') if static else (
+            isinstance(evidence,dict) and isinstance(evidence.get('preparer_model'),str) and known(evidence['preparer_model']))
+        negative_ok=isinstance(evidence,dict) and (evidence.get('negative_control')=='failed_contract_assertion'
+            or static and evidence.get('negative_control')=='registered_foundation_startup_rejection')
         if (not isinstance(evidence,dict) or set(evidence) != allowed or any(not isinstance(evidence.get(k),str)
                 or not re.fullmatch('[a-f0-9]{64}',evidence[k]) for k in required)
-                or not isinstance(evidence.get('preparer_model'),str) or not known(evidence['preparer_model'])
+                or not model_ok or modern and evidence.get('preparation_kind') not in ('flue_prepared','registered_static_acceptance')
                 or type(evidence.get('synthetic')) is not bool
                 or not isinstance(evidence.get('base_sha'),str) or not re.fullmatch('[a-f0-9]{40}',evidence['base_sha'])
-                or not isinstance(evidence.get('write_paths'),list) or not 1 <= len(evidence['write_paths']) <= 8
-                or any(not isinstance(p,str) or not p.endswith('/') or '\\' in p
-                    or '..' in p.split('/') or not p.startswith(('demo/forum-app/','demo/forum-docs/'))
-                    for p in evidence['write_paths'])
-                or evidence.get('negative_control') != 'failed_contract_assertion'):
+                or not isinstance(evidence.get('write_paths'),list) or not 1 <= len(evidence['write_paths']) <= (12 if modern else 8)
+                or any(not allowed_scope(p) for p in evidence['write_paths']) or not negative_ok):
             raise StoreError('invalid_preparation_evidence')
         identity = {k:evidence[k] for k in ('feature_id','catalog_digest','spec_digest',
                                            'architecture_digest','base_sha','write_paths')}

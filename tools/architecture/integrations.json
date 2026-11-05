@@ -35,7 +35,23 @@
     "tech-watch/**",
     "tools/**",
     "work/current.md",
-    "opencode.json"
+    "opencode.json",
+    "examples/**",
+    "tests/**",
+    "demo/app/**",
+    "demo/factory/**",
+    "demo/flue/src/**",
+    "demo/flue/tests/**",
+    "demo/flue/package.json",
+    "demo/flue/package-lock.json",
+    "demo/tests/**",
+    "demo/openshell/**",
+    "demo/deploy/**",
+    "demo/forum/**",
+    "demo/compose.yaml",
+    "demo/otel-collector.yaml",
+    "demo/run.py",
+    "demo/README.md"
   ],
   "architecture_spec": "knowledge/components/factory-architecture.md"
 }

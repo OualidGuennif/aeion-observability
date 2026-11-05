@@ -187,7 +187,8 @@ def main(argv=None):
             # Expectations come from the worker's own record, never from the queue file.
             publisher = Publisher(args.repo, forge, trusted_issuer="gate",
                                   expected_base=receipt.get("base_sha"),
-                                  expected_artifact_digest=receipt.get("artifact_digest"))
+                                  expected_artifact_digest=receipt.get("artifact_digest"),
+                                  approved_dependencies=receipt.get('dependency_changes'))
             try:
                 decision = publisher.decide(request)
             except GitHubError as exc:

@@ -10,6 +10,16 @@ PROTOCOL_FILES = (
     'demo/factory/flue_qualification.py', 'demo/factory/flue_builder.py',
     'demo/factory/agent_files.py', 'demo/factory/flue_session.py', 'demo/factory/flue_review.py',
     'demo/factory/preparation.py', 'demo/factory/source.py',
+    'demo/factory/product_checks.py', 'demo/factory/checker-tools/run-acceptance.mjs',
+    'demo/factory/admission.py', 'demo/tests/qualify_product_verifier.py',
+    'demo/tests/qualify_registered_foundation.py',
+    'demo/tests/qualify_flue.py',
+    'demo/tests/qualify_factory_preparation.py', 'demo/factory/telemetry.py', 'demo/app/telemetry.py',
+    'demo/factory/product_startup.py', 'demo/factory/transitions/foundation/acceptance.mjs',
+    'demo/factory/transitions/foundation/identity.json',
+    'demo/factory/checker-tools/package-lock.json', 'demo/factory/checker-tools/browser-seccomp.json',
+    'demo/factory/transitions/postgres/build.gradle',
+    'demo/factory/transitions/postgres/identity.json', 'demo/otel-collector.yaml',
     'demo/factory/routing.py', 'demo/factory/models.py', 'demo/factory/store.py', 'demo/factory/manifest.py',
     'demo/factory/review.py', 'demo/factory/review_circuit.py', 'demo/factory/checks.py',
     'demo/factory/artifact.py', 'demo/factory/freeze.py', 'demo/factory/isolation.py', 'demo/factory/postgres.py',
@@ -43,6 +53,22 @@ def ready(root=ROOT, now_ns=None):
         proof = json.loads((Path(root) / 'demo/.local/data/factory-flue-qualification.json').read_text())
         if not isinstance(proof, dict) or type(proof.get('expires_ns')) is not int:
             return False
+        if proof.get('schema_version') == 2:
+            # Admission qualifies tools, not a feature which has yet to be built. Every
+            # candidate still has to pass product acceptance and protected publication.
+            capabilities = proof.get('capabilities')
+            required = {'flue_openshell', 'external_acceptance', 'postgres_fixture',
+                        'chromium_sandbox', 'preparation_and_publication', 'routing_persistence'}
+            return (proof.get('protocol_sha256') == protocol_hash(root)
+                and proof.get('kind') == 'native_execution_capabilities'
+                and proof.get('product_check') == 'prepared_product'
+                and proof.get('product_delivery_claimed') is False
+                and isinstance(capabilities, dict) and set(capabilities) == required
+                and all(isinstance(value, dict) and value.get('status') == 'passed'
+                    and isinstance(value.get('evidence_sha256'), str)
+                    and re.fullmatch('[a-f0-9]{64}', value['evidence_sha256'])
+                    for value in capabilities.values())
+                and proof['expires_ns'] > (time.time_ns() if now_ns is None else now_ns))
         publication = proof.get('protected_main')
         if not isinstance(publication, dict):
             return False

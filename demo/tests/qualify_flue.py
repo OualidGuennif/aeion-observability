@@ -211,6 +211,7 @@ def main():
     # Under WORK: sandboxes can only mount subpaths of the labeled work volume.
     with tempfile.TemporaryDirectory(prefix=".qualify-flue-", dir=WORK) as folder:
         root = Path(folder)
+        own_harness = root / 'harness'
 
         class FixtureCounter:
             def count(self, _payload):
@@ -222,11 +223,12 @@ def main():
 
         profile = {"model": "fixture/mock", "name": "Fixture", "context": 1000000, "input": 0, "output": 0, "cache_read": 0}
         with patch.dict(os.environ, {"OPENCODE_API_KEY": "synthetic", "DEMO_MAX_COST_USD": "0"}), \
-                patch.dict(runner.PROFILES, {"fixture": profile}), patch("runner.ContextRelay", side_effect=local_relay):
+                patch.dict(runner.PROFILES, {"fixture": profile}), patch("runner.ContextRelay", side_effect=local_relay), \
+                patch('runner.HARNESS', own_harness):
             for runtime in RUNS:
                 qualify(runtime, root, args.local_sandbox)
         assert not run_db.exists(), "Conversations must stay in memory"
-        assert not HARNESS.exists() or not any(HARNESS.iterdir()), "Harness scratch must be removed"
+        assert not own_harness.exists() or not any(own_harness.iterdir()), "Owned harness scratch must be removed"
     server.shutdown()
     if not args.local_sandbox:
         from sandbox import protocol_hash

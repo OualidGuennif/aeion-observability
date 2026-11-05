@@ -131,18 +131,17 @@ def resolve(repo_root, mode):
     if not provider_available():
         # The pinned target exists, but no provider credential is loaded: hold, never simulate.
         return {"mode": "live", "hold_reason": "provider_unconfigured"}
-    checker = DockerCheckRunner(repo_root)
+    from .product_checks import ProductCheckRunner
+    checker = ProductCheckRunner(repo_root)
     preparer = TaskPreparer(repo_root,
         Path(repo_root) / 'demo/.local/factory/agents/aeion-autonomous-forum', checker=checker,
-        synchronize=SourceSynchronizer(repo_root))
-    if not flue_factory_ready(repo_root):
-        return {"mode": "live", "hold_reason": "flue_factory_unqualified", "preparer": preparer,
-                "target_errors": errors, "engine": "flue-openshell", "tier": 3}
+        synchronize=SourceSynchronizer(repo_root), product=True)
     from .flue_builder import FlueBuilder
     from .flue_review import FlueReview
     reviews=FlueReview(cost_limit='1.00',max_output_tokens=65536)
     reviews.timeout_seconds=900
-    return {"mode": "live", "preparer": preparer, "target_errors": errors,
+    execution = {"mode": "live", "preparer": preparer, "target_errors": errors,
+            "admission_check": lambda: flue_factory_ready(repo_root),
             "builder": FlueBuilder(repo_root, {}, check_sandbox=checker),
             "review_complete": reviews, 'engine': 'flue-pi', 'runtime': 'flue-openshell', 'tier': 3,
             "publication": True,
@@ -150,3 +149,6 @@ def resolve(repo_root, mode):
             "telemetry": FactoryTelemetry(readback=True),
             # One attempt may reserve part of the shared purse; $15/day remains the hard cap.
             "cost_reservation_usd": "0.50"}
+    if not flue_factory_ready(repo_root):
+        execution['hold_reason'] = 'flue_factory_unqualified'
+    return execution

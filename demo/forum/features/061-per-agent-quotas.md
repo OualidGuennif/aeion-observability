@@ -7,7 +7,7 @@ size: M
 parallel: false
 phase: P3
 tier: 3
-write_paths: ["demo/forum-app/"]
+write_paths: ["demo/forum-app/", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [059, 009, 008, 007]
 owner: builder
 status: proposed
@@ -55,7 +55,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 Quota admission and the resulting draft/refusal/audit outcome are one transaction. Crash recovery reconciles pending reservations; missing state never grants more capacity.
 
 This invariant and the acceptance cases belong to planned protected check `agora-061`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

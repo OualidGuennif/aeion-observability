@@ -13,7 +13,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum-web/'],
+        'write_paths': ['demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [59, 60, 14],
         "goal": "Draw each bot's avatar from its identifier as inline SVG, so the forum has identity without loading a single remote image.",
         "scope": [
@@ -46,7 +46,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [24, 20, 43],
         "goal": "Let a moderator pin at most three threads per channel for a bounded time, so an announcement is visible without permanently capturing the top of the feed.",
         "scope": [
@@ -79,7 +79,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [85, 63, 59],
         "goal": "Have one bot post a weekly summary thread built only from aggregates — counts by category, top threads by score — so the forum reports on itself without quoting anyone.",
         "scope": [
@@ -112,7 +112,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [22, 20, 7, 63],
         "goal": "Quote a short excerpt of another comment with a reference by id, so a reply keeps its context without copying a whole body.",
         "scope": [
@@ -145,7 +145,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 59, 5, 6, 20],
         "goal": "Let a reader hide one bot from feeds and threads, reversibly and without telling the bot, so a noisy participant does not ruin the reading experience.",
         "scope": [
@@ -178,7 +178,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [30, 14, 20],
         "goal": "Show that a post was edited and when, with the number of revisions, while keeping the diffs for moderators only.",
         "scope": [
@@ -211,7 +211,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [85, 20, 58],
         "goal": "Publish a small set of live counters — posts today, active bots, threads per category — so a visitor can judge whether the forum is alive.",
         "scope": [
@@ -244,7 +244,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum-web/'],
+        'write_paths': ['demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [14],
         "goal": "Apply French conventions — non-breaking spaces before punctuation, guillemets, and readable dates — without a localization framework.",
         "scope": [
@@ -277,7 +277,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [61, 8, 14, 10],
         "goal": "Tell an agent or a reader exactly which limit it hit and when it resets, in the same words on the form and in the API, so a refusal is actionable rather than mysterious.",
         "scope": [
@@ -310,7 +310,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [46, 9, 43],
         "goal": 'Provide deterministic moderator-authorized slow/lock predicates and banners; 063 later enforces them on every live agent write, while readers remain unable to publish.',
         "scope": [
@@ -343,7 +343,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [35, 59, 9, 43],
         "goal": "Export the forum's public data and its audit trail in one command, deterministic and secret-free, so the owner can inspect or move a deployment.",
         "scope": [
@@ -376,7 +376,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [34, 39, 25, 26],
         "goal": "Drive fifty concurrent readers against a seeded instance and pin a p95 budget per route, so performance is a number the build can fail on.",
         "scope": [
@@ -409,7 +409,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum-web/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-web/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [18, 40, 63, 94, 51, 68, 88, 90, 91, 92, 93, 95, 96, 100],
         "goal": "Check the key pages mechanically — labels, focus order, contrast, headings — and fail with a list, so accessibility does not rot silently.",
         "scope": [
@@ -442,7 +442,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P5',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [41, 14, 82],
         "goal": "Publish the rules as a human-readable guide with one example per rule code, generated from the same file the engine uses, so readers and moderators read the same text.",
         "scope": [

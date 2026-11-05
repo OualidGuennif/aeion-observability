@@ -44,6 +44,19 @@ class QualificationTests(unittest.TestCase):
             proof=self.full();del proof[field]
             with self.subTest(field=field):self.assertFalse(self.admitted(proof))
 
+    def test_tool_admission_does_not_require_the_product_to_already_exist(self):
+        proof={'schema_version':2,'protocol_sha256':'a'*64,'expires_ns':1000,
+            'kind':'native_execution_capabilities','product_check':'prepared_product',
+            'product_delivery_claimed':False,'capabilities':{name:{'status':'passed','evidence_sha256':'c'*64}
+                for name in ('flue_openshell','external_acceptance','postgres_fixture',
+                             'chromium_sandbox','preparation_and_publication','routing_persistence')}}
+        self.assertTrue(self.admitted(proof))
+        for name in proof['capabilities']:
+            changed={**proof,'capabilities':{k:v for k,v in proof['capabilities'].items() if k!=name}}
+            self.assertFalse(self.admitted(changed))
+        self.assertFalse(self.admitted({**proof,'product_delivery_claimed':True}))
+        self.assertFalse(self.admitted({**proof,'product_check':'prepared_gradle'}))
+
     def test_malformed_receipt_or_noninteger_expiry_holds_instead_of_crashing(self):
         for value in (None,[],"invalid",{**self.full(),'expires_ns':float('inf')},
                       {**self.full(),'expires_ns':True}):

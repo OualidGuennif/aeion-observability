@@ -4,16 +4,42 @@ title: "Flue factory execution"
 description: "Deterministic supervision of untrusted Flue/Pi workers, isolated tools and protected publication."
 status: draft
 sources:
-  - resource: ../../demo/factory/
+  - resource: ../../demo/factory/dispatch.py
     title: "Factory supervisor, routing and publication"
+  - resource: ../../demo/factory/product_checks.py
+    title: "Protected production and acceptance boundary"
+  - resource: ../../demo/factory/flue_qualification.py
+    title: "Exact current-protocol admission"
   - resource: ../../demo/app/sandbox.py
     title: "OpenShell boundary"
   - resource: ../../demo/app/bridge.py
     title: "Capability-scoped tool bridge"
-  - resource: ../../demo/flue/src/
+  - resource: ../../demo/flue/src/agents/coder.ts
     title: "Pinned harness and metadata observer"
   - resource: ../../work/product-ci-bootstrap-2026-11-03/ci.yml
     title: "Merged trusted product CI bootstrap"
+  - resource: ../../demo/factory/agent_files.py
+    title: "Agent files"
+  - resource: ../../demo/factory/bootstrap.py
+    title: "Bootstrap"
+  - resource: ../../demo/factory/github.py
+    title: "Github"
+  - resource: ../../demo/factory/inference_config.py
+    title: "Inference config"
+  - resource: ../../demo/factory/postgres.py
+    title: "Postgres"
+  - resource: ../../demo/factory/preparation.py
+    title: "Preparation"
+  - resource: ../../demo/factory/publication.py
+    title: "Publication"
+  - resource: ../../demo/factory/routing.py
+    title: "Routing"
+  - resource: ../../demo/factory/source.py
+    title: "Source"
+  - resource: ../../demo/flue/src/agents/preparer.ts
+    title: "Preparer"
+  - resource: ../../demo/flue/src/tools/submit-preparation.ts
+    title: "Submit preparation"
 ---
 
 # Flue factory execution
@@ -74,13 +100,19 @@ roles in separate processes. No agent receives host credentials, source paths or
 to select a repository, expand scopes, change tests, change budget or merge.
 
 Automatic preparation freezes the complete catalog MD, approved architecture, committed product
-base and narrower literal scopes before implementation. A separate tier-1 Flue preparer may
-propose one bounded JUnit contract, never a command or policy. The supervisor chooses the
-Gradle command and runs that contract outside the candidate. An already-green baseline,
-compilation/toolchain failure, missing architecture or unsupported checker is a hold; only
-an actual failing contract case on the untouched baseline establishes a useful negative
-control. The initial adapter covers the current Java checker; PostgreSQL transition and web
-checker qualification remain explicit unfinished work, not silently accepted features.
+base and narrower literal scopes before implementation. A tier-1 Flue preparer proposes a bounded
+external Node acceptance, never a command or policy; the historical Java profile retains JUnit.
+The exact registered001 MD/architecture uses fixed supervisor acceptance with no model request or
+cost. A changed MD cannot reuse that oracle. Its untouched-baseline startup rejection is a
+registered negative; arbitrary compiler/toolchain failure never qualifies an acceptance contract.
+Ordinary contracts require actual failing external assertions on the untouched baseline.
+PostgreSQL transition and web product delivery still need actual qualification and implementation.
+
+Generated MDs begin with YAML frontmatter (`---`). The launcher binds the entire message as
+`--message=<value>` so the CLI cannot parse that prefix as another option. This was reproduced
+with the real CLI and a local scripted endpoint: before correction no request reached the
+endpoint; after correction the unchanged MD reached it once. The native automatic-preparation
+fixture now begins with frontmatter and exercises all role/acceptance/review paths.
 
 The PostgreSQL check boundary uses a new disposable PostgreSQL 17 container per check, network
 `none`, RAM-only data, no host paths or published ports. A non-root checker joins only that
@@ -88,11 +120,32 @@ container's network namespace; localhost reaches the disposable database, extern
 absent. Test credentials apply only to this disposable instance. Both containers are removed
 and absence is confirmed on success, timeout or failure. This boundary alone does not qualify
 the migration/restore contract or React adapter (test_factory_postgres, qualify_postgres.py).
-The activation receipt must explicitly qualify PostgreSQL migration/restore, application role
-limits and the React production browser/API path, plus a non-synthetic confirmed protected-main
-publication. The protocol digest also binds the approved architecture bytes. A Java-only receipt
-cannot activate these product launches (test_factory_qualification); adding these required fields
-does not itself produce any qualification evidence.
+Schema2 admission qualifies native execution capabilities: Flue/OpenShell, external acceptance,
+the disposable PostgreSQL fixture, sandboxed Chromium, preparation/publication and persistent
+routing. It explicitly does not claim product delivery. `factory.admission --activate` runs the
+native scripted fixtures and records exact protocol/evidence hashes only after every check
+passes. Actual migration/import/restore, frontend behavior and protected-main confirmation
+belong to each product build and publication. Requiring the unfinished product before admitting
+its own implementation formed a circular gate. Legacy schema1 receipts keep their original
+strict requirements and cannot silently qualify the new external checker.
+
+The live `prepared_product` adapter compiles a private candidate snapshot offline, starts only
+the packaged app in its own container, then runs a frozen Node26 acceptance file in a different
+container and PID/filesystem namespace. The verifier sees no candidate source or application
+filesystem. Its immutable reporter emits numeric counts and bounded failure locations, not
+response bodies, names or raw logs. A false assertion, missing report, skipped/todo/cancelled
+case or a forged stdout report cannot pass. The author receives the frozen acceptance read-only.
+The legacy same-JVM JUnit adapter remains for historical/offline fixtures.
+
+A registered dependency transition seeds exact supervisor-owned Gradle/package bytes; the
+worker cannot edit those files or choose versions. The frozen digest map, deterministic review
+and isolated publisher bind approval to those exact bytes. An arbitrary request field cannot
+approve another dependency. Nested Git control files are forbidden at both export/artifact
+boundaries, preventing candidate ignore rules from hiding unreviewed code. Existing ignore rules are also checked before export reaches the host, so hidden environment or dependency files cannot influence acceptance outside the review packet. Product test harness
+files may change only under the external checker; its program and contract are never writable.
+The ordinary live author default is900s, retaining explicit operator bounds and the$15 daily cap.
+All100MDs declare their two owning product documentation files. Their shared scopes require
+serial builds; completion still depends on the current contract and confirmed publication.
 Preparation, the builder's repair feedback and the final gate share the same supervisor-selected
 checker instance; a builder must not silently recreate a different database/check boundary
 (test_factory_execution).

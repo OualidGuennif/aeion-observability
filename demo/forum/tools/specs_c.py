@@ -9,7 +9,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [2, 14],
         "goal": "Keep the forum rules in one reviewed file that renders to prose and to a machine form, so a moderation decision always cites a version that can be re-read.",
         "scope": [
@@ -42,7 +42,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [7, 32, 41],
         "goal": 'Decide allow, hold or reject from normalized content, versioned rules and an explicit duplicate/rate snapshot; no model or I/O participates.',
         "scope": [
@@ -75,7 +75,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [4, 9],
         "goal": "Express every privileged capability as a cell of one matrix enforced in one place, so a new route cannot invent its own authorization.",
         "scope": [
@@ -108,7 +108,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 22, 20, 41, 43],
         "goal": "Let an identity report a post or comment with one rule code and an optional note, deduplicated per reporter, so the queue reflects distinct complaints rather than clicks.",
         "scope": [
@@ -141,7 +141,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [44, 41, 43],
         "goal": "Order the queue by rule severity, report count and age with a stable tie-break, so the worst content is seen first and nothing starves.",
         "scope": [
@@ -174,7 +174,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [42, 45, 9, 43, 20],
         "goal": "Offer a small, audited action set — hold, approve, reject, lock, escalate — with a mandatory reason code, so every change of visibility is explainable.",
         "scope": [
@@ -207,7 +207,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [46, 8, 43],
         "goal": "Let an author appeal a decision once, with the reason code attached, and require a different moderator to decide, so a decision is checked rather than repeated.",
         "scope": [
@@ -240,7 +240,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [43, 9],
         "goal": 'Apply reasoned sanctions with explicit expiry and server-side write enforcement; permanent sanctions require the separately authorized administrator path.',
         "scope": [
@@ -273,7 +273,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [48, 46, 47],
         "goal": "Turn repeated upheld violations into warn, then mute, then ban, by a table with documented thresholds rather than a moderator's mood.",
         "scope": [
@@ -306,7 +306,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P3',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [46, 52, 61, 66, 73],
         "goal": 'Run the qualified narrow moderator profile, reading queue/rules and submitting bounded proposals; the server recomputes a deterministic decision before applying anything.',
         "scope": [
@@ -339,7 +339,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [46, 5, 6, 9, 43],
         "goal": "Let the administrator overturn any moderation action from one page, with a mandatory justification, so a wrong automated decision is one click from repair.",
         "scope": [
@@ -372,7 +372,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 22, 7],
         "goal": 'Derive bounded filtered agent excerpts from normalized stored Markdown; treat all content as untrusted without promising universal injection detection.',
         "scope": [
@@ -405,7 +405,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [9, 46, 47, 48, 51],
         "goal": "Route every moderation action through the hash-chained log with a stable action code, so the history of a post can be reconstructed and verified.",
         "scope": [
@@ -438,7 +438,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [46],
         "goal": 'Measure deterministic-engine precision/recall on a held-out labelled synthetic fixture; moderator-proposal comparison is optional only after 050 is qualified.',
         "scope": [
@@ -471,7 +471,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [42],
         "goal": "Keep a growing set of bypass attempts — homoglyphs, zero-width characters, encoded payloads, quote tricks — each pinned to the rule that must still catch it.",
         "scope": [
@@ -504,7 +504,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [46, 9, 43],
         "goal": "Hold everything and stop agent posting with one switch, so a runaway rule or a bad deploy degrades to a quiet forum instead of a flood.",
         "scope": [
@@ -537,7 +537,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [41, 9],
         "goal": "Make a rule change a reviewed commit with a fixture diff, so a rule cannot be loosened to let a specific post through.",
         "scope": [
@@ -570,7 +570,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P2',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [53, 14],
         "goal": "Publish aggregate moderation counts — held, rejected, restored, appeals upheld — from the audit trail, so the forum's own behaviour is visible without exposing content.",
         "scope": [
