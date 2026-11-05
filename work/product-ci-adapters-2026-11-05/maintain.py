@@ -8,6 +8,7 @@ import argparse
 from decimal import Decimal
 import json
 import os
+import signal
 from pathlib import Path
 import subprocess
 import sys
@@ -92,11 +93,16 @@ def main():
     if args.phase=='prepare':
         if (STATE/'request.json').exists():
             previous=read('request.json')
-            if ((STATE/'reviews.json').exists() or (STATE/'remote.json').exists()
-                    or not (STATE/'check.json').exists() or read('check.json').get('status')!='failed'):
+            votes=read('reviews.json') if (STATE/'reviews.json').exists() else []
+            rejected=(any((v.get('answer') or {}).get('verdict')=='reject' for v in votes)
+                and all(v.get('usage',{}).get('complete') is True and v['usage'].get('cost_usd') is not None for v in votes))
+            if ((STATE/'remote.json').exists() or previous['files']==files()
+                    or not (STATE/'check.json').exists()
+                    or not (read('check.json').get('status')=='failed' and not votes or rejected)):
                 raise ValueError('preserve_existing_request')
             archive=STATE/'previous'/previous['artifact_digest'];archive.mkdir(parents=True,exist_ok=False)
-            for name in ('request.json','check.json'):(STATE/name).rename(archive/name)
+            for name in ('request.json','check.json','reviews.json'):
+                if (STATE/name).exists():(STATE/name).rename(archive/name)
         bundle=files();request={'base':BASE,'attempt_id':uuid.uuid4().hex,'feature_id':'trusted-ci-adapters',
             'title':'Prepare PostgreSQL fixtures and frozen React CI tools',
             'files':bundle,'artifact_digest':content_digest(bundle)}
@@ -115,8 +121,21 @@ def main():
         if result.returncode:raise ValueError('maintainer_stage_failed')
         for command in (['tools/knowledge/knowledge-check'],['tools/knowledge/doc-links','--diff',BASE,'--worktree'],
                 ['tools/repo-health/repo-health'],['tools/factory-tests']):
-            done=subprocess.run(command,cwd=candidate,capture_output=True,text=True,timeout=180,
+            process=subprocess.Popen(command,cwd=candidate,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+                text=True,start_new_session=True,
                 env={'PATH':os.environ['PATH'],'HOME':'/nonexistent','PYTHONDONTWRITEBYTECODE':'1'})
+            try:stdout,stderr=process.communicate(timeout=600)
+            except subprocess.TimeoutExpired:
+                try:os.killpg(process.pid,signal.SIGTERM)
+                except ProcessLookupError:pass
+                try:process.communicate(timeout=5)
+                except subprocess.TimeoutExpired:
+                    try:os.killpg(process.pid,signal.SIGKILL)
+                    except ProcessLookupError:pass
+                    process.communicate(timeout=5)
+                save('check.json',{'status':'failed','check':command[0],'reason':'check_timeout'})
+                raise ValueError('maintainer_local_check_timeout') from None
+            done=subprocess.CompletedProcess(command,process.returncode,stdout,stderr)
             if done.returncode:
                 save('check.json',{'status':'failed','check':command[0],'diagnostic':(done.stdout+done.stderr)[-4000:]})
                 raise ValueError('maintainer_local_check_failed')

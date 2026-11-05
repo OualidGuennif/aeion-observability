@@ -1885,3 +1885,12 @@ before batching and passes afterward. These are mechanisms, not product delivery
 Exact maintainer CI bundle6104ba6a passed product knowledge/link/health/foundation checks and isolated
 backend tests/package. GLM actualapproveUSD0.01168080; Qwen still pending.
 Native admissionv12 is running on the current protocol; no live launch/main merge/new Go claimed.
+
+Graphify/Archify exact1dea96e82a18b28ef9a662562c7f615672153dad PASS (all3views/native browser gates),
+/private/tmp/aeion-architecture-1dea96e.log. Host723PASS101.409s with14expected optional-SDK skips;
+controller venv still runs the slow-export regression (PASS). Two maintainer correction tests PASS.
+CI Qwen rejected a pre-existing mutable Semgrep image (completeUSD0.02797278); retained, not overruled.
+Official registry resolved Semgrep digest451b3d875c00dac7ed5db5293e584a07de11449a409c10b3c2d2652f429630b6.
+New bundle93fd1321 GLM actualapproveUSD0.02536887; Qwen pending. No publication yet.
+User browser independently confirmed paused100MD,0active, no real product environment links;
+the existing advanced Staging link is a separate historical canary drill, not product delivery.
