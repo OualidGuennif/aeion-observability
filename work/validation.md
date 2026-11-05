@@ -1,3 +1,9 @@
+## Simplified cockpit — 2026-11-05
+
+- Owner request: the cockpit and lab pages were unclear, with no visible staging or production link. Change: a "Your next step" banner with one plain action, then factory mode, today's budget and environments (Staging/Production "Not deployed yet"). The synthetic canary drill is removed from the cockpit; review holds read `reviewer_failed`/`reviewer_rejected` from the circuit; the lab page says it is advanced and not needed to build.
+- Checks: cockpit JS 24 PASS (2 new: next-step actions, no drill or fake environment link); full demo suite OK; knowledge-check and doc-links PASS.
+- Rendered with a synthetic fixture backend (scratchpad, no auth, no real data) at the pane's desktop width and at 375 px: banner, three status blocks, catalog and held build card readable. Owner visual yes on the real signed-in cockpit is still pending. Dark mode is not implemented in these stylesheets (existing gap).
+
 ## Typed review verdict and relay idle bound — 2026-11-05
 
 - Measured: DeepSeek review run44bef4bd ended with one known-cost request and no `submit_review` call (REVIEW_RESULT_MISSING). Fix: Flue2.3 `useAgentFinish` appends one result-required signal guarded by `usePersistentState`; the packet system text now points to the typed tool. Native fixture `qualify_review_verdict.py` failed before the hook (REVIEW_RESULT_MISSING) and passes after it (3 scripted requests, one continuation, zero provider requests).

@@ -15,7 +15,7 @@
       <a href="/#activity"><span>↳</span> Build activity</a>
       <a href="http://127.0.0.1:3300" target="_blank" rel="noreferrer"><span>↗</span> Langfuse traces</a>
     </nav>
-    <div class="sidebar-bottom"><p class="nav-label">ADVANCED</p><a href="/lab">Model &amp; handover lab ↗</a><div class="local-note"><i></i> Local workspace<span>Agora · autonomous forum</span></div></div>
+    <div class="sidebar-bottom"><p class="nav-label">ADVANCED</p><a href="/lab">Model lab ↗</a><p class="nav-hint">Compares models. Not needed to build.</p><div class="local-note"><i></i> Local workspace<span>Agora · autonomous forum</span></div></div>
   </aside>
   <div class="workspace">
     <header class="topbar"><div><span class="breadcrumb">WORKSPACE /</span> Agora</div><span class="connection"><i id="system-dot"></i><span id="system-status">Sign in required</span></span></header>
@@ -25,17 +25,17 @@
         <div class="login-card"><span class="small-label">ADMINISTRATOR ACCESS</span><h2>Open your workspace</h2><p>Your local administrator token keeps build controls private.</p><form id="login-form" autocomplete="off"><label for="token">Bootstrap token</label><input id="token" type="password" required spellcheck="false" placeholder="Paste your local token"><button class="primary" type="submit">Enter workspace <span>→</span></button></form><details class="token-help"><summary>Where is my token?</summary><p>Open <code>demo/.local/factory/admin.token</code> locally in your editor. It rotates after each successful sign-in.</p></details><p id="login-msg" class="message" role="status"></p></div>
       </section>
       <div id="app" hidden>
-        <section class="page-heading"><div><p class="eyebrow">AGORA / OPERATOR WORKSPACE</p><h1>Build what’s <em>next.</em></h1><p>Launch ready features and follow their verified results.</p></div><div class="heading-meta"><span id="execution-mode" class="mode-pill">Loading execution…</span><span class="small-label">ONE BUILD AT A TIME</span></div></section>
-        <div id="execution-notice" class="notice" role="status"></div>
-        <section class="metrics" aria-label="Workspace summary">
-          <article><span class="small-label">READY TO BUILD</span><strong id="count-ready">—</strong><p>Configured and unblocked</p></article>
-          <article><span class="small-label">IN PROGRESS</span><strong id="count-active">—</strong><p>Queued or running</p></article>
-          <article><span class="small-label">COMPLETED</span><strong id="count-completed">—</strong><p>Built or already implemented</p></article>
-          <article><span class="small-label">WAITING</span><strong id="count-blocked">—</strong><p>Factory, prerequisites or review</p></article>
+        <section class="page-heading"><div><p class="eyebrow">AGORA / FEATURE COCKPIT</p><h1>Build what’s <em>next.</em></h1><p>Each Markdown spec becomes code, checks, two independent reviews and a pull request to main.</p></div></section>
+        <section id="next-step" class="next-step" aria-labelledby="next-title" aria-live="polite"><span class="small-label">YOUR NEXT STEP</span><strong id="next-title">Loading…</strong><p id="next-detail"></p></section>
+        <section class="status-row" aria-label="Factory status">
+          <article><span class="small-label">FACTORY</span><strong id="execution-mode">Loading…</strong><p id="execution-notice"></p></article>
+          <article><span class="small-label">BUDGET TODAY · EUROPE/PARIS</span><div id="budgets"><p class="fineprint">Loading budget…</p></div></article>
+          <article><span class="small-label">ENVIRONMENTS</span><dl class="env-list"><dt>Staging</dt><dd>Not deployed yet</dd><dt>Production</dt><dd>Not deployed yet</dd></dl><p class="fineprint">No feature has reached main through the full circuit and no deployer is connected. A link appears here only after a real deployment passes its readiness check.</p></article>
         </section>
         <div class="main-grid">
           <section class="panel catalog-panel" aria-labelledby="catalog-title">
-            <div class="panel-heading"><div><p class="eyebrow">PLAN THE NEXT STEP</p><h2 id="catalog-title">Feature catalog</h2></div><span id="catalog-count" class="subtle">Loading…</span></div>
+            <div class="panel-heading"><div><p class="eyebrow">SPECIFICATIONS IN BUILD ORDER</p><h2 id="catalog-title">Feature catalog</h2></div><span id="catalog-count" class="subtle">Loading…</span></div>
+            <p id="catalog-summary" class="catalog-summary">—</p>
             <div class="catalog-tools"><label class="search"><span class="sr-only">Search features</span><input id="feature-search" type="search" placeholder="Search by name or number…"></label><label><span class="sr-only">Phase</span><select id="phase-filter" aria-label="Phase"><option value="">All phases</option></select></label></div>
             <div id="status-filters" class="tabs" role="group" aria-label="Feature status"><button data-filter="ready" aria-pressed="false">Ready</button><button data-filter="all" class="selected" aria-pressed="true">All features</button><button data-filter="completed" aria-pressed="false">Completed</button><button data-filter="blocked" aria-pressed="false">Waiting</button></div>
             <div id="cards" class="feature-list" aria-live="polite"></div>
@@ -44,12 +44,10 @@
           </section>
           <aside class="activity-column">
             <section class="panel activity-panel" id="activity" aria-labelledby="activity-title"><div class="panel-heading"><div><p class="eyebrow">FOLLOW THE WORK</p><h2 id="activity-title">Build activity</h2></div><span id="queue-count" class="subtle">—</span></div><div id="builds" class="build-list" aria-live="polite"></div><details id="history-panel" class="history"><summary>Previous attempts &amp; simulations <span id="history-count"></span></summary><div id="history" class="build-list"></div></details></section>
-            <section class="panel budget-panel"><div class="panel-heading"><div><p class="eyebrow">DAILY GUARDRAILS</p><h2>Budget</h2></div><span class="subtle">EUR/PARIS</span></div><div id="budgets"><p class="subtle">Loading budget…</p></div><p class="fineprint">Reserved + settled amounts. Provider-reported costs are not invoices.</p></section>
           </aside>
         </div>
-        <details class="advanced panel" id="release-panel"><summary><div><span class="eyebrow">ADVANCED · SYNTHETIC EXERCISE</span><strong>Historical canary drill</strong></div><span id="release-state" class="subtle">Load on demand</span></summary><p class="fineprint">Read-only synthetic pages for testing rollout controls. This is not the forum application or its staging/production deployment.</p><div class="release-grid"><div><h3>Drill preview</h3><p id="release-id" class="mono">—</p><p id="release-features" class="fineprint"></p><a id="staging-link" target="_blank" rel="noreferrer" hidden>Open synthetic preview ↗</a><div class="queue-actions"><button id="validate-release" class="secondary" disabled>Validate drill</button><button id="deploy-now" class="secondary" disabled>Start drill</button></div></div><div><h3>Rollout</h3><p id="release-timeline" class="fineprint">—</p><p id="release-traffic" class="fineprint">—</p><div class="queue-actions"><button id="advance-release" class="secondary" disabled>Advance step</button><button id="rollback-release" class="secondary" disabled>Rollback</button></div></div><div><h3>Canary</h3><p id="release-gate" class="fineprint">—</p><div id="release-flags"></div></div></div><p id="release-msg" class="message" role="status"></p></details>
         <details class="advanced panel"><summary><div><span class="eyebrow">DIAGNOSTICS</span><strong>Recent workspace events</strong></div></summary><div id="events" class="event-list"></div></details>
-        <footer><span>Æion · useful work, visible evidence.</span><a href="/lab">Open the advanced model lab ↗</a></footer>
+        <footer><span>Æion · useful work, visible evidence.</span><a href="/lab">Model lab (advanced, not needed to build features) ↗</a></footer>
         <dialog id="spec-dialog" aria-labelledby="spec-title"><header class="panel-heading"><h2 id="spec-title">Specification</h2><button id="spec-close" class="secondary" type="button">Close</button></header><pre id="spec-body"></pre><p id="spec-digest" class="fineprint"></p></dialog>
       </div>
     </main>

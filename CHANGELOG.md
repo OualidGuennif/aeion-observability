@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Simplify the cockpit: a "Your next step" banner with one plain owner action, then factory
+  mode, today's budget and environments (Staging/Production "Not deployed yet" until a real
+  deployment exists). Remove the synthetic canary drill from the cockpit, explain review holds in
+  plain words, and label the model lab as an advanced page not needed to build features.
 - Require reviewers to submit their verdict through the typed tool: a Flue finish hook asks once
   when a session ends without it. Failed votes keep their failure code and metadata, and one
   explicit operator retry reruns gates and both votes after a hold with no rejection.

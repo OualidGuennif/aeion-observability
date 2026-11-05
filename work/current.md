@@ -6,7 +6,7 @@ No final operational Go or actual product feature merge is claimed.
 ## Secure factory delivery — ACTIVE
 
 - Owner decision: finish MD→Flue/Pi/OpenShell tier3→external acceptance→two independent reviewer families→PR/exact-head CI→confirmed main, with Quarkus/PostgreSQL/React, preserved data and15USD/day per repository.
-- State: Observer main f1be05c (PR21) and develop ae6d929 are green and identical in source. Local develop 528f465 adds the typed-verdict finish hook, failed-review retry, relay idle-bound fix and `demo/budget.conf` (742 demo tests PASS); GLM approved it, the second family review is pending, not pushed. Local owner notes remain uncommitted.
+- State: Observer main f1be05c (PR21) and develop ae6d929 are green and identical in source. Local develop 528f465 adds the typed-verdict finish hook, failed-review retry, relay idle-bound fix and `demo/budget.conf` (742 demo tests PASS); GLM and Qwen approved it; develop 10f5214 pushed, PR22 open. Local owner notes remain uncommitted.
 - Next: a fresh 001 build from the cockpit (owner cancels the held row); independent review and PR of this develop batch (who: agent, owner for the cockpit action).
 - Blocker: no product feature has completed the whole circuit. Product deployment and002/014 remain open. No false all-green claim.
 - Evidence: [Delivery report](factory-delivery-2026-11-05.md); [execution contract](../knowledge/components/factory-flue.md); https://github.com/OualidGuennif/aeion-observability/pull/20 .
@@ -14,7 +14,7 @@ No final operational Go or actual product feature merge is claimed.
 ## Real001 and reviewer context — ACTIVE
 
 - Owner decision: investigate actual failure paths, preserve failures/costs, require two real independent votes and never hand-edit product business source.
-- State: v8 fe0e69f0013248558a8dbc9961c0e30a held at generation2. The one-time failed-review retry reran the external gate (PASS), then DeepSeek hit the relay's fixed45s socket bound (TRANSPORT_ERROR, zero tokens, trace d52dbac0). Earlier: Qwen approved after the v2 context; DeepSeek previously ended without a typed verdict; the original Qwen v1 scope rejection is archived. Author GLM retained13files, known0.16105089USD.
+- State: the owner cancelled v8 and relaunched 001 as 51b7fc97c57744f8a07aa2f197cd8fb8 on the live controller (preparing at 2026-11-05 evening). Earlier: v8 fe0e69f0013248558a8dbc9961c0e30a held at generation2. The one-time failed-review retry reran the external gate (PASS), then DeepSeek hit the relay's fixed45s socket bound (TRANSPORT_ERROR, zero tokens, trace d52dbac0). Earlier: Qwen approved after the v2 context; DeepSeek previously ended without a typed verdict; the original Qwen v1 scope rejection is archived. Author GLM retained13files, known0.16105089USD.
 - Next: the retry is consumed by design, so 001 needs a fresh full build after the relay fix is qualified; the finish hook and300s idle bound then apply (who: owner cancels/relaunches in the cockpit, agent watches).
 - Blocker: no review override, second vote or product publication. Unknown v6 usage retains0.50USD reservation; v7 known0.11236812USD failed and remains historical. Forum counted1.04USD, Observer1.52USD, separate daily15USD purses.
 - Evidence: artifact26cb980e8e1d98deb19b26c3c13d70bef1048d0e19b0ef161ca1493fedb658ca; base e55b820ca4534738283df1674ba80be43ec03fa5. Author trace f0d45197e8061d0120571df6b259f6b2; Qwen301d9f7cdc7ce2877e3fb9dfbc8cd0f4. No active actual job now.
@@ -40,5 +40,5 @@ No final operational Go or actual product feature merge is claimed.
 - Owner decision: provide real staging/production links and readable implementation stages; technical-only features may explicitly have no dedicated demo.
 - State: tested product cookie-filtering proxy exists but is not wired. The old advanced Staging57101 link is a historical read-only canary drill, not the real forum. Existing forum container127.0.0.1:8081 uses owner untracked compose files and SQLite data; preserve it. Factory2.0.3 and pinned Langfuse4.75.0 are deployed with preserved backups/data.
 - Next: wire actual checked product artifacts to isolated environments, prove readiness and exact source identity, then expose only verified links (who: agent).
-- Blocker: no real staging/production deployment receipt/link yet. Do not merely relabel the historical drill or existing unverified container as delivered main.
+- Blocker: no real staging/production deployment receipt/link yet. The cockpit now shows both as "Not deployed yet" and no longer shows the synthetic drill (owner visual yes pending). Do not relabel the existing unverified container as delivered main.
 - Evidence: [Cockpit contract](../knowledge/components/operator-cockpit.md); [product proxy](../demo/factory/product_proxy.py); latest browser inspection confirmed the misleading advanced drill and missing prod link.

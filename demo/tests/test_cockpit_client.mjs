@@ -218,3 +218,30 @@ test('an interrupted worker still exposes its checked draft cause and preserved 
   assert.match(html,/Retained draft files/);
   assert.match(html,/>11</);
 });
+
+test('the next step names one plain owner action and never presents a simulation as real work', () => {
+  const { context, run } = client(); context.fixture = features;
+  run('state.catalog = fixture');
+  assert.match(run('nextStep({mode:"simulator"}, fixture, []).title'), /Nothing real/);
+  assert.match(run('nextStep({mode:"live"}, fixture, []).title'), /Ready to launch: 017/);
+  const held = { feature_id: '001', status: 'held', hold_reason: 'owner_review_required',
+    receipt: JSON.stringify({ circuit: { reason: 'reviewer_failed' } }), created_ns: 2 };
+  context.held = held;
+  const step = run('nextStep({mode:"live"}, fixture, [held])');
+  assert.match(step.title, /Feature 001 is on hold/);
+  assert.match(step.detail, /could not finish its vote/);
+  assert.match(step.detail, /Cancel this request, then launch the feature again/);
+  context.rejected = { ...held, receipt: JSON.stringify({ circuit: { reason: 'reviewer_rejected' } }) };
+  assert.match(run('nextStep({mode:"live"}, fixture, [rejected]).detail'), /Relaunching unchanged will likely be rejected/);
+  context.running = { feature_id: '001', status: 'dispatched', receipt: '{}', created_ns: 3 };
+  assert.match(run('nextStep({mode:"live"}, fixture, [running]).title'), /being built/);
+  assert.match(run('nextStep({mode:"live", hold_reason:"budget_config_invalid"}, fixture, []).detail'), /Fix demo\/budget.conf/);
+  assert.match(run('nextStep({mode:"live"}, [fixture[0], fixture[2]], []).title'), /Nothing can start yet/);
+});
+
+test('the cockpit markup no longer offers the synthetic canary drill or a fake environment link', () => {
+  const html = readFileSync(new URL('../app/factory.html', import.meta.url), 'utf8');
+  assert.ok(!/canary drill|staging-link|release-panel/i.test(html));
+  assert.match(html, /Staging<\/dt><dd>Not deployed yet/);
+  assert.match(html, /Production<\/dt><dd>Not deployed yet/);
+});
