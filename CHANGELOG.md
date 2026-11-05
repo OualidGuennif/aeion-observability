@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Stop the controller's child processes from crashing on macOS ("Python quit unexpectedly"):
+  gRPC, loaded by the OpenShell client, restarted its threads in every forked child before exec.
+  The controller and OpenShell qualifier now disable gRPC fork support before importing it.
 - Simplify the cockpit: a "Your next step" banner with one plain owner action, then factory
   mode, today's budget and environments (Staging/Production "Not deployed yet" until a real
   deployment exists). Remove the synthetic canary drill from the cockpit, explain review holds in

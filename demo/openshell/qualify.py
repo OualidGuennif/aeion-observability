@@ -11,6 +11,8 @@ import time
 import sys
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'app'))
+from grpc_fork import disable_grpc_fork_handlers
+disable_grpc_fork_handlers()  # before the OpenShell client imports gRPC
 from sandbox import BUNDLE_FILES, COLLECT_SCRIPT, MAX_SYNC_BYTES, SANDBOX_OUT, materialize
 
 from openshell import SandboxClient, TlsConfig

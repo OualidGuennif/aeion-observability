@@ -1,3 +1,9 @@
+## Controller child-process crashes — 2026-11-05
+
+- Owner report: hundreds of macOS "Python quit unexpectedly" dialogs. Crash reports (4 kept by macOS, 20:01–20:10) are children of controller PID 77547 aborting 6 ms after launch with EXC_BREAKPOINT in libxpc, called from gRPC's c-ares DNS resolver on a gRPC work-stealing thread.
+- Cause measured: with a live gRPC channel, a forked child has 10 native threads by default (gRPC restarts its pool after fork) and 1 with `GRPC_ENABLE_FORK_SUPPORT=false`. A child aborting before exec fails that subprocess launch, a plausible cause of the transient `isolation_unqualified` draft check in 001 (its detail code is not retained, so unconfirmed).
+- Fix: `demo/app/grpc_fork.py` forces the variable before the OpenShell import in the controller and `openshell/qualify.py`. test_grpc_fork 3 PASS (fork probe asserts one child thread). It applies after the next controller restart, which waits for the running 001 build to finish.
+
 ## Simplified cockpit — 2026-11-05
 
 - Owner request: the cockpit and lab pages were unclear, with no visible staging or production link. Change: a "Your next step" banner with one plain action, then factory mode, today's budget and environments (Staging/Production "Not deployed yet"). The synthetic canary drill is removed from the cockpit; review holds read `reviewer_failed`/`reviewer_rejected` from the circuit; the lab page says it is advanced and not needed to build.

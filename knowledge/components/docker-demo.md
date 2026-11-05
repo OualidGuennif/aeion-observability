@@ -32,6 +32,9 @@ of upstream silence before reporting `PROVIDER_TIMEOUT`; other socket failures a
 the **Agora forum** (`demo/forum-app/`, Quarkus/Java). Nine observation services use Docker; a
 private native mTLS gateway owns OpenShell sandboxes through its Docker compute driver. This is an
 explicitly authorized local pilot, not a production OPS boundary or general model benchmark.
+The controller loads the OpenShell gRPC client, so it sets `GRPC_ENABLE_FORK_SUPPORT=false`
+before that import: otherwise every subprocess fork restarts gRPC threads that can abort the
+child on macOS before its exec (`demo/app/grpc_fork.py`, test_grpc_fork).
 
 The [operator cockpit](operator-cockpit.md) is the default page at `/` and `/factory`; the
 historical model lab is at `/lab`. Current-contract completion locks selection. Historical
