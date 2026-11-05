@@ -23,15 +23,19 @@ DROID_KNOWN = {*DROID_TOOLS, 'Bash', 'Read', 'Edit', 'MultiEdit', 'Write', 'Grep
 # Antigravity nests the call as toolCall {name, args}. Its own tools use PascalCase arguments, MCP tools any
 # case; an argument at any depth named like a path, file, directory or URI (AbsolutePath, TargetDirectories,
 # file_path, Uri) names files for the guards.
-ANTIGRAVITY_TOOLS = {'run_command': 'Bash', 'view_file': 'Read', 'read_file': 'Read',
-                     'write_to_file': 'Write', 'write_file': 'Write',
-                     'replace_file_content': 'Edit', 'multi_replace_file_content': 'Edit',
+ANTIGRAVITY_TOOLS = {'run_command': 'Bash', 'view_file': 'Read', 'read_file': 'Read', 'write_to_file': 'Write',
+                     'write_file': 'Write', 'replace_file_content': 'Edit', 'multi_replace_file_content': 'Edit',
                      'edit_file': 'Edit', 'grep_search': 'Grep'}
 ANTIGRAVITY_PATH_KEY = re.compile(r'(paths?|files?|dirs?|directory|directories|uris?)$')
 # view_code_item's NodePaths are code symbols (Cache.key), not files.
 ANTIGRAVITY_SYMBOL_KEYS = {'nodepath', 'nodepaths'}
 # An argument at any depth named like a file filter (Includes, glob, IncludePattern, file_pattern) picks files to read.
 ANTIGRAVITY_GLOB_KEY = re.compile(r'(includes?|globs?|patterns?)$')
+# Other harnesses name their grep filter include (OpenCode), glob (Pi) or a *Pattern; their `pattern` is the regex.
+FILTER_KEY = re.compile(r'^(includes?|globs?|(glob|file|include)patterns?)$')
+# Harness parsers trim a patch header and its path, and Codex forgives the marker's case.
+PATCH_HEADER = re.compile(r'\*\*\*\s*(add file|update file|delete file|move to)\s*:(.*)', re.I)
+PATCH_OTHER_HEADER = re.compile(r'\*\*\*\s*[a-z][a-z ]*:', re.I)
 
 
 class GuardRefusal(ValueError):
@@ -115,10 +119,25 @@ def edit_paths(event, provider=None):
     if not isinstance(data, dict):
         raise ValueError('tool_input must be an object')
     if event.get('tool_name') == 'apply_patch':
-        patch = next((data[field] for field in ('command', 'patchText', 'patch', 'input') if field in data), None)
+        # The guard reads one patch text; a second one could be the text the harness applies.
+        fields = [field for field in ('command', 'patchText', 'patch', 'input') if field in data]
+        if len(fields) > 1:
+            raise ValueError('apply_patch carries more than one patch text')
+        patch = data[fields[0]] if fields else None
         if not isinstance(patch, str):
             raise ValueError('apply_patch requires its native patch string')
-        paths = re.findall(r'^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$', '\n'.join(patch.splitlines()), re.M)
+        paths = []
+        for line in patch.split('\n'):
+            line = line.strip()
+            header = PATCH_HEADER.fullmatch(line)
+            if header:
+                path = header.group(2).strip()
+                # Parsers that split the header at a colon would read a shorter path than the guard checked.
+                if not path or ':' in path:
+                    raise ValueError('apply_patch names an empty path or a path with a colon')
+                paths.append(path)
+            elif PATCH_OTHER_HEADER.match(line):
+                raise ValueError('apply_patch has a header the guards cannot place')
         if not paths:
             raise ValueError('apply_patch has no recognized file paths')
         return paths
@@ -153,15 +172,15 @@ def antigravity_paths(value, named=False):
     return []
 
 
-def antigravity_globs(value, named=False):
+def filter_globs(value, key_re, named=False):
     # Walked like paths: a string is a file filter only under a filter-like name, and anything else there is refused.
     if isinstance(value, dict):
         return [glob for key, item in value.items()
-                for glob in antigravity_globs(item, named or ANTIGRAVITY_GLOB_KEY.search(argument_name(key)) is not None)]
+                for glob in filter_globs(item, key_re, named or key_re.search(argument_name(key)) is not None)]
     if isinstance(value, list):
-        return [glob for item in value for glob in antigravity_globs(item, named)]
+        return [glob for item in value for glob in filter_globs(item, key_re, named)]
     if named and not isinstance(value, str):
-        raise ValueError('the Antigravity include patterns must be strings')
+        raise ValueError('a file filter pattern must be a string')
     return [value] if named and value else []
 
 
@@ -193,14 +212,17 @@ def antigravity_event(event):
     if workdirs:
         data['workdir'] = unquote(urlsplit(workdirs[0]).path) if workdirs[0][:5].lower() == 'file:' else workdirs[0]
     # The guard cannot know which other argument a shell tool runs in, so on a shell call every argument
-    # besides the command and its directory must be a flag or a number (run_command's Blocking, WaitMsBeforeAsync).
-    if command is not None and any(argument_name(key) not in {'commandline', 'command', 'cwd', 'workdir', 'toolsummary'}
-                                   and not isinstance(value, (bool, int, float)) for key, value in args.items()):
+    # besides the command and its directory must be a flag or a number (run_command's Blocking, WaitMsBeforeAsync),
+    # or AGY 2.0's required toolSummary string, the line shown to the user, which is never run.
+    if command is not None and any(argument_name(key) not in {'commandline', 'command', 'cwd', 'workdir'}
+                                   and not isinstance(value, (bool, int, float))
+                                   and not (argument_name(key) == 'toolsummary' and isinstance(value, str))
+                                   for key, value in args.items()):
         raise ValueError('the Antigravity shell call carries an argument the guards cannot place')
     # Every path-like argument meets the guards, not only the first: one call can name several files.
     paths = antigravity_paths(args)
     # grep_search's Includes and any tool's file filters pick the files it reads, so each meets the Grep glob check.
-    globs = antigravity_globs(args)
+    globs = filter_globs(args, ANTIGRAVITY_GLOB_KEY)
     # view_file windows by StartLine/EndLine; the intake guard reads the same window as offset/limit.
     if type(args.get('StartLine')) is int and type(args.get('EndLine')) is int:
         data['offset'], data['limit'] = args['StartLine'], args['EndLine'] - args['StartLine'] + 1
@@ -468,7 +490,9 @@ def handle(root, provider, event):
             for path in edit_paths(event, provider):
                 script(root, 'guard-path.py', {'tool_name': 'Edit', 'tool_input': {**data, 'file_path': path}})
             return alert(result, measured)
-        for pattern in event.get('antigravity_globs', []) if provider == 'antigravity' else []:
+        # A file filter under any harness's name picks the files a search reads, so each meets the Grep glob check.
+        globs = event.get('antigravity_globs', []) if provider == 'antigravity' else filter_globs(event.get('tool_input'), FILTER_KEY)
+        for pattern in globs:
             script(root, 'guard-path.py', {'tool_name': 'Grep', 'tool_input': {'glob': pattern}})
         paths = edit_paths(event, provider)
         if not paths and event.get('tool_name') == 'Grep':

@@ -15,8 +15,10 @@ description: Cuts a release from develop to main behind a review and a green CI,
    Wait for the `Architecture refresh` workflow to pass on the exact merged main SHA. A failed round is
    retried/corrected, never skipped.
 5. Tag and publish: `git fetch origin`, `git tag -a vX.Y.Z origin/main -m vX.Y.Z`, `git push origin vX.Y.Z`,
-   `gh release create vX.Y.Z --notes "$(tools/release/release --notes X.Y.Z)"`. The source archives leave
-   out `demo/` (`.gitattributes` export-ignore): `git archive vX.Y.Z | tar -t | grep -c '^demo/'` prints 0.
+   `gh release create vX.Y.Z --notes "$(tools/release/release --notes X.Y.Z)"`. The release name is exactly
+   `vX.Y.Z` (no sentence, no summary) and the body is that section unedited, like the first releases. The
+   source archives leave out `demo/` (`.gitattributes` export-ignore):
+   `git archive vX.Y.Z | tar -t | grep -c '^demo/'` prints 0.
 6. Catch `develop` up: `git switch develop && git merge --ff-only origin/main && git push` (the pre-push
    hook accepts commits already on `main`). Fast-forward local `main` too.
 7. Deploy only through the project's deploy procedure and its guards, with a human's go when the project

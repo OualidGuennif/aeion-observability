@@ -31,18 +31,21 @@ setting() {
 
 # Each job: prompt file, criticality (low|normal|high), tool allowlist, permission mode.
 READ_ONLY="Read,Grep,Glob,Write(.aeion/loop-bodies/**),Bash(git log -5 --oneline),Bash(git diff --stat),Bash(git diff --check),Bash(git status --short),Bash(tools/knowledge/knowledge-check),Bash(tools/knowledge/doc-links),Bash(tools/knowledge/doc-links --for *),Bash(tools/repo-health/repo-health),Bash(gh issue list *),Bash(gh issue view *),Bash(gh issue create *),Bash(gh issue comment *)"
+# The git subcommands a writing job runs; git config, -c and the other ways to name a program stay out.
+GIT_WORK="Bash(git status *),Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git fetch *),Bash(git switch *),Bash(git checkout *),Bash(git add *),Bash(git commit *),Bash(git push *),Bash(git branch *),Bash(git rev-parse *)"
 case "$JOB" in
     inner)    PROMPT="inner.md";    CRIT="normal"; MODE="acceptEdits"
-              TOOLS="Read,Grep,Glob,Edit,Write,Agent,Bash(git *),Bash(gh issue *),Bash(gh pr *),Bash(tools/*),Bash(python3 *)"
+              TOOLS="Read,Grep,Glob,Edit,Write,Agent,$GIT_WORK,Bash(gh issue *),Bash(gh pr *),Bash(tools/*),Bash(python3 *)"
               [[ "$ISSUE" =~ ^[0-9]+$ ]] || { echo "inner needs a numeric --issue N" >&2; exit 64; } ;;
     middle)   PROMPT="middle.md";   CRIT="normal"; MODE="dontAsk"; TOOLS="$READ_ONLY,Agent,Bash(gh pr list *),Bash(gh pr view *),Bash(gh pr checks *),Bash(gh pr diff *),Bash(gh pr comment *)" ;;
     outer)    PROMPT="outer.md";    CRIT="low";    MODE="dontAsk"; TOOLS="$READ_ONLY,Bash(gh issue *),Bash(gh run list *)" ;;
     docs)     PROMPT="docs.md";     CRIT="low";    MODE="dontAsk"; TOOLS="$READ_ONLY,Bash(gh issue *)" ;;
     security) PROMPT="security.md"; CRIT="high";   MODE="dontAsk"; TOOLS="$READ_ONLY,Agent,Skill,Bash(gh issue *)" ;;
     watch)    PROMPT="watch.md";    CRIT="normal"; MODE="acceptEdits"
-              TOOLS="$READ_ONLY,WebSearch,WebFetch,Write(tech-watch/**),Edit(tech-watch/**),Bash(git *),Bash(gh pr create *)" ;;
+              TOOLS="$READ_ONLY,WebSearch,WebFetch,Write(tech-watch/**),Edit(tech-watch/**),$GIT_WORK,Bash(gh pr create *)" ;;
+    # The retro writes hookify rules and skills, never the hooks or settings that guard every session.
     retro)    PROMPT="retro.md";    CRIT="normal"; MODE="acceptEdits"
-              TOOLS="$READ_ONLY,Agent,Write(knowledge/**),Edit(knowledge/**),Write(.claude/**),Edit(.claude/**),Bash(git *),Bash(gh pr *),Bash(gh api *)" ;;
+              TOOLS="$READ_ONLY,Agent,Write(knowledge/**),Edit(knowledge/**),Write(.claude/hookify.*.local.md),Edit(.claude/hookify.*.local.md),Write(.claude/skills/**),Edit(.claude/skills/**),$GIT_WORK,Bash(gh pr create *),Bash(gh pr list *),Bash(gh pr view *)" ;;
     *) usage ;;
 esac
 ENABLED="$(setting LOOPS_ENABLED false)"
@@ -50,6 +53,9 @@ if [[ "$JOB" == inner && "$DRY_RUN" == false && "$ENABLED" == true ]]; then
     LABELS="$(cd "$ROOT" && gh issue view "$ISSUE" --json labels --jq '.labels[].name')"
     grep -Fxq "agent-ready" <<< "$LABELS" || { echo "issue is not agent-ready; nothing runs" >&2; exit 3; }
     if grep -Fxq "severity:high" <<< "$LABELS"; then CRIT=high; fi
+    # A label is added by a maintainer, but the issue text stays its author's: an outsider's text never drives a writing agent.
+    AUTHOR="$(cd "$ROOT" && gh api "repos/{owner}/{repo}/issues/$ISSUE" --jq '.author_association')"
+    [[ "$AUTHOR" =~ ^(OWNER|MEMBER|COLLABORATOR)$ ]] || { echo "issue is not written by a maintainer ($AUTHOR); nothing runs" >&2; exit 3; }
 fi
 # A production read is allowed only through the configured read-only command.
 PROD_READ="$(setting PROD_READ_COMMAND "")"
@@ -96,6 +102,8 @@ mkdir -p "$ROOT/.aeion/logs"
 LOG="$ROOT/.aeion/logs/${JOB}-$(date -u +%Y%m%dT%H%M%SZ).log"
 cd "$ROOT"
 case "$JOB" in outer|docs|security|middle) export AEION_LOOP_READ_ONLY=1 ;; esac
+# The hooks keep every loop inside this project (.claude/hooks/guard-path.py).
+export AEION_LOOP="$JOB"
 [[ "$JOB" == outer && -n "$PROD_READ" ]] && export AEION_PROD_READ_COMMAND="$PROD_READ"
 python3 "$ROOT/tools/loops/run" --timeout "$DEADLINE" -- "${CMD[@]}" > "$LOG" 2>&1 || { echo "loop $JOB failed; see $LOG" >&2; exit 1; }
 echo "loop $JOB done; log $LOG" >&2

@@ -165,7 +165,7 @@ Comparison campaigns stay on tier 3.
   supervisor's task trace through W3C `traceparent`. Flue's own OpenTelemetry adapter is not used:
   it exports prompts, tool payloads and stacks by default. A metadata-only `observe()` subscriber
   feeds the supervisor instead.
-- **Langfuse 4.49.0** receives OTLP/HTTP with the v4 ingestion header. Harness USD estimates
+- **Langfuse 4.75.0** receives OTLP/HTTP with the v4 ingestion header. Harness USD estimates
   are mapped to generation cost details; correctness and autonomous completion are published
   as boolean API scores. Scores can have upstream processing delay; the cockpit's canonical
   outcome is immediate.

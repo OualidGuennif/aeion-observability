@@ -6,7 +6,7 @@ description: The weekly retrospective - reads the recent sessions and the owner'
 # Retro (hindsight)
 
 ## Process
-1. Gather: this project's Claude Code transcripts of the last week (`~/.claude/projects/<project>/*.jsonl`, when present locally), merged PRs and their review comments, outer-loop issues.
+1. Gather: this project's Claude Code transcripts of the last week (`~/.claude/projects/<project>/*.jsonl`, when present locally), merged PRs and their review comments (`gh pr list --state merged`, `gh pr view <n> --comments`; the retro loop has no `gh api`), outer-loop issues.
 2. Extract, with one line of evidence each: an error repeated; a correction made twice; a stated preference; a procedure redone by hand.
 3. Turn each into the cheapest durable fix:
    - a regex can see it → a `hookify` rule (`.claude/hookify.<name>.local.md`, warn first);

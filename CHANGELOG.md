@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Adopt Factory2.0.3 while preserving protected team mode. Upgrade Langfuse to pinned4.75.0
+  after verified cold backups and preserve bounded effort metadata through the collector.
+
 - Let Qwen/Haiku launch complete bounded inputs without treating a byte cost estimate as an
   exact context count. Gate continuation on measured API usage including cache; retain budgets,
   unknown-usage stops and isolation. Check bootstrap documentation against the actual PR diff.

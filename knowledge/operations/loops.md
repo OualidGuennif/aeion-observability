@@ -55,17 +55,32 @@ ignored `.aeion/loop-bodies/`; `--body-file`/`-F` must name a regular file there
 word (an attached `-Fpath` is refused), so an injected
 instruction cannot publish another local file. A configured production reader must be an exact, single trusted command;
 put complex reads in the approved read-only script rather than interpolating shell pipelines.
+Their `gh` takes no `--jq`/`-q`, `--template` or `--repo`/`-R`, so issue text cannot make a loop
+print the environment or post to another repository.
 Native sandbox/credentials remain separate boundaries; this is not a universal shell sandbox.
 No loop deploys, restarts, migrates data or changes a setting: a finding that needs one becomes an
 issue for the owner instead.
-The writing jobs are wider still: `inner` allows any `git`, `python3` and `tools/` command, which
-is a shell in practice; only the shared guards (secrets, hook and force-push bypasses, dumps) and
-the review/CI gate bound it.
+
+Every job exports `AEION_LOOP=<job>`, so the path guard keeps its file tools inside the project
+(the retro may also read this project's transcripts under `~/.claude/projects/`). The writing jobs
+(`inner`, `watch`, `retro`) get the git subcommands their prompts use (`status`, `diff`, `log`,
+`show`, `fetch`, `switch`, `checkout`, `add`, `commit`, `push`, `branch`, `rev-parse`), never
+`git *`: `git config` and `git -c` could set a key that runs a program on every later git command.
+The retro writes `knowledge/`, hookify rules (`.claude/hookify.*.local.md`) and `.claude/skills/`,
+never the hooks or settings that guard every session; it opens its pull request with `gh pr
+create` and reads review comments through `gh pr list`/`view`, without `gh api`.
+`inner` still allows any `python3` and `tools/` command, which is a shell in practice; only the
+shared guards (secrets, hook and force-push bypasses, git program keys, dumps) and the review/CI
+gate bound it.
 
 An enabled inner job reads exact issue labels before launching: absent `agent-ready` refuses;
-`severity:high` selects opus/high unless an explicit model/thinking override wins. A dry run never
+`severity:high` selects opus/high unless an explicit model/thinking override wins. A maintainer adds
+the label, but the issue text stays its author's, so the job also refuses an issue whose
+`author_association` is not `OWNER`, `MEMBER` or `COLLABORATOR`. A dry run never
 fetches issue metadata and therefore cannot resolve issue severity.
 
 Optional GitHub agent workflows prepare a real architecture baseline before invoking the agent,
-use an explicit turn cap and a job deadline. They remain disabled until the owner configures them;
+use an explicit turn cap and a job deadline, and check out without persisting the token
+(`persist-credentials: false`), so the agent's git holds no credential. The outer loop sets
+`AEION_LOOP: outer`. They remain disabled until the owner configures them;
 their live dispatch/account/plugin behavior is a separate qualification from local loop fixtures.

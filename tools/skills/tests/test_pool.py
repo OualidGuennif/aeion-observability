@@ -72,6 +72,38 @@ class PoolTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "changed upstream source"):
             pool.source_catalog()
 
+    def test_security_patches_are_exact_source_bound_and_apply_in_order(self):
+        import hashlib
+        source_hash = pool.digest(self.agent)
+        relative = self.agent.relative_to(self.workspace).as_posix()
+        registry = pool.ROOT / "tools/skills"
+        registry.mkdir(parents=True)
+        # The second patch rewrites what the first wrote, so it only applies after it.
+        patches = [{"file": relative, "source_sha256": source_hash, "needle": "# Reviewer\n",
+                    "replacement": "# Reviewer v2\n", "reason": "First fixture patch."},
+                   {"file": relative, "source_sha256": source_hash, "needle": "# Reviewer v2\n",
+                    "replacement": "# Safe reviewer\n", "reason": "Second fixture patch."}]
+        (registry / "patches.json").write_text(json.dumps(patches))
+        # An annotation stays bound to the upstream bytes, not to the patched ones.
+        (registry / "annotations.json").write_text(json.dumps([{
+            "file": relative, "source_sha256": source_hash, "needle": "Do not execute !`touch executed`",
+            "reason": "Reviewed fixture, never executed.", "rule": "example.rule"}]))
+        text = pool.materialized_bytes(self.agent).decode()
+        self.assertIn("# Safe reviewer\n", text)
+        self.assertNotIn("# Reviewer", text)
+        self.assertIn("# nosemgrep: example.rule", text)
+        entry = next(e for e in pool.source_catalog()["entries"] if e["kind"] == "agent")
+        info = entry["files"][self.agent.name]
+        self.assertEqual(info["source_sha256"], source_hash)
+        self.assertEqual(info["sha256"], hashlib.sha256(text.encode()).hexdigest())
+        (registry / "patches.json").write_text(json.dumps([{**patches[0], "needle": "absent\n"}]))
+        with self.assertRaisesRegex(ValueError, "missing or ambiguous"):
+            pool.materialized_bytes(self.agent)
+        (registry / "patches.json").write_text(json.dumps(patches[:1]))
+        self.agent.write_text(self.agent.read_text() + "\nchanged upstream")
+        with self.assertRaisesRegex(ValueError, "changed upstream source"):
+            pool.materialized_bytes(self.agent)
+
     def test_refresh_copies_real_files_and_supporting_resources_deterministically(self):
         self.write("ecc", "skills/review/references/case.md", "# Real case")
         data = pool.source_catalog()

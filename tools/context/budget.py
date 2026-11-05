@@ -504,8 +504,8 @@ def checkpoint(root, session, base):
         changed = set() if not repository else set(git(root, "diff", "--name-only", "-z", base).decode().split("\0")) - {""}
         changed |= {os.fsdecode(path) for path in (git(root, "ls-files", "--others", "--exclude-standard", "-z") if repository else b"").split(b"\0")
                     if path and not os.fsdecode(path).startswith((".aeion/", "work/handovers/"))}
-        # Local play (git config aeion.mode local) keeps no work/current.md entry.
-        local = not repository or subprocess.run(["git", "config", "--local", "--get", "aeion.mode"], cwd=root, capture_output=True, text=True).stdout.strip() == "local"
+        # Local mode, the default, keeps no work/current.md entry; only the team flow (aeion.mode team) does.
+        local = not repository or subprocess.run(["git", "config", "--local", "--get", "aeion.mode"], cwd=root, capture_output=True, text=True).stdout.strip() != "team"
         if changed and not local and "work/current.md" not in changed:
             raise ValueError("update work/current.md before checkpointing")
         after = tree_files(root)

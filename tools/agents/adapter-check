@@ -26,8 +26,9 @@ from refs import Refused, ref_bytes, ref_exists, ref_mode, require_repository  #
 # Native configs a project may merge with its own settings, so they are not compared, but a
 # command in them still has to name a file that exists.
 # A command in these files names its script as a path from the project root, sometimes after a
-# shell expansion of that root, so the path itself may follow any character.
-SCRIPT = re.compile(r"((?:tools|\.claude|\.dsh|\.pi|\.opencode|\.codex|\.devin|\.factory)/[\w./-]+\.(?:py|js|sh))")
+# shell expansion of that root, so the path itself may follow any character; it must end at the
+# extension, so a `.json` file such as a credentials path in a deny rule is not read as a `.js` script.
+SCRIPT = re.compile(r"((?:tools|\.claude|\.dsh|\.pi|\.opencode|\.codex|\.devin|\.factory)/[\w./-]+\.(?:py|js|sh))(?![\w.-])")
 # The dsh patch names its plugin modules relative to the .dsh folder that holds it.
 MODULE = re.compile(r"(?<![\w./-])(\./[\w./-]+\.js)")
 
@@ -225,8 +226,8 @@ def main():
     if arguments.verbose:
         for relative in missing:
             print(f"missing   {relative}")
-    for relative, reference in unwired:
-        print(f"UNWIRED   {relative} → {reference} — no such file")
+    for relative, script in unwired:
+        print(f"UNWIRED   {relative} → {script} — no such file")
     for relative, error in broken:
         print(f"invalid   {relative} — {error}")
     for relative, line in unmanaged:

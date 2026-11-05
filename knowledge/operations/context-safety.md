@@ -6,7 +6,7 @@ status: stable
 review_after: 2027-01-29
 generated:
   by: aeion-factory/1.1
-  at: 2026-10-25
+  at: 2026-11-02
 sources:
   - id: budget
     resource: ../../tools/context/budget.py
@@ -35,7 +35,9 @@ execution. Intake bounds are not output virtualization: no tool result is rewrit
 heuristics cannot establish an absolute context ceiling. Keep targeted reads and summary commands.
 
 The default Claude profile enables native auto-compaction at 250,000 tokens and a budget hook
-on session start, prompts, tools, compaction and stop. SubagentStop also checks a child's final
+on session start, prompts, tools, compaction and stop (the same `.claude/settings.json` also denies
+Read of the credential stores, see [security](../policies/security.md)); `tools/context/run` names a missing `claude`
+in one line instead of a traceback. SubagentStop also checks a child's final
 observation, including pure-text child responses. The hook reads only the current session's
 bounded transcript tail and retains native token counts, never transcript text. Cached input
 counts once. Synthetic assistant records (API errors and hook stops, model `<synthetic>`) were
@@ -77,8 +79,8 @@ its output, so the agent can fix the failure instead of retrying a bare exit sta
 refused without a current receipt, and the refusal names the paths changed since it: a live session
 log inside the tree changes on every event, so it is git-ignored (`/demo/*/journal/*.jsonl`) or
 written outside the project.
-Local mode (`git config aeion.mode local`, read with `--local` so includes and the global config
-do not count) keeps no `work/current.md` entry, so its checkpoint
+Local mode (the default: `aeion.mode` unset or not `team`, read with `--local` so includes and the
+global config do not count) keeps no `work/current.md` entry, so its checkpoint
 does not require one. During closure a command the shell cannot parse is denied, never a stop.
 Closure admits edits to any Markdown file in the project, so a project's own docs can be updated,
 and never a code file. The checkpoint is admitted from any working directory when its path resolves
@@ -100,7 +102,12 @@ can recover. A PostToolUse warning from the prompt-defense scan travels in the s
 context and changes no budget decision. Invalid complete records remain terminal: that is an
 integrity failure, not a size. A `compact_boundary` or compact SessionStart clears the
 old observation and ends a 250k or 300k closure. Smaller model windows retain
-their native earlier limit. The guard does not expand a model's capacity.
+their native earlier limit. The guard does not expand a model's capacity. On the native path (dsh and
+OpenCode), `PreCompact` makes the same stale-receipt exception as the Claude hook: a complete handover
+that verified before an edit may compact and keeps `closure_owed = due`; a missing receipt or an
+incomplete handover is still refused. Pi reaches that hook only for its own window compaction
+(`native`), which a refusal would cancel, so it compacts regardless and owes the handover and
+checkpoint in the new epoch, as Codex and Droid do.
 
 **Guarantee:** this is checkpoint-based enforcement, not a proof of an absolute 300k ceiling.
 Claude Code exposes no qualified before-every-request admission callback here. A large tool
@@ -128,29 +135,32 @@ edit its own scripts/settings. Raw CLI launches outside the managed entry point 
 | Claude Code | the session transcript's last request | native, `autoCompactWindow: 250000` |
 | Codex | the rollout's newest `token_count` after the newest `compacted` record | native at 250000 (`model_auto_compact_token_limit`); a compaction before the handover owes it after |
 | OpenCode | the newest `session.step.ended` tokens (input, output, cache) | the plugin calls `session.compact` |
-| Pi | `ctx.getContextUsage().tokens` | the extension calls `ctx.compact()`; its own threshold compaction runs and owes the closure |
-| dsh | `ctx.tokenMeter.measure(session).totalTokens` | the plugin compacts before the next step; the web profile gives it no service, so the gate is advisory and dsh compacts itself |
+| Pi | `ctx.getContextUsage().tokens` | the extension compacts at settlement in TUI/RPC; the RPC headless runner keeps the process alive for that compaction; a one-shot print/JSON run stops cleanly at the gate with the verified handover (1.9.2) |
+| dsh | `ctx.tokenMeter.measure(session).totalTokens` | the plugin compacts before the next step through the root service (headless), or runs `/compact` on idle where the web profile isolates that service inside an agent-preset group |
 | Droid | nothing (no 250k alert) | native; a compaction before the handover owes it after, as for Codex |
 
 A harness reports usage after the response that asked for a tool, so the adapter keeps the last count
 until a new one arrives (0 after a compaction). A malformed count or a rollout from another session
 fails closed. Codex without a `transcript_path` keeps only its native compaction and refusal. Pi and
 OpenCode compact themselves on the hook's `aeion.compact` signal, sent once a closure's checkpoint
-is verified, so the context never waits for the model window. Pi never cancels its own compaction at
+is verified, so the context never waits for the model window. OpenCode did so live on 2026-11-02. Pi
+compacts at settlement when the run is interactive or driven through `tools/agents/run pi rpc`; a
+one-shot print run stops cleanly at the gate instead (1.9.2). Pi never cancels its own compaction at
 the model window: it runs and the closure is owed after it. OpenCode sends no compact SessionStart, so
-its allowed compaction itself ends the closure (state RECOVERING, usage cleared). The dsh web profile
-keeps `compaction` inside each agent preset, out of the plugin's reach: the plugin tells the shared
-rule that compaction is unavailable, so the 250k/300k gate is advisory there, the handover stays
-required for recovery, and dsh's own compaction runs ungated instead of waiting for a human to type
-`/compact`. When the handover is already verified and an edit has moved the tree since, the gate
-admits the compaction and keeps the closure owed until a fresh checkpoint, rather than refusing the
-only command a routine edit left available; a dsh refusal also tells the user to end the session once
-the handover, `work/current.md` and the checkpoint are in order, because compaction there is not
-guaranteed (v1.9.1). Codex ends its turn on a
+its allowed compaction itself ends the closure (state RECOVERING, usage cleared). dsh web runs
+`/compact` once the agent is idle, so its gate holds like the others; a hard gate owes one verified
+handover and stops denying once the receipt matches, so a compaction that never lands cannot hold
+the session. A profile with no compaction service gets the advisory gate. Codex ends its turn on a
 refused compaction and retries it before every turn, so it would stall: when Codex compacts before its
 handover is verified (owner decision 2026-10-28), the compaction runs and the session resumes in closure,
-allowed only the handover, `work/current.md`, docs and the checkpoint until the checkpoint passes. The OpenCode stream and compaction
-calls are read from the 2.2.0 build and unit-tested; a live long run has not exercised them yet.
+allowed only the handover, `work/current.md`, docs and the checkpoint until the checkpoint passes. A live
+2026-11-02 OpenCode 2.2.0 run compacted at 272k on a two-tool turn; a one-tool turn can miss the
+step-usage event, which arrives after the tool hook. Pi's headless 250k run no longer crashes:
+1.9.2 stops `pi -p` cleanly at the gate with the verified handover, and
+`tools/agents/run pi rpc` compacts at settlement and resumes in one process (live 2026-11-02 at
+288,668 tokens; the TUI path was not re-tested; see [agent compatibility](agent-compatibility.md)).
+When dsh compaction does not run, its messages give the recovery step: once the handover,
+`work/current.md` and the checkpoint verify, stop and start a new session from the handover.
 
 Verification: `python3 tools/context/tests/test_budget.py`, `tools/agents/tests/test_hooks.py`,
 `test_pi.mjs` and `test_opencode.mjs`. Synthetic fixtures prove state and

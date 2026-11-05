@@ -14,6 +14,8 @@ description: Applies the Æion efficiency guide to an existing repository one ph
    strongly, say what `tools/architecture/setup` installs, ask whether this is a work computer, and
    run it only on a yes; CI analyses every main update either way.
 5. Open a PR (skill `sign-off`, then `pr-review`). One phase per PR.
+6. When the connectors land, record the factory release they came from in `.aeion-factory`
+   (`v<factory VERSION> <factory commit>`), so skill `template-update` knows the baseline later.
 
 Read the README runtime matrix before setup. Preserve the original Claude integration; load
 Codex project/hook trust and shared skills through .agents, the local OpenCode plugin/config, or the Pi extension in .pi/.

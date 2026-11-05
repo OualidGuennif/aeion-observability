@@ -21,4 +21,7 @@ if result.returncode:
           "installed automatically; see knowledge/operations/architecture-maintenance.md. Continuing.", file=sys.stderr)
 os.environ["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = "250000"
 os.chdir(root)
-os.execvp("claude", ["claude", "--autocompact", "250000", *arguments])
+try:
+    os.execvp("claude", ["claude", "--autocompact", "250000", *arguments])
+except FileNotFoundError:
+    sys.exit("claude is not installed or not on PATH; see knowledge/operations/getting-started.md#prepare-your-agent")

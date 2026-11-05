@@ -66,15 +66,23 @@ class ReleaseTests(unittest.TestCase):
         tasks = ("# Current work\n\nHeader.\n\n## Factory task — ACTIVE\n- State: factory.\n\n"
                  "## Adapt Æion Factory to this project — ACTIVE\n- Owner decision: <date>, started.\n- Next: adapt.\n")
         (self.root / "work/current.md").write_text(tasks)
-        self.assertEqual(self.release("--new-project").returncode, 0)
+        (self.root / "demo/idea-board").mkdir(parents=True)
+        (self.root / "demo/idea-board/JOURNAL.md").write_text("Run 1.\n")
+        first = self.release("--new-project")
+        self.assertEqual(first.returncode, 0)
+        self.assertIn("demo/ removed", first.stdout)
+        self.assertFalse((self.root / "demo").exists())
         expected = ("# Current work\n\nHeader.\n\n## Adapt Æion Factory to this project — ACTIVE\n"
                     "- Owner decision: 2026-10-28, started.\n- Next: adapt.\n")
         self.assertEqual((self.root / "work/current.md").read_text(), expected)
         self.assertEqual((self.root / "CHANGELOG.md").read_text(), "# Changelog\n\nIntro.\n\n## [Unreleased]\n")
         self.assertEqual((self.root / "VERSION").read_text(), "0.1.0\n")
+        # template-update reads the factory release from the marker, never from the application's VERSION.
+        self.assertEqual((self.root / ".aeion-factory").read_text(), "v1.4.0\n")
         # A second run changes nothing.
         self.assertEqual(self.release("--new-project").returncode, 0)
         self.assertEqual((self.root / "work/current.md").read_text(), expected)
+        self.assertEqual((self.root / ".aeion-factory").read_text(), "v1.4.0\n")
 
     def test_new_project_refuses_in_the_factory_clone(self):
         self.write("1.4.0\n", HEAD)
@@ -83,10 +91,13 @@ class ReleaseTests(unittest.TestCase):
         subprocess.run(["git", "init", "-q", str(self.root)], check=True)
         subprocess.run(["git", "-C", str(self.root), "remote", "add", "origin",
                         "https://github.com/OualidGuennif/aeion-factory.git"], check=True)
+        (self.root / "demo").mkdir()
         result = self.release("--new-project")
         self.assertEqual(result.returncode, 1)
         self.assertIn("own clone", result.stderr)
+        self.assertTrue((self.root / "demo").is_dir())
         self.assertEqual((self.root / "VERSION").read_text(), "1.4.0\n")
+        self.assertFalse((self.root / ".aeion-factory").exists())
 
 class ArchiveTests(unittest.TestCase):
     def test_release_archive_leaves_out_demo(self):

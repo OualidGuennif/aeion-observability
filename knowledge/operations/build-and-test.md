@@ -55,7 +55,7 @@ it and fails when the committed bundle differs.
 | Knowledge reachability | `tools/knowledge/orphans`: a document nothing links | the root |
 | Docs and code links | `tools/knowledge/doc-links` (`--diff origin/develop` before a push) | the root |
 | Comments, file size, caps | `tools/repo-health/repo-health` | the root |
-| The factory's own test suites (hooks, tools, evals, push gate, release, context, analysis and graph queries, adapters including the OpenCode, Pi and dsh plugins, connector drift, the tag-pinned desktop install, loops) | `tools/factory-tests` (each suite also runs alone; the script lists them) | root; Node 18+ |
+| The factory's own test suites (hooks, tools, evals, push gate, release, context, analysis and graph queries, adapters including the OpenCode, Pi and dsh plugins and the Pi RPC bridge, connector drift, the tag-pinned desktop install, loops) | `tools/factory-tests` (each suite also runs alone; the script lists them) | root; Node 18+ |
 | Connector copies | `tools/agents/adapter-check` (`--root` for a project that adopted the factory) | the root |
 | Efficiency bundle | `tools/efficiency/bundle`, then `git diff --exit-code efficiency/efficiency-bundle.md` | the root |
 | Source analysis (CI on every main update; local run recommended) | `tools/architecture/refresh --target HEAD --base origin/main` after committing | pinned tools installed on the user's yes, Node and Chrome required |
@@ -67,8 +67,10 @@ A valid knowledge directory with no dated documents still passes `stale`.
 
 The pre-commit (`git config core.hooksPath tools/git-hooks`) runs `knowledge-check`, `doc-links`
 and `repo-health`. The pre-push refuses a push of `develop` without a recorded `Review: OK`
-and any direct push to `main`. CI runs those three checks, `factory-tests`, the efficiency-bundle
-check and security scans on pushes to `main` and pull requests targeting `main` or `develop`.
+and any direct push to `main` when the team flow is selected. This project CI runs the offline
+examples, demo units, real Flue/OpenShell fixtures, knowledge/link/health gates and source-lock check
+on pushes to `main` or `develop` and pull requests targeting `main`. The Factory suite above is
+also run locally for foundation updates; CI does not currently define a Semgrep job.
 `stale` and `orphans` remain manual checks; CI exercises their fixtures through `factory-tests`.
 
 Many people run Æion Factory in a plain folder, without git. The link and health checks, the context
@@ -100,14 +102,17 @@ before capture pipes are drained, so ordinary descendants do not keep working af
 
 The same hook suite tests [bounded intake](../policies/bounded-intake.md), including file/range
 thresholds, misleading limiters and preserved native edit/range fields. SessionStart adds two
-short intake instructions and the flow mode within its existing 25-line cap.
+short intake instructions and the flow mode within its existing 25-line cap. In the team flow it
+names git hooks that are off (`core.hooksPath` not `tools/git-hooks`) and team work on `main`; past
+six changed paths or open tasks it lists five and says how many more.
 
 The flow mode is a per-clone Git setting, read from the repository's local config only
-(`git config --local`; includes and the global config do not count). The default team flow works
-on `develop`, records a review before each push of it and reaches `main` only through a reviewed
-release pull request with green CI. `git config aeion.mode local` sets local play
-in the repository's local config: commits stay local, the Stop sign-off reminder is silent, and the safety guards (secrets, Git hook
-and force-push bypasses, large dumps) stay on. `git config --unset aeion.mode` restores the team flow.
+(`git config --local`; includes and the global config do not count). Local mode is the default
+(unset, or any value but `team`): commits stay local, the Stop sign-off reminder is silent, pre-push
+lets the user's push through, and the safety guards (secrets, Git hook and force-push bypasses, large
+dumps) stay on. `git config aeion.mode team` turns on the team flow: it works on `develop`, records a
+review before each push of it and reaches `main` only through a reviewed release pull request with
+green CI. `git config --unset aeion.mode` returns to local mode.
 
 ## Language servers
 

@@ -18,7 +18,7 @@ Done means proven and documented, not "the code is written". Reasons: `AGENTS.md
    report, partial check or stale result is not verification; inspect the actual diff/artifact.
    Update the architecture spec when its facts change. After committing, run
    `tools/architecture/refresh --target HEAD --base origin/develop` before pushing.
-6. Skill `pr-review` on `origin/develop..HEAD`, then push `develop`; its verdict lists the checks run. A release goes through skill `ship`. Without git: the tests and docs are the whole sign-off.
+6. Team flow (`aeion.mode team`): skill `pr-review` on `origin/develop..HEAD`, then push `develop`; its verdict lists the checks run. A release goes through skill `ship`. Local mode, the default: a local commit; pushing is the owner's call. Without git: the tests and docs are the whole sign-off.
 
 ## Red flags
 "Tests pass" without the command; a PR body that lists no checks; a doc left for "later".

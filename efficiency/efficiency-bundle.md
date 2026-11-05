@@ -802,66 +802,86 @@ service that was turned on has its cost, its data scope and its off switch writt
 
 ---
 
-# Credits
+# Credits and attribution
 
-Æion Factory is an orchestration layer over other people's ideas and tools. Thank you.
+Æion Observability combines existing standards, tooling and research. The proposed task/outcome
+contracts and control requirements are Æion's synthesis; errors in that synthesis are ours.
+No upstream project endorses this work, and no product/research performance claim is adopted
+as a measured Æion result.
 
-## Tools and plugins
+- **OpenTelemetry and its contributors** — OTLP, Collector, semantic conventions, GenAI signals,
+  security and resilience guidance. [Project](https://opentelemetry.io/),
+  [GenAI specification](https://github.com/open-telemetry/semantic-conventions-genai).
+- **Anthropic and Claude Code/Agent SDK contributors** — native telemetry, model/effort controls,
+  agent-evaluation practice and infrastructure-noise research. [Documentation](https://code.claude.com/docs),
+  [agent evaluations](https://www.anthropic.com/research/demystifying-evals-for-ai-agents).
+- **OpenRouter and DeepInfra** — official routing, parameter, usage, interoperability and privacy
+  documentation. [OpenRouter](https://openrouter.ai/docs), [DeepInfra](https://docs.deepinfra.com/).
+- **Langfuse/ClickHouse, Arize/OpenInference/Phoenix, OpenLIT, MLflow, LiteLLM, vLLM Semantic Router,
+  New Relic and Modal contributors** — documented observation, evaluation and operational patterns.
+  Their separate licenses and feature boundaries are identified in the source register.
+- **Research authors** — Chen, Zaharia and Zou (FrugalGPT); Ong and coauthors (RouteLLM); Hu and
+  coauthors (RouterBench); Poon and coauthors (online LLM selection); Son, Yoon, Tang, Wang,
+  Wolf and Bogunovic (SWE-Router);
+  Raj, Kundu, Joshi and Krishna (ORACLE); Li, Gao and Lakshmanan (WISERouter); Paul and Nandy
+  (AgentRouter); Dudík, Langford and Li (doubly robust evaluation); Howard, Ramdas, McAuliffe
+  and Sekhon (confidence sequences). See the [papers and reading scope](../knowledge/references/sources.md).
+- **Æion Factory and contributors** — the fixed development foundation, CRAFTED, specification
+  structure and evidence-led workflow. [Repository](https://github.com/OualidGuennif/aeion-factory).
+- **Flue (withastro) and Pi (earendil-works) contributors** — the pinned agent harness
+  (`@flue/runtime`/`@flue/cli` 2.3.0, Apache-2.0) and its model/agent core (`@earendil-works/pi-ai`
+  1.4.0, MIT) used by the local showcase. [Flue](https://github.com/withastro/flue),
+  [Pi](https://www.npmjs.com/package/@earendil-works/pi-ai).
+- **just-bash (vercel-labs) and Valibot contributors** — the emulated in-memory shell behind the
+  triage tier (`just-bash` 3.6.0, Apache-2.0) and the schema library for its submission tool
+  (`valibot` 1.5.0, MIT). [just-bash](https://github.com/vercel-labs/just-bash),
+  [Valibot](https://github.com/open-circle/valibot).
+- **OpenCode, Deno and Hono contributors** — the Go inference service and its documentation
+  (the OpenCode CLI powered the earlier `openshell-go-v5` evidence), the JavaScript runtime,
+  native OpenTelemetry support and small application API used by the local showcase.
+  [OpenCode Go](https://opencode.ai/docs/go/), [Deno](https://docs.deno.com/), [Hono](https://hono.dev/).
+- **Vectorize/Hindsight and thedotmack/claude-mem contributors** — local semantic session
+  memory and the explicit working-memory save/read API.
+  [Hindsight](https://github.com/vectorize-io/hindsight), [claude-mem](https://github.com/thedotmack/claude-mem).
+- **Z.ai, DeepSeek and MiniMax** — official tokenizer/chat-template files fetched at pinned revisions
+  and checked against [fingerprints](../demo/tokenizers.json). They are fetched with their license
+  files into the ignored `demo/tokenizers/` folder by `demo/install.py`. No coding-model weights are bundled.
+- **Manrope and Cormorant Garamond authors** — local font assets, with their OFL notices in
+  `demo/app/fonts/`. The showcase illustration was generated natively with GPT Image for Æion;
+  it is decorative artwork, not a measured architecture or runtime result.
+- **The CROA Project — Yasmine Durand, Darrin Smith and Sylvain Durand** — Constrained Reachability
+  Orchestration Architecture, governance boundaries and durable evidence principles.
+  [Website](https://www.croaframework.org/),
+  [official repository v1.0.1](https://github.com/CROA-Project/CROA/tree/v1.0.1),
+  [white paper DOI](https://doi.org/10.5281/zenodo.22310276).
+  CROA prose retains CC BY 4.0 and upstream code/schemas their Apache-2.0 terms. No original
+  CROA implementation/schema is bundled here. This work does not claim CROA certification.
+  [Æion's separate audit adaptation](https://github.com/OualidGuennif/aeion-croa) preserves its own
+  explicit attribution and licensing.
 
-- **Anthropic, Claude Code and its official plugins** — `hookify` (hook rules from Markdown and from
-  conversation corrections), `skill-creator` (skill drafting, evals, description optimization),
-  `claude-security` (verified security scans of a codebase or a change), and the LSP plugin format.
-  https://github.com/anthropics/claude-plugins-official · https://code.claude.com/docs
-- **Addy Osmani, `agent-skills`** (MIT) — the skill anatomy (overview, when to use, process,
-  rationalizations, red flags, verification) and the DEFINE → PLAN → BUILD → VERIFY → REVIEW → SHIP
-  lifecycle that Æion Factory's skills follow. https://github.com/addyosmani/agent-skills ·
-  "Own the Outer Loop" (2026).
-- **Vectorize, Hindsight** (MIT) — agent memory with retain, recall and reflect.
-  https://github.com/vectorize-io/hindsight
-- **The language servers:** Microsoft TypeScript 7 (native `tsc --lsp`), Deno's built-in server,
-  Eclipse JDT Language Server.
+Original material authored for this folder is covered by [its MIT license](../LICENSE). Linked
+documentation, software, papers, names and trademarks retain their respective rights/licenses.
+Source fingerprints identify consulted material; full upstream pages are not republished here.
 
-## Research and practice
+- **NVIDIA OpenShell contributors** — mandatory sandbox gateway, policy enforcement and SDK,
+  version 0.1.5. [Release](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.5),
+  [telemetry opt-out](https://docs.nvidia.com/openshell/v0.1.5/observability/telemetry/),
+  [runtimes](https://docs.nvidia.com/openshell/v0.1.5/how-it-works/sandboxes/runtimes/).
+- **models.dev contributors** — the public OpenCode Go catalog subset used by the earlier
+  OpenCode harness evidence, retrieved 2026-10-26 from [the catalog](https://models.dev/api.json).
+  The current profiles carry their own Go prices and limits; neither is an account entitlement check.
 
-- **Jesse Vincent / obra, Superpowers** (MIT) — investigation, evidence before completion,
-  precise plans and verified review feedback inspired the focused Æion Factory skill updates.
-  https://github.com/obra/superpowers · license notice reproduced below.
-- **Mert Koseoğlu, context-mode** (Elastic-2.0) — bounded output and pre-compaction recovery
-  informed the context design. No context-mode code or MCP runtime is bundled.
-  https://github.com/mksglu/context-mode
-- **Graphify Labs, Graphify** (Apache-2.0 with upstream notices) — pinned native code and Markdown
-  structural extraction. https://github.com/Graphify-Labs/graphify
-- **tt-a1i, Archify** (upstream Apache-2.0 / MIT notices) — pinned source-backed diagrams,
-  schema/provenance/browser checks. https://github.com/tt-a1i/archify
 
-- Chroma, *Context Rot* (2025) — long inputs degrade every model measured.
-- Gloaguen et al., context files and agent success (arXiv 2602.11988, 2026).
-- Lulla et al., AGENTS.md and agent runtime (arXiv 2601.20404, 2026).
-- Anthropic, *Effective context engineering for AI agents* (2025).
-- Doc-to-code trace links with LLMs (arXiv 2506.16440, 2025).
-- Microsoft Learn, the developer inner and outer loop.
-- Cyrille Martraire, *Living Documentation*.
-- OWASP cheat sheets: secrets management, database security.
-- GitHub docs: security policies, CODEOWNERS.
+## Factory security maintenance
 
-Mistakes in how these ideas are combined here are ours, not theirs.
+Æion Factory v2.0.3 supplies source-hash-bound patch recipes for the skill-creator eval viewer
+and ECC continuous-learning importer in `tools/skills/patches.json`. This project's passive
+catalog intentionally remains empty; no upstream skill or agent was materialized by this update.
+Project-specific OpenShell, Langfuse and models.dev attribution above remains authoritative.
 
-## Selective skill maintenance
-
-- **affaan-m / ECC contributors** (MIT): review evidence, false-positive filtering and scoped
-  engineering checks informed the native review checklist. Source: https://github.com/affaan-m/ECC
-- **Addy Osmani / agent-skills contributors** (MIT): task-specific debugging, behavioral test
-  selection and source-based workflow discovery. Existing attribution above is retained.
-- **Anthropic official plugins / security-guidance contributors** (Apache-2.0 for that plugin):
-  data-flow-oriented security inspection. Plugin-specific terms still apply; proprietary
-  `claude-security` definitions are not transplanted into the cross-host pool.
-- **Anthropic knowledge-work-plugins contributors** (upstream component terms apply): passive
-  specialist workflow references. https://github.com/anthropics/knowledge-work-plugins
-
-The versioned skills/catalog.json records exact source commits, entrypoint fingerprints and license
-files. Native Factory text is selectively adapted, not a wholesale copy of upstream prompts. The separate passive pool contains upstream skill/agent files and supporting resources,
-with three source-hash-bound scanner annotation comments recorded in tools/skills/annotations.json, with license texts under skills/licenses/.
-No upstream agent-launch mandate, model setting or generic threshold is adopted.
+The bundled Factory guide also preserves the upstream Superpowers MIT notice in
+[docs/licenses/superpowers-MIT.txt](../docs/licenses/superpowers-MIT.txt), copied unchanged from
+Factoryv2.0.3. This notice grants no license to unrelated proprietary tools or services.
 
 ## Superpowers license notice
 

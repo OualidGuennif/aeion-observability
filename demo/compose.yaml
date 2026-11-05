@@ -45,7 +45,7 @@ x-logging: &bounded-logging
 services:
   langfuse-web:
     logging: *bounded-logging
-    image: docker.langfuse.com/langfuse/langfuse:4.49.0@sha256:a9d1951e9e6cc1b5ad48bca3aefd31358a54fde4f84b9681f8ace2ff076c0c03
+    image: docker.langfuse.com/langfuse/langfuse:4.75.0@sha256:23378ae8cdf1d92b647d68b81c0d0cea3632b43e9fbcbe9b765420af9c9c8662
     depends_on: *dependencies
     ports: ["127.0.0.1:3300:3000"]
     environment:
@@ -72,7 +72,7 @@ services:
 
   langfuse-worker:
     logging: *bounded-logging
-    image: docker.langfuse.com/langfuse/langfuse-worker:4.49.0@sha256:40df08a1d15ecfa9542f1fd3b481f6d1afa16404a512e1ff51bc85b72144cedd
+    image: docker.langfuse.com/langfuse/langfuse-worker:4.75.0@sha256:5fd09700a8af5328f3ef004ca8ce5602f6e799aba13da5054d9b18ba1724533e
     depends_on: *dependencies
     environment: *langfuse
     mem_limit: 1000m

@@ -1,20 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import extension from '../../../.pi/extensions/factory/index.js';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const sessionID = `factory-pi-extension-test-${process.pid}`;
+
+// The extension runs only the hook.py shipped beside it, so a stand-in project gets its own copy of it.
+const copies = new Map();
+async function standIn(prefix, hook) {
+  const folder = mkdtempSync(join(tmpdir(), prefix));
+  cpSync(join(root, '.pi/extensions/factory'), join(folder, '.pi/extensions/factory'), { recursive: true });
+  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
+  writeFileSync(join(folder, 'tools/agents/hook.py'), hook);
+  copies.set(folder, (await import(pathToFileURL(join(folder, '.pi/extensions/factory/index.js')).href)).default);
+  return folder;
+}
 
 // A stand-in for Pi's ExtensionAPI and ExtensionContext: it records handlers and notifications.
 function load(cwd) {
   const handlers = {};
   const notes = [];
   const sent = [];
-  extension({ on: (name, handler) => { handlers[name] = handler; }, sendUserMessage: (text) => sent.push(text) });
+  (copies.get(cwd) ?? extension)({ on: (name, handler) => { handlers[name] = handler; }, sendUserMessage: (text) => sent.push(text) });
   const ctx = { cwd, mode: 'tui', hasUI: true, sessionManager: { getSessionId: () => sessionID }, ui: { notify: (text, kind) => notes.push([kind, text]) } };
   return { handlers, notes, ctx, sent };
 }
@@ -47,6 +58,19 @@ test('Pi started in a subfolder finds the project hooks', async () => {
   assert.equal((await handlers.tool_call(bash('cat .env'), ctx)).block, true);
 });
 
+test('Pi never runs a tools/agents/hook.py found above the folder it opens', async () => {
+  // A folder someone hands over may plant its own adapter; only the one shipped beside the extension runs.
+  const planted = mkdtempSync(join(tmpdir(), 'pi-planted-'));
+  mkdirSync(join(planted, 'tools/agents'), { recursive: true });
+  mkdirSync(join(planted, 'sub'));
+  writeFileSync(join(planted, 'tools/agents/hook.py'), "open('ran', 'w').write('x')\nprint('{}')\n");
+  const { handlers, ctx } = load(join(planted, 'sub'));
+  assert.equal((await handlers.tool_call(bash('cat .env'), ctx)).block, true);
+  const ran = existsSync(join(planted, 'ran'));
+  rmSync(planted, { recursive: true, force: true });
+  assert.equal(ran, false);
+});
+
 test('Pi never cancels its own compaction before a verified checkpoint', async () => {
   // Pi compacts at its own window; cancelling there would hold the session past the window and lose it.
   const { handlers, notes, ctx } = load(root);
@@ -55,9 +79,7 @@ test('Pi never cancels its own compaction before a verified checkpoint', async (
 });
 
 test('Pi marks its own compaction as native so the shared rule lets it through', async () => {
-  const folder = mkdtempSync(join(tmpdir(), 'pi-native-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'tools/agents/hook.py'), [
+  const folder = await standIn('pi-native-', [
     'import json, sys',
     'event = json.load(sys.stdin)',
     "open('events.jsonl', 'a').write(json.dumps(event) + '\\n')",
@@ -93,9 +115,7 @@ test('Pi past 250k is held to closure by its own context measure', async () => {
 test('Pi never starts compaction from a tool result', async () => {
   // Pi's manual compaction aborts the running turn; print mode then exits before the summary is written.
   // The settlement boundary is the only safe trigger, so a compact signal here is deliberately ignored.
-  const folder = mkdtempSync(join(tmpdir(), 'pi-tool-compact-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'tools/agents/hook.py'), 'import json\nprint(json.dumps({"aeion": {"compact": True}}))\n');
+  const folder = await standIn('pi-tool-compact-', 'import json\nprint(json.dumps({"aeion": {"compact": True}}))\n');
   const { handlers, ctx, sent } = load(folder);
   let compacted = 0;
   const result = { type: 'tool_result', toolCallId: 'call-5', toolName: 'bash', input: { command: 'true' }, content: [], isError: false };
@@ -106,9 +126,7 @@ test('Pi never starts compaction from a tool result', async () => {
 });
 
 test('Pi sends its context measure to the Stop hook at settlement', async () => {
-  const folder = mkdtempSync(join(tmpdir(), 'pi-stop-measure-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'tools/agents/hook.py'), [
+  const folder = await standIn('pi-stop-measure-', [
     'import json, sys',
     'event = json.load(sys.stdin)',
     "open('events.jsonl', 'a').write(json.dumps(event) + '\\n')",
@@ -126,9 +144,7 @@ test('Pi sends its context measure to the Stop hook at settlement', async () => 
 test('Pi bounds a repeated closure refusal instead of looping one alert', async () => {
   // Regression: a settlement that never verified its checkpoint re-injected the same 250k alert forever.
   // The closure refusal is a terminal stop too, and it is the one that still earns a few more requests.
-  const folder = mkdtempSync(join(tmpdir(), 'pi-settle-loop-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'tools/agents/hook.py'),
+  const folder = await standIn('pi-settle-loop-',
     'import json\nprint(json.dumps({"continue": False, "stopReason": "Æion Factory 250k alert: fill the handover and verify the checkpoint"}))\n');
   const { handlers, notes, ctx } = load(folder);
   const outcomes = [];
@@ -142,9 +158,7 @@ test('Pi bounds a repeated closure refusal instead of looping one alert', async 
 });
 
 test('Pi compacts at settlement and resumes in an interactive run', async () => {
-  const folder = mkdtempSync(join(tmpdir(), 'pi-settle-compact-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'tools/agents/hook.py'), 'import json\nprint(json.dumps({"aeion": {"compact": True}}))\n');
+  const folder = await standIn('pi-settle-compact-', 'import json\nprint(json.dumps({"aeion": {"compact": True}}))\n');
   const { handlers, ctx, sent } = load(folder);
   let compacted = 0;
   const compact = (options) => { compacted += 1; options.onComplete({}); };
@@ -159,9 +173,7 @@ test('Pi compacts at settlement and resumes in an interactive run', async () => 
 test('Pi ends a one-shot print run at the gate without starting a compaction', async () => {
   // Print mode disposes at settlement, so a compaction started here would be aborted mid-summary.
   // The run ends cleanly and the verified handover is the next session's starting point.
-  const folder = mkdtempSync(join(tmpdir(), 'pi-settle-print-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'tools/agents/hook.py'), 'import json\nprint(json.dumps({"aeion": {"compact": True}}))\n');
+  const folder = await standIn('pi-settle-print-', 'import json\nprint(json.dumps({"aeion": {"compact": True}}))\n');
   const { handlers, ctx, sent } = load(folder);
   let compacted = 0;
   const compact = (options) => { compacted += 1; options.onComplete({}); };
@@ -175,9 +187,7 @@ test('Pi ends a one-shot print run at the gate without starting a compaction', a
 test('Pi does not touch the extension ctx from a successful compaction callback', async () => {
   // Pi replaces the extension context during compaction. The settle handler reads hasUI before the
   // call; accessing it again in onComplete throws the stale-ctx error and crashes the process.
-  const folder = mkdtempSync(join(tmpdir(), 'pi-settle-stale-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'tools/agents/hook.py'), 'import json\nprint(json.dumps({"aeion": {"compact": True}}))\n');
+  const folder = await standIn('pi-settle-stale-', 'import json\nprint(json.dumps({"aeion": {"compact": True}}))\n');
   const { handlers, ctx, sent } = load(folder);
   let stale = false;
   let compacted = 0;
@@ -199,9 +209,7 @@ test('Pi does not touch the extension ctx from a successful compaction callback'
 test('Pi swallows a stale-ctx error from a failed compaction callback', async () => {
   // A compaction summary can fail after the replacement; onError must not turn that into the 1.9.1
   // crash by reading ctx.ui from the stale context.
-  const folder = mkdtempSync(join(tmpdir(), 'pi-settle-error-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'tools/agents/hook.py'), 'import json\nprint(json.dumps({"aeion": {"compact": True}}))\n');
+  const folder = await standIn('pi-settle-error-', 'import json\nprint(json.dumps({"aeion": {"compact": True}}))\n');
   const { handlers, ctx, sent } = load(folder);
   let stale = false;
   let compacted = 0;
@@ -220,9 +228,7 @@ test('Pi swallows a stale-ctx error from a failed compaction callback', async ()
 });
 
 test('Pi turns a sign-off finding at settlement into one more request (Pi FB-004)', async () => {
-  const folder = mkdtempSync(join(tmpdir(), 'pi-stop-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'tools/agents/hook.py'), [
+  const folder = await standIn('pi-stop-', [
     'import json, sys',
     'event = json.load(sys.stdin)',
     "print(json.dumps({'decision': 'block', 'reason': 'Sign off: update CHANGELOG.md'} if event['hook_event_name'] == 'Stop' else {}))",
@@ -233,18 +239,14 @@ test('Pi turns a sign-off finding at settlement into one more request (Pi FB-004
   assert.equal(result.continue, true);
   assert.equal(result.entries[0].content, 'Sign off: update CHANGELOG.md');
   // No finding lets the run settle.
-  const clean = mkdtempSync(join(tmpdir(), 'pi-stop-clear-'));
-  mkdirSync(join(clean, 'tools/agents'), { recursive: true });
-  writeFileSync(join(clean, 'tools/agents/hook.py'), 'import json\nprint(json.dumps({}))\n');
+  const clean = await standIn('pi-stop-clear-', 'import json\nprint(json.dumps({}))\n');
   const quiet = load(clean);
   assert.equal(await quiet.handlers.agent_before_settle({ type: 'agent_before_settle', entries: [], continue: false }, quiet.ctx), undefined);
   rmSync(clean, { recursive: true, force: true });
 });
 
 test('Pi settles a terminal stop instead of turning it into another request (Pi FB-005)', async () => {
-  const folder = mkdtempSync(join(tmpdir(), 'pi-stop-terminal-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'tools/agents/hook.py'), [
+  const folder = await standIn('pi-stop-terminal-', [
     'import json, sys',
     'event = json.load(sys.stdin)',
     "print(json.dumps({'continue': False, 'stopReason': 'Æion Factory context run is stopped'} if event['hook_event_name'] == 'Stop' else {}))",

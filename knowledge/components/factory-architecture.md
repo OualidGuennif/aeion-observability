@@ -43,8 +43,9 @@ the existing secret guards, edit checks and handover checkpoints (Devin and Anti
 compaction checkpoint; Droid, which reports no tokens, owes its closure after a compaction). During closure, plain read commands (`cat`, `head`, `sed -n`, `rg` and
 the like, without operators, globs or secret files) are closure tools, because Codex reads only
 through its shell. Droid owns `.factory/`, so
-Æion Factory's local state lives in the ignored `.aeion/`. A per-clone flow mode selects the team flow (PR, review, CI)
-or local play (commits on main, no sign-off reminder); the safety guards run in both.
+Æion Factory's local state lives in the ignored `.aeion/`. A per-clone flow mode selects local mode, the default
+(local commits, no sign-off reminder), or the team flow (`aeion.mode team`: develop, review, release PR);
+the safety guards run in both.
 Their native token/compaction interfaces differ; compatibility is not a claim of identical
 enforcement. See [agent compatibility](../operations/agent-compatibility.md).
 
@@ -110,14 +111,16 @@ from another source; analysis refuses mismatched package provenance or a dirty A
 | --- | --- | --- |
 | Instructions and seven-phase guide | Owner precedence, scope and adoption | Markdown links; `CLAUDE.md` points to `AGENTS.md` |
 | Skills | Plan/spec/build/test/review/sign-off/ship, template update and focused procedures | `.claude/skills/*/SKILL.md`; no second task ledger |
-| Connector checks | Byte equality against a checkout or a git reference, config wiring, steer identity | `tools/agents/adapter-check`; `connectors.py` (one file list), `refs.py` (one reference reader) |
-| Project update | Move an adopted project to a release, writing only the files a harness loads | `tools/agents/template-update`; names `AGENTS.md`, merged settings and `knowledge/` for a human |
+| Connector checks | Byte equality against a checkout or a git reference, config wiring, regular-file and executable-mode checks, steer identity and role | `tools/agents/adapter-check`; `connectors.py` (one file list), `refs.py` (one reference reader and git mode) |
+| Project update | Move an adopted project between factory references: connectors byte for byte, other factory files three-way, never the application's `VERSION` | `tools/agents/template-update`; baseline from `--from-ref`, `.aeion-factory` or an exact tag inference; names `AGENTS.md`, merged settings, conflicts and `knowledge/` for a human with proposals; refuses dirty trees and linked destinations |
 | Desktop install | Pin the dsh profile's plugin at a release instead of a working tree | `tools/agents/dsh-install`; `<profile>/aeion-factory` symlink |
 | Hook adapter | Read event JSON and call a bounded local check | stdin/stdout JSON; failure blocks where supported |
+| Headless Pi RPC | Keep one `pi --mode rpc` process alive through the settlement compaction and its resumed run, streaming the answer and failing closed on a failed compaction or the deadline | `tools/agents/pi-rpc`, reached through `tools/agents/run pi rpc`; the factory extension supplies the guards |
+| dsh connector | Guard every tool call and drive the 250k/300k handover-compact-resume cycle | `.dsh/plugins/factory/*.js`; the root compaction service (headless) or the `/compact` command on idle (web, whose service is isolated in an agent-preset group) |
 | Context budget | Usage, closure-only state, checkpoint receipt (with per-file digests, so a stale one names what changed), 300k forced compaction | `.aeion/context/<session>.json`; per-session file lock |
 | Handover | Recovery facts for the current session | Ignored `work/handovers/<session>.md`, created atomically only when closure needs it |
 | Knowledge/link/health checkers | Frontmatter, caps, traceability and diff coverage | Exit code + bounded diagnostics; no provider |
-| Optional loops | Select prompt/model/tools and run a managed headless task | Off unless enabled; outer loop reads production only through its configured read path |
+| Optional loops | Select prompt/model/tools and run a managed headless task | Off unless enabled; outer loop reads production only through its configured read path; `AEION_LOOP` keeps file tools in the project, writing jobs get named git subcommands only, inner needs a maintainer-written issue |
 | Analysis wrapper | Freeze Git, Graphify, evidence validation and Archify finalization | Ignored `.aeion/analysis/<sha>/` and immutable receipts |
 | GitHub workflows | PR checks and post-main analysis; artifact retention | Read-only checkout/job permissions; no generated-source push |
 | Native language servers | Editor diagnostics for their registered language | Local processes; explicit plugin enablement |
@@ -133,14 +136,32 @@ In the Claude profile, native auto-compaction is enabled at 250k. The state mach
 latches HANDOVER_REQUIRED and emits one alert to user and agent. Code/subtask tools are refused;
 closure docs and fixed check commands remain. A checkpoint validates handover sections, Knowledge,
 doc links, repository health and current task updates, then hashes source and handover bytes.
-Any later source or handover change invalidates readiness. PreCompact refuses an absent/stale
-checkpoint, except at 300k, where the compaction runs and leaves the closure owed (`closure_owed`)
-until a verified receipt, because code is already frozen there. A compact SessionStart begins RECOVERING
+Any later source or handover change invalidates readiness. An observed size back under 250k ends the
+latch, because a harness that compacts without the adapter seeing its compact SessionStart (dsh does)
+would otherwise stay gated at a fraction of the threshold; the closure it owed survives as
+`closure_owed`, which the settlement enforces. That debt never re-latches a later fall: a session that
+climbs over 250k again and compacts again is still under the threshold, so it is released again (Stop
+keeps the debt), never gated until the gate becomes permanent. A latch a harness set because its own
+compaction resumed it in closure (Codex, Droid) is marked `resumed_in_closure` and stays latched until
+the handover verifies. A verified receipt releases the gate: it owes
+exactly one handover, and a compaction the plugin cannot guarantee must never hold a session hostage, so
+the checkpoint command stays admitted whatever session token it carries (`ready` opens the gate, never the
+spelling). PreCompact refuses an absent checkpoint, and a stale one whose handover is incomplete; when a
+complete handover was verified and the tree moved since, it compacts and leaves the closure owed
+(`closure_owed`) instead, because the gate admits only the checkpoint command that could refresh the
+receipt. The native `PreCompact` in `tools/agents/hook.py` applies the same exception to dsh and
+OpenCode, with OpenCode starting its own epoch because it sends no compact SessionStart. Pi reaches that
+hook only for its own window compaction (`native`), which a refusal would cancel, so it compacts
+regardless and owes the handover and checkpoint in the new epoch, as Codex and Droid do. At 300k the
+compaction runs too and leaves the closure owed, because code is already frozen
+there. A compact SessionStart begins RECOVERING
 and supplies the handover pointer; new positive native usage permits RUNNING. Resume alone does not clear STOPPED. The 250k and 300k alerts
 name the checkpoint command; a settlement that still owes closure names the missing receipt; closure
 admits a project's own Markdown docs, never code. The suggested base is an existing ref
 (`origin/develop`, `origin/main`, else `HEAD`), and a refused checkpoint reports the failing check's
-bounded output.
+bounded output. Because dsh compaction is not dependable in every profile, its start context and
+gate messages also name the recovery: after the handover, `work/current.md` and the checkpoint
+verify, stop the session and resume from the handover instead of working past 250k.
 
 Observed usage at 300k or invalid complete usage latches STOPPED. Unavailable usage after bootstrap
 blocks the current action and can recover after a valid observation. A PreCompact refusal uses
@@ -188,7 +209,7 @@ the graph never substitutes an earlier base or changed-path set for the current 
 
 Pre-commit/CI retain Knowledge, doc-link, health and security gates; CI also fails when the
 efficiency bundle drifts from its sources. Daily work lands on `develop`, whose pre-push hook
-requires a recorded review of the exact commit; CI runs for `main` and pull requests, architecture for `main`: on the
+requires a recorded review of the exact commit; CI runs for `main`, `develop` and pull requests, architecture for `main`: on the
 release PR `develop → main` (merged with a merge commit, then tagged `vX.Y.Z`)
 and every main push, including docs-only and multi-commit pushes, records changed/removed paths,
 and uploads immutable outputs. It cannot undo a merge: a failed round prevents release and
@@ -244,9 +265,11 @@ runtime admission control, and automatically enabling additional agents or Super
 
 Native adapters validate line endings and required path/command fields before guard dispatch.
 OpenCode uses the V2 directory id/setup entrypoint and native prompt/tool/compaction callbacks;
-its pre-compaction receipt is consumed per attempt. Pi's extension maps `tool_call`,
+its pre-compaction receipt is consumed per attempt; a fresh receipt was live-confirmed at 272k on 2026-11-02. Pi's extension maps `tool_call`,
 `tool_result`, `before_agent_start` and `session_before_compact` to the same guards and cancels a
-compaction without a verified handover. Loop cancellation terminates the ordinary
+compaction without a verified handover; its 250k compaction runs at settlement in interactive and
+RPC runs, and a one-shot headless run now stops cleanly with the verified handover (1.9.2; see
+agent-compatibility). Loop cancellation terminates the ordinary
 child process group as well as enforcing deadlines. No SDK dependency is bundled for the plugin.
 
 ## Versioned skill library
@@ -263,7 +286,8 @@ native selector, shared through `.agents/skills`. Native rules take precedence o
 methods. Profile files never launch agents or choose models by themselves. See
 [skill selection](../operations/skill-selection.md) for authority and licensing boundaries.
 
-The materializer applies three reviewed comment-only SAST annotations from
-`tools/skills/annotations.json`, each bound to an exact original file hash. Source
+The materializer applies the security patches in `tools/skills/patches.json` (the
+skill-creator eval viewer and the instinct import), then three reviewed comment-only SAST
+annotations from `tools/skills/annotations.json`, each bound to an exact original file hash. Source
 changes require renewed review. Original/materialized hashes are both retained;
 search and checking remain offline and no source execution or broad scan exemption is added.

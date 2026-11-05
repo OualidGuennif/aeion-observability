@@ -13,7 +13,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../../efficiency"
         echo "---"
     done
     echo
-    sed 's#\[license notice\](docs/licenses/superpowers-MIT.txt)#license notice reproduced below#g' ../CREDITS.md
+    # CREDITS lives at the root; its relative links move one directory in this bundle.
+    sed -E 's#\[license notice\]\(docs/licenses/superpowers-MIT.txt\)#license notice reproduced below#g; s#\]\((knowledge/|demo/|docs/)#](../\1#g; s#\]\(LICENSE\)#](../LICENSE)#g' ../CREDITS.md
     echo
     echo "## Superpowers license notice"
     echo

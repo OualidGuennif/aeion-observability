@@ -15,7 +15,7 @@ generated:
 
 The launcher installs nothing. Install and connect your chosen agent separately, then trust the
 project and approve its hooks as required below. The optional Git hooks and architecture tools
-are described in [the overview](../../README.md#optional-tools).
+are described in [the overview](https://github.com/OualidGuennif/aeion-factory/blob/v2.0.3/README.md).
 
 ## Prepare your agent
 
@@ -47,7 +47,7 @@ in step 3. A present configuration file alone does not prove the hooks are activ
 1. [Create a repository from this template](https://github.com/OualidGuennif/aeion-factory/generate),
    then clone your new repository and open its folder.
    Reset the copied release metadata and tasks: `tools/release/release --new-project` (version 0.1.0, an
-   empty changelog, one task: adapt the factory to this project).
+   empty changelog, one task: adapt the factory to this project; the factory's `demo/` is removed).
 2. Prepare your harness (once), then start it in that folder:
 
    | Harness | Start | What to do first |
@@ -56,7 +56,7 @@ in step 3. A present configuration file alone does not prove the hooks are activ
    | Codex | `codex` | Trust the project, enable its hooks in `/hooks`, then restart Codex. Skills come from `.agents/skills`. |
    | OpenCode 2.1.4+ | `opencode` | Connect your provider in OpenCode. The root `opencode.json` and `.opencode/plugins/factory/` load on their own; on a database conflict, `tools/agents/run opencode --isolated`. |
    | Pi 1.4.0+ | `pi` | Accept the trust prompt, so `.pi/extensions/factory/` loads (the startup list names `factory`). Connect your provider in Pi. |
-   | dsh 0.2.1+ | `tools/agents/run dsh` (web UI) | The launcher adds `--patch .dsh/factory.patch.yml`, which loads the adapter; skills come from `.agents/skills`. Connect your provider in dsh. Ports, option order and background servers: [dsh in detail](#deepseek-harness-dsh-in-detail). |
+   | dsh 0.2.1+ | `tools/agents/run dsh` (web UI) | The launcher loads the adapter; connect your provider in dsh. [dsh in detail](#deepseek-harness-dsh-in-detail) |
    | Devin CLI | `devin` | Approve the project hooks (`.devin/`). |
    | Droid (factory.ai) | `droid` | Approve the project hooks (`.factory/settings.json`). |
    | Google Antigravity | `agy` | Trust the folder; hooks come from `.agents/hooks.json`. |
@@ -72,7 +72,7 @@ in step 3. A present configuration file alone does not prove the hooks are activ
    > instructions, Knowledge and skills. Report anything that still needs configuration. Wait for
    > approval before implementing application features.
 
-5. Say yes to the Git hooks, Graphify and Archify unless your policy forbids them (see [optional tools](../../README.md#optional-tools)).
+5. Say yes to Graphify and Archify unless your policy forbids them, and turn on the team git flow when the project has a remote and reviews (see [optional tools](https://github.com/OualidGuennif/aeion-factory/blob/v2.0.3/README.md)).
 6. From then on, start work with the managed launcher (`tools/agents/run <harness>`, below). Configure
    [GitHub main protection](github-protection.md) in the new repository;
    GitHub settings are not copied by templates.
@@ -136,39 +136,17 @@ also remains available.
 
 ### DeepSeek Harness (dsh) in detail
 
-dsh needs more care than the other agents: it loads a project's plugins only from a patch overlay passed
-on its command line, and its profiles differ in what a plugin may reach.
+dsh loads the factory only through a patch on its command line; `tools/agents/run dsh` adds it.
 
-- **Profiles.** dsh 0.2.1 ships `web` (its interactive chat, in the browser), `headless` (one task, then
-  exit) and `desktop` (run only by the DeepSeek Harness app). There is no `tui` profile:
-  `dsh --profile tui` fails with `profile "tui" does not exist`. The desktop app does not load the patch,
-  so its sessions are not guarded; use `web`.
-- **Starts.** From the root, `tools/agents/run dsh` starts `web` and `tools/agents/run dsh headless "<task>"`
-  answers one task (`--session-id <id>` continues a session). From a subfolder, or with `dsh` itself, pass
-  the patch: `cd demo && dsh web --patch ../.dsh/factory.patch.yml`.
-- **Option order.** `--patch` is a launcher option: put it right after the profile, before the app's own
-  options. In `dsh web --no-open --patch ...` the launcher hands `--patch` to the web app, which fails with
-  `unknown option '--patch'`. Write `dsh web --patch <file> --no-open --port 0 ...`.
-- **Port.** `web` listens on 3080. A `dsh web` already running (a background server, another project)
-  makes a second one fail with `EADDRINUSE`; add `--port 0` for a free port.
-- **Headless.** No browser, no port: from the project (or a subfolder with the patch), each call answers
-  one task. `--json` prints the events, the first with the `sessionId`; `--session-id <id>` continues it.
-  ```bash
-  cd demo && dsh headless --patch ../.dsh/factory.patch.yml --json "$(cat start/dsh/START.md)"
-  dsh headless --patch ../.dsh/factory.patch.yml --session-id <id> "continue"
-  ```
-- **Sessions are guarded by their own folder.** The plugin finds `tools/agents/hook.py` above each
-  session's working directory, not the launch folder; a session outside an Æion Factory project is left
-  alone.
-- **Startup warning.** In `web`, dsh prints `aeion-factory-compaction ... pending (waiting for service:
-  compaction)`. That is expected: web keeps compaction inside each agent preset, out of a plugin's reach,
-  while the guards (entry `aeion-factory`) run. `headless` loads both entries.
-- **Compaction.** Past 250k with a verified handover, `headless` compacts by itself; in `web` the agent asks
-  you to type `/compact`, and the plugin sees the token count fall and resumes the session from its
-  handover.
-- **Check it is loaded.** Ask the agent to run `cat .env`: it must be refused by
-  `.claude/hooks/guard-bash.py`. If it runs, the patch is not loaded or the session is outside the project.
-- **Provider and versions.** Connect your provider in dsh's own settings. `npx @deepseek-ai/dsh` may run
-  another version than an installed `dsh` (`dsh --version`); both need 0.2.1+.
+- **Start.** `tools/agents/run dsh` opens `web`; `tools/agents/run dsh headless "<task>"` answers one
+  task (`--session-id <id>` continues it). The desktop app does not load the patch, and there is no
+  `tui` profile.
+- **Outside the root.** Put the patch right after the profile:
+  `dsh web --patch <root>/.dsh/factory.patch.yml --port 0` (`--port 0` avoids a second server on 3080).
+- **Compaction.** Past 250k with a verified handover, dsh compacts and resumes from the handover. If it
+  does not, stop the session and start a new one from the handover. In `web`, the startup line
+  `aeion-factory-compaction ... pending` is expected.
+- **Check it is loaded.** Ask the agent to run `cat .env`: the guard must refuse it.
+- **Versions.** dsh 0.2.1+ (`dsh --version`); connect your provider in dsh's own settings.
 
 Details: [agent compatibility](agent-compatibility.md).

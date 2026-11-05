@@ -70,9 +70,9 @@ structural scorecard; each project's build, linter and tests provide language-sp
 
 ## Branch, review, release
 
-This is the team flow, under git only. In a plain folder there is no branch, review, CI or tag: the
-tests for what changed and the `CHANGELOG.md` line are the whole ritual. In local mode
-(`git config aeion.mode local`, see [build and test](../operations/build-and-test.md)) commits stay
+This is the team flow (`git config aeion.mode team`), under git only. In a plain folder there is no
+branch, review, CI or tag: the tests for what changed and the `CHANGELOG.md` line are the whole
+ritual. In local mode, the default (see [build and test](../operations/build-and-test.md)), commits stay
 local, without review, CI or a `work/current.md` entry, and pre-push lets the user's own push through;
 tests for what changed still run.
 
@@ -89,8 +89,9 @@ tests for what changed still run.
   green CI; the merged commit is tagged `vX.Y.Z` with its changelog section as release notes.
 - A new project or a demo copy starts with `tools/release/release --new-project`: `VERSION` 0.1.0, an
   empty `Unreleased`, and `work/current.md` holding only the "Adapt Æion Factory to this project" entry,
-  dated today. It refuses in Æion Factory's own clone (origin `OualidGuennif/aeion-factory`), and running
-  it twice changes nothing.
+  dated today; the factory's `demo/` is removed; `.aeion-factory` records the factory release copied
+  (`v<VERSION>`), which `tools/agents/template-update` reads as the update baseline. It refuses in
+  Æion Factory's own clone (origin `OualidGuennif/aeion-factory`), and running it twice changes nothing.
 - Independent review requires an authorized independent pass. Reading a pool agent profile does
   not authorize creating an agent; local self-assessment cannot issue the independent push-gate receipt.
 - A deploy or a human decision waits for that human. The owner's comments become preferences

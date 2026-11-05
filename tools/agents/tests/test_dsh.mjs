@@ -1,15 +1,30 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { apply, inject } from '../../../.dsh/plugins/factory/index.js';
 import * as compaction from '../../../.dsh/plugins/factory/compaction.js';
 import { seam } from '../../../.dsh/plugins/factory/seam.js';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const sessionID = `factory-dsh-plugin-test-${process.pid}`;
+
+// The plugin trusts the project it ships in, so a stand-in project gets its own copy of the plugin.
+const copies = new Map();
+async function plugin(folder) {
+  const module = async (name) => import(pathToFileURL(join(folder, name)).href);
+  return { ...await module('index.js'), compaction: await module('compaction.js'), seam: (await module('seam.js')).seam };
+}
+async function standIn(prefix, hook) {
+  const folder = mkdtempSync(join(tmpdir(), prefix));
+  cpSync(join(root, '.dsh/plugins/factory'), join(folder, '.dsh/plugins/factory'), { recursive: true });
+  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
+  writeFileSync(join(folder, 'tools/agents/hook.py'), hook);
+  copies.set(folder, await plugin(join(folder, '.dsh/plugins/factory')));
+  return folder;
+}
 
 // A stand-in for the dsh Cordis context: it records the guard, the listeners and compactions. `meter.tokens`
 // can change between calls; `root: false` is the web profile, which isolates its compaction service inside the
@@ -39,9 +54,10 @@ function load(cwd, totalTokens = 1000, { root: service = true, failCompact = fal
     on: (name, handler) => { handlers[name] = handler; },
     logger: { warn: () => {} },
   };
-  seam.compaction = undefined;
-  apply(ctx);
-  if (service) compaction.apply(ctx);
+  const loaded = copies.get(cwd) ?? { apply, compaction, seam };
+  loaded.seam.compaction = undefined;
+  loaded.apply(ctx);
+  if (service) loaded.compaction.apply(ctx);
   const steered = [];
   const agent = { session: { id: sessionID }, steer: (message) => steered.push(message) };
   return { handlers, guard: guards[0], compactions, agent, steered, meter };
@@ -75,6 +91,38 @@ test('dsh guards a session by its own directory and leaves one outside any facto
   rmSync(outside, { recursive: true, force: true });
 });
 
+test('dsh refuses a factory project its profile does not trust, without running its hooks', () => {
+  // A folder someone hands over may plant its own adapter; it runs only once the user trusts that project.
+  const planted = mkdtempSync(join(tmpdir(), 'dsh-planted-'));
+  mkdirSync(join(planted, 'tools/agents'), { recursive: true });
+  mkdirSync(join(planted, 'sub'));
+  writeFileSync(join(planted, 'tools/agents/hook.py'), "open('ran', 'w').write('x')\nprint('{}')\n");
+  const { guard, agent } = load(join(planted, 'sub'));
+  assert.match(guard(call(agent, 'bash', { command: 'true' })), /not trusted.*dsh-install --trust/);
+  const ran = existsSync(join(planted, 'ran'));
+  rmSync(planted, { recursive: true, force: true });
+  assert.equal(ran, false);
+});
+
+test('dsh runs the hooks of a project its installed profile trusts', async () => {
+  // dsh-install vendors the plugin into the profile and links it; --trust lists a project beside that link.
+  const profile = mkdtempSync(join(tmpdir(), 'dsh-profile-'));
+  cpSync(join(root, '.dsh/plugins/factory'), join(profile, 'vendor/aeion-factory-v9.9.9'), { recursive: true });
+  symlinkSync('vendor/aeion-factory-v9.9.9', join(profile, 'aeion-factory'));
+  const { folder, events } = await recorder();
+  copies.set(folder, await plugin(join(profile, 'aeion-factory')));
+  const { guard, agent } = load(folder);
+  assert.match(guard(call(agent, 'bash', { command: 'true' })), /not trusted/);
+  const ranUntrusted = existsSync(join(folder, 'events.jsonl'));
+  writeFileSync(join(profile, 'aeion-factory.trusted'), `/nonexistent\n${folder}\n`);
+  assert.equal(guard(call(agent, 'bash', { command: 'true' })), undefined);
+  const seen = events().map((event) => event.hook_event_name);
+  rmSync(profile, { recursive: true, force: true });
+  rmSync(folder, { recursive: true, force: true });
+  assert.equal(ranUntrusted, false);
+  assert.ok(seen.includes('PreToolUse'));
+});
+
 test('dsh refuses a call that has no agent to account it to', () => {
   const { guard } = load(root);
   assert.match(guard({ name: 'bash', arguments: { command: 'true' } }), /unavailable/);
@@ -86,10 +134,10 @@ test('dsh past 250k is held to closure by its own token meter', () => {
   assert.match(guard(call(agent, 'write', { file_path: `${root}/src.py`, content: 'x' })), /250k alert/);
 });
 
-test('dsh steers an advisory notice that a denial would otherwise carry', () => {
+test('dsh steers an advisory notice that a denial would otherwise carry', async () => {
   // The web profile's gate allows the call, so its notice must reach the agent through a steer instead.
   const notice = 'Æion Factory: this harness compacts on its own; the gate is advisory here.';
-  const folder = answering({ PreToolUse: { systemMessage: notice, hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: notice } } });
+  const folder = await answering({ PreToolUse: { systemMessage: notice, hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: notice } } });
   const { guard, agent, steered } = load(folder, 1000);
   agent.session.id = `${sessionID}-notice`;
   assert.equal(guard(call(agent, 'write', { file_path: `${folder}/x.py`, content: 'x' })), undefined);
@@ -99,9 +147,7 @@ test('dsh steers an advisory notice that a denial would otherwise carry', () => 
 
 test('dsh compacts before the next step once the hook reports a verified handover, then resumes', async () => {
   // A stand-in adapter answers as the shared rule does after a verified checkpoint past 250k.
-  const folder = mkdtempSync(join(tmpdir(), 'dsh-compact-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'tools/agents/hook.py'), 'import json\nprint(json.dumps({"aeion": {"compact": True}}))\n');
+  const folder = await standIn('dsh-compact-', 'import json\nprint(json.dumps({"aeion": {"compact": True}}))\n');
   const { handlers, compactions, agent, steered } = load(folder, 260000);
   const done = { kind: 'accept' };
   assert.equal(await handlers['tools/post-execute'](call(agent, 'bash', { command: 'true' }), {}, async () => done), done);
@@ -117,10 +163,8 @@ test('dsh compacts before the next step once the hook reports a verified handove
 });
 
 // A stand-in adapter that records the events it receives and asks for a compaction after each tool.
-function recorder() {
-  const folder = mkdtempSync(join(tmpdir(), 'dsh-record-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'tools/agents/hook.py'), [
+async function recorder() {
+  const folder = await standIn('dsh-record-', [
     'import json, sys',
     'event = json.load(sys.stdin)',
     "open('events.jsonl', 'a').write(json.dumps(event) + '\\n')",
@@ -133,7 +177,7 @@ function recorder() {
 test('dsh web compacts through the /compact command on idle, then resumes', async () => {
   // The web profile isolates its compaction service inside the agent preset, out of the plugin's reach, so
   // the plugin crosses that boundary with the /compact command once the turn has ended, then resumes.
-  const { folder, events } = recorder();
+  const { folder, events } = await recorder();
   const { handlers, compactions, agent, steered } = load(folder, 260000, { root: false });
   agent.session.id = `${sessionID}-web-compact`;
   await handlers['tools/post-execute'](call(agent, 'bash', { command: 'true' }), {}, async () => ({}));
@@ -157,7 +201,7 @@ test('dsh web compacts through the /compact command on idle, then resumes', asyn
 test('dsh never tells the user to type /compact, verified or owed (dsh FB-004)', async () => {
   // The 300k stopgap allows a compaction the checkpoint did not verify. The plugin runs /compact itself on
   // idle and resumes; it never orders a human /compact command either way.
-  const owed = answering({
+  const owed = await answering({
     PostToolUse: { aeion: { compact: true } },
     PreCompact: { systemMessage: 'Æion Factory 300k: compacting before a verified checkpoint' },
   });
@@ -174,7 +218,7 @@ test('dsh never tells the user to type /compact, verified or owed (dsh FB-004)',
 test('dsh tells the user to stop after verification when /compact does not run', async () => {
   // A compaction that never lands leaves the gate closed. Once the handover, work/current.md and checkpoint are
   // verified, the recoverable move is to end the session and resume from the handover, not to retry forever.
-  const folder = answering({
+  const folder = await answering({
     PostToolUse: { aeion: { compact: true } },
     PreCompact: {},
   });
@@ -189,8 +233,8 @@ test('dsh tells the user to stop after verification when /compact does not run',
   assert.match(text, /handover/);
 });
 
-test('dsh treats a token fall to under half as a compaction and restarts the session as compacted', () => {
-  const { folder, events } = recorder();
+test('dsh treats a token fall to under half as a compaction and restarts the session as compacted', async () => {
+  const { folder, events } = await recorder();
   const { guard, agent, meter } = load(folder, 260000, { root: false });
   agent.session.id = `${sessionID}-fall`;
   guard(call(agent, 'bash', { command: 'true' }));
@@ -205,20 +249,18 @@ test('dsh treats a token fall to under half as a compaction and restarts the ses
 });
 
 // A stand-in adapter that answers each event with `replies[event]`, as the shared hook would.
-function answering(replies) {
-  const folder = mkdtempSync(join(tmpdir(), 'dsh-answer-'));
-  mkdirSync(join(folder, 'tools/agents'), { recursive: true });
-  writeFileSync(join(folder, 'replies.json'), JSON.stringify(replies));
-  writeFileSync(join(folder, 'tools/agents/hook.py'), [
+async function answering(replies) {
+  const folder = await standIn('dsh-answer-', [
     'import json, sys',
     'event = json.load(sys.stdin)',
     "print(json.dumps(json.load(open('replies.json')).get(event['hook_event_name'], {})))",
   ].join('\n') + '\n');
+  writeFileSync(join(folder, 'replies.json'), JSON.stringify(replies));
   return folder;
 }
 
-test('dsh steers the SessionStart context to the model once per start (dsh FB-001)', () => {
-  const folder = answering({ SessionStart: { hookSpecificOutput: { additionalContext: 'Recovery: work/handovers/x.md' } } });
+test('dsh steers the SessionStart context to the model once per start (dsh FB-001)', async () => {
+  const folder = await answering({ SessionStart: { hookSpecificOutput: { additionalContext: 'Recovery: work/handovers/x.md' } } });
   const { guard, agent, steered } = load(folder);
   agent.session.id = `${sessionID}-context`;
   guard(call(agent, 'bash', { command: 'true' }));
@@ -228,13 +270,13 @@ test('dsh steers the SessionStart context to the model once per start (dsh FB-00
 });
 
 test('dsh forwards a turn close to Stop and steers its sign-off finding (dsh FB-002)', async () => {
-  const blocked = answering({ Stop: { decision: 'block', reason: 'Sign off: update CHANGELOG.md' } });
+  const blocked = await answering({ Stop: { decision: 'block', reason: 'Sign off: update CHANGELOG.md' } });
   const first = load(blocked);
   await first.handlers['agent/turn-stopping']({ agent: first.agent, turn: 1, signal: new AbortController().signal });
   rmSync(blocked, { recursive: true, force: true });
   assert.deepEqual(first.steered.map((message) => message.content[0].text), ['Sign off: update CHANGELOG.md']);
   // No finding leaves the turn to close.
-  const clear = answering({});
+  const clear = await answering({});
   const second = load(clear);
   await second.handlers['agent/turn-stopping']({ agent: second.agent, turn: 1, signal: new AbortController().signal });
   rmSync(clear, { recursive: true, force: true });
@@ -242,7 +284,7 @@ test('dsh forwards a turn close to Stop and steers its sign-off finding (dsh FB-
 });
 
 test('dsh does not steer a terminal stop (dsh FB-003)', async () => {
-  const folder = answering({ Stop: { continue: false, stopReason: '300k: write the handover' } });
+  const folder = await answering({ Stop: { continue: false, stopReason: '300k: write the handover' } });
   const { handlers, agent, steered } = load(folder);
   await handlers['agent/turn-stopping']({ agent, turn: 1, signal: new AbortController().signal });
   rmSync(folder, { recursive: true, force: true });
@@ -279,7 +321,7 @@ test('dsh gives every steered message its own id and role', async () => {
 });
 
 test('dsh forwards a tool result but never a local file read', async () => {
-  const { folder, events } = recorder();
+  const { folder, events } = await recorder();
   const { handlers, agent } = load(folder);
   await handlers['tools/post-execute'](call(agent, 'read', { file_path: `${folder}/a.txt` }),
     { content: 'x' }, async () => ({}));
