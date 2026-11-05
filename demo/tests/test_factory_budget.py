@@ -154,7 +154,7 @@ class BudgetSettingsTests(unittest.TestCase):
         patcher = mock.patch.dict("os.environ", {}, clear=False)
         patcher.start()
         self.addCleanup(patcher.stop)
-        for key in budget_module.CEILINGS:
+        for key in (*budget_module.CEILINGS, *budget_module.TIME_LIMITS):
             budget_module.os.environ.pop("AEION_" + key, None)
 
     def settings(self, text):
@@ -179,6 +179,31 @@ class BudgetSettingsTests(unittest.TestCase):
                      "DAILY_LIMIT_USD=2.00\nAUTHOR_MAX_USD=1.00\nREVIEW_MAX_USD=0.60\n"):
             with self.subTest(text=text), self.assertRaisesRegex(BudgetError, "budget_config_invalid"):
                 self.settings(text)
+
+    def test_the_author_window_is_whole_minutes_between_five_and_one_eighty(self):
+        self.conf.write_text("")
+        self.assertEqual(budget_module.author_timeout_seconds(self.conf), 1800)
+        self.conf.write_text("AUTHOR_TIMEOUT_MINUTES=180\n")
+        self.assertEqual(budget_module.author_timeout_seconds(self.conf), 10800)
+        self.assertEqual(budget_module.settings(self.conf)["AUTHOR_MAX_USD"], Decimal("2.00"))
+        for raw in ("181", "4", "0", "-30", "90.5", "abc", "1e2", "\u0661\u0662\u0660", ""):
+            with self.subTest(raw=raw):
+                self.conf.write_text(f"AUTHOR_TIMEOUT_MINUTES={raw}\n")
+                with self.assertRaisesRegex(BudgetError, "budget_config_invalid"):
+                    budget_module.author_timeout_seconds(self.conf)
+                with self.assertRaisesRegex(BudgetError, "budget_config_invalid"):
+                    budget_module.settings(self.conf)
+        budget_module.os.environ["AEION_AUTHOR_TIMEOUT_MINUTES"] = "60"
+        self.conf.write_text("AUTHOR_TIMEOUT_MINUTES=180\n")
+        self.assertEqual(budget_module.author_timeout_seconds(self.conf), 3600)
+        budget_module.os.environ["AEION_AUTHOR_TIMEOUT_MINUTES"] = "600"
+        with self.assertRaisesRegex(BudgetError, "budget_config_invalid"):
+            budget_module.author_timeout_seconds(self.conf)
+
+    def test_the_shipped_author_window_is_within_the_ceiling(self):
+        from factory.freeze import AUTHOR_TIMEOUT_CEILING_SECONDS
+        self.assertLessEqual(budget_module.author_timeout_seconds(), AUTHOR_TIMEOUT_CEILING_SECONDS)
+        self.assertEqual(budget_module.TIME_LIMITS["AUTHOR_TIMEOUT_MINUTES"][1] * 60, AUTHOR_TIMEOUT_CEILING_SECONDS)
 
     def test_an_exported_override_wins_but_cannot_pass_a_ceiling(self):
         budget_module.os.environ["AEION_AUTHOR_MAX_USD"] = "3.00"

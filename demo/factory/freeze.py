@@ -11,7 +11,10 @@ import re
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
+# Default author window; demo/budget.conf AUTHOR_TIMEOUT_MINUTES sets the live one, never above
+# the ceiling (factory.budget.TIME_LIMITS).
 AUTHOR_TIMEOUT_SECONDS = 1800
+AUTHOR_TIMEOUT_CEILING_SECONDS = 10800
 
 
 class FreezeError(ValueError):

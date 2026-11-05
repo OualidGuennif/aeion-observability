@@ -100,18 +100,22 @@ The root and /factory serve the same cockpit; /lab serves the existing advanced 
    a real deployment receipt with deployed-source/readiness evidence exists (test_cockpit_client).
    The drill API remains server-side history only and never supplies an environment link.
 7. Authentication, CSRF and loopback binding remain required. No credential is stored in browser persistent storage.
-8. Claim, completion, cancellation, hold and recovery preconditions are serialized across Store instances. The worker lease covers configured preparation, author, protected-check and two-review deadlines plus teardown. Expired attempts hold as reconciliation_needed, preserve attempt identity, and never automatically repeat an uncertain paid action (test_factory_recovery).
-9. Compiler failures expose bounded filenames, line numbers and identifiers, never source lines,
-   values or complete compiler output (test_factory_target_check and test_cockpit_client).
-10. Independent review receives all changed files within the bounded complete-review envelope; larger
+8. While the author runs, its card shows elapsed time against the configured window
+   (`author_window_seconds` from the board), time since the last tool or model step, and the
+   count of failed draft self-tests. Ten silent minutes or three failed drafts raise a visible
+   warning; the window and author budget remain the only stops (test_cockpit_client).
+9. Claim, completion, cancellation, hold and recovery preconditions are serialized across Store instances. The worker lease covers configured preparation, author, protected-check and two-review deadlines plus teardown. Expired attempts hold as reconciliation_needed, preserve attempt identity, and never automatically repeat an uncertain paid action (test_factory_recovery).
+10. Compiler failures expose bounded filenames, line numbers and identifiers, never source lines,
+    values or complete compiler output (test_factory_target_check and test_cockpit_client).
+11. Independent review receives all changed files within the bounded complete-review envelope; larger
     input still holds before any vote and no excerpt can approve an artifact (test_factory_modelfarm).
-11. Optional target context names at most eight public main Java files. Only regular blobs
+12. Optional target context names at most eight public main Java files. Only regular blobs
     from the exact pinned commit are read, never working-tree changes, symlinks, configuration
     or credentials. Each file is bounded to 24000 UTF-8 bytes and the full labeled context to
     48000 bytes. The dispatcher supplies it outside candidate write scopes and the author
     receives complete bytes, with oversized input refused before transport
     (test_factory_source_context).
-12. A "Your next step" banner names exactly one plain owner action, derived from execution mode,
+13. A "Your next step" banner names exactly one plain owner action, derived from execution mode,
     factory hold, the current held build (review-circuit reason first), a running build or ready
     features, in that order. Simulation and offline modes say nothing real can be built
     (test_cockpit_client).

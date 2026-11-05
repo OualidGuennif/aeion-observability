@@ -94,7 +94,8 @@ class FactoryApp:
         if self.execution_mode == 'live' and getattr(self.execution.get('builder'),'paid',False):
             worker_config.update(mode='live',profile='flue-pi')
             if config is None:
-                worker_config['deadline_ns'] = AUTHOR_TIMEOUT_SECONDS * 1_000_000_000
+                window = getattr(self.execution.get('builder'), 'timeout_seconds', AUTHOR_TIMEOUT_SECONDS)
+                worker_config['deadline_ns'] = window * 1_000_000_000
         if self.execution.get("cost_reservation_usd") is not None:
             worker_config["cost_reservation_usd"] = self.execution["cost_reservation_usd"]
         return worker_config
@@ -196,6 +197,9 @@ class FactoryApp:
                                    if self.execution.get("target") is not None else None),
                 "target_features": sorted(self.execution.get('targets') or {}),
                 "automatic_preparation": self.execution.get('preparer') is not None,
+                "author_window_seconds": (int(self.execution['builder'].timeout_seconds)
+                    if isinstance(getattr(self.execution.get('builder'), 'timeout_seconds', None), int)
+                    else None),
                 "live_hold_reason": (
                     (None if self.execution.get("builder") is not None and not blocker
                      else (blocker or "live_builder_unqualified"))

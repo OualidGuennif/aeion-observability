@@ -825,6 +825,11 @@ class Store:
                     progress = {'phase': phase, 'detail': clean, 'time_ns': now}
                     receipt['progress'] = progress
                     if phase=='protected_check.finished':receipt['draft_check']=clean
+                    # Timing metadata only, so the cockpit can show elapsed time and silence.
+                    if phase=='process.started':receipt['author_started_ns']=now
+                    if phase in ('tool.finished','protected_check.finished'):receipt['last_tool_ns']=now
+                    if phase=='protected_check.finished' and clean.get('status')=='failed':
+                        receipt['draft_failures']=min(1000,int(receipt.get('draft_failures',0))+1)
                     conn.execute('UPDATE builds SET receipt=?, updated_ns=? WHERE build_id=?',
                                  (json.dumps(receipt), now, row['build_id']))
                     self._event(conn, row['build_id'], now, 'supervisor', 'progress',
@@ -996,6 +1001,42 @@ class Store:
                 return dict(row) if row is not None else None
             finally:
                 conn.close()
+
+    def previous_check_failure(self, feature_id, spec_digest):
+        """Bounded protected-check failure of the latest failed attempt at this exact spec.
+
+        Only the gate's reason code, failing test names and compiler locations are returned,
+        each pattern-checked; names come from candidate source, so they stay data.
+        """
+        with self._lock:
+            conn = self._connect()
+            try:
+                rows = conn.execute(
+                    "SELECT receipt FROM builds WHERE feature_id=? AND status=? ORDER BY updated_ns DESC LIMIT 20",
+                    (feature_id, FAILED)).fetchall()
+            finally:
+                conn.close()
+        for row in rows:
+            try:
+                receipt = json.loads(row['receipt']) if row['receipt'] else {}
+            except ValueError:
+                continue
+            if receipt.get('spec_digest') != spec_digest or not isinstance(receipt.get('gate'), dict):
+                continue
+            for result in (receipt['gate'].get('results') or {}).values():
+                detail = result.get('detail') if isinstance(result, dict) else None
+                if not isinstance(detail, dict) or not isinstance(detail.get('reason'), str):
+                    continue
+                if not re.fullmatch('[a-z][a-z0-9_]{1,95}', detail['reason']) or detail['reason'].endswith('_passed'):
+                    continue
+                tests = [t for t in detail.get('failed_tests') or []
+                         if isinstance(t, str) and re.fullmatch(r'[A-Za-z0-9_.$<>()\[\] ,:#-]{1,160}', t)][:8]
+                errors = [f"{e['file']}:{e['line']}" for e in detail.get('compiler_errors') or []
+                          if isinstance(e, dict) and isinstance(e.get('file'), str)
+                          and re.fullmatch(r'[A-Za-z0-9_./-]{1,160}', e['file']) and type(e.get('line')) is int][:8]
+                if tests or errors:
+                    return {'reason': detail['reason'], 'failed_tests': tests, 'compiler_errors': errors}
+        return None
 
     def board(self):
         with self._lock:

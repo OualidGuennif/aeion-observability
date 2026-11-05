@@ -8,7 +8,7 @@ scopes and a real protected check, but model bytes are fixed and the attempt is 
 """
 from pathlib import Path
 
-from .budget import BudgetError, settings as budget_settings
+from .budget import BudgetError, author_timeout_seconds, settings as budget_settings
 from .isolation import DockerCheckRunner
 from .inference_config import available as provider_available
 from .target import TargetError, load_target
@@ -134,6 +134,7 @@ def resolve(repo_root, mode):
         return {"mode": "live", "hold_reason": "provider_unconfigured"}
     try:
         bounds = budget_settings()
+        author_seconds = author_timeout_seconds()
     except BudgetError:
         return {"mode": "live", "hold_reason": "budget_config_invalid"}
     from .product_checks import ProductCheckRunner
@@ -145,12 +146,14 @@ def resolve(repo_root, mode):
     from .flue_review import FlueReview
     reviews=FlueReview(cost_limit=str(bounds['REVIEW_MAX_USD']),max_output_tokens=65536)
     reviews.timeout_seconds=900
+    builder = FlueBuilder(repo_root, {}, check_sandbox=checker)
+    builder.timeout_seconds = author_seconds
     loaded_protocol=protocol_hash(repo_root)
     execution = {"mode": "live", "preparer": preparer, "target_errors": errors,
             # A fresh disk proof must not authorize old Python objects after an edit.
             # Same-protocol expiry can recover; changed code requires a clean reload.
             "admission_check": lambda: protocol_hash(repo_root)==loaded_protocol and flue_factory_ready(repo_root),
-            "builder": FlueBuilder(repo_root, {}, check_sandbox=checker),
+            "builder": builder,
             "review_complete": reviews, 'engine': 'flue-pi', 'runtime': 'flue-openshell', 'tier': 3,
             "publication": True,
             "check_sandbox": checker,

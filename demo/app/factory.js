@@ -306,6 +306,36 @@ function buildStage(build) {
   if (phase) return receipt.preparation ? "building" : "preparing";
   return null;
 }
+// Ten minutes with no tool result or model step: likely a long command or a stalled agent.
+const STALL_SECONDS = 600;
+function agentClock(build, receipt, windowSeconds) {
+  const started = Number(receipt.author_started_ns);
+  if (build.status !== "dispatched" || !Number.isFinite(started) || started <= 0) return "";
+  if (["process.retired", "checking", "reviewing", "publishing"].includes(receipt.progress?.phase)) return "";
+  const last = Math.max(started, Number(receipt.last_tool_ns) || 0, Number(receipt.progress?.time_ns) || 0);
+  const failures = Number.isInteger(receipt.draft_failures) ? receipt.draft_failures : 0;
+  const window = Number.isInteger(windowSeconds) && windowSeconds > 0 ? windowSeconds : 0;
+  return `<p class="agent-clock" data-start="${started / 1e6}" data-last="${last / 1e6}" data-window="${window}" data-failures="${failures}"></p>`;
+}
+function clockText(startMs, lastMs, windowSeconds, failures, nowMs) {
+  const minutes = (ms) => Math.max(0, Math.floor(ms / 60000));
+  const elapsed = minutes(nowMs - startMs);
+  const silent = Math.max(0, (nowMs - lastMs) / 1000);
+  const parts = [windowSeconds ? `Agent time ${elapsed} of ${Math.round(windowSeconds / 60)} min` : `Agent time ${elapsed} min`,
+    `last activity ${silent < 60 ? "under a minute" : minutes(silent * 1000) + " min"} ago`];
+  if (failures) parts.push(`draft self-test failed ${failures}×`);
+  const stalled = silent >= STALL_SECONDS;
+  const note = stalled ? ` · No agent activity for ${minutes(silent * 1000)} min: a long command or a stalled agent. The time window and author budget still stop it.`
+    : failures >= 3 ? " · The same draft keeps failing its self-test." : "";
+  return { text: parts.join(" · ") + note, attention: stalled || failures >= 3 };
+}
+function tickClocks(nowMs = Date.now()) {
+  if (typeof document === "undefined" || !document.querySelectorAll) return;
+  for (const el of document.querySelectorAll(".agent-clock")) {
+    const c = clockText(Number(el.dataset.start), Number(el.dataset.last), Number(el.dataset.window), Number(el.dataset.failures), nowMs);
+    el.textContent = c.text; el.classList.toggle("attention", c.attention);
+  }
+}
 function stageProgress(build) {
   const current = buildStage(build);
   if (!current || ["failed", "cancelled", "held"].includes(build.status)) return "";
@@ -314,7 +344,8 @@ function stageProgress(build) {
   const model = receipt.progress?.detail?.model;
   return `<ol class="build-stages" aria-label="Implementation stages">${Object.entries(labels).map(([stage, label]) =>
     `<li${stage === current ? ' aria-current="step"' : ""}>${label}</li>`).join("")}</ol>` +
-    `<p class="current-stage">${esc(PHASE_LABELS[receipt.progress?.phase] || labels[current])}${model ? " · " + esc(model) : ""}</p>`;
+    `<p class="current-stage">${esc(PHASE_LABELS[receipt.progress?.phase] || labels[current])}${model ? " · " + esc(model) : ""}</p>` +
+    agentClock(build, receipt, state.execution?.author_window_seconds);
 }
 function buildCard(build) {
   const feature = state.catalog.find((f) => f.id === build.feature_id);
@@ -371,6 +402,7 @@ function renderBuilds() {
   updateBuildList("history", history.map(buildCard).join(""));
   $("history-count").textContent = `(${history.length})`;
   $("history-panel").hidden = !history.length;
+  tickClocks();
 }
 function renderBudgets(budget) {
   const scopes = budget?.scopes || {};
@@ -465,5 +497,6 @@ async function boot() {
   $("status-filters").querySelectorAll("[data-filter]").forEach((button) => button.addEventListener("click", () => setFilter(button.dataset.filter)));
   await refresh();
   setInterval(() => { if (!$("app").hidden) refresh(); }, 10000);
+  setInterval(() => tickClocks(), 15000);
 }
 if (typeof document !== "undefined") boot();

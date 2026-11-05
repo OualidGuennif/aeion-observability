@@ -272,9 +272,10 @@ the factory holds a build with `budget_unavailable` before opening a session or 
 
 `demo/budget.conf` also bounds one author agent execution (`AUTHOR_MAX_USD`, at most $5.00,
 reserved up front and enforced by the relay) and one review vote (`REVIEW_MAX_USD`, at most
-$1.00). The file is not secret and the owner may edit it; the code ceilings can only be lowered.
+$1.00), plus the author's wall-clock window (`AUTHOR_TIMEOUT_MINUTES`, whole minutes from 5
+to 180, default 30; the shipped file sets 180). The file is not secret and the owner may edit it; the code ceilings can only be lowered.
 An exported `AEION_<KEY>` overrides a line. An unknown key, a non-positive amount, a value above
-its ceiling, or an author cap plus two votes exceeding the day refuses the whole file: new
+its ceiling, an author window outside 5..180 minutes, or an author cap plus two votes exceeding the day refuses the whole file: new
 builds hold as `budget_config_invalid` and the purses admit no spending. A change applies to
 builds admitted after a cockpit restart; an admitted build keeps its frozen reservation.
 

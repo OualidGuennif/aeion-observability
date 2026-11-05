@@ -616,9 +616,10 @@ class DispatchWorker:
                 self._write_simulated_impl(repo, frozen, feature)
             else:
                 if hasattr(self.builder, 'run_build'):
+                    previous = self.store.previous_check_failure(feature['id'], frozen.spec_digest)
                     self.builder.run_build(repo=repo, frozen=frozen, feature=feature,
                         brief=repo.parent / 'BRIEF.md', target=target, build=build,
-                        progress=progress, router=self.router)
+                        progress=progress, router=self.router, previous_failure=previous)
                 else:
                     self.builder(repo=repo, frozen=frozen, feature=feature,
                                  brief=repo.parent / "BRIEF.md")

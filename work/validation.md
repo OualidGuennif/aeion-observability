@@ -1,3 +1,9 @@
+## Author window and stall protections — 2026-11-05
+
+- Build 15398c1d (001, DeepSeek v4.1 Flash) ended AGENT_TIMEOUT at its 30-min window (process.retired 21:33:16); three draft self-tests and the final gate failed product_unit_tests_failed on `DatabaseLessBootTest > livenessAnswersWithoutADatabase()`; author cost 0.09768907 USD. Langfuse showed steady steps with 3–4.5 min silent gaps (long Gradle runs), so the window, not a hang, ended it.
+- Owner approved a 3h cap: `AUTHOR_TIMEOUT_MINUTES` in budget.conf (5..180, default 30, shipped 180), lease and worker deadline follow it. Owner also approved stall visibility (cockpit clock, silence and failed-draft warnings) and the previous refusal of the same spec fed to the next author as bounded data.
+- Checks: demo 751 OK (15 skipped), cockpit JS 27 PASS, knowledge-check and doc-links PASS. Native v17 PASS (all seven capabilities), protocol 2489713142f2a795e850a0b137286c32acd818997b1d50f31cfd338ed4e3b196, proof demo/.local/factory/admission-nwcpssfs/proof.json, `ready()` True; controller restarted live as PID 6021 with no active build.
+
 ## Dark mode and lab showcase — 2026-11-05
 
 - Theme tokens moved to `demo/app/theme.css`; factory.css and style.css carry no hex colour. `/lab` rebuilt (idea, architecture SVG, 12 stack cards with live status where probed, circuit, playground, memory room). Memory helpers live in server.py: `memory.py` is protocol-hashed and an earlier edit to it revoked build 3bb1d4cd (ATTEMPT_REVOKED, 0.09355716 USD); restored, `ready()` True.

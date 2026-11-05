@@ -21,7 +21,7 @@ from sandbox import SANDBOX_OUT, Sandbox
 from scenarios import SCENARIOS, SOLUTIONS, contract
 from settings import AGENT_UID, FLUE, HARNESS, WORK
 from factory.budget import BudgetError
-from factory.freeze import AUTHOR_TIMEOUT_SECONDS
+from factory.freeze import AUTHOR_TIMEOUT_CEILING_SECONDS
 import triage
 
 CHECKER = "/opt/demo/fixtures/check-scenario.js"
@@ -528,7 +528,7 @@ class Runner:
             process = subprocess.Popen(argv, cwd=FLUE, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                        stderr=subprocess.DEVNULL, start_new_session=True)
             self.event(run, "process.started", **{"aeion.process.pid": process.pid, "aeion.agent.number": run["agents"]})
-            role_window=AUTHOR_TIMEOUT_SECONDS if kind=='factory-build' else 900
+            role_window=AUTHOR_TIMEOUT_CEILING_SECONDS if kind=='factory-build' else 900
             deadline = time.monotonic() + min(role_window, int(run.get('agent_timeout_seconds', AGENT_TIMEOUT_SECONDS)))
             buffer, cumulative, conversation, final, outcome = b"", 0, None, False, None
             request_started_ns = time.time_ns()
