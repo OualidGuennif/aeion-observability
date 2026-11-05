@@ -8,6 +8,7 @@ scopes and a real protected check, but model bytes are fixed and the attempt is 
 """
 from pathlib import Path
 
+from .budget import BudgetError, settings as budget_settings
 from .isolation import DockerCheckRunner
 from .inference_config import available as provider_available
 from .target import TargetError, load_target
@@ -131,6 +132,10 @@ def resolve(repo_root, mode):
     if not provider_available():
         # The pinned target exists, but no provider credential is loaded: hold, never simulate.
         return {"mode": "live", "hold_reason": "provider_unconfigured"}
+    try:
+        bounds = budget_settings()
+    except BudgetError:
+        return {"mode": "live", "hold_reason": "budget_config_invalid"}
     from .product_checks import ProductCheckRunner
     checker = ProductCheckRunner(repo_root)
     preparer = TaskPreparer(repo_root,
@@ -138,7 +143,7 @@ def resolve(repo_root, mode):
         synchronize=SourceSynchronizer(repo_root), product=True)
     from .flue_builder import FlueBuilder
     from .flue_review import FlueReview
-    reviews=FlueReview(cost_limit='1.00',max_output_tokens=65536)
+    reviews=FlueReview(cost_limit=str(bounds['REVIEW_MAX_USD']),max_output_tokens=65536)
     reviews.timeout_seconds=900
     loaded_protocol=protocol_hash(repo_root)
     execution = {"mode": "live", "preparer": preparer, "target_errors": errors,
@@ -150,8 +155,9 @@ def resolve(repo_root, mode):
             "publication": True,
             "check_sandbox": checker,
             "telemetry": FactoryTelemetry(readback=True),
-            # One attempt may reserve part of the shared purse; $15/day remains the hard cap.
-            "cost_reservation_usd": "0.50"}
+            # One author execution reserves its whole cap before spending (demo/budget.conf);
+            # the frozen value binds that build, and the relay stops the session at it.
+            "cost_reservation_usd": str(bounds['AUTHOR_MAX_USD'])}
     if not flue_factory_ready(repo_root):
         execution['hold_reason'] = 'flue_factory_unqualified'
     return execution

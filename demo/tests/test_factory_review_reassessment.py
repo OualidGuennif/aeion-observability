@@ -132,8 +132,14 @@ class ReviewContextDispatchTests(unittest.TestCase):
                 self.last_usage={'complete':True,'cost_usd':'0.01'}
                 self.last_execution={'role':'review','engine':'flue-pi','forwarded_count':1,'usage':self.last_usage}
                 outer.votes.append((model,prompt))
+                if model==outer.failure_model:
+                    self.last_execution['failure']='REVIEW_RESULT_MISSING'
+                    if outer.unknown_failure_usage:self.last_usage['complete']=False
+                    raise ValueError('REVIEW_RESULT_MISSING')
                 return {'verdict':outer.verdict,'reason':'Synthetic fixture'}
         self.verdict='approve'
+        self.failure_model=None
+        self.unknown_failure_usage=False
         self.budget=DailyBudget(self.root/'ledger.jsonl')
         self.worker=DispatchWorker(self.store,self.catalog,specs,self.root/'work',self.config,
             builder=SimpleNamespace(paid=True,engine='flue-pi',last_execution=None),
@@ -172,6 +178,40 @@ class ReviewContextDispatchTests(unittest.TestCase):
         with self.assertRaisesRegex(CircuitError,'not_eligible'):
             self.worker.reassess_review_context(self.build['build_id'])
         self.assertEqual(len(self.votes),1)
+        with self.assertRaisesRegex(CircuitError,'not_eligible'):
+            self.worker.reassess_review_context(self.build['build_id'],retry_failed_review=True)
+        self.assertEqual(len(self.votes),1)
+
+    def test_one_failed_review_retry_rechecks_and_replaces_both_votes_without_rerunning_author(self):
+        self.failure_model='deepseek-4.1-flash'
+        self.worker.reassess_review_context(self.build['build_id'])
+        self.assertEqual(self.requests,[])
+        self.assertEqual([m for m,_ in self.votes],['qwen-3.8-flash','deepseek-4.1-flash'])
+        self.failure_model=None
+        result=self.worker.reassess_review_context(self.build['build_id'],retry_failed_review=True)
+        self.assertEqual(result['result']['status'],'publication_queued')
+        self.assertEqual([m for m,_ in self.votes][-2:],['deepseek-4.1-flash','qwen-3.8-flash'])
+        self.assertEqual(len(self.checks),2)
+        self.assertEqual(str(self.budget.spent('aeion-autonomous-forum')),'0.04')
+        self.assertEqual(self.requests[0][1]['execution'],self.prior['execution'])
+
+    def test_a_second_failed_review_stays_held_without_an_unbounded_retry(self):
+        self.failure_model='deepseek-4.1-flash'
+        self.worker.reassess_review_context(self.build['build_id'])
+        self.worker.reassess_review_context(self.build['build_id'],retry_failed_review=True)
+        self.assertEqual(len(self.votes),3)
+        self.assertEqual(self.requests,[])
+        with self.assertRaisesRegex(CircuitError,'not_eligible'):
+            self.worker.reassess_review_context(self.build['build_id'],retry_failed_review=True)
+        self.assertEqual(len(self.votes),3)
+
+    def test_retry_does_not_free_an_old_unknown_review_reservation(self):
+        self.failure_model='deepseek-4.1-flash';self.unknown_failure_usage=True
+        self.worker.reassess_review_context(self.build['build_id'])
+        self.assertEqual(str(self.budget.spent('aeion-autonomous-forum')),'0.11')
+        self.failure_model=None
+        self.worker.reassess_review_context(self.build['build_id'],retry_failed_review=True)
+        self.assertEqual(str(self.budget.spent('aeion-autonomous-forum')),'0.13')
 
 
 if __name__=='__main__':unittest.main()

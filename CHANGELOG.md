@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Stop the controller's child processes from crashing on macOS ("Python quit unexpectedly"):
+  gRPC, loaded by the OpenShell client, restarted its threads in every forked child before exec.
+  The controller and OpenShell qualifier now disable gRPC fork support before importing it.
+- Simplify the cockpit: a "Your next step" banner with one plain owner action, then factory
+  mode, today's budget and environments (Staging/Production "Not deployed yet" until a real
+  deployment exists). Remove the synthetic canary drill from the cockpit, explain review holds in
+  plain words, and label the model lab as an advanced page not needed to build features.
+- Require reviewers to submit their verdict through the typed tool: a Flue finish hook asks once
+  when a session ends without it. Failed votes keep their failure code and metadata, and one
+  explicit operator retry reruns gates and both votes after a hold with no rejection.
+- Make spending bounds owner-configurable in `demo/budget.conf`: daily purse (at most $15), one
+  author execution (at most $5, default $2) and one review vote (at most $1). Invalid values hold
+  builds and admit no spending.
+- Let the relay wait up to 300s for a silent reasoning provider instead of cutting it at 45s,
+  and report a stall as `PROVIDER_TIMEOUT` rather than a generic transport error.
 - Review incremental changes against their exact frozen Git base, with complete file coverage.
   Allow one fenced, known-cost old-envelope reassessment with fresh checks/votes and preserved
   rejection history. Label the historical canary preview as synthetic instead of product staging.

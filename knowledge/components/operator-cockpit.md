@@ -28,7 +28,7 @@ sources:
 
 ## Intent
 
-Make the default local page useful for selecting admitted product work and observing its actual outcome. Completed features cannot be selected or submitted again. The model lab remains available as an advanced view.
+Make the default local page useful for selecting admitted product work and observing its actual outcome. Completed features cannot be selected or submitted again. The page opens with the owner's next step, then three status blocks (factory mode, today's budget, environments), then the catalog and build activity. The model lab remains available as an advanced view, labelled as not needed to build features.
 
 ## Data sources
 
@@ -66,7 +66,9 @@ Activity refreshes retain expanded build evidence and keyboard focus. An unchang
 not replaced, so reading evidence does not race the ten-second poll or SSE progress events.
 The exact registered001/002/014 contracts prepare deterministically without model requests or cost;
 changed MD bytes require fresh independent preparation. Missing acceptance format, explicit model
-refusal, budget exhaustion and unknown usage have distinct bounded messages. Private proposal
+refusal, budget exhaustion, an invalid `demo/budget.conf` (`budget_config_invalid`) and unknown
+usage have distinct bounded messages. A review vote that failed keeps its failure code (for example
+`REVIEW_RESULT_MISSING` or `PROVIDER_TIMEOUT`) in the build evidence instead of a generic label. Private proposal
 artifacts remain outside default telemetry. PostgreSQL/React helpers are not product delivery.
 The transition baseline explains an absent registered migration operator or browser source.
 A stopped author proposal can continue only with validated files, confirmed removal, complete
@@ -93,10 +95,10 @@ The root and /factory serve the same cockpit; /lab serves the existing advanced 
 3. Unsupported targets and unmet dependencies are visible before selection; backend execution gates remain authoritative (test_cockpit_admission).
 4. Default activity separates current/recent real work from historical simulations. Raw receipt data is behind details; trace confirmation remains explicit (browser fixture acceptance).
 5. Per-build target selection uses the selected feature brief/scopes/check; unknown targets hold before a budget reservation, and unexpected worker errors become visible holds without an automatic paid retry (test_factory_feature_targets).
-6. No launch or release call occurs on page load. The historical release drill is loaded only
-   when its advanced panel opens (browser fixture acceptance). Its synthetic preview is labelled
-   explicitly and is not a forum staging/production link. Real environment delivery requires
-   separate deployed-source/readiness evidence; the drill cannot supply it.
+6. No launch or release call occurs on page load. The cockpit no longer shows the synthetic
+   canary drill; its environment block states Staging and Production as "Not deployed yet" until
+   a real deployment receipt with deployed-source/readiness evidence exists (test_cockpit_client).
+   The drill API remains server-side history only and never supplies an environment link.
 7. Authentication, CSRF and loopback binding remain required. No credential is stored in browser persistent storage.
 8. Claim, completion, cancellation, hold and recovery preconditions are serialized across Store instances. The worker lease covers configured preparation, author, protected-check and two-review deadlines plus teardown. Expired attempts hold as reconciliation_needed, preserve attempt identity, and never automatically repeat an uncertain paid action (test_factory_recovery).
 9. Compiler failures expose bounded filenames, line numbers and identifiers, never source lines,
@@ -109,6 +111,10 @@ The root and /factory serve the same cockpit; /lab serves the existing advanced 
     48000 bytes. The dispatcher supplies it outside candidate write scopes and the author
     receives complete bytes, with oversized input refused before transport
     (test_factory_source_context).
+12. A "Your next step" banner names exactly one plain owner action, derived from execution mode,
+    factory hold, the current held build (review-circuit reason first), a running build or ready
+    features, in that order. Simulation and offline modes say nothing real can be built
+    (test_cockpit_client).
 
 Target 007 adapts content sanitization to the current JSON forum. Its external contract
 checks normalized stored Markdown, safe derived body_html on create/read/list, a conservative

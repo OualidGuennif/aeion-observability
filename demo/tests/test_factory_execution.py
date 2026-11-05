@@ -1,5 +1,6 @@
 """The browser-facing app must use the configured execution, never a silent fake fallback."""
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -140,9 +141,27 @@ class ResolveTests(unittest.TestCase):
         self.assertNotIn("hold_reason", execution)
         self.assertTrue(execution["builder"].paid)
         self.assertIsNotNone(execution["check_sandbox"])
-        self.assertEqual(execution["cost_reservation_usd"], "0.50")
+        self.assertEqual(execution["cost_reservation_usd"], "2.00")
+        self.assertEqual(execution["review_complete"].cost_limit, "1.00")
         self.assertIs(execution['builder'].check_sandbox,execution['check_sandbox'])
         self.assertIs(execution['preparer'].checker,execution['check_sandbox'])
+
+    def test_live_bounds_follow_the_budget_file_and_an_invalid_file_holds(self):
+        self.profile()
+        conf = self.root / "budget.conf"
+        clean = {k: v for k, v in os.environ.items() if not k.startswith("AEION_") or not k.endswith("_USD")}
+        with mock.patch("factory.execution.provider_available", return_value=True), \
+                mock.patch("factory.execution.flue_factory_ready", return_value=True), \
+                mock.patch("factory.budget.CONFIG_PATH", conf), \
+                mock.patch.dict("os.environ", clean, clear=True):
+            conf.write_text("AUTHOR_MAX_USD=5.00\nREVIEW_MAX_USD=0.40\n")
+            execution = resolve(self.root, "live")
+            self.assertEqual(execution["cost_reservation_usd"], "5.00")
+            self.assertEqual(execution["review_complete"].cost_limit, "0.40")
+            conf.write_text("AUTHOR_MAX_USD=7.00\n")
+            execution = resolve(self.root, "live")
+        self.assertEqual(execution["hold_reason"], "budget_config_invalid")
+        self.assertNotIn("builder", execution)
 
     def test_new_disk_qualification_cannot_authorize_a_stale_loaded_runtime(self):
         self.profile()

@@ -23,6 +23,7 @@ import runner
 calls = {'author': 0, 'review': 0, 'haiku': 0, 'prepare': 0}
 checks = []
 preparation_contract = ''
+review_without_tool_first = False
 
 
 def last_tool(payload):
@@ -82,7 +83,13 @@ class Inference(BaseHTTPRequestHandler):
             if role == 'haiku':
                 assert payload['thinking']['type'] == 'adaptive'
                 assert payload['output_config']['effort'] == 'medium'
-            if (number % 2) == 1:
+            if role == 'review' and review_without_tool_first:
+                if number == 2:
+                    assert 'factory.review.result_required' in str(payload), 'Missing verdict must trigger the native finish seam'
+                    call = ('submit_review', {'verdict':'approve','reason':'Synthetic typed-channel qualification'})
+                elif number > 3:
+                    raise AssertionError('Unbounded format continuation')
+            elif (number % 2) == 1:
                 call = ('submit_review', {'verdict': 'approve', 'reason': 'Synthetic harness qualification'})
         count = 250000 if role == 'author' and number == 4 else 4000
         if anthropic:

@@ -35,6 +35,7 @@ function reasonText(info) {
     execution_unavailable: "The product repository or task preparation adapter is unavailable to the factory.",
     sandbox_unqualified: "The isolated checker needs qualification.",
     budget_unavailable: "The daily budget is unavailable or exhausted.",
+    budget_config_invalid: "demo/budget.conf is invalid or above its ceiling ($15/day, $5 per author execution, $1 per review vote). No paid work starts until it is fixed.",
     STEP_LIMIT: "The worker reached its allowed model-step limit. This attempt is preserved; the feature has not been implemented.",
     CLI_STARTUP_FAILED: "The agent CLI stopped before its first model request. The factory must repair its launcher; no implementation was started.",
     builder_error: "Implementation stopped. Open Build evidence for the exact agent failure and the full Langfuse session.",
@@ -42,6 +43,8 @@ function reasonText(info) {
     qualification_missing: "The independent acceptance check is missing or unqualified. The factory must prepare and verify it before implementation.",
     target_feature_mismatch: "This feature does not match the configured execution target.",
     owner_review_required: "Owner review is required before proceeding.",
+    reviewer_failed: "A reviewer could not finish its vote (timeout or no typed verdict). Nothing was published.",
+    reviewer_rejected: "An independent reviewer rejected the change. Nothing was published; the reason is in Build evidence.",
     worker_error: "The worker stopped unexpectedly. The request is held for review; no automatic paid retry.",
     reconciliation_needed: "An interrupted attempt or remote action needs reconciliation. Another launch stays locked while its effects are unknown.",
     catalog_changed: "The specification changed after this request. Refresh and read the current MD. A new selection replaces only an obsolete request that never started; uncertain attempts stay locked.",
@@ -71,6 +74,23 @@ function reasonText(info) {
     stale_head: "The PR head changed after review. Publication is held until the exact artifact is verified again.",
     merge_not_confirmed: "A merge could not be confirmed on main. Keep this feature locked while the factory reconciles the remote result.",
     profile_expired: "The model profile needs requalification." })[reason] || (reason ? `Waiting: ${reason}. Inspect the request evidence.` : "Ready for automatic preparation and build.");
+}
+const OWNER_ACTIONS = {
+  reviewer_failed: "Cancel this request, then launch the feature again.",
+  reviewer_rejected: "Read the reviewer reason in Build evidence, then cancel this request. Relaunching unchanged will likely be rejected again.",
+  worker_error: "Cancel this request, then launch the feature again.",
+  catalog_changed: "Cancel this request, then launch the feature again with the current MD.",
+  reconciliation_needed: "Do not relaunch. Ask the agent to reconcile this attempt first.",
+  dependency_missing: "Nothing to do: it starts after its prerequisites reach main.",
+  budget_unavailable: "Wait for tomorrow's budget or raise DAILY_LIMIT_USD in demo/budget.conf (max $15).",
+  budget_config_invalid: "Fix demo/budget.conf, then restart the controller.",
+};
+function holdReason(build) {
+  const circuit = parseReceipt(build.receipt).circuit || {};
+  return ["reviewer_failed", "reviewer_rejected"].includes(circuit.reason) ? circuit.reason : build.hold_reason;
+}
+function ownerAction(reason) {
+  return OWNER_ACTIONS[reason] || "Open Build evidence below. Cancel the request to free the feature, or ask the agent if the reason is unclear.";
 }
 function featureLabel(info) {
   if (info.state !== "blocked") return LABELS[info.state] || info.state;
@@ -131,17 +151,38 @@ function showLogin() {
   if (dialog?.open) dialog.close();
   state.specRequest++;
 }
+const RUNNING = ["queued", "dispatched", "built", "gated", "pr_open", "approved"];
+function nextStep(execution, catalog, current) {
+  const title = (f) => `${f.id} · ${f.title}`;
+  if (execution.mode === "simulator" || execution.mode === "offline")
+    return { title: "Nothing real can be built in this mode.", detail: "The controller runs without live execution. Restart it with AEION_FACTORY_EXECUTION=live; no paid model call, PR or merge happens until then." };
+  const hold = execution.hold_reason || execution.live_hold_reason;
+  if (hold) return { title: "The factory is paused.", detail: `${reasonText({ reason: hold })} ${ownerAction(hold)}` };
+  const held = current.find((b) => b.status === "held");
+  if (held) {
+    const reason = holdReason(held);
+    return { title: `Feature ${held.feature_id} is on hold.`, detail: `${reasonText({ reason })} ${ownerAction(reason)}` };
+  }
+  const running = current.find((b) => RUNNING.includes(b.status));
+  if (running) return { title: `Feature ${running.feature_id} is being built.`, detail: "Nothing to do. Follow its stage in Build activity; the next feature unlocks once it reaches main." };
+  const ready = catalog.filter((f) => availability(f).selectable);
+  if (ready.length) return { title: `Ready to launch: ${ready.slice(0, 3).map(title).join(", ")}${ready.length > 3 ? "…" : ""}`, detail: "Tick it in the catalog below, then click Build selected." };
+  return { title: "Nothing can start yet.", detail: "Every remaining feature waits for an earlier one to reach main. The catalog shows what each one waits for." };
+}
 function renderOverview() {
   const count = (predicate) => state.catalog.filter((f) => predicate(availability(f))).length;
   const ready = count((a) => a.selectable);
-  $("count-ready").textContent = ready;
-  $("count-active").textContent = count((a) => a.state === "in_progress");
-  $("count-completed").textContent = count((a) => ["implemented", "built"].includes(a.state));
-  $("count-blocked").textContent = count((a) => a.state === "blocked");
+  $("catalog-summary").textContent = `${ready} ready · ${count((a) => a.state === "in_progress")} in progress · ` +
+    `${count((a) => ["implemented", "built"].includes(a.state))} completed · ${count((a) => a.state === "blocked")} waiting`;
   const e = state.execution;
-  const mode = ({ live: "Flue factory", offline: "Offline qualification", simulator: "Simulator" })[e.mode] || "Execution unavailable";
+  const mode = ({ live: "Live", offline: "Offline qualification", simulator: "Simulation only" })[e.mode] || "Unavailable";
   $("execution-mode").textContent = `${mode}${e.hold_reason ? " · Paused" : ""}`;
-  $("execution-notice").innerHTML = executionNotice(e, ready);
+  $("execution-notice").innerHTML = e.mode === "live" && !(e.hold_reason || e.live_hold_reason)
+    ? "Real model calls, isolated build, protected checks, two independent reviews, then a PR to main. One build at a time."
+    : executionNotice(e, ready);
+  const step = nextStep(e, state.catalog, splitBuilds(state.builds).current);
+  $("next-title").textContent = step.title; $("next-detail").textContent = step.detail;
+  $("next-step").classList.toggle("attention", /on hold|paused|Nothing real/.test(step.title));
 }
 function renderCards() {
   cleanSelection();
@@ -282,7 +323,7 @@ function buildCard(build) {
   const time = build.updated_ns ? new Date(build.updated_ns / 1e6) : null;
   return `<article class="build-card" data-build-id="${esc(build.build_id)}"><div class="build-card-heading"><span class="feature-number">FEATURE ${esc(build.feature_id)}</span>` +
     `<span class="badge ${esc(build.status)}">${esc(label)}</span></div><h3>${esc(feature?.title || build.feature_id)}</h3>` +
-    (obsolete ? "<p>This historical result does not certify the current MD.</p>" : build.status === "failed" ? `<p>${esc(reasonText({reason:r.error || r.reason || "builder_error"}))}</p>` : build.hold_reason ? `<p>${esc(reasonText({ reason: build.hold_reason, missing_dependencies: feature?.availability?.missing_dependencies || [] }))}</p>` :
+    (obsolete ? "<p>This historical result does not certify the current MD.</p>" : build.status === "failed" ? `<p>${esc(reasonText({reason:r.error || r.reason || "builder_error"}))}</p>` : build.hold_reason ? `<p>${esc(reasonText({ reason: holdReason(build), missing_dependencies: feature?.availability?.missing_dependencies || [] }))}</p><p class="owner-action">${esc(ownerAction(holdReason(build)))}</p>` :
       `<p>${build.status === "live_complete" ? "Checked implementation ready for integration." : build.status === "baseline" || build.status === "merged" ? "Implemented at a verified product base." : simulation ? "Historical fixture, separate from real implementation." : "Protected checks and review govern the next step."}</p>`) +
     stageProgress(build) + receiptSummary(build.receipt) + `<div class="build-actions">${time ? `<time datetime="${time.toISOString()}">${esc(time.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }))}</time>` : ""}` +
     (!TERMINAL.includes(build.status) ? `<button class="cancel" data-cancel="${esc(build.build_id)}">Cancel request</button>` : "") + "</div></article>";
@@ -306,8 +347,8 @@ function updateBuildList(id, html) {
   }
   list.querySelectorAll("[data-cancel]").forEach((button) => button.addEventListener("click", () => cancelBuild(button.dataset.cancel)));
 }
-function renderBuilds() {
-  const sorted = [...state.builds].sort((a, b) => b.created_ns - a.created_ns);
+function splitBuilds(builds) {
+  const sorted = [...builds].sort((a, b) => b.created_ns - a.created_ns);
   const seen = new Set(); const current = []; const history = [];
   for (const build of sorted) {
     const simulation = parseReceipt(build.receipt).simulated === true || build.status === "simulated_complete";
@@ -318,6 +359,10 @@ function renderBuilds() {
     if (simulation || obsoleteProof(build) || oldHold || seen.has(build.feature_id)) history.push(build);
     else { seen.add(build.feature_id); current.push(build); }
   }
+  return { current, history };
+}
+function renderBuilds() {
+  const { current, history } = splitBuilds(state.builds);
   updateBuildList("builds", current.length ? current.slice(0, 8).map(buildCard).join("")
     : '<div class="empty-state"><h3>No real build yet</h3><p>Your next admitted feature will appear here.</p></div>');
   $("queue-count").textContent = activitySummary(state.builds);
@@ -394,83 +439,11 @@ function connectSSE() {
   const onEvent = (event) => {
     if (event.lastEventId) state.lastSeq = parseInt(event.lastEventId, 10) || state.lastSeq;
     pushEvent(event.type); refresh();
-    if (event.type === "release_updated" && $("release-panel").open) loadReleases();
   };
-  ["build_updated", "build_progress", "admitted", "cancelled", "observed", "session_rotated", "release_updated"].forEach((name) => es.addEventListener(name, onEvent));
+  ["build_updated", "build_progress", "admitted", "cancelled", "observed", "session_rotated"].forEach((name) => es.addEventListener(name, onEvent));
   es.addEventListener("reload", () => { es.close(); state.stream = null; refresh(); });
   es.onerror = () => setConnection(false, "Live updates reconnecting");
 }
-function fmt(seconds) {
-  const s = Math.max(0, Math.round(seconds || 0));
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
-  return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
-}
-
-function renderReleases(view) {
-  const rel = view && view.release;
-  const state = $("release-state");
-  const msg = $("release-msg");
-  const staging = $("staging-link");
-  const toggle = (id, on) => { $(id).disabled = !on; };
-  if (!rel) {
-    state.textContent = "no release";
-    $("release-id").textContent = "—";
-    $("release-features").textContent = "Nothing staged yet.";
-    $("release-timeline").textContent = "—";
-    $("release-traffic").textContent = "—";
-    $("release-gate").textContent = "—";
-    $("release-flags").textContent = "";
-    staging.hidden = true;
-    ["validate-release", "deploy-now", "advance-release", "rollback-release"].forEach((id) => toggle(id, false));
-    return;
-  }
-  state.textContent = `${rel.state} · ${rel.percent}%`;
-  $("release-id").textContent = rel.release_id;
-  $("release-features").textContent = rel.features.map((f) => `${f.id} ${f.title}`).join(" · ");
-  staging.hidden = false;
-  staging.href = view.endpoints.staging;
-  const step = rel.step_status || {};
-  const plan = (rel.steps || []).map((s) => `${s.percent}%/${fmt(s.dwell_seconds)}`).join(" → ");
-  $("release-timeline").textContent = `step ${rel.step + 1}/${rel.steps.length} · ${plan} · ` +
-    (rel.state === "canary" ? `${fmt(step.elapsed_seconds)} elapsed, ${fmt(step.remaining_seconds)} left` : rel.state);
-  const traffic = view.traffic || {};
-  $("release-traffic").textContent = `${traffic.requests || 0} req · ${traffic.status_5xx || 0} 5xx · p95 ${traffic.p95_ms || 0} ms · cache ${traffic.cache_hits || 0}/${(traffic.cache_hits || 0) + (traffic.cache_misses || 0)} hits`;
-  const gate = (rel.gate || {});
-  $("release-gate").textContent = `gate ${gate.verdict || "?"} — ${gate.reason || ""} (${gate.samples || 0} samples)`;
-  const flags = rel.flags || {};
-  const names = Object.keys(flags);
-  $("release-flags").innerHTML = names.length
-    ? names.map((name) => {
-        const flag = flags[name];
-        return `<label class="flag-row"><input type="checkbox" data-flag="${esc(name)}" ${flag.enabled ? "checked" : ""}>` +
-          `${esc(name)} · ${flag.rollout}%</label>`;
-      }).join("")
-    : '<span class="muted">No flags in this release.</span>';
-  $("release-flags").querySelectorAll("[data-flag]").forEach((box) =>
-    box.addEventListener("change", () => releaseAction("flag", { name: box.dataset.flag, enabled: box.checked })));
-  toggle("validate-release", rel.state === "staged");
-  toggle("deploy-now", ["staged", "canary", "held"].includes(rel.state));
-  toggle("advance-release", rel.state === "canary" && step.due && gate.verdict === "continue");
-  toggle("rollback-release", ["canary", "held"].includes(rel.state));
-  msg.textContent = (rel.history || []).length ? "last: " + rel.history[rel.history.length - 1].event : "";
-}
-
-async function loadReleases() {
-  const { ok, status, body } = await api("/api/factory/releases");
-  if (!ok) { if (status === 401) showLogin(); return; }
-  renderReleases(body);
-}
-
-async function releaseAction(action, extra) {
-  const { ok, status, body } = await api("/api/factory/release", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-CSRF-Token": state.csrf },
-    body: JSON.stringify({ action, ...(extra || {}) }),
-  });
-  if (!ok) { pushEvent("release_error", { status, ...body }); }
-  await loadReleases();
-}
-
 async function boot() {
   $("login-form").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -488,11 +461,6 @@ async function boot() {
   $("feature-search").addEventListener("input", renderCards);
   $("phase-filter").addEventListener("change", renderCards);
   $("status-filters").querySelectorAll("[data-filter]").forEach((button) => button.addEventListener("click", () => setFilter(button.dataset.filter)));
-  $("release-panel").addEventListener("toggle", () => { if ($("release-panel").open) loadReleases(); });
-  $("validate-release").addEventListener("click", () => releaseAction("validate"));
-  $("deploy-now").addEventListener("click", () => releaseAction("deploy_now"));
-  $("advance-release").addEventListener("click", () => releaseAction("advance"));
-  $("rollback-release").addEventListener("click", () => releaseAction("rollback", { reason: "operator" }));
   await refresh();
   setInterval(() => { if (!$("app").hidden) refresh(); }, 10000);
 }

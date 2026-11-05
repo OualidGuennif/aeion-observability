@@ -5,11 +5,14 @@ import json
 from pathlib import Path
 import sys
 import threading
+import time
 import unittest
+from unittest.mock import patch
 import urllib.error
 import urllib.request
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'app'))
+import relay as relay_module
 from relay import ContextRelay
 
 
@@ -20,6 +23,7 @@ class SettlementTests(unittest.TestCase):
             def log_message(self,*_):pass
             def do_POST(self):
                 self.rfile.read(int(self.headers['Content-Length']))
+                if owner.mode=='silent':time.sleep(1)
                 usage={'prompt_tokens':2000,'completion_tokens':10}
                 if owner.mode!='unknown_cost':usage['cost']=0.000001
                 if owner.mode=='missing_output':del usage['completion_tokens']
@@ -74,6 +78,18 @@ class SettlementTests(unittest.TestCase):
         self.assertEqual([self.send(relay,i) for i in range(14)],[200]*13+[409])
         self.assertEqual(relay.forwarded_count,13)
         self.assertEqual(relay.last_error_code,'STEP_LIMIT')
+
+    def test_a_silent_thinking_provider_is_awaited_and_a_stalled_one_is_a_timeout(self):
+        self.mode='silent'
+        relay=self.relay()
+        self.assertEqual(self.send(relay,0),200)
+        self.assertIsNone(relay.last_error_code)
+        with patch.object(relay_module,'UPSTREAM_IDLE_SECONDS',0.2):
+            relay=self.relay()
+            try:self.send(relay,0)
+            except OSError:pass  # The relay closes without an answer; the client side may see a reset.
+        self.assertEqual(relay.last_error_code,'PROVIDER_TIMEOUT')
+        self.assertTrue(relay.closed)
 
     def test_lab_default_and_invalid_factory_step_bounds_remain_closed(self):
         relay=self.relay()

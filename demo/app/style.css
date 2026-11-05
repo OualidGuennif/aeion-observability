@@ -11,3 +11,4 @@
 .fleet-state.live{border-color:#944d3160;color:var(--accent);background:#944d3108}
 .fleet-task{font:500 17px/1.25 Cormorant,Georgia,serif;letter-spacing:-.02em}
 .fleet-meta{font-size:9px;color:var(--muted);line-height:1.7}
+.lab-note{margin:24px 0 0;padding:14px 18px;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:0 6px 6px 0;background:var(--panel);font-size:12px;line-height:1.7}.lab-note a{color:var(--accent);text-decoration:underline;white-space:nowrap}

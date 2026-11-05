@@ -178,7 +178,9 @@ approve another dependency. Nested Git control files are forbidden at both expor
 boundaries, preventing candidate ignore rules from hiding unreviewed code. Existing ignore rules are also checked before export reaches the host, so hidden environment or dependency files cannot influence acceptance outside the review packet. Product test harness
 files may change only under the external checker; its program and contract are never writable.
 The ordinary live author default is1800s; preparation/review remain at most900s per model session.
-Explicit operator bounds and the$15 daily cap remain. A soft stop can retain a proposed candidate
+Explicit operator bounds remain. `demo/budget.conf` sets the daily purse (at most $15), one
+author execution (at most $5, reserved and relay-enforced) and one review vote (at most $1);
+an invalid file holds builds as `budget_config_invalid` and admits no spending. A soft stop can retain a proposed candidate
 only after validated export, confirmed sandbox removal, complete known usage within the frozen
 reservation and a current authorization check. Its stopped-role failure remains visible. No check
 or vote is inferred: the final external gate and both independent reviews still run; unknown usage,
@@ -197,6 +199,16 @@ started. A transaction archives the original rejection and increments the genera
 reruns external gates and two fresh votes, including the original rejecting reviewer, excluding
 the author/preparer. It never reruns or bills the author, imports a vote or repeats a v2 rejection.
 Unknown usage, changed contracts, cancellation and prior remote work refuse this repair.
+A reviewer must deliver its verdict through the typed `submit_review` tool. If a session ends
+without it, the reviewer's Flue 2.3 `useAgentFinish` hook appends one result-required signal,
+guarded by `usePersistentState` so it fires at most once; a second miss still fails closed with
+`REVIEW_RESULT_MISSING`. The failed vote keeps its trusted execution metadata and failure code.
+After a v2 hold caused only by such failures (no rejection), one explicit operator flag
+`--retry-failed-review` reruns the external gate and both votes once on the same unchanged
+artifact; the archived votes are never reused and an earlier unknown reservation stays counted.
+The host relay tolerates up to 300s of upstream silence (connect or between bytes), because a
+reasoning reviewer can think for minutes before its first byte; role deadlines still bound the
+session. A stall is reported as `PROVIDER_TIMEOUT`, other socket failures as `TRANSPORT_ERROR`.
 All100MDs declare their two owning product documentation files. Their shared scopes require
 serial builds; completion still depends on the current contract and confirmed publication.
 Preparation, the builder's repair feedback and the final gate share the same supervisor-selected

@@ -13,6 +13,8 @@ import sys
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('build_id')
+    parser.add_argument('--retry-failed-review',action='store_true',
+        help='Once only after a failed v2 review, never after a v2 code rejection. All votes are rerun.')
     args=parser.parse_args()
     if not re.fullmatch('[0-9a-f]{32}',args.build_id):parser.error('Invalid build identity')
     root=Path(__file__).resolve().parents[2]
@@ -25,7 +27,7 @@ def main():
         spec_dir=root/'demo/forum/features',bootstrap_token='unused-local-cli-no-server',
         budget=DailyBudget(root/'demo/.local/budget/ledger.jsonl'),execution=resolve(root,'live'))
     try:
-        result=app.worker.reassess_review_context(args.build_id)['result']
+        result=app.worker.reassess_review_context(args.build_id,retry_failed_review=args.retry_failed_review)['result']
     except CircuitError as error:
         print(json.dumps({'build_id':args.build_id,'status':'held','reason':str(error)}))
         return 1

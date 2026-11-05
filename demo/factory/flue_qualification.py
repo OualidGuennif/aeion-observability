@@ -15,6 +15,7 @@ PROTOCOL_FILES = (
     'demo/tests/qualify_registered_foundation.py',
     'demo/tests/qualify_closed_candidate.py','demo/tests/qualify_factory_flue.py',
     'demo/tests/qualify_product_unit.py','demo/tests/qualify_product_web.py',
+    'demo/tests/qualify_review_verdict.py',
     'demo/factory/product_unit.py','demo/factory/product_postgres.py','demo/factory/product_web.py',
     'demo/factory/checker-tools/build-web.mjs','demo/factory/checker-tools/vitest.config.mjs',
     'demo/factory/checker-tools/tsconfig.web.json',

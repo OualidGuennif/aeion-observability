@@ -23,6 +23,11 @@ def _tls_context():
         return ssl.create_default_context()
 from json_input import loads
 
+# Longest silence tolerated on the upstream socket (connect or between bytes). A reasoning model
+# can think for minutes over a large review packet before its first byte; role deadlines still
+# bound the whole session. Measured: a 45s bound cut a DeepSeek review at 45.4s with zero tokens.
+UPSTREAM_IDLE_SECONDS = 300
+
 
 class ContextRelay:
     def __init__(self, model, api_key, limit, checkpoint, event, *, upstream=None, counter=None, bind=None, admission=None,
@@ -193,7 +198,7 @@ class ContextRelay:
                         self.deny(409,'RELAY_CLOSED')
                         return
                     usage = ReportedUsage()
-                    with opener.open(request, timeout=45) as response:
+                    with opener.open(request, timeout=UPSTREAM_IDLE_SECONDS) as response:
                         relay.responses.append(response)
                         self.send_response(response.status)
                         self.send_header("Content-Type", "text/event-stream")
@@ -244,10 +249,12 @@ class ContextRelay:
                     relay.last_error_code = 'CONTEXT_UNKNOWN'
                     relay.event("context.refused", **{"aeion.failure.code": "CONTEXT_UNKNOWN"})
                     self.deny(409, "CONTEXT_UNKNOWN")
-                except (OSError, TimeoutError):
+                except OSError as error:
                     relay.closed = True
-                    relay.last_error_code = 'TRANSPORT_ERROR'
-                    relay.event("provider.failed", **{"aeion.failure.code": "TRANSPORT_ERROR"})
+                    # urllib wraps a connect timeout in URLError; a header/body read timeout is raw.
+                    timed_out = isinstance(error, TimeoutError) or isinstance(getattr(error, 'reason', None), TimeoutError)
+                    relay.last_error_code = 'PROVIDER_TIMEOUT' if timed_out else 'TRANSPORT_ERROR'
+                    relay.event("provider.failed", **{"aeion.failure.code": relay.last_error_code})
                 except Exception:
                     relay.closed = True
                     relay.last_error_code = 'CONTEXT_UNKNOWN'

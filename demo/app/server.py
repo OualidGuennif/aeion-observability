@@ -10,6 +10,8 @@ import datetime
 from urllib.parse import urlparse, parse_qs
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from grpc_fork import disable_grpc_fork_handlers
+disable_grpc_fork_handlers()  # before anything can import gRPC through the OpenShell client
 from runner import AGENTS, TRIAGE, Runner, tasks
 from telemetry import Telemetry
 from memory import Memory
