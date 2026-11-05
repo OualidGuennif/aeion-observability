@@ -244,6 +244,8 @@ function parseReceipt(raw) {
 function receiptSummary(raw) {
   const r = parseReceipt(raw);
   const check = r.gate?.results?.prepared_product?.detail || r.gate?.results?.prepared_gradle?.detail || r.gate?.results?.gradle_test?.detail || r.execution?.check || r.draft_check || r.check || {};
+  // Before the protected gate runs, the only check is the agent's own self-test of its draft.
+  const draft = !r.gate?.status && check === r.draft_check;
   const telemetry = r.telemetry || {};
   const trace = telemetry.trace_id;
   const status = telemetry.status || "unknown";
@@ -275,9 +277,9 @@ function receiptSummary(raw) {
     ["Acceptance baseline", r.preparation?.negative_control === "registered_foundation_startup_rejection" ? "Untouched baseline refused the registered startup contract" : r.preparation?.negative_control === "registered_transition_source_missing" ? "Untouched baseline lacks the registered migration operator or browser source" : r.preparation?.negative_control === "failed_contract_assertion" && "Independent contract failed on the untouched baseline"],
     ["Working memory", r.execution?.memory?.claude_mem?.status && esc(r.execution.memory.claude_mem.status)],
     ["Hindsight", r.execution?.memory?.hindsight?.status && esc(r.execution.memory.hindsight.status)],
-    ["Check", r.gate?.status ? esc(String(r.gate.status)) : check.status ? esc(String(check.status)) : check.returncode === 0 ? "passed" : null],
+    [draft ? "Agent self-test (draft)" : "Check", r.gate?.status ? esc(String(r.gate.status)) : check.status ? esc(String(check.status)) + (draft && check.status !== "passed" ? " · the agent is still fixing its draft; not the final verdict" : "") : check.returncode === 0 ? "passed" : null],
     ["Failure", check.failure_kind && esc(String(check.failure_kind))],
-    ["Check detail", check.reason && esc(String(check.reason))],
+    [draft ? "Self-test detail" : "Check detail", check.reason && esc(String(check.reason))],
     ["Compiler", Array.isArray(check.compiler_errors) && check.compiler_errors.length &&
       esc(check.compiler_errors.map((e) => `${e.file}:${e.line}${e.symbol ? " · " + e.symbol : ""}`).join("; "))],
     ["Failed tests", Array.isArray(check.failed_tests) && check.failed_tests.length && esc(check.failed_tests.join("; "))],
