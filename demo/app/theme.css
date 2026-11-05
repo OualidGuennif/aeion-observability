@@ -1,0 +1,45 @@
+/* Spec: knowledge/policies/ui-ux.md — every colour token for both pages, light and dark sets. */
+:root{color-scheme:light;
+  --bg:#f7f4ec;--panel:#fffdf7;--soft:#eef0e7;--sidebar:#eef0e8;--topbar:#fafaf5;--field:#ffffff;
+  --ink:#1f362d;--muted:#5e6862;--line:#dde1d5;--line-soft:#eceee5;
+  --accent:#9a5330;--green:#2f5e4b;--amber:#7f5a24;--red:#9b4532;--focus:#6d43a4;
+  --on-ink:#fffdf7;--ink-hover:#345245;--on-ink-soft:#c3d2c6;
+  --ok-bg:#e8f0e3;--ok-ink:#3c5c3f;--ok-line:#c8d5c8;
+  --info-bg:#e8eeed;--info-ink:#3d5c55;
+  --warn-bg:#f3ead9;--warn-ink:#7f5a24;--warn-line:#e3cfb3;
+  --bad-bg:#f5e9df;--bad-ink:#9b4532;
+  --accent-tint:#9a533010;--accent-line:#9a533045;
+  --ok-tint:#5f826812;--ok-dot:#5f8268;--dot:#a5afa6;
+  --selected-row:#f0f5ec;--locked-row:#fafbf5;--bar:#718469;
+  --chart-grid:#d5d7c9;--chart-axis:#aab5a5;--pass-fill:#25382e;--fail-fill:#c79270;--chart-ring:#fffcf5;
+  --shadow:#1f362d14;--backdrop:#18332b70;--art-blend:multiply;--art-filter:none}
+:root[data-theme=dark]{color-scheme:dark;
+  --bg:#111714;--panel:#18201c;--soft:#202a25;--sidebar:#151d19;--topbar:#141b17;--field:#111714;
+  --ink:#e6ebe4;--muted:#a2aca5;--line:#313d37;--line-soft:#26302b;
+  --accent:#e39a74;--green:#8fc6a6;--amber:#dcb36d;--red:#f09a85;--focus:#c7a3ff;
+  --on-ink:#111714;--ink-hover:#cdd8cf;--on-ink-soft:#31463b;
+  --ok-bg:#1f3227;--ok-ink:#a9d7b9;--ok-line:#35523f;
+  --info-bg:#1d2e2c;--info-ink:#a6cfc6;
+  --warn-bg:#33291a;--warn-ink:#e3c084;--warn-line:#5a4524;
+  --bad-bg:#3a221c;--bad-ink:#f3a894;
+  --accent-tint:#e39a7414;--accent-line:#e39a7455;
+  --ok-tint:#8fc6a614;--ok-dot:#8fc6a6;--dot:#5c6862;
+  --selected-row:#1f2c25;--locked-row:#151c18;--bar:#8fc6a6;
+  --chart-grid:#2c3732;--chart-axis:#4a5952;--pass-fill:#8fc6a6;--fail-fill:#e39a74;--chart-ring:#18201c;
+  --shadow:#00000059;--backdrop:#000000a6;--art-blend:screen;--art-filter:invert(1) hue-rotate(180deg) brightness(.9)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;
+  --bg:#111714;--panel:#18201c;--soft:#202a25;--sidebar:#151d19;--topbar:#141b17;--field:#111714;
+  --ink:#e6ebe4;--muted:#a2aca5;--line:#313d37;--line-soft:#26302b;
+  --accent:#e39a74;--green:#8fc6a6;--amber:#dcb36d;--red:#f09a85;--focus:#c7a3ff;
+  --on-ink:#111714;--ink-hover:#cdd8cf;--on-ink-soft:#31463b;
+  --ok-bg:#1f3227;--ok-ink:#a9d7b9;--ok-line:#35523f;
+  --info-bg:#1d2e2c;--info-ink:#a6cfc6;
+  --warn-bg:#33291a;--warn-ink:#e3c084;--warn-line:#5a4524;
+  --bad-bg:#3a221c;--bad-ink:#f3a894;
+  --accent-tint:#e39a7414;--accent-line:#e39a7455;
+  --ok-tint:#8fc6a614;--ok-dot:#8fc6a6;--dot:#5c6862;
+  --selected-row:#1f2c25;--locked-row:#151c18;--bar:#8fc6a6;
+  --chart-grid:#2c3732;--chart-axis:#4a5952;--pass-fill:#8fc6a6;--fail-fill:#e39a74;--chart-ring:#18201c;
+  --shadow:#00000059;--backdrop:#000000a6;--art-blend:screen;--art-filter:invert(1) hue-rotate(180deg) brightness(.9)}}
+.theme-toggle{display:inline-flex;align-items:center;gap:7px;min-height:32px;padding:6px 11px;border:1px solid var(--line);border-radius:20px;background:var(--panel);color:var(--ink);font-size:11px;cursor:pointer}
+.theme-toggle:hover{border-color:var(--accent-line)}.theme-toggle b{font-weight:600}

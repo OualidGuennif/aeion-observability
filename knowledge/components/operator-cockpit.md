@@ -28,7 +28,7 @@ sources:
 
 ## Intent
 
-Make the default local page useful for selecting admitted product work and observing its actual outcome. Completed features cannot be selected or submitted again. The page opens with the owner's next step, then three status blocks (factory mode, today's budget, environments), then the catalog and build activity. The model lab remains available as an advanced view, labelled as not needed to build features.
+Make the default local page useful for selecting admitted product work and observing its actual outcome. Completed features cannot be selected or submitted again. The page opens with the owner's next step, then three status blocks (factory mode, today's budget, environments), then the catalog and build activity. The model lab at `/lab` is a showcase and playground for engineers (idea, architecture, stack, circuit, synthetic tasks, memory room), labelled as not needed to build features. Both pages take every colour from `demo/app/theme.css` (light and dark sets) and offer an Auto/Light/Dark toggle (`demo/app/theme.js`, remembered per browser). The lab's memory room recalls Hindsight with a bounded question (`/api/memory?q=`, at most 160 printable characters) and reads back only checkpoints this observer wrote (`/api/memory/checkpoint/<id>`, metadata fields only); these helpers live in `demo/app/server.py` because `demo/app/memory.py` is protocol-hashed.
 
 ## Data sources
 

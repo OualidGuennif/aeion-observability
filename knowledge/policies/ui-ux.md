@@ -10,6 +10,10 @@ sources:
   - id: guide
     resource: ../../efficiency/1-quarks.md
     title: "Phase 1 of the guide"
+  - resource: ../../demo/app/theme.css
+    title: "Demo colour tokens"
+  - resource: ../../demo/app/theme.js
+    title: "Demo theme toggle"
 ---
 
 # UI and UX

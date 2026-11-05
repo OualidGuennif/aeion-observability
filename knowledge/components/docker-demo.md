@@ -37,7 +37,10 @@ before that import: otherwise every subprocess fork restarts gRPC threads that c
 child on macOS before its exec (`demo/app/grpc_fork.py`, test_grpc_fork).
 
 The [operator cockpit](operator-cockpit.md) is the default page at `/` and `/factory`; the
-historical model lab is at `/lab`. Current-contract completion locks selection. Historical
+model lab at `/lab` is a showcase and playground: it explains each stack piece (OpenShell
+contains Flue + Pi, the relay counts model usage, OpenTelemetry feeds Langfuse, claude-mem and
+Hindsight keep continuity) and its memory room only reads this observer's own checkpoints and
+bounded Hindsight recall. Both pages share light/dark tokens. Current-contract completion locks selection. Historical
 results for rewritten MDs remain visible without certifying the new contract. A dependency wait
 names the missing IDs and clears only after their current contracts reach product main; it
 does not impose a strictly numeric sequence. Active work exposes Prepare/Build/Check/Review/
