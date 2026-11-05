@@ -4,6 +4,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+import base64
 from unittest.mock import Mock, patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
@@ -13,6 +14,56 @@ from factory.agent_files import parse_files
 
 
 class WorkLimitTests(unittest.TestCase):
+    def test_author_has_a_bounded_thirty_minute_window_while_other_roles_keep_fifteen(self):
+        from factory.flue_session import SESSION_TIMEOUT_SECONDS
+        from factory.freeze import AUTHOR_TIMEOUT_SECONDS
+        self.assertEqual(AUTHOR_TIMEOUT_SECONDS,1800)
+        self.assertEqual(FlueBuilder.timeout_seconds,AUTHOR_TIMEOUT_SECONDS)
+        self.assertEqual(SESSION_TIMEOUT_SECONDS,900)
+
+    def test_interrupted_worker_recovers_only_a_valid_export_with_complete_accounting(self):
+        name='demo/forum-app/src/main/java/local/aeion/forum/Partial.java'
+        original=b'package local.aeion.forum; class Partial {}\n'
+        changed=b'package local.aeion.forum; class Partial { int value=1; }\n'
+        for valid,complete,forwards,code,recover in ((True,True,0,'STEP_LIMIT',False),
+                (False,True,1,'STEP_LIMIT',False),(True,False,1,'STEP_LIMIT',False),
+                (True,True,1,'ATTEMPT_REVOKED',False),(True,True,1,'STEP_LIMIT',True)):
+            with self.subTest(valid=valid,complete=complete,forwards=forwards,code=code),tempfile.TemporaryDirectory() as directory:
+                root=Path(directory);repo=root/'repo';repo.mkdir()
+                (repo/name).parent.mkdir(parents=True);(repo/name).write_bytes(original)
+                brief=root/'BRIEF.md';brief.write_text('# Public fixture\n')
+                contract=root/'acceptance.mjs';contract.write_text('// Frozen public fixture\n')
+                target=SimpleNamespace(seed_files=(),protected_check=SimpleNamespace(id='prepared_product',
+                    contract_destination='EXTERNAL.mjs',contract_test=contract))
+                frozen=SimpleNamespace(write_scopes=[str(Path(name).parent)+'/'],context_limit=250000,
+                    step_cap=200,deadline_ns=900000000000,cost_reservation_usd='0.50')
+                runtime=Mock();runtime.live.side_effect=ValueError(code)
+                box=Mock();box.collect.return_value={
+                    'workspace/'+name:base64.b64encode(changed).decode(),
+                    'workspace/FROZEN_ACCEPTANCE.mjs':base64.b64encode(contract.read_bytes()).decode(),
+                    **({} if valid else {'workspace/'+str(Path(name).parent)+'/.gitattributes':base64.b64encode(b'forbidden').decode()})}
+                seen=[]
+                def session(run,*_a,**_k):
+                    run['forwarded_count']=forwards;seen.append(run);return runtime
+                with patch('factory.flue_builder.public_files',return_value={name:original}), \
+                        patch('factory.flue_builder.FactorySession',side_effect=session), \
+                        patch('factory.flue_builder.Sandbox',return_value=box), \
+                        patch('factory.flue_builder.usage',return_value={'complete':complete,'cost_usd':'0' if complete else None}), \
+                        patch('factory.flue_builder.subprocess.run',return_value=SimpleNamespace(returncode=1)):
+                    def build():
+                        builder=FlueBuilder(root,{})
+                        builder.authorization_check=lambda:True
+                        return builder.run_build(repo=repo,frozen=frozen,feature={'id':'001','tier':3},
+                            brief=brief,target=target,build={'build_id':'a'*32})
+                    if recover:self.assertEqual(build(),[name])
+                    else:
+                        with self.assertRaisesRegex(ValueError,code):build()
+                self.assertEqual((repo/name).read_bytes(),changed if valid else original)
+                self.assertEqual(seen[0].get('retained_files_count'),1 if valid else None)
+                if not valid:self.assertEqual(seen[0]['retained_export'],'unavailable')
+                self.assertEqual(seen[0].get('candidate_recovered',False),recover)
+                box.close.assert_called_once()
+
     def test_transition_file_count_is_bounded_without_changing_write_scopes(self):
         files=[{'path':f'demo/forum-app/src/main/java/Fixture{i}.java','content':'class Fixture {}\n'} for i in range(32)]
         self.assertEqual(len(parse_files({'files':files},['demo/forum-app/src/main/java/'])),32)
@@ -44,7 +95,9 @@ class WorkLimitTests(unittest.TestCase):
             brief=root/'BRIEF.md';brief.write_text('# Bounded fixture\n')
             frozen=SimpleNamespace(cost_reservation_usd='0.50',write_scopes=['demo/forum-app/src/'],
                                    deadline_ns=500_000_000,context_limit=100000,step_cap=2)
-            target=SimpleNamespace(protected_check=SimpleNamespace(contract_destination='contract.java'))
+            contract=root/'contract.java';contract.write_text('class Contract {}')
+            target=SimpleNamespace(seed_files=(),protected_check=SimpleNamespace(
+                id='prepared_gradle',contract_destination='contract.java',contract_test=contract))
             runtime=Mock();runtime.live.side_effect=AssertionError('expired work must not start inference')
             runtime.finish.return_value={'status':'stopped'}
             seen=[]

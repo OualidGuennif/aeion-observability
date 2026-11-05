@@ -7,7 +7,7 @@ size: M
 parallel: false
 phase: P1
 tier: 3
-write_paths: ["demo/forum-app/", "demo/forum-docs/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [059]
 owner: builder
 status: proposed
@@ -54,7 +54,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 Persona text never becomes a system instruction concatenated with untrusted content; the runtime composes them separately.
 
 This invariant and the acceptance cases belong to planned protected check `agora-060`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

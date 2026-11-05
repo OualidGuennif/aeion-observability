@@ -21,6 +21,7 @@ API = 'https://api.github.com'
 MAX_FILE_BYTES = 512 * 1024
 MAX_TOTAL_BYTES = 1024 * 1024
 PRODUCT_ROOTS = ('demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/')
+PRODUCT_DOCUMENTS = ('knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md')
 SHA = re.compile(r'[a-f0-9]{40}')
 
 
@@ -122,7 +123,7 @@ class GitHubForge:
             raise GitHubError('publisher_no_content')
         total = 0
         for path, text in files.items():
-            if (not isinstance(path, str) or not path.startswith(PRODUCT_ROOTS)
+            if (not isinstance(path, str) or not (path.startswith(PRODUCT_ROOTS) or path in PRODUCT_DOCUMENTS)
                     or not re.fullmatch(r'[A-Za-z0-9_./-]+', path)
                     or any(not p or p.startswith('.') for p in path.split('/'))
                     or not isinstance(text, str) or '\0' in text):

@@ -21,6 +21,7 @@ from sandbox import SANDBOX_OUT, Sandbox
 from scenarios import SCENARIOS, SOLUTIONS, contract
 from settings import AGENT_UID, FLUE, HARNESS, WORK
 from factory.budget import BudgetError
+from factory.freeze import AUTHOR_TIMEOUT_SECONDS
 import triage
 
 CHECKER = "/opt/demo/fixtures/check-scenario.js"
@@ -472,7 +473,8 @@ class Runner:
         if key=='deepseek':
             relay_options['required_reasoning_effort']='low' if review_effort=='low' else 'high'
         if kind != 'lab':
-            relay_options.update(prices=metadata, cost_limit=cost_limit - Decimal(run.get('projected_cost_usd', '0')))
+            relay_options.update(prices=metadata, cost_limit=cost_limit - Decimal(run.get('projected_cost_usd', '0')),
+                max_requests=run.get('step_cap',12))
         relay = ContextRelay(run["model"], os.environ["OPENCODE_API_KEY"], run["limit"], relay_checkpoint,
                              lambda name, **attrs: self.event(run, name, **attrs), admission=admission, **relay_options)
         runtime = run.get("runtime", "flue-openshell")
@@ -509,8 +511,12 @@ class Runner:
         entry = ({'factory-review':'src/agents/reviewer.ts', 'factory-prepare':'src/agents/preparer.ts'}
                  .get(kind, AGENTS[runtime]))
         message = ('Review the complete attached frozen_review_packet and submit one verdict.'
-                   if kind == 'factory-review' else prompt)
-        argv = [str(FLUE / "node_modules/.bin/flue"), "run", entry, "--message", message,
+                   if kind == 'factory-review' else
+                   'Prepare the acceptance file from the complete attached frozen_preparation_packet and submit it.'
+                   if kind == 'factory-prepare' else prompt)
+        # Markdown frontmatter starts with ---; bind it to the option instead of letting
+        # the CLI parse the MD as another flag and print usage without starting an agent.
+        argv = [str(FLUE / "node_modules/.bin/flue"), "run", entry, "--message=" + message,
                 "--id", instance, "--new", "--json", "--env", str(empty_env)]
         process = None
         try:
@@ -521,7 +527,8 @@ class Runner:
             process = subprocess.Popen(argv, cwd=FLUE, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                        stderr=subprocess.DEVNULL, start_new_session=True)
             self.event(run, "process.started", **{"aeion.process.pid": process.pid, "aeion.agent.number": run["agents"]})
-            deadline = time.monotonic() + min(900, int(run.get('agent_timeout_seconds', AGENT_TIMEOUT_SECONDS)))
+            role_window=AUTHOR_TIMEOUT_SECONDS if kind=='factory-build' else 900
+            deadline = time.monotonic() + min(role_window, int(run.get('agent_timeout_seconds', AGENT_TIMEOUT_SECONDS)))
             buffer, cumulative, conversation, final, outcome = b"", 0, None, False, None
             request_started_ns = time.time_ns()
             with events.open("rb") as stream:
@@ -612,6 +619,8 @@ class Runner:
                 raise ValueError(relay.last_error_code)
             if run.get('last_finish_reason')=='length':
                 raise ValueError('OUTPUT_LIMIT')
+            if not state['steps'] and not relay.forwarded_count:
+                raise ValueError('CLI_STARTUP_FAILED')
             if process.returncode != 0 or outcome != "completed" or not state["steps"] or not final:
                 raise ValueError("CLI_FAILED")
             return "complete"
@@ -628,7 +637,9 @@ class Runner:
                     except subprocess.TimeoutExpired:
                         os.killpg(process.pid, signal.SIGKILL)
                         process.wait(timeout=5)
-                self.event(run, "process.retired", **{"aeion.process.pid": process.pid})
+                run['cli_exit_code'], run['cli_steps'] = process.returncode, state['steps']
+                self.event(run, "process.retired", **{"aeion.process.pid": process.pid,
+                    'aeion.process.exit_code': process.returncode, 'aeion.cli.steps': state['steps']})
             relay.close()
             if bridge:
                 bridge.close()

@@ -16,7 +16,27 @@ changes belong in the product repository. The
 interface uses Æion's ivory, forest-green and copper palette, locally bundled fonts and a native
 GPT Image illustration.
 
-Completed/in-progress features are disabled and rejected on duplicate admission. The catalog only enables validated targets with satisfied dependencies; a successful candidate remains separate from integration. Features 001, 013 and 017 are completed and locked locally. Target 007 now connects content sanitization to the current product and can be launched from Ready after controller reload. The other 96 catalog entries still need their own contracts and prerequisites. The [007 wiring record](../work/feature-007-cockpit-wiring-2026-11-02.md) distinguishes offline qualification, operator readiness and actual model implementation.
+Completed/in-progress features are disabled and duplicate admission is rejected. The current
+100-MD catalog targets Quarkus/PostgreSQL/React web. A dependency unlocks only after integration
+of its current contract on product main. Successful results for older MDs remain historical;
+they do not certify rewritten contracts. Live mode prepares acceptance automatically. Read
+[current work](../work/current.md) for actual delivery, pauses and unverified transitions.
+
+### Start a feature from the cockpit
+
+1. Open [Feature cockpit](http://127.0.0.1:8088/factory) and sign in with the private local token.
+2. Select a **Ready** MD, read its scope and queue the implementation.
+3. Follow **Prepare → Build → Check → Review → PR/CI → Main** in Build activity. Expand evidence
+   for a failure code, protected check, independent vote or exact PR/CI/main result. Open its
+   Langfuse session for role/request/tool metadata, duration, usage and error status.
+4. Select newly unlocked MDs after confirmed main integration. **Waiting for prerequisites**
+   names the missing dependency IDs; it does not always mean the immediately preceding MD.
+
+A global execution pause is separate from a dependency wait. The supervisor owns task freezing,
+native isolation qualification, acceptance and publication. A failed build retains history;
+unknown costs/remote effects require reconciliation. Do not clear checks or mark features done
+merely to enable selection. Product demo links require a verified deployment; a merged backend
+change alone does not prove a running demo.
 
 ## Agora factory planning
 
@@ -26,7 +46,7 @@ handoff](forum/DEEPSEEK_HANDOFF.md) defines the local implementation sequence; [
 separates catalog checks from runtime qualification. This existing cockpit and its Flue harness
 remain trusted infrastructure. Fake inference is the default and live/remote gates remain explicit.
 
-The product itself is now real, not only planned: `demo/forum-app/` is a **Quarkus 3.40.1 / Java
+The historical read-only product snapshot is a **Quarkus 3.40.1 / Java
 25.0.4** service built with Gradle, carrying features 001-003 (skeleton and settings, migration
 runner, test harness), the accounts and sessions ahead of their turn, and threads with a Kafka
 producer and consumer behind a transactional outbox, CSRF tokens on every mutation, with 47 JUnit tests.
@@ -34,8 +54,8 @@ producer and consumer behind a transactional outbox, CSRF tokens on every mutati
 restore drill and one-writer leasing. `demo/forum-mobile/` is the front on React Native 0.88.1
 through Expo SDK 58: it typechecks, bundles for iOS (619 modules) and its API client passes a
 12-step smoke test against the live service, though no simulator has run it. The same client also
-renders in a browser through `react-native-web` (`npx expo start --web --localhost --port 8082` →
-`http://127.0.0.1:8082`), which is how the forum is shown without a phone. A real Kafka broker
+renders in a browser through `react-native-web`. That mobile snapshot is not the current React
+DOM web roadmap and its old completion labels do not certify the revised MDs. A real Kafka broker
 (`apache/kafka-native` in Docker) carried the event drill.
 
 For a **local-only** container, the product repository now carries a multi-stage Dockerfile and
@@ -76,8 +96,7 @@ may hold more than the one it needs.
 | Operator cockpit | [localhost:8088](http://localhost:8088) | Ready/blocked/completed features, build activity, budget and trace evidence |
 | Advanced model lab | [localhost:8088/lab](http://localhost:8088/lab) | Historical scenario sessions, context, model KPIs, memory and handovers |
 | Feature factory | [localhost:8088/factory](http://localhost:8088/factory) | Select, queue and watch forum feature builds |
-| Forum API | [localhost:8081](http://127.0.0.1:8081/healthz) | Quarkus service: threads, accounts, health |
-| Forum web front | [localhost:8082](http://127.0.0.1:8082) | Canonical product's React Native Web client (`npx expo start --web --localhost --port 8082` in its `demo/forum-mobile/`) |
+| Product demo | Shown only after deployment verification | Separate product repository; backend and React DOM web roadmap |
 | Langfuse | [localhost:3300](http://localhost:3300) | Real traces, generations, usage, estimated cost and boolean scores |
 | Hindsight | [localhost:9999](http://localhost:9999) | Session-analysis memory banks and semantic recall |
 
@@ -95,13 +114,13 @@ Docker compute driver. No user repository, host transcript or global agent setti
 Factory execution is explicit. The default `simulator` keeps the fake Markdown builder and says so
 on the board. `AEION_FACTORY_EXECUTION=offline` loads the pinned forum profile and the shared
 deterministic offline builder (real base, real write scopes, real protected check, no model call).
-`AEION_FACTORY_EXECUTION=live` loads the same pinned target, the shared model catalog and the live
-builder; the provider credential is read from the project's existing dotenv files and its absence
+`AEION_FACTORY_EXECUTION=live` loads automatic task preparation, the shared model catalog and the
+Flue/Pi tier3 builder. The provider credential is consumed by its named role loader and its absence
 holds the build as `provider_unconfigured` instead of simulating. The owner authorized the four
 workers (`glm-5.3-flash`, `qwen-3.8-flash`, `deepseek-4.1-flash`, `claude-haiku-5.5`) on 2026-11-02;
 display ids are translated to canonical wire ids before every request.
 
-Protected candidate checks run in a disposable Docker container: no network, no Docker socket, no
+Legacy pinned Java candidate checks run in a disposable Docker container: no network, no Docker socket, no
 host home and no controller mount, only the candidate tree and read-only toolchain caches, with a
 fixed environment, dropped capabilities and CPU/memory/PID limits. A probe records the image digest
 and denied network before a build; a missing image or failed probe holds the build as
@@ -109,6 +128,13 @@ and denied network before a build; a missing image or failed probe holds the bui
 base with hashed paths and the isolated base test suite, so feature 013 can queue against a
 verified 001 baseline without a simulated merge receipt. A pinned target refuses any other feature
 with `target_feature_mismatch`.
+
+Current product checks compile production before candidate unit tests, put those tests in a
+separate workspace and grade HTTP/browser acceptance outside the app's PID/filesystem. Owned
+disposable PostgreSQL fixtures provide the private loopback network; the verifier receives no
+application code or database credentials. Frozen dependency transitions, migrations/import/restore
+and React production assets require their own qualification. See the
+[execution contract](../knowledge/components/factory-flue.md).
 
 A useful presentation sequence:
 

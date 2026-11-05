@@ -32,12 +32,12 @@ class SettlementTests(unittest.TestCase):
         threading.Thread(target=self.server.serve_forever,daemon=True).start()
         self.addCleanup(self.server.server_close);self.addCleanup(self.server.shutdown)
 
-    def relay(self):
+    def relay(self,**bounds):
         class Counter:
             def count(self,_):return 2000
         relay=ContextRelay('fixture/model','synthetic',250000,lambda *_:None,lambda *_a,**_k:None,
             counter=Counter(),upstream=f'http://127.0.0.1:{self.server.server_port}',
-            max_output_tokens=32768,prices={'input':0.15,'output':1.2},cost_limit='0.08')
+            max_output_tokens=32768,prices={'input':0.15,'output':1.2},cost_limit='0.08',**bounds)
         relay.start();self.addCleanup(relay.close);return relay
 
     def send(self,relay,index):
@@ -68,6 +68,19 @@ class SettlementTests(unittest.TestCase):
         self.mode='expensive';relay=self.relay()
         self.assertEqual([self.send(relay,i) for i in range(2)],[200,409])
         self.assertEqual(relay.projected_cost,Decimal('0.1'))
+
+    def test_factory_bound_can_exceed_the_lab_default_and_still_stops_exactly(self):
+        relay=self.relay(max_requests=13)
+        self.assertEqual([self.send(relay,i) for i in range(14)],[200]*13+[409])
+        self.assertEqual(relay.forwarded_count,13)
+        self.assertEqual(relay.last_error_code,'STEP_LIMIT')
+
+    def test_lab_default_and_invalid_factory_step_bounds_remain_closed(self):
+        relay=self.relay()
+        self.assertEqual([self.send(relay,i) for i in range(13)],[200]*12+[409])
+        for cap in (0,True,201):
+            with self.subTest(cap=cap),self.assertRaisesRegex(ValueError,'STEP_LIMIT_INVALID'):
+                self.relay(max_requests=cap)
 
 
 if __name__=='__main__':unittest.main()

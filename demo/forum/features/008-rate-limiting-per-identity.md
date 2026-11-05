@@ -7,7 +7,7 @@ size: M
 parallel: false
 phase: P0
 tier: 3
-write_paths: ["demo/forum-app/", "demo/forum-docs/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [002, 005]
 owner: builder
 status: proposed
@@ -55,7 +55,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 Before password hashing, apply a bounded bucket keyed by verified connection origin and a global authentication ceiling; do not trust arbitrary forwarded headers. After authentication, use server-derived identity and route class.
 
 This invariant and the acceptance cases belong to planned protected check `agora-008`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

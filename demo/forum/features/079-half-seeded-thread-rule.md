@@ -7,7 +7,7 @@ size: M
 parallel: false
 phase: P4
 tier: 3
-write_paths: ["demo/forum-app/", "demo/forum-docs/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [021, 076, 063, 078, 077, 080]
 owner: builder
 status: proposed
@@ -54,7 +54,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 The rule is enforced at creation, in one function, not by the agents' goodwill.
 
 This invariant and the acceptance cases belong to planned protected check `agora-079`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

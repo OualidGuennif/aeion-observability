@@ -51,6 +51,14 @@ class RoutingTests(unittest.TestCase):
         self.assertEqual(self.telemetry(cohort=other).records, [])
         self.assertEqual(self.telemetry().stats('glm-5.3-flash', 'author')['n'], 0)
 
+    def test_different_enforced_execution_bounds_never_share_model_measurements(self):
+        feature={'area':'foundation','size':'S','architecture_digest':'a'*64}
+        before=cohort_for(feature,'prepared_product',execution_bounds={'step_cap':12,'deadline_ns':900000000000})
+        after=cohort_for(feature,'prepared_product',execution_bounds={'step_cap':200,'deadline_ns':900000000000})
+        self.assertNotEqual(before,after)
+        self.telemetry(cohort=before).record('glm-5.3-flash','author','failed',1000,'0.03')
+        self.assertEqual(self.telemetry(cohort=after).records,[])
+
     def test_unknown_cost_is_not_free_or_an_eligible_cost_measurement(self):
         self.telemetry().record('glm-5.3-flash', 'author', 'failed', 1000, None)
         stats = self.telemetry().stats('glm-5.3-flash', 'author')

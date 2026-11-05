@@ -6,6 +6,7 @@ cancelled effects. Fake forge responses are labelled; an uncertain result is rec
 against the forge before any retry, never blindly redone.
 """
 from .review import content_digest, DEPENDENCY_FILES
+import hashlib
 
 SENSITIVE_MARKERS = ("migrations", "auth", "security", "moderation", "rules", "runtime", "deploy", "permission")
 DEPENDENCY_MANIFESTS = DEPENDENCY_FILES
@@ -64,13 +65,14 @@ class FakeForge:
 
 class Publisher:
     def __init__(self, target_repo, forge, trusted_issuer="gate", expected_base=None,
-                 expected_head=None, expected_artifact_digest=None):
+                 expected_head=None, expected_artifact_digest=None, approved_dependencies=None):
         self.target_repo = target_repo
         self.forge = forge
         self.trusted_issuer = trusted_issuer
         self.expected_base = expected_base
         self.expected_head = expected_head
         self.expected_artifact_digest = expected_artifact_digest
+        self.approved_dependencies = dict(approved_dependencies or {})
 
     def decide(self, request):
         if request.get("issuer") != self.trusted_issuer:
@@ -101,7 +103,9 @@ class Publisher:
             return {"decision": "refused", "reason": "forbidden_path"}
         if request.get("review_status", "approved") != "approved":
             return {"decision": "hold", "reason": "owner_review_required"}
-        if request.get("review_sensitive") or any(is_sensitive_path(p) for p in paths):
+        if request.get("review_sensitive") or any(is_sensitive_path(p) and
+                self.approved_dependencies.get(p) != hashlib.sha256(files[p].encode()).hexdigest()
+                for p in paths):
             return {"decision": "hold", "reason": "owner_review_required"}
         result = self.forge.publish(request)
         if result.get("status") == "uncertain":

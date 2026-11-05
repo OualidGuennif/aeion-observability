@@ -55,3 +55,8 @@ tasks.register('operatorClasspath') {
         println sourceSets.main.runtimeClasspath.plus(configurations.operatorRuntime).asPath
     }
 }
+
+tasks.register('stageOperatorLibraries', Copy) {
+    from configurations.operatorRuntime
+    into layout.buildDirectory.dir('operator-libs')
+}

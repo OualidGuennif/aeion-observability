@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / 'demo'), str(ROOT / 'demo/app')]
-from factory.api import FactoryApp
+from factory.api import FactoryApp, S2_CONFIG
 from factory.budget import DailyBudget
 from factory.execution import FILTER
 from factory.flue_builder import FlueBuilder
@@ -72,6 +72,8 @@ class Inference(BaseHTTPRequestHandler):
             else:
                 raise AssertionError('Unexpected author retry')
         elif role == 'prepare':
+            # Flue2.3 always includes task; without declared subagents it is inert.
+            assert tools == {'submit_preparation','task'}, sorted(tools)
             if number == 1:
                 call = ('submit_preparation', {'status':'ready', 'contract':preparation_contract,
                                                'reason':'Synthetic harness qualification'})
@@ -120,11 +122,13 @@ class Inference(BaseHTTPRequestHandler):
         self.wfile.write(data.encode())
 
 
-class FixtureBuilder(FlueBuilder): paid = False
+class FixtureBuilder(FlueBuilder):
+    paid = False
+    max_output_tokens = 4096  # This fixture targets the historical250k handover threshold.
 class FixtureReview(FlueReview): paid = False
 
 
-def main():
+def main(closed_candidate=False):
     target = load_target(ROOT / 'demo/forum/targets/forum-app-013.json', ROOT)
     server = ThreadingHTTPServer(('127.0.0.1', 0), Inference)
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -144,6 +148,7 @@ def main():
         with patch.dict(os.environ, {'OPENCODE_API_KEY': 'synthetic'}), patch.object(runner, 'ContextRelay', side_effect=local_relay):
             app = FactoryApp(ROOT / 'demo/forum/features/MANIFEST.json', folder / 'state',
                 bootstrap_token='synthetic-only', budget=DailyBudget(folder / 'ledger.jsonl'),
+                config={**S2_CONFIG,'step_cap':5,'deadline_ns':900*1_000_000_000} if closed_candidate else None,
                 execution={'mode': 'live', 'targets': {'013': target}, 'builder': builder,
                            'review_complete': review, 'check_sandbox': DockerCheckRunner(ROOT),
                            'cost_reservation_usd': '0.50'})
@@ -160,7 +165,13 @@ def main():
                 'gate': receipt.get('gate'), 'circuit': receipt.get('circuit'), 'calls': calls}), flush=True)
             assert row['status'] == 'simulated_complete'
             assert builder.last_execution['sessions'] == 2
-            assert checks == ['failed-feedback', 'passed-feedback']
+            assert checks == (['failed-feedback'] if closed_candidate else ['failed-feedback','passed-feedback'])
+            if closed_candidate:
+                assert builder.last_execution['failure']=='STEP_LIMIT'
+                assert builder.last_execution['candidate_recovered'] is True
+                assert builder.last_usage['complete'] is True
+                assert builder.last_execution['check']['status']=='passed'
+                assert len(receipt['circuit']['votes'])==2
             assert receipt['circuit']['status'] == 'approved'
             # Qualify the fourth allowlisted model's native protocol and explicit medium effort.
             review.build_id = row['build_id']
@@ -170,6 +181,7 @@ def main():
             print(json.dumps({'haiku_medium': True, 'calls': calls, 'state': str(folder)}), flush=True)
     finally:
         server.shutdown()
+        server.server_close()
 
 
 if __name__ == '__main__': main()

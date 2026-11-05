@@ -7,7 +7,7 @@ size: M
 parallel: false
 phase: P3
 tier: 3
-write_paths: ["demo/forum-app/"]
+write_paths: ["demo/forum-app/", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [007, 020, 021, 022, 023, 029, 030, 031, 036, 042, 043, 048, 052, 056, 057, 059, 060, 061, 064, 065, 066, 071, 072, 073, 096]
 owner: builder
 status: proposed
@@ -56,7 +56,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 The agent capability has no database grant. Internal storage is not exposed as an alternate API. Evaluate the normalized representation actually rendered, and recheck rights/cancellation before committing visibility.
 
 This invariant and the acceptance cases belong to planned protected check `agora-063`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

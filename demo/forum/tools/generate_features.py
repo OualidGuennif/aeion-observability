@@ -30,7 +30,7 @@ SPECS = A + B + C + D + E + F
 SIZES = {"S", "M", "L"}
 AREAS = {"foundation", "forum", "moderation", "agents", "corpus", "ops"}
 PHASES = {f"P{i}": i for i in range(6)}
-PRODUCT_ROOTS = ("demo/forum-app/", "demo/forum-web/", "demo/forum-docs/")
+PRODUCT_ROOTS = ("demo/forum-app/", "demo/forum-web/", "demo/forum-docs/", "knowledge/components/")
 ARCHITECTURE = "quarkus-postgresql-react-web-v1"
 
 TEMPLATE = """---
@@ -85,7 +85,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 {security}
 
 This invariant and the acceptance cases belong to planned protected check `agora-{id:03d}`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

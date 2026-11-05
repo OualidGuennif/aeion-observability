@@ -13,7 +13,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from .agent_files import grader_tampered
+from .agent_files import grader_tampered, GIT_CONTROL_NAMES
 from .review import content_digest
 
 MAX_CONTENT_BYTES = 512 * 1024
@@ -62,7 +62,7 @@ def _path_problem(path, repo, write_scopes):
     if not path or path.startswith("/") or "\\" in path or path.startswith("..") or "/../" in path or path == "..":
         return "traversal_or_absolute"
     parts = Path(path).parts
-    if ".git" in parts or path.startswith(".git"):
+    if any(part.lower() in GIT_CONTROL_NAMES for part in parts) or path.startswith(".git"):
         return "git_metadata"
     if not _in_scope(path, write_scopes):
         return "out_of_scope"

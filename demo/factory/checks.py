@@ -234,6 +234,10 @@ def target_check(target, runner=None, work_root=None, sandbox=None):
             except ValueError:
                 return False, {"reason": "repository_outside_workspace"}
         spec = target.protected_check
+        if spec.id == 'prepared_product':
+            if sandbox is None or not callable(getattr(sandbox, 'check_target', None)):
+                return False, {'reason':'isolation_unqualified'}
+            return sandbox.check_target(target, repo, frozen)
         destination = repo / spec.contract_destination
         if not _confined_contract_parent(repo, destination) or destination.is_symlink():
             return False, {'check':spec.id, 'reason':'contract_path_unsafe'}

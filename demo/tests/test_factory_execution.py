@@ -77,6 +77,8 @@ class ResolveTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
+        protocol = mock.patch('factory.execution.protocol_hash',return_value='a'*64)
+        protocol.start();self.addCleanup(protocol.stop)
 
     def profile(self):
         self.source, self.sha = write_profile(self.root)
@@ -116,13 +118,18 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(execution["hold_reason"], "provider_unconfigured")
         self.assertNotIn("builder", execution)
 
-    def test_unqualified_flue_holds_without_any_direct_model_fallback(self):
+    def test_unqualified_flue_keeps_only_the_guarded_flue_runtime(self):
         self.profile()
         with mock.patch('factory.execution.provider_available', return_value=True), \
                 mock.patch('factory.execution.flue_factory_ready', return_value=False):
             execution = resolve(self.root, 'live')
         self.assertEqual(execution['hold_reason'], 'flue_factory_unqualified')
-        self.assertNotIn('builder', execution)
+        self.assertEqual(execution['builder'].engine, 'flue-pi')
+        self.assertTrue(callable(execution['admission_check']))
+        with mock.patch('factory.execution.flue_factory_ready', return_value=False):
+            self.assertIs(execution['admission_check'](), False)
+        with mock.patch('factory.execution.flue_factory_ready', return_value=True):
+            self.assertIs(execution['admission_check'](), True)
 
     def test_live_resolves_a_paid_builder_isolated_checker_and_reservation(self):
         self.profile()
@@ -136,6 +143,16 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(execution["cost_reservation_usd"], "0.50")
         self.assertIs(execution['builder'].check_sandbox,execution['check_sandbox'])
         self.assertIs(execution['preparer'].checker,execution['check_sandbox'])
+
+    def test_new_disk_qualification_cannot_authorize_a_stale_loaded_runtime(self):
+        self.profile()
+        with mock.patch('factory.execution.provider_available',return_value=True), \
+                mock.patch('factory.execution.flue_factory_ready',return_value=True), \
+                mock.patch('factory.execution.protocol_hash',return_value='a'*64) as protocol:
+            execution=resolve(self.root,'live')
+            self.assertTrue(execution['admission_check']())
+            protocol.return_value='b'*64
+            self.assertFalse(execution['admission_check']())
 
     def test_the_offline_builder_writes_both_scopes(self):
         repo = self.root / "repo"

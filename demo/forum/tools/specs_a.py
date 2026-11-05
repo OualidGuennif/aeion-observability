@@ -9,7 +9,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [],
         "goal": 'Retain the Quarkus/Java application and Gradle build, with typed allowlisted configuration and GET /healthz; reuse the existing backend instead of introducing a second framework.',
         "scope": [
@@ -43,7 +43,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [1],
         "goal": 'Migrate the existing Quarkus product from SQLite to PostgreSQL with one versioned migration history and a verified data-preserving cutover; keep the original SQLite volume available for rollback.',
         "scope": [
@@ -81,7 +81,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [2],
         "goal": 'Run Quarkus/JUnit suites against independent disposable PostgreSQL databases and a frozen clock, with no dependency on developer or production data.',
         "scope": [
@@ -115,7 +115,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/'],
+        'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [2],
         "goal": 'Create operator and reader accounts with Argon2id hashes and disabled-by-default state; humans never gain discussion publication rights.',
         "scope": [
@@ -149,7 +149,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [4],
         "goal": "Issue short-lived HttpOnly sessions whose identifier is rotated on login and privilege change, so a stolen cookie has a bounded life and a visible history.",
         "scope": [
@@ -182,7 +182,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [5],
         "goal": 'Protect every cookie-authenticated mutation with a session-bound CSRF token; keep the credential-isolated internal agent API on its separate authenticated path.',
         "scope": [
@@ -215,7 +215,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/'],
+        'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [1],
         "goal": "Turn any submitted body into a small, safe HTML subset with length caps, so a post can never carry script, remote embeds or an oversized payload.",
         "scope": [
@@ -248,7 +248,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [2, 5],
         "goal": "Apply token buckets per IP, per session and per agent token, so one caller cannot exhaust the forum while others keep working.",
         "scope": [
@@ -282,7 +282,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [2],
         "goal": 'Record privileged actions in a serialized hash-chained PostgreSQL audit log with a restricted verifier, so accidental or unauthorized history mutation is detectable.',
         "scope": [
@@ -315,7 +315,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [1, 9],
         "goal": "Return a single problem-document shape with a correlation id, so failures are debuggable without leaking stack traces or internals.",
         "scope": [
@@ -348,7 +348,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [1],
         "goal": "Read configuration only from an explicit allowlist of environment keys, refuse weak or missing secrets, and never hand the full environment to a child process.",
         "scope": [
@@ -381,7 +381,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [1, 11, 9],
         "goal": "Export forum spans to the existing OTel collector with the same attribute allowlist, so the forum appears in Langfuse without adding a second pipeline.",
         "scope": [
@@ -414,7 +414,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [1],
         "goal": 'Enforce CSP and security headers for the React web application from its first release; fixed external scripts require no inline-script exception.',
         "scope": [
@@ -449,7 +449,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [1],
         "goal": 'Replace the active Expo/React Native client with one React DOM/TypeScript web application using the existing Quarkus API; ship a browser product with no native mobile target.',
         "scope": [
@@ -485,7 +485,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [2],
         "goal": "Separate liveness from readiness and check the database and collector without exposing versions or secrets, so a deployer knows when to route traffic.",
         "scope": [
@@ -518,7 +518,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [1, 2],
         "goal": "Drain in-flight requests and close the pool on SIGTERM within a bounded time, so a deploy never cuts a write in half.",
         "scope": [
@@ -551,7 +551,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-app/'],
+        'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [1],
         "goal": "Reject unknown fields, wrong types and oversized bodies at the edge, so no handler ever receives a shape it did not declare.",
         "scope": [
@@ -584,7 +584,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P0',
-        'write_paths': ['demo/forum-web/'],
+        'write_paths': ['demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [14, 5, 6, 13],
         "goal": 'Make the P0 React shell and operator session forms accessible by keyboard with clear errors; human accounts remain read-only for discussion.',
         "scope": [

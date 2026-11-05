@@ -36,7 +36,8 @@ def operate(args):
     forge=GitHubForge(args.repo,token=token,dry_run=False,allow_merge=args.role=='release',before_write=authorized)
     if args.role=='publish':
         decision=Publisher(args.repo,forge,expected_base=receipt['base_sha'],
-            expected_artifact_digest=receipt['artifact_digest']).decide(request)
+            expected_artifact_digest=receipt['artifact_digest'],
+            approved_dependencies=receipt.get('dependency_changes')).decide(request)
         if decision.get('decision')=='hold':return {'status':'held','reason':decision['reason']}
         if decision.get('decision') not in {'published','reconciled'}:
             return {'status':'held','reason':decision.get('reason','publication_refused')}

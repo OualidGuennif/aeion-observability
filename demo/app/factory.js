@@ -4,7 +4,7 @@ const TERMINAL = ["merged", "failed", "cancelled", "simulated_complete", "live_c
 const LANGFUSE_UI = "http://127.0.0.1:3300";
 const LANGFUSE_PROJECT = "aeion-demo"; // The project initialized by demo/compose.yaml.
 const state = { csrf: null, selected: new Set(), catalog: [], builds: [], events: [], lastSeq: 0,
-  execution: {}, filter: "all", refreshing: false, submitting: false, stream: null, requestKey: null, specRequest: 0 };
+  execution: {}, filter: "all", refreshing: false, submitting: false, stream: null, requestKey: null, specRequest: 0, buildMarkup: {} };
 const $ = (id) => document.getElementById(id);
 const LABELS = { ready: "Ready", implemented: "Implemented", built: "Built · awaiting integration",
   in_progress: "In progress", blocked: "Waiting", live_complete: "Built", baseline: "Verified baseline",
@@ -30,11 +30,14 @@ function reasonText(info) {
     awaiting_integration: "Implementation built. Integration is a separate step; relaunch is locked.",
     feature_in_progress: "Already queued or running. Follow it in Build activity.",
     target_unavailable: "Automatic task preparation is not connected for this feature yet. This is factory work, not configuration for you to supply.",
-    flue_factory_unqualified: "The Flue/Pi factory is paused: shared PostgreSQL/React checks and the protected PR/CI/main path are not qualified yet. The Java pipeline alone cannot enable implementation launches.",
+    flue_factory_unqualified: "Flue/Pi worker or checker qualification is missing, expired or changed. The factory must verify its execution tools; there is no individual MD setup for you to supply.",
     provider_unconfigured: "The model provider is not configured.",
     execution_unavailable: "The product repository or task preparation adapter is unavailable to the factory.",
     sandbox_unqualified: "The isolated checker needs qualification.",
     budget_unavailable: "The daily budget is unavailable or exhausted.",
+    STEP_LIMIT: "The worker reached its allowed model-step limit. This attempt is preserved; the feature has not been implemented.",
+    CLI_STARTUP_FAILED: "The agent CLI stopped before its first model request. The factory must repair its launcher; no implementation was started.",
+    builder_error: "Implementation stopped. Open Build evidence for the exact agent failure and the full Langfuse session.",
     availability_unavailable: "Refresh after the controller update to load availability.",
     qualification_missing: "The independent acceptance check is missing or unqualified. The factory must prepare and verify it before implementation.",
     target_feature_mismatch: "This feature does not match the configured execution target.",
@@ -45,6 +48,14 @@ function reasonText(info) {
     publication_blocked: "Publication stopped safely. Open the publication evidence below for the precise blocker.",
     publication_unavailable: "The isolated publisher is not connected. The checked artifact is preserved; no PR or main merge is claimed.",
     preparation_unavailable: "Task preparation stopped before implementation. Open the evidence for the exact checker, repository or acceptance blocker.",
+    preparation_model_declined: "The preparer could not turn this MD into a valid acceptance contract. Its proposal is preserved for diagnosis; no builder started.",
+    preparation_acceptance_runtime_mismatch: "The preparer returned a different test format from the protected Node checker. No builder started.",
+    preparation_acceptance_size_invalid: "The proposed acceptance is empty, too large or contains invalid data. No builder started.",
+    preparation_acceptance_assertions_missing: "The proposed acceptance has no executable test assertions. No builder started.",
+    preparation_acceptance_skips_forbidden: "The proposed acceptance skips or excludes tests; the protected checker refuses it.",
+    preparation_budget_stop: "Acceptance preparation reached its per-attempt budget. No builder or publication started; the measured cost and failed attempt are preserved.",
+    preparation_agent_timeout: "Acceptance preparation exceeded its deadline. The attempt is preserved; no builder or publication started.",
+    preparation_cli_failed: "The preparation harness stopped without a completed submission. No implementation or publication was started.",
     preparation_profile_unavailable: "This specification requires the shared React/web checker, which has not been qualified yet. This is factory infrastructure work.",
     preparation_transition_checker_unqualified: "The shared PostgreSQL transition checker has not been qualified. No builder was started for this request.",
     preparation_checker_unqualified: "The protected check boundary could not be qualified. No implementation was started.",
@@ -77,6 +88,8 @@ function executionNotice(execution, ready) {
     return `<strong>Factory paused.</strong>${esc(reasonText({reason: hold}))} The factory owns repository, isolation, checks and publication preparation. Your step is to choose a specification when execution is available.`;
   }
   if (ready) return `<strong>${ready} feature${ready === 1 ? " is" : "s are"} ready.</strong>Select up to ten specifications. The factory runs preparation, isolated implementation, checks and review in order.`;
+  if (state.builds.some((build) => ["dispatched", "built", "gated", "pr_open", "approved"].includes(build.status)))
+    return "<strong>A build is in progress.</strong>Follow its current stage in Build activity. Features unlock after their prerequisites are integrated on main.";
   return "<strong>No new implementation can start yet.</strong>Read the specifications and their prerequisite order below. The waiting states explain the exact factory or dependency blocker.";
 }
 const PHASE_LABELS = {preparing:"Preparing task",building:"Building in OpenShell",checking:"Checking",
@@ -189,13 +202,15 @@ function parseReceipt(raw) {
 }
 function receiptSummary(raw) {
   const r = parseReceipt(raw);
-  const check = r.gate?.results?.prepared_gradle?.detail || r.gate?.results?.gradle_test?.detail || r.check || {};
+  const check = r.gate?.results?.prepared_product?.detail || r.gate?.results?.prepared_gradle?.detail || r.gate?.results?.gradle_test?.detail || r.execution?.check || r.draft_check || r.check || {};
   const telemetry = r.telemetry || {};
   const trace = telemetry.trace_id;
   const status = telemetry.status || "unknown";
   const traceLabel = status === "confirmed" ? "trace confirmed" : `trace ${status}`;
   const link = trace && /^[a-f0-9]{32}$/i.test(trace)
     ? `<a href="${LANGFUSE_UI}/project/${LANGFUSE_PROJECT}/traces/${encodeURIComponent(trace)}" target="_blank" rel="noreferrer">${esc(traceLabel)} ↗</a>` : "";
+  const sessionLink = /^[a-f0-9]{32}$/.test(r.build_id || "")
+    ? `<a href="${LANGFUSE_UI}/project/${LANGFUSE_PROJECT}/sessions/${encodeURIComponent("factory:" + r.build_id)}" target="_blank" rel="noreferrer">Full build session ↗</a>` : "";
   const publication = r.publisher || {};
   const number = publication.pr?.pr_number;
   const prLink = Number.isSafeInteger(number) && number > 0
@@ -210,12 +225,18 @@ function receiptSummary(raw) {
     ["Artifact", r.artifact_digest && esc(String(r.artifact_digest))],
     ["Base", r.base_sha && esc(String(r.base_sha))],
     ["Model", r.author_model && esc(String(r.author_model))],
-    ["Preparer", r.preparation?.preparer_model && esc(r.preparation.preparer_model)],
-    ["Acceptance baseline", r.preparation?.negative_control === "failed_contract_assertion" && "Independent contract failed on the untouched baseline"],
+    ["Agent failure", r.execution?.failure && esc(String(r.execution.failure))],
+    ["CLI exit", Number.isInteger(r.execution?.process_exit_code) && String(r.execution.process_exit_code)],
+    ["Model requests", Number.isInteger(r.execution?.forwarded_count) && String(r.execution.forwarded_count)],
+    ["Retained draft files", Number.isInteger(r.execution?.retained_files_count) && String(r.execution.retained_files_count)],
+    ["Candidate recovery", r.execution?.candidate_recovered === true && "Agent bound reached; candidate sent to independent checks"],
+    ["Preparer", r.preparation?.preparation_kind === "registered_static_acceptance" ? "Registered contract · no model request" : r.preparation?.preparer_model && esc(r.preparation.preparer_model)],
+    ["Acceptance baseline", r.preparation?.negative_control === "registered_foundation_startup_rejection" ? "Untouched baseline refused the registered startup contract" : r.preparation?.negative_control === "registered_transition_source_missing" ? "Untouched baseline lacks the registered migration operator or browser source" : r.preparation?.negative_control === "failed_contract_assertion" && "Independent contract failed on the untouched baseline"],
     ["Working memory", r.execution?.memory?.claude_mem?.status && esc(r.execution.memory.claude_mem.status)],
     ["Hindsight", r.execution?.memory?.hindsight?.status && esc(r.execution.memory.hindsight.status)],
-    ["Check", r.gate?.status ? esc(String(r.gate.status)) : check.returncode === 0 ? "passed" : null],
+    ["Check", r.gate?.status ? esc(String(r.gate.status)) : check.status ? esc(String(check.status)) : check.returncode === 0 ? "passed" : null],
     ["Failure", check.failure_kind && esc(String(check.failure_kind))],
+    ["Check detail", check.reason && esc(String(check.reason))],
     ["Compiler", Array.isArray(check.compiler_errors) && check.compiler_errors.length &&
       esc(check.compiler_errors.map((e) => `${e.file}:${e.line}${e.symbol ? " · " + e.symbol : ""}`).join("; "))],
     ["Failed tests", Array.isArray(check.failed_tests) && check.failed_tests.length && esc(check.failed_tests.join("; "))],
@@ -225,25 +246,65 @@ function receiptSummary(raw) {
     ["Merged commit", publication.confirmed_main === true && /^[a-f0-9]{40}$/.test(publication.merge_sha) && esc(publication.merge_sha)],
     ["Confirmed main", publication.confirmed_main === true && /^[a-f0-9]{40}$/.test(publication.main_sha) && esc(publication.main_sha)],
   ].filter(([, value]) => value);
-  return `${link || prLink ? `<div class="build-actions">${link}${prLink}</div>` : ""}` + (evidence.length
+  return `${link || prLink || sessionLink ? `<div class="build-actions">${link}${sessionLink}${prLink}</div>` : ""}` + (evidence.length
     ? `<details class="evidence"><summary>Build evidence</summary><dl>${evidence.map(([key, value]) => `<dt>${key}</dt><dd>${value}</dd>`).join("")}</dl></details>` : "");
+}
+function obsoleteProof(build) {
+  if (!["baseline", "merged", "live_complete"].includes(build.status)) return false;
+  const feature = state.catalog.find((f) => f.id === build.feature_id);
+  return !["implemented", "built"].includes(availability(feature || {}).state);
+}
+function buildStage(build) {
+  const receipt = parseReceipt(build.receipt);
+  if (build.status === "merged") return "main";
+  if (["pr_open", "gated", "approved"].includes(build.status)) return "publication";
+  const phase = receipt.progress?.phase;
+  if (["preparing", "building", "checking", "reviewing"].includes(phase)) return phase;
+  if (phase) return receipt.preparation ? "building" : "preparing";
+  return null;
+}
+function stageProgress(build) {
+  const current = buildStage(build);
+  if (!current || ["failed", "cancelled", "held"].includes(build.status)) return "";
+  const labels = { preparing: "Prepare", building: "Build", checking: "Check", reviewing: "Review", publication: "PR / CI", main: "Main" };
+  const receipt = parseReceipt(build.receipt);
+  const model = receipt.progress?.detail?.model;
+  return `<ol class="build-stages" aria-label="Implementation stages">${Object.entries(labels).map(([stage, label]) =>
+    `<li${stage === current ? ' aria-current="step"' : ""}>${label}</li>`).join("")}</ol>` +
+    `<p class="current-stage">${esc(PHASE_LABELS[receipt.progress?.phase] || labels[current])}${model ? " · " + esc(model) : ""}</p>`;
 }
 function buildCard(build) {
   const feature = state.catalog.find((f) => f.id === build.feature_id);
   const r = parseReceipt(build.receipt);
   const simulation = r.simulated === true || build.status === "simulated_complete";
-  const label = simulation ? "Simulation" : (LABELS[build.status] || build.status);
+  const obsolete = obsoleteProof(build);
+  const label = simulation ? "Simulation" : obsolete ? "Earlier contract" : (LABELS[build.status] || build.status);
   const time = build.updated_ns ? new Date(build.updated_ns / 1e6) : null;
-  return `<article class="build-card"><div class="build-card-heading"><span class="feature-number">FEATURE ${esc(build.feature_id)}</span>` +
+  return `<article class="build-card" data-build-id="${esc(build.build_id)}"><div class="build-card-heading"><span class="feature-number">FEATURE ${esc(build.feature_id)}</span>` +
     `<span class="badge ${esc(build.status)}">${esc(label)}</span></div><h3>${esc(feature?.title || build.feature_id)}</h3>` +
-    (build.hold_reason ? `<p>${esc(reasonText({ reason: build.hold_reason, missing_dependencies: feature?.availability?.missing_dependencies || [] }))}</p>` :
+    (obsolete ? "<p>This historical result does not certify the current MD.</p>" : build.status === "failed" ? `<p>${esc(reasonText({reason:r.error || r.reason || "builder_error"}))}</p>` : build.hold_reason ? `<p>${esc(reasonText({ reason: build.hold_reason, missing_dependencies: feature?.availability?.missing_dependencies || [] }))}</p>` :
       `<p>${build.status === "live_complete" ? "Checked implementation ready for integration." : build.status === "baseline" || build.status === "merged" ? "Implemented at a verified product base." : simulation ? "Historical fixture, separate from real implementation." : "Protected checks and review govern the next step."}</p>`) +
-    receiptSummary(build.receipt) + `<div class="build-actions">${time ? `<time datetime="${time.toISOString()}">${esc(time.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }))}</time>` : ""}` +
+    stageProgress(build) + receiptSummary(build.receipt) + `<div class="build-actions">${time ? `<time datetime="${time.toISOString()}">${esc(time.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }))}</time>` : ""}` +
     (!TERMINAL.includes(build.status) ? `<button class="cancel" data-cancel="${esc(build.build_id)}">Cancel request</button>` : "") + "</div></article>";
 }
 function activitySummary(builds) {
   const count = (statuses) => builds.filter((b) => statuses.includes(b.status)).length;
   return `${count(["queued"])} queued · ${count(["dispatched", "built"])} running · ${count(["gated", "pr_open", "approved"])} publishing`;
+}
+function updateBuildList(id, html) {
+  if (state.buildMarkup[id] === html) return;
+  const list = $(id);
+  const opened = new Set([...list.querySelectorAll("[data-build-id] details[open]")]
+    .map((detail) => detail.closest("[data-build-id]").dataset.buildId));
+  const active = document.activeElement;
+  const focusedBuild = list.contains(active) && active.closest("[data-build-id]")?.dataset.buildId;
+  const focusedSelector = active?.matches("summary") ? "summary" : active?.matches("[data-cancel]") ? "[data-cancel]" : null;
+  list.innerHTML = html; state.buildMarkup[id] = html;
+  for (const card of list.querySelectorAll("[data-build-id]")) {
+    if (opened.has(card.dataset.buildId) && card.querySelector("details")) card.querySelector("details").open = true;
+    if (focusedBuild === card.dataset.buildId && focusedSelector) card.querySelector(focusedSelector)?.focus({ preventScroll: true });
+  }
+  list.querySelectorAll("[data-cancel]").forEach((button) => button.addEventListener("click", () => cancelBuild(button.dataset.cancel)));
 }
 function renderBuilds() {
   const sorted = [...state.builds].sort((a, b) => b.created_ns - a.created_ns);
@@ -254,16 +315,15 @@ function renderBuilds() {
     const a = availability(feature || {});
     const completed = ["implemented", "built"].includes(a.state);
     const oldHold = build.status === "held" && (completed || a.reason === "target_unavailable");
-    if (simulation || oldHold || seen.has(build.feature_id)) history.push(build);
+    if (simulation || obsoleteProof(build) || oldHold || seen.has(build.feature_id)) history.push(build);
     else { seen.add(build.feature_id); current.push(build); }
   }
-  $("builds").innerHTML = current.length ? current.slice(0, 8).map(buildCard).join("")
-    : '<div class="empty-state"><h3>No real build yet</h3><p>Your next admitted feature will appear here.</p></div>';
+  updateBuildList("builds", current.length ? current.slice(0, 8).map(buildCard).join("")
+    : '<div class="empty-state"><h3>No real build yet</h3><p>Your next admitted feature will appear here.</p></div>');
   $("queue-count").textContent = activitySummary(state.builds);
-  $("history").innerHTML = history.map(buildCard).join("");
+  updateBuildList("history", history.map(buildCard).join(""));
   $("history-count").textContent = `(${history.length})`;
   $("history-panel").hidden = !history.length;
-  document.querySelectorAll("[data-cancel]").forEach((button) => button.addEventListener("click", () => cancelBuild(button.dataset.cancel)));
 }
 function renderBudgets(budget) {
   const scopes = budget?.scopes || {};

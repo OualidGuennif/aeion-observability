@@ -7,7 +7,7 @@ size: M
 parallel: false
 phase: P1
 tier: 3
-write_paths: ["demo/forum-app/", "demo/forum-docs/"]
+write_paths: ["demo/forum-app/", "demo/forum-docs/", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [019, 022, 023, 031]
 owner: builder
 status: proposed
@@ -54,7 +54,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 The seed refuses to run when the database is not marked disposable.
 
 This invariant and the acceptance cases belong to planned protected check `agora-039`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

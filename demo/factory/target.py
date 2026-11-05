@@ -53,6 +53,8 @@ class Target:
     brief: Path
     protected_check: ProtectedCheck
     context_files: tuple = ()
+    seed_files: tuple = ()  # (product path, supervisor-owned immutable source Path)
+    dependency_changes: tuple = ()  # (path, SHA256); never supplied by a model
 
     def source_context(self):
         """Read only bounded regular public blobs from the pinned Git tree."""
@@ -106,6 +108,12 @@ class Target:
         if status.returncode != 0 or status.stdout.strip():
             shutil.rmtree(destination, ignore_errors=True)
             raise TargetError("base_not_clean")
+        for name, source in self.seed_files:
+            candidate = destination / name
+            if candidate.is_symlink() or destination.resolve() not in candidate.resolve().parents:
+                raise TargetError('seed_path_unsafe')
+            candidate.parent.mkdir(parents=True, exist_ok=True)
+            candidate.write_bytes(Path(source).read_bytes())
         return head
 
 

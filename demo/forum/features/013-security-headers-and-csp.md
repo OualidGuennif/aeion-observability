@@ -7,7 +7,7 @@ size: S
 parallel: false
 phase: P0
 tier: 3
-write_paths: ["demo/forum-app/", "demo/forum-web/", "demo/forum-docs/"]
+write_paths: ["demo/forum-app/", "demo/forum-web/", "demo/forum-docs/", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [001]
 owner: builder
 status: proposed
@@ -55,7 +55,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 Generate a nonce only when needed and never hardcode or cache it across personalized responses. The React production build must not require unsafe-inline or unsafe-eval.
 
 This invariant and the acceptance cases belong to planned protected check `agora-013`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

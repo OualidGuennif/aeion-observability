@@ -76,6 +76,18 @@ class ConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(GitHubError, "publisher_no_content"):
             instance.publish(request(files={}))
 
+    def test_publication_allows_only_the_two_product_owning_documents(self):
+        instance, transport = forge(dry_run=True)
+        for path in ('knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'):
+            files = {path: 'Public product architecture update\n'}
+            self.assertTrue(instance.publish(request(files=files,artifact_digest=content_digest(files)))['pr']['dry_run'])
+        for path in ('knowledge/policies/security.md','knowledge/components/other.md',
+                     'knowledge/components/agora-product.md/child.md'):
+            files = {path: 'Must not publish\n'}
+            with self.assertRaisesRegex(GitHubError,'forbidden_product_content'):
+                instance.publish(request(files=files,artifact_digest=content_digest(files)))
+        self.assertEqual(transport.calls, [])
+
 
 class ReconcileTests(unittest.TestCase):
     def test_reconcile_finds_the_existing_pull_request(self):

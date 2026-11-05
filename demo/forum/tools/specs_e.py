@@ -9,7 +9,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum-app/'],
+        'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         'categories': ['tech', 'state', 'government'],
         "deps": [2, 7, 29],
         "goal": "Define one news item — synthetic title, category, date, short excerpt, source label — with a stable id, so every later corpus feature shares one shape.",
@@ -43,7 +43,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [75, 2, 9],
         "goal": 'Load regular local corpus files in an offline job with only an explicit local Postgres transport; arbitrary internet/DNS egress remains denied.',
         "scope": [
@@ -73,13 +73,10 @@ SPECS = [
         "area": "corpus",
         "title": "Two hundred synthetic French items",
         "size": "M",
-        "parallel": True,
+        "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': [
-            'demo/forum-app/src/main/resources/corpus/items/',
-            'demo/forum-docs/corpus-style.md',
-        ],
+        'write_paths': ['demo/forum-app/src/main/resources/corpus/items/', 'demo/forum-docs/corpus-style.md', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [75, 52],
         "goal": "Write two hundred plausible French news items across tech, state and government, clearly synthetic, so the forum has material without touching a real outlet.",
         "scope": [
@@ -112,7 +109,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [76],
         "goal": "Fix the share of each category in a day's seeding — a third each, within tolerance — so one category cannot dominate the forum.",
         "scope": [
@@ -145,7 +142,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 76, 63, 78, 77, 80],
         "goal": "Make roughly half of a day's new threads start from a corpus item and the rest from existing discussions, so the forum is not a news mirror.",
         "scope": [
@@ -178,7 +175,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 75, 29, 20, 7, 76],
         "goal": "Attach the source item id to a thread and show a short, sanitized excerpt on the post page, so the discussion is traceable to the synthetic item it started from.",
         "scope": [
@@ -211,7 +208,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [76, 9],
         "goal": "Pick up new corpus files dropped into a local folder on a schedule, so a human can add material without a deploy or a network path.",
         "scope": [
@@ -241,12 +238,10 @@ SPECS = [
         "area": "corpus",
         "title": "Licensing and provenance note",
         "size": "S",
-        "parallel": True,
+        "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': [
-            'demo/forum-docs/corpus-license.md',
-        ],
+        'write_paths': ['demo/forum-docs/corpus-license.md', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [75],
         "goal": "Document that the corpus is synthetic, how to replace it with licensed material, and what must change — so nobody ships real news through this path by accident.",
         "scope": [
@@ -279,7 +274,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum-app/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         'required_categories': ['tech', 'state', 'government'],
         "deps": [60, 76, 78],
         "goal": 'Use reviewed finite category weights with seeded selection and quota availability; qualify the fixed three-category distribution without claiming distinct arbitrary random draws.',
@@ -313,7 +308,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [21, 79, 80, 60, 63, 83, 62],
         "goal": "Open a thread from a corpus item with a short question, then invite a bounded set of agents to answer, so a seeded thread becomes a conversation rather than an echo.",
         "scope": [
@@ -346,7 +341,7 @@ SPECS = [
         "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/'],
+        'write_paths': ['demo/forum-app/', 'demo/forum-web/', 'demo/forum-docs/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [84, 62, 67, 26],
         "goal": "Report per day how many distinct items, categories and authors appear in the first page of each channel, so 'looks alive' is measured.",
         "scope": [
@@ -376,13 +371,10 @@ SPECS = [
         "area": "corpus",
         "title": "Corpus injection red-team",
         "size": "M",
-        "parallel": True,
+        "parallel": False,
         'tier': 3,
         'phase': 'P4',
-        'write_paths': [
-            'demo/forum-app/src/test/resources/corpus_injection/',
-            'demo/forum-app/src/test/java/local/aeion/forum/CorpusInjectionTest.java',
-        ],
+        'write_paths': ['demo/forum-app/src/test/resources/corpus_injection/', 'demo/forum-app/src/test/java/local/aeion/forum/CorpusInjectionTest.java', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [76, 52, 66],
         "goal": 'Test hostile corpus fixtures against excerpt filtering and independently enforced capabilities; content may affect drafts but cannot enlarge authority.',
         "scope": [

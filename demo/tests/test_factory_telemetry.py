@@ -31,6 +31,39 @@ class AttributeTests(unittest.TestCase):
         self.assertNotIn("aeion.build.gate", attributes)
         self.assertNotIn("aeion.build.publisher", attributes)
 
+    def test_error_diagnostics_are_useful_bounded_and_content_free(self):
+        attributes=telemetry.build_attributes('b'*32,'001','a'*32,gate_status='builder_error',duration_ms=65432,
+            diagnostics={'failure_code':'CLI_STARTUP_FAILED','phase':'startup','process_exit_code':1,
+                'cli_steps':0,'forwarded_count':0,'role':'author','execution_trace_id':'c'*32,
+                'usage':{'complete':True,'cost_usd':'0'},'prompt':'private-canary','stderr':'private-canary'})
+        self.assertEqual(attributes['langfuse.observation.level'],'ERROR')
+        self.assertEqual(attributes['langfuse.observation.status_message'],'CLI_STARTUP_FAILED')
+        self.assertEqual(attributes['langfuse.observation.metadata.process_exit_code'],1)
+        self.assertEqual(attributes['langfuse.observation.metadata.forwarded_count'],0)
+        self.assertEqual(attributes['aeion.build.duration_ms'],65432)
+        self.assertNotIn('private-canary',str(attributes))
+        rejected=telemetry.build_attributes('b'*32,'001','a'*32,diagnostics={'failure_code':'secret value',
+            'phase':{},'process_exit_code':'private-canary','usage':{'complete':False,'cost_usd':'0'}})
+        self.assertNotIn('langfuse.observation.metadata.failure_code',rejected)
+        self.assertNotIn('langfuse.observation.metadata.measured_cost_usd',rejected)
+
+    def test_interrupted_build_keeps_the_last_protected_cause_and_retained_count(self):
+        attrs=telemetry.build_attributes('b'*32,'001','a'*32,gate_status='builder_error',diagnostics={
+            'failure_code':'AGENT_TIMEOUT','check':{'status':'failed','reason':'missing_secret_accepted'},
+            'retained_files_count':11,'stderr':'private-canary'})
+        self.assertEqual(attrs['langfuse.observation.metadata.check_status'],'failed')
+        self.assertEqual(attrs['langfuse.observation.metadata.check_reason'],'missing_secret_accepted')
+        self.assertEqual(attrs['langfuse.observation.metadata.retained_files_count'],11)
+        self.assertNotIn('private-canary',str(attrs))
+
+    def test_known_candidate_recovery_is_a_warning_and_never_masks_a_failed_gate(self):
+        diagnostic={'failure_code':'AGENT_TIMEOUT','candidate_recovered':True}
+        attrs=telemetry.build_attributes('b'*32,'001','a'*32,gate_status='passed',diagnostics=diagnostic)
+        self.assertEqual(attrs['langfuse.observation.level'],'WARNING')
+        self.assertEqual(attrs['langfuse.observation.status_message'],'AUTHOR_LIMIT_CANDIDATE')
+        failed=telemetry.build_attributes('b'*32,'001','a'*32,gate_status='failed',diagnostics=diagnostic)
+        self.assertEqual(failed['langfuse.observation.level'],'ERROR')
+
 
 class EmitTests(unittest.TestCase):
     def test_disabled_emitter_does_not_load_the_sdk(self):
@@ -72,7 +105,7 @@ class EmitTests(unittest.TestCase):
             evidence = telemetry.FactoryTelemetry(endpoint="http://collector.invalid/v1/traces").emit(
                 build_id="b" * 32, feature_id="013", attempt_id="a" * 32,
                 artifact_digest="d" * 64, base_sha="f" * 40,
-                gate_status="passed", publisher_decision="published",
+                gate_status="builder_error", duration_ms=1234, diagnostics={'failure_code':'CLI_STARTUP_FAILED'},
             )
         self.assertEqual(evidence["status"], "exported_unconfirmed")
         self.assertEqual(evidence["confirmation"], "not_read_back")
@@ -84,6 +117,9 @@ class EmitTests(unittest.TestCase):
         self.assertEqual(span.attributes["aeion.feature.id"], "013")
         self.assertEqual(span.attributes["aeion.artifact.digest"], "d" * 64)
         self.assertEqual(format(span.context.trace_id, "032x"), evidence["trace_id"])
+        self.assertEqual(span.end_time-span.start_time,1234*1000000)
+        self.assertEqual(span.status.status_code.name,'ERROR')
+        self.assertEqual(span.status.description,'CLI_STARTUP_FAILED')
 
     def _emit_with(self, exporter_class):
         try:

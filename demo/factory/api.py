@@ -20,6 +20,7 @@ from .observer import Observer
 from .store import Store, StoreError
 from .sse import SseHub
 from .dispatch import DispatchWorker
+from .freeze import AUTHOR_TIMEOUT_SECONDS
 from .gateway import Gateway, SessionError
 from .releases import ReleaseError, ReleaseService
 
@@ -70,6 +71,7 @@ class FactoryApp:
                                      startup_hold=self.execution_hold)
         self.worker.progress = lambda build_id, phase: self.hub.publish(
             'build_progress', {'build_id': build_id, 'phase': phase})
+        self.worker.admission_check = lambda: self._execution_blocker() is None
         if self.execution.get('publication'):
             from .publication import PublicationCoordinator
             self.worker.publication = PublicationCoordinator(self.store)
@@ -91,6 +93,8 @@ class FactoryApp:
         worker_config = dict(config if config is not None else S2_CONFIG)
         if self.execution_mode == 'live' and getattr(self.execution.get('builder'),'paid',False):
             worker_config.update(mode='live',profile='flue-pi')
+            if config is None:
+                worker_config['deadline_ns'] = AUTHOR_TIMEOUT_SECONDS * 1_000_000_000
         if self.execution.get("cost_reservation_usd") is not None:
             worker_config["cost_reservation_usd"] = self.execution["cost_reservation_usd"]
         return worker_config
@@ -149,6 +153,15 @@ class FactoryApp:
             raise ApiError(403, "csrf_denied")
 
     # ------------------------------------------------------------- endpoints
+    def _execution_blocker(self):
+        check=self.execution.get('admission_check')
+        if check is not None:
+            try:qualified=callable(check) and check() is True
+            except Exception:qualified=False
+            if not qualified:return 'flue_factory_unqualified'
+            if self.execution_hold=='flue_factory_unqualified':return None
+        return self.execution_hold
+
     def login(self, host, origin, body):
         if not host_origin_ok(host, origin):
             raise ApiError(403, "origin_denied")
@@ -165,9 +178,10 @@ class FactoryApp:
 
     def catalog_view(self, session):
         target = self.execution.get('target')
+        blocker=self._execution_blocker()
         availability = self.store.feature_availability(
             self.catalog, target_feature=target.feature_id if target else None,
-            execution_hold=self.execution_hold, target_required=self.execution_mode != 'simulator'
+            execution_hold=blocker, target_required=self.execution_mode != 'simulator'
                 and self.execution.get('preparer') is None,
             target_features=list(self.execution['targets']) if 'targets' in self.execution else None)
         return 200, {
@@ -177,14 +191,14 @@ class FactoryApp:
                          for feature in self.catalog.features],
             "execution": {
                 "mode": self.execution_mode,
-                "hold_reason": self.execution_hold,
+                "hold_reason": blocker,
                 "target_feature": (self.execution.get("target").feature_id
                                    if self.execution.get("target") is not None else None),
                 "target_features": sorted(self.execution.get('targets') or {}),
                 "automatic_preparation": self.execution.get('preparer') is not None,
                 "live_hold_reason": (
-                    (None if self.execution.get("builder") is not None and not self.execution_hold
-                     else (self.execution_hold or "live_builder_unqualified"))
+                    (None if self.execution.get("builder") is not None and not blocker
+                     else (blocker or "live_builder_unqualified"))
                     if self.execution_mode == "live" else "live_builder_unqualified"),
             },
         }, {}
@@ -228,8 +242,9 @@ class FactoryApp:
         if not host_origin_ok(host, origin):
             raise ApiError(403, "origin_denied")
         self._require_csrf(session, csrf)
-        if self.execution_hold:
-            raise ApiError(409, self.execution_hold)
+        blocker=self._execution_blocker()
+        if blocker:
+            raise ApiError(409, blocker)
         ids = body.get("ids") if isinstance(body, dict) else None
         key = body.get("idempotency_key") if isinstance(body, dict) else None
         if (not isinstance(ids, list) or any(not isinstance(fid, str) for fid in ids)
@@ -268,8 +283,12 @@ class FactoryApp:
         return self.hub.replay(since)
 
     def tick(self):
-        """Run one fake-worker step, broadcast the outcome, then propose observations once each."""
-        result = self.worker.run_once()
+        """Recheck freshness without consuming an unstarted queued attempt."""
+        self.worker.startup_hold=self._execution_blocker()
+        # Freshness is temporary and must preserve an unstarted queued attempt.
+        # Other explicit configuration holds retain their durable held receipt.
+        paused = self.worker.startup_hold == 'flue_factory_unqualified'
+        result = None if paused else self.worker.run_once()
         if result is not None:
             self.hub.publish("build_updated", result)
         for proposal in self.observer.propose():

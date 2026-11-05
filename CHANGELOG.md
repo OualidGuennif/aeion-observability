@@ -2,10 +2,26 @@
 
 ## Unreleased
 
-- Refuse Git transport program overrides and explicit remote-helper URLs in the shared
-  Bash guard, including abbreviated options and nested shell commands.
+- Wire separate PostgreSQL unit fixtures, fixed import/restore oracles and frozen React tools.
+  Prepare a maintainer-only CI update without giving workers control of their checker programs.
+  Keep validated, fully accounted stopped candidates subject to external checks and both reviews;
+  allow a bounded30-minute author window and prevent slow trace export from blocking accounting.
 - Adopt Factory2.0.3 while preserving protected team mode. Upgrade Langfuse to pinned4.75.0
   after verified cold backups and preserve bounded effort metadata through the collector.
+- Refuse Git transport program overrides and explicit remote-helper URLs in the shared
+  Bash guard, including abbreviated options and nested shell commands.
+- Separate native factory admission from product delivery; isolate external acceptance from
+  the candidate process, bind dependency publication to frozen bytes, reject nested Git
+  control files and provide frozen acceptance to workers. Align100MD documentation scopes.
+- Bind YAML-prefixed MDs correctly at CLI startup, honor factory request bounds, preserve
+  validated partial exports on failure and recheck live admission without consuming queued work.
+  Separate production packaging from candidate tests and persist routing cohorts with execution bounds.
+- Expose real failure status, cause, duration and bounded usage in Langfuse; retain expanded
+  cockpit evidence and visible implementation stages. Extend source-backed architecture coverage
+  to the actual cockpit/worker/checker/publication runtime and correct obsolete product instructions.
+- Run startup-refusal probes before the main app occupies their loopback port, avoid false
+  disclosure matches on short numbers and preserve the last checker cause after interruption.
+  Refuse changed-source qualification for a stale loaded runtime; isolate old checker outcomes.
 
 - Let Qwen/Haiku launch complete bounded inputs without treating a byte cost estimate as an
   exact context count. Gate continuation on measured API usage including cache; retain budgets,

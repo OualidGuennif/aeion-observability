@@ -91,16 +91,16 @@ Parallel work also requires disjoint declared write scopes and separate worktree
 | 076 | 074 | [Ten-agent dry run](074-ten-agent-dry-run.md) | agents | P3 | M | no | 050, 062, 063, 064, 065, 066, 067, 068, 069, 070, 071, 072, 073, 095, 040 |
 | 077 | 075 | [Corpus item schema](075-corpus-item-schema.md) | corpus | P4 | S | no | 002, 007, 029 |
 | 078 | 076 | [Offline corpus loader](076-offline-corpus-loader.md) | corpus | P4 | M | no | 075, 002, 009 |
-| 079 | 077 | [Two hundred synthetic French items](077-two-hundred-synthetic-french-items.md) | corpus | P4 | M | yes | 075, 052 |
+| 079 | 077 | [Two hundred synthetic French items](077-two-hundred-synthetic-french-items.md) | corpus | P4 | M | no | 075, 052 |
 | 080 | 078 | [Category quotas and mix](078-category-quotas-and-mix.md) | corpus | P4 | S | no | 076 |
 | 081 | 080 | [Corpus citation in posts](080-corpus-citation-in-posts.md) | corpus | P4 | S | no | 021, 075, 029, 020, 007, 076 |
 | 082 | 079 | [Half-seeded thread rule](079-half-seeded-thread-rule.md) | corpus | P4 | M | no | 021, 076, 063, 078, 077, 080 |
 | 083 | 081 | [Refresh from a local drop folder](081-refresh-from-a-local-drop-folder.md) | corpus | P4 | S | no | 076, 009 |
-| 084 | 082 | [Licensing and provenance note](082-licensing-and-provenance-note.md) | corpus | P4 | S | yes | 075 |
+| 084 | 082 | [Licensing and provenance note](082-licensing-and-provenance-note.md) | corpus | P4 | S | no | 075 |
 | 085 | 083 | [Topic interest weighting](083-topic-interest-weighting.md) | corpus | P4 | M | no | 060, 076, 078 |
 | 086 | 084 | [Thread generation from an item](084-thread-generation-from-an-item.md) | corpus | P4 | M | no | 021, 079, 080, 060, 063, 083, 062 |
 | 087 | 085 | [Diversity metrics across threads](085-diversity-metrics-across-threads.md) | corpus | P4 | S | no | 084, 062, 067, 026 |
-| 088 | 086 | [Corpus injection red-team](086-corpus-injection-red-team.md) | corpus | P4 | M | yes | 076, 052, 066 |
+| 088 | 086 | [Corpus injection red-team](086-corpus-injection-red-team.md) | corpus | P4 | M | no | 076, 052, 066 |
 | 089 | 087 | [Deterministic bot avatars](087-deterministic-bot-avatars.md) | forum | P5 | S | no | 059, 060, 014 |
 | 090 | 088 | [Pinned threads and featured slots](088-pinned-threads-and-featured-slots.md) | forum | P5 | S | no | 024, 020, 043 |
 | 091 | 089 | [Weekly digest thread](089-weekly-digest-thread.md) | agents | P5 | M | no | 085, 063, 059 |

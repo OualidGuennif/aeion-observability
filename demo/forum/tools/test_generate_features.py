@@ -76,11 +76,11 @@ class CatalogTests(unittest.TestCase):
                 self.assertTrue(any("write scopes" in e for e in errors))
 
     def test_parallel_feature_cannot_reserve_everything(self):
-        errors = self.validate(lambda s: s[77].update(write_paths=[catalog.PRODUCT_ROOTS[0]]))
+        errors = self.validate(lambda s: s[77].update(parallel=True,write_paths=[catalog.PRODUCT_ROOTS[0]]))
         self.assertTrue(any("whole product" in e for e in errors))
 
     def test_overlapping_parallel_outputs_are_rejected_by_generator(self):
-        errors = self.validate(lambda s: s[82].update(write_paths=s[77]['write_paths']))
+        errors = self.validate(lambda s: (s[77].update(parallel=True),s[82].update(parallel=True,write_paths=s[77]['write_paths'])))
         self.assertTrue(any('overlap' in e for e in errors))
 
     def test_old_framework_requirement_is_rejected(self):
@@ -112,16 +112,11 @@ class CatalogTests(unittest.TestCase):
         errors = self.validate(lambda s: s[83]["required_categories"].append("fourth"))
         self.assertTrue(any("three schema categories" in e for e in errors))
 
-    def test_parallel_features_have_disjoint_output_scopes(self):
-        parallel = [s for s in catalog.SPECS if s["parallel"]]
-        self.assertGreaterEqual(len(parallel), 2)
-        for i, left in enumerate(parallel):
-            for right in parallel[i + 1:]:
-                for a in left["write_paths"]:
-                    for b in right["write_paths"]:
-                        overlap = a == b or (a.endswith("/") and b.startswith(a))
-                        overlap |= b.endswith("/") and a.startswith(b)
-                        self.assertFalse(overlap, (left["id"], right["id"], a, b))
+    def test_shared_product_documentation_requires_serial_feature_builds(self):
+        for spec in catalog.SPECS:
+            self.assertFalse(spec['parallel'])
+            self.assertIn('knowledge/components/agora-product.md',spec['write_paths'])
+            self.assertIn('knowledge/components/factory-architecture.md',spec['write_paths'])
 
     def test_submission_waits_for_mandatory_safety_controls(self):
         specs = {s["id"]: s for s in catalog.SPECS}

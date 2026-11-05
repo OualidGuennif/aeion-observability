@@ -8,6 +8,7 @@ import re
 MAX_FILES = 32
 MAX_FILE_BYTES = 100_000
 MAX_TOTAL_BYTES = 250_000
+GIT_CONTROL_NAMES = {'.git', '.gitignore', '.gitattributes', '.gitmodules'}
 GRADER_PATTERNS = re.compile(
     r'\b(?:'
     r'org\.junit\.jupiter\.api\.extension|'
@@ -70,7 +71,7 @@ def parse_files(answer, scopes, repo=None):
         parts = path.split("/")
         if any(part in (".", "..") for part in parts):
             raise BuilderError("builder_path_escape")
-        if any(part.lower() == ".git" for part in parts):
+        if any(part.lower() in GIT_CONTROL_NAMES for part in parts):
             raise BuilderError("builder_path_forbidden")
         normalized = str(PurePosixPath(path))
         if normalized.startswith("../") or normalized == ".." or normalized.startswith("./"):

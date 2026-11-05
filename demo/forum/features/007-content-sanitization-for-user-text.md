@@ -7,7 +7,7 @@ size: M
 parallel: false
 phase: P0
 tier: 3
-write_paths: ["demo/forum-app/"]
+write_paths: ["demo/forum-app/", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [001]
 owner: builder
 status: proposed
@@ -54,7 +54,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 Retain normalized plain Markdown and sanitizer-produced HTML, never original transport bytes. HTML is escaped by the renderer. The same normalized representation is used by rules and rendering.
 
 This invariant and the acceptance cases belong to planned protected check `agora-007`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

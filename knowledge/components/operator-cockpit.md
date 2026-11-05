@@ -57,6 +57,24 @@ ordering. Sorting a view must not mutate the server catalog or bypass availabili
 (test_cockpit_client). The 100-feature contract now targets the separate Quarkus/PostgreSQL/
 React web product; regenerated specs do not perform that migration or qualify old targets.
 
+The live controller prepares specifications through a shared product adapter rather than a
+manual target JSON per feature. Native capability admission qualifies Flue/OpenShell, the
+external verifier, PostgreSQL fixtures, Chromium, preparation/publication and routing mechanisms;
+it explicitly does not claim that the product is already built. Every candidate still needs
+its own external acceptance, two independent approvals and confirmed protected main.
+Activity refreshes retain expanded build evidence and keyboard focus. An unchanged list is
+not replaced, so reading evidence does not race the ten-second poll or SSE progress events.
+The exact registered001/002/014 contracts prepare deterministically without model requests or cost;
+changed MD bytes require fresh independent preparation. Missing acceptance format, explicit model
+refusal, budget exhaustion and unknown usage have distinct bounded messages. Private proposal
+artifacts remain outside default telemetry. PostgreSQL/React helpers are not product delivery.
+The transition baseline explains an absent registered migration operator or browser source.
+A stopped author proposal can continue only with validated files, confirmed removal, complete
+bounded cost and current authorization; the independent acceptance and two reviews still decide.
+Build evidence includes the preparer (or registered static kind), negative baseline, memory acknowledgments,
+publisher/CI blocker, confined PR link and confirmed main SHA. The actual user browser still
+requires sign-in after a controller restart; synthetic browser/API verification is distinct.
+
 ## Outputs
 
 Simulation and offline notices explicitly distinguish scripted work from live implementation,
@@ -77,10 +95,10 @@ The root and /factory serve the same cockpit; /lab serves the existing advanced 
 5. Per-build target selection uses the selected feature brief/scopes/check; unknown targets hold before a budget reservation, and unexpected worker errors become visible holds without an automatic paid retry (test_factory_feature_targets).
 6. No launch or release call occurs on page load. The release drill is loaded only when its advanced panel opens (browser fixture acceptance).
 7. Authentication, CSRF and loopback binding remain required. No credential is stored in browser persistent storage.
-8. Claim, completion, cancellation, hold and recovery preconditions are serialized across Store instances. The worker lease covers the admitted check deadline, one 180-second author timeout, two 60-second review timeouts and teardown. Expired attempts hold as reconciliation_needed, preserve attempt identity, and never automatically repeat an uncertain paid action (test_factory_recovery).
+8. Claim, completion, cancellation, hold and recovery preconditions are serialized across Store instances. The worker lease covers configured preparation, author, protected-check and two-review deadlines plus teardown. Expired attempts hold as reconciliation_needed, preserve attempt identity, and never automatically repeat an uncertain paid action (test_factory_recovery).
 9. Compiler failures expose bounded filenames, line numbers and identifiers, never source lines,
    values or complete compiler output (test_factory_target_check and test_cockpit_client).
-10. Independent review receives all changed files within a 24000-character envelope; larger
+10. Independent review receives all changed files within the bounded complete-review envelope; larger
     input still holds before any vote and no excerpt can approve an artifact (test_factory_modelfarm).
 11. Optional target context names at most eight public main Java files. Only regular blobs
     from the exact pinned commit are read, never working-tree changes, symlinks, configuration
@@ -116,10 +134,5 @@ Run demo/tests/test_cockpit_admission.py, the existing demo suite, knowledge-che
 
 ## Out of scope
 
-Automatic integration/deployment, implementing all catalog contracts, provider evaluations, deleting history, changing model permissions and redesigning the forum user application. Only features with validated product targets are enabled; 013 remains a historical regression target. Feature 017 is implemented, locally deployed and locked. Feature 007 is a new launchable target, not an implemented baseline; the other catalog contracts remain separate work.
-
-The live controller prepares supported Java specifications through one shared adapter rather
-than a manual target JSON per feature. PostgreSQL/web adapter holds identify factory work
-explicitly. Build evidence includes the preparer, negative baseline, memory acknowledgments,
-publisher/CI blocker, confined PR link and confirmed main SHA. The actual user browser still
-requires sign-in after a controller restart; synthetic browser/API verification is distinct.
+History deletion, permission expansion and unrelated provider evaluations remain outside
+this delivery. Product business code belongs to dispatched product workers, not Observer mirrors.

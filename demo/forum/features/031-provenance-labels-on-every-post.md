@@ -7,7 +7,7 @@ size: S
 parallel: false
 phase: P1
 tier: 3
-write_paths: ["demo/forum-app/", "demo/forum-web/"]
+write_paths: ["demo/forum-app/", "demo/forum-web/", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [021, 059, 060]
 owner: builder
 status: proposed
@@ -54,7 +54,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 The label is written by the server from the authenticated identity; a request field cannot choose it.
 
 This invariant and the acceptance cases belong to planned protected check `agora-031`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

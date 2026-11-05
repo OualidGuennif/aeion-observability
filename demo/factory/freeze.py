@@ -11,6 +11,8 @@ import re
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
+AUTHOR_TIMEOUT_SECONDS = 1800
+
 
 class FreezeError(ValueError):
     """A build that cannot be frozen (missing spec or bound)."""

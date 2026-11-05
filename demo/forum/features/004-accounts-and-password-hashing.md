@@ -7,7 +7,7 @@ size: M
 parallel: false
 phase: P0
 tier: 3
-write_paths: ["demo/forum-app/"]
+write_paths: ["demo/forum-app/", "knowledge/components/agora-product.md", "knowledge/components/factory-architecture.md"]
 depends_on: [002]
 owner: builder
 status: proposed
@@ -55,7 +55,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 Pin the chosen Argon2id package and explicit parameters in the product dependency lock and tests; changes require owner review. Never log or export password hashes.
 
 This invariant and the acceptance cases belong to planned protected check `agora-004`.
-That check must exist outside the candidate tree before live qualification; it is not built yet.
+The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.
 
 ## Determinism
 

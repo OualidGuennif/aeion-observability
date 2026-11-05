@@ -7,7 +7,10 @@ the receipt records the attempt, and the Langfuse read-back proves delivery.
 """
 import json
 import os
+import re
 import time
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -39,15 +42,23 @@ def confirm_trace(trace_id, timeout=8):
     if not auth:
         return {"confirmed": False, "reason": "langfuse_auth_unavailable"}
     base = os.environ.get("LANGFUSE_URL", DEFAULT_LANGFUSE).rstrip("/")
-    query = urllib.parse.urlencode({"traceId": trace_id, "fields": "basic,metadata", "limit": 50})
+    if not isinstance(trace_id,str) or not re.fullmatch('[a-f0-9]{32}',trace_id):
+        return {"confirmed":False,"reason":"trace_identity_invalid"}
+    now=datetime.now(timezone.utc)
+    filters=[{'type':'string','column':'traceId','operator':'=','value':trace_id}]
+    query = urllib.parse.urlencode({"filter":json.dumps(filters),
+        "fromStartTime":(now-timedelta(days=1)).isoformat(),"toStartTime":(now+timedelta(minutes=1)).isoformat(),
+        "fields": "basic,metadata", "limit": 50})
     request = urllib.request.Request(base + "/api/public/v2/observations?" + query,
                                      headers={"Authorization": "Basic " + auth})
     deadline = time.monotonic() + timeout
     reason = "trace_not_found"
     while True:
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
-                data = json.load(response).get("data")
+            with urllib.request.urlopen(request, timeout=max(.1,deadline-time.monotonic())) as response:
+                raw=response.read(1048577)
+                if len(raw)>1048576:raise ValueError('readback_too_large')
+                data = json.loads(raw).get("data")
         except Exception as exc:  # noqa: BLE001 - readback failure is evidence, not a crash
             data, reason = None, type(exc).__name__
         rows = data if isinstance(data, list) else []
@@ -70,7 +81,7 @@ def _load_otel():
 
 def build_attributes(build_id, feature_id, attempt_id, artifact_digest=None, base_sha=None,
                      gate_status=None, publisher_decision=None, synthetic=True,
-                     duration_ms=None):
+                     duration_ms=None, diagnostics=None):
     """The complete, allowlisted attribute set for one build span."""
     attributes = {
         "aeion.build.id": build_id,
@@ -93,7 +104,45 @@ def build_attributes(build_id, feature_id, attempt_id, artifact_digest=None, bas
     if publisher_decision:
         attributes["aeion.build.publisher"] = publisher_decision
     if duration_ms is not None:
-        attributes["aeion.build.duration_ms"] = int(duration_ms)
+        attributes["aeion.build.duration_ms"] = max(0,min(86400000,int(duration_ms)))
+    diagnostic=diagnostics if isinstance(diagnostics,dict) else {}
+    for key,pattern in {'failure_code':r'[A-Z][A-Z0-9_]{1,63}',
+            'error_type':r'[A-Za-z][A-Za-z0-9]{1,63}',
+            'run_id':r'[a-f0-9]{32}','execution_trace_id':r'[a-f0-9]{32}'}.items():
+        value=diagnostic.get(key)
+        if isinstance(value,str) and re.fullmatch(pattern,value):
+            attributes['langfuse.observation.metadata.'+key]=value
+    for key,options in {'phase':{'preparing','building','checking','reviewing','publishing','startup'},
+            'role':{'prepare','author','review'},'runtime':{'flue-openshell','flue-local','flue-just-bash'}}.items():
+        if isinstance(diagnostic.get(key),str) and diagnostic[key] in options:
+            attributes['langfuse.observation.metadata.'+key]=diagnostic[key]
+    for key,low,high in (('process_exit_code',-255,255),('cli_steps',0,10000),('forwarded_count',0,10000)):
+        value=diagnostic.get(key)
+        if type(value) is int and low<=value<=high:attributes['langfuse.observation.metadata.'+key]=value
+    check=diagnostic.get('check')
+    if isinstance(check,dict):
+        if isinstance(check.get('status'),str) and check['status'] in {'passed','failed','held','not_run'}:
+            attributes['langfuse.observation.metadata.check_status']=check['status']
+        if isinstance(check.get('reason'),str) and re.fullmatch('[a-z][a-z0-9_]{1,95}',check['reason']):
+            attributes['langfuse.observation.metadata.check_reason']=check['reason']
+    retained=diagnostic.get('retained_files_count')
+    if type(retained) is int and 0<=retained<=32:
+        attributes['langfuse.observation.metadata.retained_files_count']=retained
+    measured=diagnostic.get('usage')
+    if isinstance(measured,dict) and type(measured.get('complete')) is bool:
+        attributes['langfuse.observation.metadata.usage_complete']=measured['complete']
+        try:cost=Decimal(str(measured.get('cost_usd')))
+        except InvalidOperation:cost=Decimal('NaN')
+        if measured['complete'] and cost.is_finite() and 0<=cost<=1000:
+            attributes['langfuse.observation.metadata.measured_cost_usd']=str(cost)
+    code=attributes.get('langfuse.observation.metadata.failure_code')
+    recovered=diagnostic.get('candidate_recovered') is True
+    if recovered:attributes['langfuse.observation.metadata.candidate_recovered']=True
+    failed=(bool(code) and not recovered) or gate_status in ('failed','builder_error','rejected')
+    attributes['langfuse.observation.level']='ERROR' if failed else 'WARNING' if recovered else 'DEFAULT' if gate_status=='passed' else 'WARNING'
+    if failed:
+        attributes['langfuse.observation.status_message']=code or 'PROTECTED_CHECK_FAILED'
+    elif recovered:attributes['langfuse.observation.status_message']='AUTHOR_LIMIT_CANDIDATE'
     return attributes
 
 
@@ -134,7 +183,7 @@ class FactoryTelemetry:
         self.readback = bool(readback)
 
     def emit(self, *, build_id, feature_id, attempt_id, artifact_digest=None, base_sha=None,
-             gate_status=None, publisher_decision=None, synthetic=True, duration_ms=None):
+             gate_status=None, publisher_decision=None, synthetic=True, duration_ms=None, diagnostics=None):
         if not self.enabled:
             return {"status": "disabled"}
         try:
@@ -145,7 +194,7 @@ class FactoryTelemetry:
             build_id, feature_id, attempt_id, artifact_digest=artifact_digest,
             base_sha=base_sha, gate_status=gate_status,
             publisher_decision=publisher_decision, synthetic=synthetic,
-            duration_ms=duration_ms,
+            duration_ms=duration_ms, diagnostics=diagnostics,
         )
         provider = TracerProvider(
             resource=Resource.create({"service.name": self.service_name}))
@@ -153,9 +202,12 @@ class FactoryTelemetry:
             OTLPSpanExporter(endpoint=self.endpoint, timeout=5))
         provider.add_span_processor(SimpleSpanProcessor(recorder))
         tracer = provider.get_tracer("aeion.factory", "1")
-        started = time.time_ns()
+        ended = time.time_ns()
+        started = ended - attributes.get('aeion.build.duration_ms',0)*1000000
         span = tracer.start_span(SPAN_NAME, attributes=attributes, start_time=started)
-        span.end(end_time=time.time_ns())
+        if attributes.get('langfuse.observation.level')=='ERROR':
+            span.set_status(trace.Status(trace.StatusCode.ERROR,attributes['langfuse.observation.status_message']))
+        span.end(end_time=ended)
         try:
             provider.force_flush()
         finally:

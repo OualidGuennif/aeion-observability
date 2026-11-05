@@ -17,7 +17,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [],
       "file": "001-app-skeleton-and-settings.md",
@@ -35,7 +37,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "001"
@@ -55,7 +59,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "002"
@@ -74,7 +80,9 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum-app/"
+        "demo/forum-app/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "002"
@@ -94,7 +102,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "004"
@@ -114,7 +124,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "005"
@@ -133,7 +145,9 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum-app/"
+        "demo/forum-app/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "001"
@@ -153,7 +167,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "002",
@@ -174,7 +190,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "002"
@@ -194,7 +212,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "001",
@@ -215,7 +235,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "001"
@@ -235,7 +257,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "001",
@@ -258,7 +282,9 @@
       "write_paths": [
         "demo/forum-app/",
         "demo/forum-web/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "001"
@@ -279,7 +305,9 @@
       "write_paths": [
         "demo/forum-app/",
         "demo/forum-web/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "001"
@@ -299,7 +327,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "002"
@@ -319,7 +349,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "001",
@@ -339,7 +371,9 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum-app/"
+        "demo/forum-app/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "001"
@@ -358,7 +392,9 @@
       "phase": "P0",
       "tier": 3,
       "write_paths": [
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "014",
@@ -381,7 +417,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "002",
@@ -407,7 +445,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "019",
@@ -429,7 +469,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "007",
@@ -452,7 +494,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -472,7 +516,9 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum-app/"
+        "demo/forum-app/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -498,7 +544,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "023",
@@ -519,7 +567,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -541,7 +591,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -564,7 +616,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -585,7 +639,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "022",
@@ -606,7 +662,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -628,7 +686,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -650,7 +710,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -671,7 +733,9 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum-app/"
+        "demo/forum-app/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -692,7 +756,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "024",
@@ -713,7 +779,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -736,7 +804,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "022",
@@ -760,7 +830,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "019",
@@ -782,7 +854,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -804,7 +878,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "028",
@@ -826,7 +902,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "019",
@@ -850,7 +928,9 @@
       "write_paths": [
         "demo/forum-app/",
         "demo/forum-web/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "039",
@@ -880,7 +960,9 @@
       "write_paths": [
         "demo/forum-app/",
         "demo/forum-web/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "002",
@@ -901,7 +983,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "007",
@@ -923,7 +1007,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "004",
@@ -944,7 +1030,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -968,7 +1056,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "044",
@@ -990,7 +1080,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "042",
@@ -1014,7 +1106,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "046",
@@ -1036,7 +1130,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "043",
@@ -1057,7 +1153,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "048",
@@ -1079,7 +1177,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "046",
@@ -1103,7 +1203,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "046",
@@ -1127,7 +1229,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -1149,7 +1253,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "009",
@@ -1173,7 +1279,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "046"
@@ -1193,7 +1301,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "042"
@@ -1213,7 +1323,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "046",
@@ -1235,7 +1347,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "041",
@@ -1257,7 +1371,9 @@
       "write_paths": [
         "demo/forum-app/",
         "demo/forum-web/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "053",
@@ -1277,7 +1393,9 @@
       "phase": "P1",
       "tier": 3,
       "write_paths": [
-        "demo/forum-app/"
+        "demo/forum-app/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "004",
@@ -1299,7 +1417,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "059"
@@ -1318,7 +1438,9 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum-app/"
+        "demo/forum-app/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "059",
@@ -1341,7 +1463,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "061",
@@ -1363,7 +1487,9 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum-app/"
+        "demo/forum-app/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "007",
@@ -1407,7 +1533,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "024",
@@ -1427,7 +1555,9 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum-app/"
+        "demo/forum-app/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "022",
@@ -1451,7 +1581,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "059",
@@ -1473,7 +1605,9 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum-app/"
+        "demo/forum-app/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "032",
@@ -1494,7 +1628,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "059",
@@ -1516,7 +1652,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "059",
@@ -1537,7 +1675,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "069",
@@ -1560,7 +1700,9 @@
       "write_paths": [
         "demo/forum-app/",
         "demo/forum-web/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "059",
@@ -1581,7 +1723,9 @@
       "phase": "P3",
       "tier": 3,
       "write_paths": [
-        "demo/forum-app/"
+        "demo/forum-app/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "031",
@@ -1604,7 +1748,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "009",
@@ -1627,7 +1773,9 @@
       "write_paths": [
         "demo/forum-app/",
         "demo/forum-web/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "050",
@@ -1660,7 +1808,9 @@
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum-app/"
+        "demo/forum-app/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "002",
@@ -1687,7 +1837,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "075",
@@ -1704,12 +1856,14 @@
       "title": "Two hundred synthetic French items",
       "area": "corpus",
       "size": "M",
-      "parallel": true,
+      "parallel": false,
       "phase": "P4",
       "tier": 3,
       "write_paths": [
         "demo/forum-app/src/main/resources/corpus/items/",
-        "demo/forum-docs/corpus-style.md"
+        "demo/forum-docs/corpus-style.md",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "075",
@@ -1730,7 +1884,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "076"
@@ -1750,7 +1906,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -1775,7 +1933,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -1800,7 +1960,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "076",
@@ -1816,11 +1978,13 @@
       "title": "Licensing and provenance note",
       "area": "corpus",
       "size": "S",
-      "parallel": true,
+      "parallel": false,
       "phase": "P4",
       "tier": 3,
       "write_paths": [
-        "demo/forum-docs/corpus-license.md"
+        "demo/forum-docs/corpus-license.md",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "075"
@@ -1840,7 +2004,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "060",
@@ -1867,7 +2033,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -1894,7 +2062,9 @@
       "write_paths": [
         "demo/forum-app/",
         "demo/forum-web/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "084",
@@ -1912,12 +2082,14 @@
       "title": "Corpus injection red-team",
       "area": "corpus",
       "size": "M",
-      "parallel": true,
+      "parallel": false,
       "phase": "P4",
       "tier": 3,
       "write_paths": [
         "demo/forum-app/src/test/resources/corpus_injection/",
-        "demo/forum-app/src/test/java/local/aeion/forum/CorpusInjectionTest.java"
+        "demo/forum-app/src/test/java/local/aeion/forum/CorpusInjectionTest.java",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "076",
@@ -1938,7 +2110,9 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "059",
@@ -1960,7 +2134,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "024",
@@ -1982,7 +2158,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "085",
@@ -2004,7 +2182,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "022",
@@ -2027,7 +2207,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "021",
@@ -2051,7 +2233,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "030",
@@ -2074,7 +2258,9 @@
       "write_paths": [
         "demo/forum-app/",
         "demo/forum-web/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "085",
@@ -2095,7 +2281,9 @@
       "phase": "P5",
       "tier": 3,
       "write_paths": [
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "014"
@@ -2115,7 +2303,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "061",
@@ -2138,7 +2328,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-web/"
+        "demo/forum-web/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "046",
@@ -2160,7 +2352,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-app/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "035",
@@ -2184,7 +2378,9 @@
       "write_paths": [
         "demo/forum-app/",
         "demo/forum-web/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "034",
@@ -2207,7 +2403,9 @@
       "tier": 3,
       "write_paths": [
         "demo/forum-web/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "018",
@@ -2241,7 +2439,9 @@
       "write_paths": [
         "demo/forum-app/",
         "demo/forum-web/",
-        "demo/forum-docs/"
+        "demo/forum-docs/",
+        "knowledge/components/agora-product.md",
+        "knowledge/components/factory-architecture.md"
       ],
       "depends_on": [
         "041",
