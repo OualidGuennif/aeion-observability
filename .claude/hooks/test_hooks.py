@@ -171,6 +171,15 @@ for command in ["git -c core.pager=cat log -1", "git -c core.editor=true rebase 
                 "git -c user.name=t -c user.email=t@example.invalid commit -m x", "git config user.name x"]:
     expect(f"bash allow git config: {command}", run_hook("guard-bash.py", {"command": command}), 0)
 
+# Transport options run a program even without git config or a global -c flag.
+for command in ["git fetch --upload-pack='sh -c x' origin", "git push --receive-pack=./x origin task/x",
+                "git fetch --upload=./x origin", "git push --exec=./x origin task/x",
+                "git fetch 'ext::sh -c x'", "git push 'ext::sh -c x' task/x",
+                "git fetch -- 'ext::sh -c x'", "git ls-remote 'ext::sh -c x'",
+                "bash -c 'git fetch --upload-pack=./x origin'"]:
+    expect(f"bash deny git transport program: {command}", run_hook("guard-bash.py", {"command": command}), 2,
+           stderr_has="names a program")
+
 # guard-path: secrets refused, templates allowed.
 for path in ["/repo/.env", "/repo/env.local", "/x/server.pem", "/h/auth.json", "/h/.netrc", "/h/.ssh/id_ecdsa",
              "/x/client.p12", "/repo/.envrc", "/h/.npmrc",

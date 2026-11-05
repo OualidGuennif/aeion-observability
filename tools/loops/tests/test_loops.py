@@ -17,7 +17,7 @@ READ_ONLY=("Read,Grep,Glob,Write(.aeion/loop-bodies/**),Bash(git log -5 --onelin
            "Bash(tools/knowledge/knowledge-check),Bash(tools/knowledge/doc-links),"
            "Bash(tools/knowledge/doc-links --for *),Bash(tools/repo-health/repo-health),"
            "Bash(gh issue list *),Bash(gh issue view *),Bash(gh issue create *),Bash(gh issue comment *)")
-# The git subcommands a writing job runs: none of them reads a config key or option that runs a program.
+# The writing-job subcommands; the shared Bash guard also checks program-valued transport options.
 GIT_WORK=("Bash(git status *),Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git fetch *),"
           "Bash(git switch *),Bash(git checkout *),Bash(git add *),Bash(git commit *),Bash(git push *),"
           "Bash(git branch *),Bash(git rev-parse *)")

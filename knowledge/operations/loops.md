@@ -66,6 +66,9 @@ Every job exports `AEION_LOOP=<job>`, so the path guard keeps its file tools ins
 (`inner`, `watch`, `retro`) get the git subcommands their prompts use (`status`, `diff`, `log`,
 `show`, `fetch`, `switch`, `checkout`, `add`, `commit`, `push`, `branch`, `rev-parse`), never
 `git *`: `git config` and `git -c` could set a key that runs a program on every later git command.
+Subcommands alone are not a security boundary: the shared Bash guard also refuses explicit
+remote-helper URLs (`<helper>::...`) and transport program overrides (`--upload-pack`,
+`--receive-pack`, `--exec`, including abbreviated options). Ordinary HTTPS/SSH remotes remain usable.
 The retro writes `knowledge/`, hookify rules (`.claude/hookify.*.local.md`) and `.claude/skills/`,
 never the hooks or settings that guard every session; it opens its pull request with `gh pr
 create` and reads review comments through `gh pr list`/`view`, without `gh api`.

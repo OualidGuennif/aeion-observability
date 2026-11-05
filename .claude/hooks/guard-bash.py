@@ -538,6 +538,21 @@ def git_bypass(command):
                     flag.startswith("--config-env") or setting not in SAFE_PROGRAM):
                 return PROGRAM_REASON.format(key)
         sub, args = (rest[0], rest[1:]) if rest else (None, [])
+        if sub in {"fetch", "push", "pull", "clone", "ls-remote"}:
+            # Subcommand allowlisting alone does not exclude Git's program hooks.
+            # Check remote-helper URLs even after --, which only ends option parsing.
+            for arg in args:
+                if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*::", arg):
+                    return PROGRAM_REASON.format("a remote-helper URL")
+            options = {"push": ("--receive-pack", "--exec")}.get(sub, ("--upload-pack",))
+            for arg in args:
+                if arg == "--":
+                    break
+                name = arg.partition("=")[0]
+                if (name.startswith("--") and len(name) >= 4
+                        and any(option.startswith(name) for option in options)) or (
+                        sub == "clone" and arg.startswith("-u")):
+                    return PROGRAM_REASON.format("a Git transport option")
         if sub == "config":
             positional = [a for a in args if not a.startswith("-")]
             keys = [i for i, a in enumerate(positional) if a.lower() == "core.hookspath"]

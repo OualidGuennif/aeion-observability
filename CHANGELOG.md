@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Refuse Git transport program overrides and explicit remote-helper URLs in the shared
+  Bash guard, including abbreviated options and nested shell commands.
 - Adopt Factory2.0.3 while preserving protected team mode. Upgrade Langfuse to pinned4.75.0
   after verified cold backups and preserve bounded effort metadata through the collector.
 

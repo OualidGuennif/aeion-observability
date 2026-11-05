@@ -98,7 +98,9 @@ Requirements for a change, not claims about what production already satisfies.
   `merge.*.driver`, `gpg.program`, `sequence.editor`, `pager.*`, `include.path`,
   `includeIf.*.path`, `remote.*.uploadpack/receivepack` and `protocol.*.allow`. Reading or unsetting
   one stays allowed, and so do the values `cat`, `true`, `false`, `:` and `less`
-  (`git -c core.pager=cat log`). The readers use `git config --local`, so an
+  (`git -c core.pager=cat log`). Git transport commands also refuse explicit helper URLs
+  (`<helper>::...`) and program overrides (`--upload-pack`, `--receive-pack`, `--exec`,
+  their abbreviated options, and clone's `-u`). The readers use `git config --local`, so an
   `include.path` or the global config cannot switch the mode. Writing the git config file
   (`.git/config`, `config.worktree`) directly is refused: a shell redirection to it (`>`, `>>`,
   `>|`, `>!`, `>&`), any program but a reader (`cat`, `grep`, `git`, `diff`, `echo`, ...) naming

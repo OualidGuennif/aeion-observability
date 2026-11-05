@@ -31,7 +31,7 @@ setting() {
 
 # Each job: prompt file, criticality (low|normal|high), tool allowlist, permission mode.
 READ_ONLY="Read,Grep,Glob,Write(.aeion/loop-bodies/**),Bash(git log -5 --oneline),Bash(git diff --stat),Bash(git diff --check),Bash(git status --short),Bash(tools/knowledge/knowledge-check),Bash(tools/knowledge/doc-links),Bash(tools/knowledge/doc-links --for *),Bash(tools/repo-health/repo-health),Bash(gh issue list *),Bash(gh issue view *),Bash(gh issue create *),Bash(gh issue comment *)"
-# The git subcommands a writing job runs; git config, -c and the other ways to name a program stay out.
+# Narrow subcommands plus the shared Bash guard: it also refuses transport program overrides.
 GIT_WORK="Bash(git status *),Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git fetch *),Bash(git switch *),Bash(git checkout *),Bash(git add *),Bash(git commit *),Bash(git push *),Bash(git branch *),Bash(git rev-parse *)"
 case "$JOB" in
     inner)    PROMPT="inner.md";    CRIT="normal"; MODE="acceptEdits"

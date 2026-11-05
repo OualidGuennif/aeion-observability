@@ -13,6 +13,13 @@ The owner completed the owner-only mode migration; actual local Git configuratio
 Verification: 28/28 connectors, 57 hooks and the complete upstream Factory suite pass. Evidence:
 `/private/tmp/aeion-factory203-tests-02gu3sdh`. No sibling source checkout was modified.
 
+Independent GLM/Qwen reviews retained their original verdicts and costs. Qwen's contextual
+follow-up identified Git transport program overrides in the writing-job allowlist. Nine
+regression cases passed the guard before correction; all are now refused, including helper
+URLs after `--`, abbreviated transport options and nested shells. The complete hook suite
+passes728 checks; all17 loop tests pass. This hardens the shared guard, without claiming the
+allowlist is a universal shell sandbox. A fresh exact-head review is required before push.
+
 ## Langfuse
 
 Official latest stable release checked on November 4: [4.75.0](https://github.com/langfuse/langfuse/releases/tag/v4.75.0).
