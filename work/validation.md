@@ -1,3 +1,8 @@
+## Dark mode and lab showcase — 2026-11-05
+
+- Theme tokens moved to `demo/app/theme.css`; factory.css and style.css carry no hex colour. `/lab` rebuilt (idea, architecture SVG, 12 stack cards with live status where probed, circuit, playground, memory room). Memory helpers live in server.py: `memory.py` is protocol-hashed and an earlier edit to it revoked build 3bb1d4cd (ATTEMPT_REVOKED, 0.09355716 USD); restored, `ready()` True.
+- Checks: node --check app.js/theme.js; cockpit JS 25 PASS; demo 745 OK (15 skipped); knowledge-check and doc-links PASS. Browser: lab and cockpit in dark at desktop, lab in light at 375 px (no horizontal scroll), checkpoint read-back matched the artifact, Hindsight recall returned 3 memories, no console errors. `?q=%01` returns 400. Owner visual yes pending.
+
 ## Draft self-test label — 2026-11-05
 
 - Owner read "Check failed · explicit_database_less_startup_rejected" during 001 as a final failure. It was the agent's self-test of its draft (registered startup contract: the app must start when explicitly configured without a database). Build evidence now labels it "Agent self-test (draft)" until a gate exists. Cockpit JS 25 PASS.

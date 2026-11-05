@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add a dark mode to the cockpit and the lab: every colour comes from `demo/app/theme.css`
+  (light and dark sets) with an Auto/Light/Dark toggle. Rebuild `/lab` as a showcase for
+  engineers (idea, architecture diagram, each stack piece and how it connects, circuit) that keeps
+  the playground, and make its memory room functional: read back this observer's claude-mem
+  checkpoints with a hash match, and ask Hindsight a bounded question.
 - Label the agent's in-session check as "Agent self-test (draft)" until the protected gate runs,
   so an intermediate draft failure no longer reads as the build's final check.
 - Stop the controller's child processes from crashing on macOS ("Python quit unexpectedly"):

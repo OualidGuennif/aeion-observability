@@ -119,6 +119,42 @@ for path in CAMPAIGNS.glob("*.json"):
         save_campaign(previous)
 
 memory = Memory()
+
+# The lab's memory room reads Hindsight and claude-mem directly here so the protocol-hashed
+# memory module (demo/app/memory.py) stays unchanged.
+DEFAULT_RECALL_QUERY = "Agent execution efficiency: cost tokens duration verified checks human interventions handover"
+
+
+def valid_recall_query(text):
+    """A recall question from the page: short printable text without control characters."""
+    return isinstance(text, str) and len(text) <= 160 and text == text.strip() and all(ch.isprintable() for ch in text)
+
+
+def recall_memories(synthetic, question):
+    from memory import HINDSIGHT_URL, request
+    if not HINDSIGHT_URL:
+        return {"status": "disabled", "results": []}
+    bank = "aeion-demo-synthetic" if synthetic else "aeion-demo-real"
+    query = question or DEFAULT_RECALL_QUERY
+    result = request(HINDSIGHT_URL, f"/v1/default/banks/{bank}/memories/recall",
+                     {"query": query, "budget": "low", "max_tokens": 1200}, timeout=20)
+    # Recalled content is display-only advisory data; never merged into a policy/config.
+    return {"status": "ok", "bank": bank, "query": query, "results": [
+        {"id": str(item.get("id", "")), "text": str(item.get("text", ""))[:5000]}
+        for item in result.get("results", [])[:8]]}
+
+
+def read_checkpoint(observation_id):
+    """Read one working checkpoint back from claude-mem; only its metadata fields leave."""
+    from memory import CLAUDE_MEM_URL, request
+    if not CLAUDE_MEM_URL:
+        return {"status": "disabled"}
+    stored = request(CLAUDE_MEM_URL, "/api/observation/" + str(int(observation_id)), timeout=3)
+    state = json.loads(stored["narrative"])
+    check = state.get("check") if isinstance(state.get("check"), dict) else {}
+    return {"status": "ok", "id": int(observation_id),
+            **{key: state.get(key) for key in ("task", "previous_agent", "artifact", "sha256")},
+            "check": {key: check.get(key) for key in ("passed", "total") if key in check}}
 # One journal, two independent $15.00 purses: the cockpit and the forum workers never share money.
 BUDGET = DailyBudget(os.environ.get("AEION_BUDGET_LEDGER") or LOCAL / "budget/ledger.jsonl")
 runner = Runner(Telemetry(), save, memory=memory, audit=Audit(DATA), budget=BUDGET,
@@ -215,9 +251,10 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path in {"/assets/agent-atelier.png", "/fonts/Manrope.woff2", "/fonts/CormorantGaramond.woff2"}:
             content_type = "image/png" if self.path.endswith(".png") else "font/woff2"
             self.respond(200, (Path(__file__).parent / self.path[1:]).read_bytes(), content_type)
-        elif self.path in {"/lab", "/lab/", "/app.js", "/style.css"}:
+        elif self.path in {"/lab", "/lab/", "/app.js", "/style.css", "/theme.js", "/theme.css"}:
             name = "index.html" if self.path in {"/lab", "/lab/"} else self.path[1:]
-            content_type = {"index.html": "text/html; charset=utf-8", "app.js": "text/javascript", "style.css": "text/css"}[name]
+            content_type = {"index.html": "text/html; charset=utf-8", "app.js": "text/javascript", "style.css": "text/css",
+                            "theme.js": "text/javascript", "theme.css": "text/css"}[name]
             self.respond(200, (Path(__file__).parent / name).read_text(), content_type)
         elif self.path in {"/", "/factory", "/factory/"}:
             self.respond(200, (Path(__file__).parent / "factory.html").read_text(), "text/html; charset=utf-8")
@@ -260,11 +297,31 @@ class Handler(BaseHTTPRequestHandler):
                                      key=lambda r: r["started_ns"], reverse=True))
         elif self.path == "/api/kpis":
             self.respond(200, summarize([json.loads(p.read_text()) for p in report_paths()]))
-        elif self.path in {"/api/memory", "/api/memory?synthetic=true"}:
+        elif urlparse(self.path).path == "/api/memory":
             try:
-                self.respond(200, memory.recall(synthetic="synthetic=true" in self.path))
+                query = parse_qs(urlparse(self.path).query, max_num_fields=4)
+            except ValueError:
+                query = {"q": ["\0"]}
+            synthetic = query.get("synthetic", ["false"])[0] == "true"
+            question = query.get("q", [""])[0]
+            if not valid_recall_query(question):
+                self.respond(400, {"status": "invalid_query", "results": []})
+                return
+            try:
+                self.respond(200, recall_memories(synthetic, question))
             except Exception:
                 self.respond(503, {"status": "unavailable", "results": []})
+        elif re.fullmatch(r"/api/memory/checkpoint/[0-9]{1,12}", self.path):
+            # Only checkpoints this observer wrote are read back, never other claude-mem data.
+            wanted = int(self.path.rsplit("/", 1)[1])
+            known = {json.loads(p.read_text()).get("claude_mem_id") for p in report_paths()}
+            if wanted not in known:
+                self.respond(404, {"status": "unknown_checkpoint"})
+                return
+            try:
+                self.respond(200, read_checkpoint(wanted))
+            except Exception:
+                self.respond(503, {"status": "unavailable"})
         elif self.path == "/api/factory/releases":
             if not host_origin_ok(self.headers.get("Host", "")):
                 self.respond(403, {"error": "origin_denied"})

@@ -14,7 +14,6 @@ function selected(r) { return r.synthetic === (evidence === 'synthetic') && r.pr
 function syncTasks() { const ids=catalog.runtimes?.[$('runtime').value]?.tasks??[]; if(!ids.length||ids.join()===[...$('scenario').options].map(o=>o.value).join())return; $('scenario').replaceChildren(...ids.map(id=>{const o=el('option',taskInfo(id)?.name??id);o.value=id;return o;})); }
 function setFilter(value) {
   evidence = value;
-  $('recalled').replaceChildren(el('p','Recall analyses from the selected evidence bank.','muted'));
   document.querySelectorAll('[data-filter]').forEach(b => {b.classList.toggle('selected', b.dataset.filter === value); b.setAttribute('aria-pressed', String(b.dataset.filter === value));});
   render();
 }
@@ -42,7 +41,7 @@ function renderFleet(runs) {
 function render() {
   $('task-title').textContent=taskInfo($('scenario').value)?.name??'Cart totals';
   const runs = cachedRuns.filter(selected), rows = cachedRows.filter(selected), latest = runs[0];
-  $('runs').replaceChildren(); $('kpi-cards').replaceChildren(); $('model-rows').replaceChildren(); $('checkpoints').replaceChildren();
+  $('runs').replaceChildren(); $('kpi-cards').replaceChildren(); $('model-rows').replaceChildren();
   const completed = runs.filter(r=>r.ended_ns), successes = completed.filter(r=>r.status==='passed' && !r.human_interventions);
   const costs = runs.reduce((s,r)=>s+Number(r.native_cost_usd),0);
   const costResolved=runs.length>0&&runs.every(r=>r.synthetic||r.usage_complete===true)&&runs.every(r=>r.ended_ns);
@@ -83,10 +82,8 @@ function render() {
     const copy=el('button','Copy trace ID','text-button');copy.onclick=()=>navigator.clipboard?.writeText(run.trace_id ?? '').then(()=>{$('message').textContent='Trace ID copied.';});actions.append(copy);
     if(run.ended_ns && !run.human_interventions) {const assist=el('button','Declare human assistance','text-button');assist.disabled=busy;assist.onclick=async()=>{await post({mode:'intervention',run_id:run.id});};actions.append(assist);}
     const logs=el('a','Correlated logs ↗','text-button');logs.href=`/api/runs/${run.id}/logs`;logs.target='_blank';actions.append(logs);if(run.handover_md_sha256){const md=el('a','HANDOVER.md ↗','text-button');md.href=`/api/runs/${run.id}/handover`;md.target='_blank';actions.append(md);}card.append(actions);if(run.failure)card.append(el('p',run.failure,'fineprint'));$('runs').append(card);
-    if(run.claude_mem_id) {const item=el('div','','memory-item');item.append(el('strong',`Checkpoint #${run.claude_mem_id} · ${run.agents} agent(s)`),el('span',`${run.check?.passed ?? 0}/${checkTotal(run)} checks · saved and retrieved`),el('code',`SHA-256 ${run.artifact_sha256 ?? 'pending'}`));$('checkpoints').append(item);}
   }
   if(!runs.length)$('runs').append(el('p',evidence==='real' ? 'No real runs yet. Start a Go build to collect evidence.' : 'Replay the handover to populate this room.','empty'));
-  if(!$('checkpoints').children.length)$('checkpoints').append(el('p','No checkpoints in this evidence group yet.','muted'));
   for(const row of rows) {
     const tr=el('tr');const model=el('td',label(row.model));model.append(el('small',`${row.synthetic?'Synthetic':'Real Go'} · ${row.profile_version??'unversioned'} · ${pretty(row.limit)} ${row.metric.replaceAll('_',' ')}`));tr.append(model);
     for(const text of [`${row.completed} / ${row.offered}`,`${row.autonomous} / ${row.completed}`,seconds(row.median_ms),`${pretty(row.input_tokens)} / ${pretty(row.output_tokens)}`,money(row.cost_per_autonomous_success_usd)])tr.append(el('td',text));$('model-rows').append(tr);
@@ -98,12 +95,12 @@ function render() {
 function svg(tag,attrs={},text='') {const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [k,v]of Object.entries(attrs))e.setAttribute(k,String(v));e.textContent=text;return e;}
 function chart(rows) {
   const host=$('pareto');host.replaceChildren();const points=rows.filter(r=>r.median_ms!==null&&r.cost_per_autonomous_success_usd!==null);
-  for(let i=0;i<4;i++){const y=35+i*58;host.append(svg('line',{x1:65,x2:570,y1:y,y2:y,stroke:'#d5d7c9','stroke-dasharray':'3 5'}));}
-  host.append(svg('line',{x1:65,x2:570,y1:225,y2:225,stroke:'#aab5a5'}),svg('line',{x1:65,x2:65,y1:25,y2:225,stroke:'#aab5a5'}));
+  for(let i=0;i<4;i++){const y=35+i*58;host.append(svg('line',{x1:65,x2:570,y1:y,y2:y,class:'chart-grid'}));}
+  host.append(svg('line',{x1:65,x2:570,y1:225,y2:225,class:'chart-axis'}),svg('line',{x1:65,x2:65,y1:25,y2:225,class:'chart-axis'}));
   host.append(svg('text',{x:65,y:17},'Estimated model cost / autonomous success ($)'),svg('text',{x:390,y:277},'Median elapsed time (seconds) →'));
   const xmax=Math.max(10,...points.map(r=>r.median_ms/1000))*1.2,ymax=Math.max(.0001,...points.map(r=>Number(r.cost_per_autonomous_success_usd)))*1.3;
   for(let i=0;i<4;i++){const v=i*ymax/3;host.append(svg('text',{x:3,y:228-i*62},v.toFixed(5)));host.append(svg('text',{x:65+i*165,y:247},(i*xmax/3).toFixed(1)));}
-  points.forEach((row,i)=>{const x=65+row.median_ms/1000/xmax*495,y=225-Number(row.cost_per_autonomous_success_usd)/ymax*186;const circle=svg('circle',{cx:x,cy:y,r:12,fill:row.autonomous_rate===1?'#25382e':'#c79270',stroke:'#fffcf5','stroke-width':3,tabindex:0});circle.append(svg('title',{},`${label(row.model)}: ${row.autonomous}/${row.completed} autonomous, ${seconds(row.median_ms)}, ${money(row.cost_per_autonomous_success_usd)}/success`));host.append(circle,svg('text',{x:Math.min(x+16,455),y:y+(i%2?22:-17)},label(row.model)));});
+  points.forEach((row,i)=>{const x=65+row.median_ms/1000/xmax*495,y=225-Number(row.cost_per_autonomous_success_usd)/ymax*186;const circle=svg('circle',{cx:x,cy:y,r:12,class:row.autonomous_rate===1?'point pass':'point',tabindex:0});circle.append(svg('title',{},`${label(row.model)}: ${row.autonomous}/${row.completed} autonomous, ${seconds(row.median_ms)}, ${money(row.cost_per_autonomous_success_usd)}/success`));host.append(circle,svg('text',{x:Math.min(x+16,455),y:y+(i%2?22:-17)},label(row.model)));});
   if(!points.length)host.append(svg('text',{x:185,y:130},'Verified runs make the picture.'));
   $('chart-count').textContent=`${points.length} profile(s) · ${evidence==='real'?'real evidence':'synthetic evidence'}`;
 }
@@ -118,16 +115,61 @@ async function refresh() {
     $('metric').textContent=health.metric==='active_context'?'Active input context · cache included':'Cumulative input per agent';
     const tier=health.ready?.[$('runtime').value];
     $('live').disabled=busy||!tier?.live;$('simulate').disabled=busy||!tier?.simulation;$('tour').disabled=busy||!tier?.simulation;$('benchmark').disabled=busy||!health.live_ready;
+    stackState('controller',true,'Serving this page','');stackState('flue',health.live_ready===true,'Ready to run','Not ready');stackState('sandbox',health.sandbox_ready===true,'Qualified','Unavailable');
     $('sandbox-status').textContent=health.sandbox_ready?'OpenShell qualified · NVIDIA telemetry disabled':'OpenShell unavailable or qualification expired · execution blocked';
     const batch=campaigns[0];$('campaign-status').textContent=batch?`${batch.status} · ${batch.run_ids.length}/${batch.planned} runs · ${money(batch.native_cost_estimate_usd)} native estimate`:'';
-    const next=JSON.stringify([runs,rows,evidence,choices,$('runtime').value,$('scenario').value]);cachedRuns=runs;cachedRows=rows;renderFleet(runs);if(next!==signature){signature=next;render();}
+    const next=JSON.stringify([runs,rows,evidence,choices,$('runtime').value,$('scenario').value]);cachedRuns=runs;cachedRows=rows;renderFleet(runs);renderCheckpoints(runs);if(next!==signature){signature=next;render();}
   } catch {$('message').textContent='Observer temporarily unavailable.';} finally {refreshing=false;}
 }
-async function integrations(){try{const states=await fetch('/api/integrations').then(r=>r.json());let connected=0;document.querySelectorAll('[data-service]').forEach(e=>{const good=states[e.dataset.service]==='connected';e.classList.toggle('connected',good);e.title=good?'Connected':'Unavailable';if(good)connected++;});$('system-dot').classList.toggle('connected',connected===4);$('system-status').textContent=`${connected}/4 tools connected`;}catch{$('system-status').textContent='Checking services';}}
+function stackState(name,good,yes,no){document.querySelectorAll(`[data-stack="${name}"] .stack-state`).forEach(e=>{e.textContent=good?yes:no;e.classList.toggle('ok',good);e.classList.toggle('bad',!good);});}
+const SERVICES=['otel','langfuse','hindsight','claude_mem'];
+async function integrations(){try{const states=await fetch('/api/integrations').then(r=>r.json());document.querySelectorAll('[data-service]').forEach(e=>{const good=states[e.dataset.service]==='connected';e.classList.toggle('connected',good);e.title=good?'Connected':'Unavailable';});const connected=SERVICES.filter(n=>states[n]==='connected').length;for(const n of SERVICES)stackState(n,states[n]==='connected','Connected','Unavailable');$('system-dot').classList.toggle('connected',connected===SERVICES.length);$('system-status').textContent=`${connected}/${SERVICES.length} services connected`;}catch{$('system-status').textContent='Services unknown';for(const n of SERVICES){document.querySelectorAll(`[data-stack="${n}"] .stack-state`).forEach(e=>{e.textContent='Unknown';e.classList.remove('ok','bad');});}}}
 async function post(payload){$('message').textContent='';try{const r=await fetch('/api/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const result=await r.json();if(!r.ok)$('message').textContent=result.error;}catch{$('message').textContent='Unable to submit request.';}await refresh();}
 async function start(mode){setFilter(mode==='simulation'?'synthetic':'real');await post({mode,profile:$('profile').value,task_id:$('scenario').value,objective:$('objective').value,runtime:$('runtime').value});}
-$('benchmark').onclick=()=>post({mode:'benchmark'});$('scenario').onchange=()=>{render();$('recalled').replaceChildren(el('p','Recall analyses for the selected bank.','muted'));};$('objective').onchange=refresh;$('runtime').onchange=()=>{syncTasks();refresh();};
+$('benchmark').onclick=()=>post({mode:'benchmark'});$('scenario').onchange=render;$('objective').onchange=refresh;$('runtime').onchange=()=>{syncTasks();refresh();};
 $('simulate').onclick=()=>start('simulation');$('live').onclick=()=>start('live');$('tour').onclick=async()=>{document.getElementById('sessions').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});await start('simulation');};
 document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>setFilter(b.dataset.filter));
-$('recall').onclick=async()=>{const button=$('recall');button.disabled=true;$('recalled').replaceChildren(el('p','Recalling retained analyses…','muted'));try{const r=await fetch('/api/memory'+(evidence==='synthetic'?'?synthetic=true':''));const result=await r.json();$('recalled').replaceChildren();for(const item of result.results??[]){const e=el('div','','memory-item');let text=item.text;try{const a=JSON.parse(item.text);text=a.schema==='aeion.model-decision.v1'?`Task-specific decisions: ${Object.values(a.recommendations??{}).map(r=>`${r.task_id}: ${label(r.model)} (${r.basis})`).join('; ')}`:`${a.task??'Task'} · ${label(a.model)} · ${a.status} · ${a.input_tokens} input tokens · ${seconds(a.duration_ms)} · ${a.human_interventions} human intervention(s). ${a.assessment}`;}catch{}e.append(el('strong',evidence==='real'?'Recalled real-session evidence':'Recalled synthetic-session evidence'),el('span',text));$('recalled').append(e);}if(!$('recalled').children.length)$('recalled').append(el('p',result.status==='ok'?'No retained analyses in this bank yet.':'Memory backend unavailable.','muted'));}catch{$('recalled').replaceChildren(el('p','Memory backend unavailable.','muted'));}finally{button.disabled=false;}};
+// Memory room: checkpoints this observer wrote, and question-based recall from Hindsight.
+let bank='real',checkpointSignature='';
+function renderCheckpoints(runs){
+  const list=runs.filter(r=>Number.isInteger(r.claude_mem_id)).sort((a,b)=>(b.started_ns??0)-(a.started_ns??0)).slice(0,12);
+  const next=JSON.stringify(list.map(r=>[r.id,r.claude_mem_id,r.artifact_sha256]));if(next===checkpointSignature)return;checkpointSignature=next;
+  const host=$('checkpoints');host.replaceChildren();
+  if(!list.length){host.append(el('p','No checkpoint yet. Replay the 250k handover in the playground to create one.','muted'));return;}
+  for(const run of list){
+    const item=el('div','','memory-item');
+    item.append(el('strong',`Checkpoint #${run.claude_mem_id} · ${taskInfo(run.task_id??'pricing-js-v1')?.name??run.task_id??'Task'}`));
+    item.append(el('span',`${run.synthetic?'Synthetic replay':label(run.model)} · ${run.agents} agent(s) · ${run.check?.passed??'unknown'}/${checkTotal(run)} checks`));
+    item.append(el('code',`Run artifact SHA-256 ${run.artifact_sha256??'unknown'}`));
+    const result=el('div');const button=el('button','Read back from claude-mem ↗','text-button');button.type='button';
+    button.onclick=async()=>{button.disabled=true;result.replaceChildren(el('p','Reading back…'));try{const r=await fetch(`/api/memory/checkpoint/${run.claude_mem_id}`);const c=await r.json();if(!r.ok||c.status!=='ok'){result.replaceChildren(el('p',r.status===404?'This checkpoint is not one this observer wrote.':'claude-mem unavailable: nothing was read back.'));return;}
+      const same=c.sha256&&c.sha256===run.artifact_sha256;const dl=el('dl');for(const [k,v] of [['Task',c.task],['Previous agent',c.previous_agent],['Artifact',c.artifact],['Checks',c.check?.passed!=null?`${c.check.passed}/${c.check.total??'unknown'}`:'unknown'],['SHA-256',c.sha256]]){dl.append(el('dt',k),el('dd',v==null?'unknown':String(v)));}
+      const verdict=el('span',same?'matches the run artifact':'does not match the run artifact','verdict '+(same?'ok':'bad'));const head=el('p','Read back now');head.append(verdict);result.replaceChildren(head,dl);}catch{result.replaceChildren(el('p','claude-mem unavailable: nothing was read back.'));}finally{button.disabled=false;}};
+    item.append(button,result);host.append(item);
+  }
+}
+function setBank(value){bank=value;document.querySelectorAll('[data-bank]').forEach(b=>{b.classList.toggle('selected',b.dataset.bank===value);b.setAttribute('aria-pressed',String(b.dataset.bank===value));});$('recalled').replaceChildren(el('p',`Ask a question to search the ${value==='real'?'real sessions':'synthetic replays'} bank.`,'muted'));$('recall-summary').textContent='';}
+function recalledCard(item){
+  const card=el('div','','memory-item');let a=null;try{a=JSON.parse(item.text);}catch{}
+  if(a&&a.schema==='aeion.model-decision.v1'){card.append(el('strong','Model decision'),el('span',Object.values(a.recommendations??{}).map(r=>`${r.task_id}: ${label(r.model)} (${r.basis})`).join(' · ')||'No recommendation recorded'));return card;}
+  if(a&&typeof a==='object'){
+    card.append(el('strong',`${a.task??'Task'} · ${a.model?label(a.model):'unknown model'}`));
+    const dl=el('dl');for(const [k,v] of [['Outcome',a.status],['Input tokens',a.input_tokens!=null?pretty(a.input_tokens):null],['Output tokens',a.output_tokens!=null?pretty(a.output_tokens):null],['Duration',a.duration_ms!=null?seconds(a.duration_ms):null],['Agents',a.agents],['Human interventions',a.human_interventions],['Accounting',a.accounting_basis]]){dl.append(el('dt',k),el('dd',v==null?'unknown':String(v)));}
+    card.append(dl);if(a.assessment)card.append(el('p',a.assessment));return card;
+  }
+  card.append(el('strong','Recalled note'),el('span',item.text));return card;
+}
+async function recall(question){
+  const button=$('recall');button.disabled=true;$('recall-summary').textContent='';$('recalled').replaceChildren(el('p','Searching the bank…','muted'));
+  const params=new URLSearchParams();if(bank==='synthetic')params.set('synthetic','true');if(question)params.set('q',question);
+  try{const r=await fetch('/api/memory'+(params.toString()?'?'+params:''));const result=await r.json();
+    if(r.status===400){$('recalled').replaceChildren(el('p','Use up to 160 printable characters.','muted'));return;}
+    if(!r.ok||result.status!=='ok'){$('recalled').replaceChildren(el('p','Hindsight unavailable: nothing was recalled.','muted'));return;}
+    const items=result.results??[];$('recall-summary').textContent=`${items.length} memor${items.length===1?'y':'ies'} from the ${bank==='real'?'real sessions':'synthetic replays'} bank for “${result.query}”.`;
+    $('recalled').replaceChildren(...items.map(recalledCard));if(!items.length)$('recalled').append(el('p','No retained analysis matches yet.','muted'));
+  }catch{$('recalled').replaceChildren(el('p','Hindsight unavailable: nothing was recalled.','muted'));}finally{button.disabled=false;}
+}
+document.querySelectorAll('[data-bank]').forEach(b=>b.onclick=()=>setBank(b.dataset.bank));
+$('recall-form').onsubmit=(event)=>{event.preventDefault();recall($('recall-query').value.trim());};
+document.querySelectorAll('[data-query]').forEach(b=>b.onclick=()=>{$('recall-query').value=b.dataset.query;recall(b.dataset.query);});
 refresh();integrations();setInterval(refresh,1500);setInterval(integrations,20000);
