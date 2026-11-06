@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Spec: knowledge/operations/agent-compatibility.md
-"""Adapt native Codex/OpenCode/Pi/Devin/Droid/Antigravity payloads to existing guards and verified handovers."""
+"""Adapt native Codex/OpenCode/Pi/Devin/Droid/Antigravity/Grok payloads to existing guards and verified handovers."""
 import hashlib
 import json
 from pathlib import Path
@@ -20,6 +20,10 @@ DEVIN_TOOLS = {'exec': 'Bash', 'bash': 'Bash', 'shell': 'Bash', 'read': 'Read', 
 # Factory's Droid sends Claude-shaped payloads with its own names for the shell, create and patch tools.
 DROID_TOOLS = {'Execute': 'Bash', 'Create': 'Write', 'ApplyPatch': 'apply_patch'}
 DROID_KNOWN = {*DROID_TOOLS, 'Bash', 'Read', 'Edit', 'MultiEdit', 'Write', 'Grep', 'Glob', 'LS'}
+# Grok Build names its tools in snake_case. read_file's path is target_file; list_dir's is target_directory.
+GROK_TOOLS = {'run_terminal_command': 'Bash', 'read_file': 'Read', 'search_replace': 'Edit',
+              'write': 'Write', 'grep': 'Grep', 'list_dir': 'Glob'}
+GROK_KNOWN = {'Bash', 'Read', 'Edit', 'Write', 'Grep', 'Glob', 'LS', 'MultiEdit', 'apply_patch'}
 # Antigravity nests the call as toolCall {name, args}. Its own tools use PascalCase arguments, MCP tools any
 # case; an argument at any depth named like a path, file, directory or URI (AbsolutePath, TargetDirectories,
 # file_path, Uri) names files for the guards.
@@ -236,8 +240,110 @@ def antigravity_event(event):
     return {**event, 'tool_name': tool, 'tool_input': data, 'antigravity_paths': paths, 'antigravity_globs': globs}
 
 
+def grok_bind_path(tool, data):
+    """Point the guard at the file the Grok tool opens.
+
+    ``read_file`` opens ``target_file``, ``list_dir`` opens ``target_directory``, and ``grep``
+    opens ``path``. A second path field that names a different file is a refusal: the guard
+    would otherwise check the decoy and let the tool open the other one.
+    """
+    fields = ('file_path', 'path', 'target_file', 'target_directory')
+    primary = {'read_file': 'target_file', 'list_dir': 'target_directory',
+               'search_replace': 'file_path', 'write': 'file_path'}.get(tool)
+    if tool == 'grep':
+        named = [data[key] for key in fields if isinstance(data.get(key), str)]
+        if len(set(named)) > 1:
+            raise ValueError('the tool names two different paths')
+        if named:
+            data['file_path'] = data['path'] = named[0]
+        return data
+    if primary is None:
+        return data
+    opened = data.get(primary)
+    for key in fields:
+        other = data.get(key)
+        if key != primary and isinstance(other, str) and other != opened:
+            raise ValueError('the tool names two different paths')
+    if isinstance(opened, str):
+        data['file_path'] = opened
+    return data
+
+
+def grok_event(event):
+    """Map a Grok tool call onto the shared guards. Other events pass through."""
+    if event.get('hook_event_name') not in {'PreToolUse', 'PostToolUse'}:
+        return event
+    tool = event.get('tool_name')
+    if tool is None:
+        tool = event.get('toolName')
+    data = event.get('tool_input')
+    if data is None:
+        data = event.get('toolInput')
+    if not isinstance(data, dict):
+        if event.get('hook_event_name') == 'PreToolUse':
+            raise ValueError('the Grok pre-tool payload requires a tool_input object')
+        data = {}
+    else:
+        data = dict(data)
+    # The guards read file_path. Bind the field the tool actually opens, and refuse a decoy.
+    grok_bind_path(tool, data)
+    mapped = GROK_TOOLS.get(tool, tool)
+    # An unknown tool that carries a command string is a shell call until proven otherwise.
+    if mapped not in GROK_KNOWN and isinstance(data.get('command'), str):
+        mapped = 'Bash'
+    if mapped == 'Bash':
+        # description and block_until_ms are shown to the user; the guard sees only the command it runs.
+        command = data.get('command')
+        data = {'command': command} if isinstance(command, str) else {}
+    return {**event, 'tool_name': mapped, 'tool_input': data}
+
+
+def grok_usage(event):
+    """Grok's context window: contextTokensUsed in signals.json beside the transcript.
+
+    usage.json is the billed ledger for the whole session. Those totals only grow, including
+    after compaction, so they are not the context size. A zero window is a real reading.
+    """
+    path = event.get('transcript_path')
+    if not isinstance(path, str) or not path:
+        return None
+    transcript = Path(path)
+    # Grok's hook transcript_path is the update stream (updates.jsonl). The session files sit
+    # beside it. chat_history.jsonl remains accepted for the older layout.
+    if transcript.is_symlink() or transcript.name not in {'chat_history.jsonl', 'updates.jsonl'}:
+        raise ValueError("usage must come from this session's updates.jsonl or chat_history.jsonl")
+    folder = transcript.parent
+    usage_path = folder / 'usage.json'
+    if usage_path.is_symlink():
+        raise ValueError('usage.json must be a regular file')
+    # The ledger's session id binds the directory. Its token sums are not the measurement.
+    if usage_path.is_file():
+        try:
+            data = json.loads(usage_path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as error:
+            raise ValueError('invalid grok usage.json') from error
+        if not isinstance(data, dict) or data.get('sessionId') != event.get('session_id'):
+            raise ValueError('usage.json is for another session')
+    signals_path = folder / 'signals.json'
+    if signals_path.is_symlink():
+        raise ValueError('signals.json must be a regular file')
+    if not signals_path.is_file():
+        return None
+    try:
+        signals = json.loads(signals_path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError('invalid grok signals.json') from error
+    if not isinstance(signals, dict):
+        raise ValueError('invalid grok signals.json')
+    used = signals.get('contextTokensUsed')
+    window = signals.get('contextWindowTokens', 0)
+    if type(used) is not int or used < 0 or type(window) is not int or window < 0 or (window and used > window):
+        raise ValueError('invalid grok context size')
+    return used
+
+
 # Harnesses that report their context usage share Claude's 250k/300k rule (tools/context/budget.py).
-MEASURED = {'codex', 'opencode', 'pi', 'dsh'}
+MEASURED = {'codex', 'opencode', 'pi', 'dsh', 'grok'}
 # dsh compaction is not dependable in every profile. A verified handover is enough to recover, so the user is
 # told to end the session instead of working past the gate waiting for a compaction that may never run.
 DSH_STOP = ('After the handover, work/current.md and the checkpoint verify, stop this dsh session and start a new '
@@ -289,6 +395,8 @@ def observed_usage(provider, event):
     """The context size the harness measured; None while it has measured nothing yet."""
     if provider == 'codex':
         return codex_usage(event)
+    if provider == 'grok':
+        return grok_usage(event)
     value = event.get('observed_tokens')
     if value is not None and (type(value) is not int or value < 0):
         raise ValueError('observed_tokens must be a nonnegative integer')
@@ -310,8 +418,13 @@ def alert(result, measured):
 
 
 def handle(root, provider, event):
-    if provider not in {'codex', 'opencode', 'pi', 'dsh', 'devin', 'droid', 'antigravity'} or not isinstance(event, dict):
+    if provider not in {'codex', 'opencode', 'pi', 'dsh', 'devin', 'droid', 'antigravity', 'grok'} or not isinstance(event, dict):
         raise ValueError('invalid provider or event')
+    if provider == 'grok':
+        event = grok_event(event)
+        # Grok compacts without a compact SessionStart. PostCompact is that boundary.
+        if event.get('hook_event_name') == 'PostCompact':
+            event = {**event, 'hook_event_name': 'SessionStart', 'source': 'compact'}
     if provider == 'antigravity':
         event = antigravity_event(event)
     if provider == 'devin':
@@ -345,12 +458,12 @@ def handle(root, provider, event):
             state.pop('observed_tokens', None)
             state['epoch'] += 1
             state['state'] = 'RECOVERING'
-            # A compaction let through before its handover owes the closure first thing after it. Codex and Droid
-            # resume in closure; every other provider resumes editable, because frozen code over a check that
-            # already failed is the deadlock the 300k stopgap exists to prevent.
+            # A compaction let through before its handover owes the closure first thing after it. Codex, Droid
+            # and Grok resume in closure; every other provider resumes editable, because frozen code over a check
+            # that already failed is the deadlock the 300k stopgap exists to prevent.
             if state.pop('closure_owed', None):
                 state['closure_owed'] = 'due'
-                if provider in {'codex', 'droid'}:
+                if provider in {'codex', 'droid', 'grok'}:
                     state['state'] = 'HANDOVER_REQUIRED'
                     # This latch is not a threshold crossing that a later compaction may release: it is the
                     # closure owed right after a compaction the harness ran itself. Mark it, so the shared
@@ -360,11 +473,12 @@ def handle(root, provider, event):
                 state['warning_pending'] = True
         budget.atomic(file, json.dumps(state, sort_keys=True) + '\n')
         if name == 'PreCompact':
-            if not budget.ready(root, session, state) and (provider in {'codex', 'droid'}
+            if not budget.ready(root, session, state) and (provider in {'codex', 'droid', 'grok'}
                     or provider == 'pi' and event.get('native') is True):
                 # Codex ends its turn on a refused compaction and retries it before every turn, Droid documents no
-                # way to refuse one, and Pi cancels a native compaction at the model window: a refusal would stall
-                # them. The compaction runs, and the handover and checkpoint come right after it.
+                # way to refuse one, Pi cancels a native compaction at the model window, and Grok only reads a
+                # systemMessage from PreCompact: a refusal would stall them or be ignored. The compaction runs,
+                # and the handover and checkpoint come right after it.
                 budget.ensure_handover(root, session)
                 state['closure_owed'] = 'pending'
                 budget.atomic(file, json.dumps(state, sort_keys=True) + '\n')
@@ -473,10 +587,16 @@ def handle(root, provider, event):
             context = (f'Æion Factory droid profile: shared guards and edit feedback; no 250k alert. Before compacting, fill '
                        f'{handover.relative_to(root)}, update work/current.md and verify: {budget.checkpoint_command(root, session)}. '
                        f'A compaction without it owes that closure right after.')
+        if provider == 'grok':
+            context += (' Grok cannot refuse compaction, so a compaction before the verified handover owes that closure '
+                        'right after. The context size is contextTokensUsed in signals.json beside updates.jsonl or chat_history.jsonl.')
         if provider == 'dsh':
             context += f' {DSH_STOP}'
         context += '\n' + result.get('hookSpecificOutput', {}).get('additionalContext', '')
         result['hookSpecificOutput'] = {'hookEventName': name, 'additionalContext': context}
+        # SessionStart only delivers a top-level systemMessage; additionalContext is not read.
+        if provider == 'grok':
+            result['systemMessage'] = context
         return result
     if name == 'PreToolUse':
         if event.get('tool_name') == 'Bash':

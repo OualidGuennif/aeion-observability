@@ -78,8 +78,9 @@ when everything agrees:
 ```text
 Markdown spec ─► preparation ─► author agent (Flue + Pi, tools only inside an OpenShell sandbox)
    ─► protected checks ─► two independent reviewer models
-   ─► rejected or failed? up to two automatic correction rounds, then you decide
-   ─► pull request ─► CI on the exact head ─► product main
+   ─► rejected or failed gate? up to two automatic correction rounds, then you decide
+   ─► pull request ─► CI on the exact head ─► red CI? the same correction rounds
+   ─► product main
 ```
 
 Every step is traced, budgeted (15 USD a day per repository) and kept as a receipt. The author
@@ -97,11 +98,11 @@ build instead of guessing.
 | `examples/`, `tests/` | Offline synthetic fixtures and their tests |
 | `demo/` | The factory pilot: `app/` cockpit and relay, `factory/` supervisor, `flue/` agents, `openshell/` sandbox, `forum/` product catalog, `tests/` |
 | `work/` | Current work and the validation record |
-| `tools/`, `efficiency/`, `loops/`, `.claude/`, `.agents/`, … | Development tooling from the template |
+| `tools/`, `efficiency/`, `loops/`, `.claude/`, `.agents/`, `.grok/`, … | Development tooling from the template |
 
 ## Development
 
-Built from the [Æion Factory](https://github.com/OualidGuennif/aeion-factory) template (v2.1.0).
+Built from the [Æion Factory](https://github.com/OualidGuennif/aeion-factory) template (v2.1.1).
 Agent instructions: [AGENTS.md](AGENTS.md).
 
 ```bash

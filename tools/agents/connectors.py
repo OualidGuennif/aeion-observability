@@ -56,6 +56,7 @@ CONTRACT = (
     ".devin/hooks.v1.json",
     ".factory/settings.json",
     ".agents/hooks.json",
+    ".grok/hooks/factory.json",
 )
 
 WIRING = (
@@ -66,6 +67,7 @@ WIRING = (
     ".devin/config.json",
     ".factory/settings.json",
     ".agents/hooks.json",
+    ".grok/hooks/factory.json",
     ".dsh/factory.patch.yml",
 )
 

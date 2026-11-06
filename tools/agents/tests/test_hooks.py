@@ -59,7 +59,7 @@ class HookTests(unittest.TestCase):
         result = self.call('codex', hook_event_name='PostToolUse', transcript_path=str(rollout), session_id=session)
         self.assertIn('narration:', result['hookSpecificOutput']['additionalContext'])
         # Harnesses with no readable transcript stay silent and keep working, on PostToolUse and Stop.
-        for provider in ('devin', 'droid', 'opencode', 'pi'):
+        for provider in ('devin', 'droid', 'opencode', 'pi', 'grok'):
             event = {**self.event, 'session_id': f'feedback-{provider}', 'hook_event_name': 'PostToolUse'}
             self.assertEqual(hook.handle(self.root, provider, event), {}, provider)
             stopped = hook.handle(self.root, provider, {**event, 'hook_event_name': 'Stop'})
@@ -115,7 +115,7 @@ class HookTests(unittest.TestCase):
                 for item in value:
                     collect(item)
 
-        for config in ('.codex/hooks.json', '.devin/hooks.v1.json', '.factory/settings.json', '.agents/hooks.json'):
+        for config in ('.codex/hooks.json', '.devin/hooks.v1.json', '.factory/settings.json', '.agents/hooks.json', '.grok/hooks/factory.json'):
             collect(json.loads((ROOT / config).read_text()))
         self.assertGreaterEqual(len(commands), 16)
         environment = {key: value for key, value in os.environ.items()
@@ -595,7 +595,7 @@ class HookTests(unittest.TestCase):
         gate=self.root/'tools/architecture/refresh';gate.parent.mkdir(parents=True)
         gate.write_text('#!/bin/sh\nexit 0\n');gate.chmod(0o755)
         empty=self.root/'empty-bin';empty.mkdir()
-        for agent in ['droid','devin','antigravity','codex','dsh']:
+        for agent in ['droid','devin','antigravity','codex','dsh','grok']:
             result=subprocess.run([hook.sys.executable,str(launcher),agent],cwd=self.root,
                                   env={'PATH':str(empty)},capture_output=True,text=True)
             self.assertEqual(result.returncode,1,agent)
@@ -907,6 +907,122 @@ class HookTests(unittest.TestCase):
                 self.assertTrue(all(c.endswith(f'tools/agents/hook.py" antigravity {event}') for c in commands))
                 if event!='Stop':
                     self.assertEqual(entry['matcher'],'.*')
+
+    def test_grok_tools_reach_the_shared_guards(self):
+        path = str(self.root / '.env')
+        with self.assertRaisesRegex(hook.GuardRefusal, 'secret'):
+            self.call('grok', tool_name='run_terminal_command', tool_input={'command': 'cat .env', 'description': 'show env'})
+        with self.assertRaisesRegex(hook.GuardRefusal, 'secret'):
+            self.call('grok', tool_name='read_file', tool_input={'target_file': path})
+        with self.assertRaisesRegex(hook.GuardRefusal, 'secret'):
+            self.call('grok', tool_name='search_replace', tool_input={'file_path': path, 'old_string': 'a', 'new_string': 'b'})
+        with self.assertRaisesRegex(hook.GuardRefusal, 'secret'):
+            self.call('grok', tool_name='write', tool_input={'file_path': path, 'content': 'x'})
+        with self.assertRaisesRegex(hook.GuardRefusal, 'secret'):
+            self.call('grok', tool_name='grep', tool_input={'pattern': 'x', 'path': '.', 'glob': '.env'})
+        with self.assertRaisesRegex(hook.GuardRefusal, 'secret'):
+            self.call('grok', tool_name='future_shell', tool_input={'command': 'cat .env'})
+        # A decoy path must not hide the file the tool actually opens.
+        with self.assertRaisesRegex(ValueError, 'two different paths'):
+            self.call('grok', tool_name='read_file', tool_input={'target_file': path, 'file_path': 'README.md'})
+        with self.assertRaisesRegex(ValueError, 'two different paths'):
+            self.call('grok', tool_name='grep', tool_input={'pattern': 'x', 'path': path, 'target_file': 'README.md'})
+        with self.assertRaisesRegex(ValueError, 'two different paths'):
+            self.call('grok', tool_name='list_dir', tool_input={'target_directory': path, 'file_path': 'README.md'})
+        with self.assertRaisesRegex(hook.GuardRefusal, 'secret'):
+            self.call('grok', tool_name='read_file', tool_input={'target_file': path, 'file_path': path})
+        self.assertEqual(self.call('grok', tool_name='run_terminal_command', tool_input={'command': 'git status --short'}), {})
+        self.assertEqual(self.call('grok', tool_name='read_file', tool_input={'target_file': 'README.md', 'offset': 1, 'limit': 20}), {})
+
+    def test_grok_usage_json_latches_the_shared_gate(self):
+        session_id = 'grok-usage'
+        folder = self.root / 'grok-session'
+        folder.mkdir()
+        transcript = folder / 'chat_history.jsonl'
+        transcript.write_text('')
+        (folder / 'usage.json').write_text(json.dumps({'sessionId': session_id, 'session': {'inputTokens': 900000}}))
+        (folder / 'signals.json').write_text(json.dumps({'contextTokensUsed': 250000, 'contextWindowTokens': 256000}))
+        edit = {'tool_name': 'search_replace', 'tool_input': {'file_path': str(self.root / 'src.py'), 'old_string': 'a', 'new_string': 'b'},
+                'transcript_path': str(transcript)}
+        result = self.call('grok', session_id=session_id, **edit)
+        self.assertEqual(result['hookSpecificOutput']['permissionDecision'], 'deny')
+        self.assertIn('250k', result['hookSpecificOutput']['permissionDecisionReason'])
+        # A zero reading is a real measurement, not a missing transcript, so a fresh session is not denied.
+        (folder / 'usage.json').write_text(json.dumps({'sessionId': 'grok-zero', 'session': {'inputTokens': 0}}))
+        (folder / 'signals.json').write_text(json.dumps({'contextTokensUsed': 0, 'contextWindowTokens': 256000}))
+        opened = self.call('grok', session_id='grok-zero', transcript_path=str(transcript),
+                           tool_name='search_replace', tool_input={'file_path': str(self.root / 'src.py')})
+        self.assertNotIn('permissionDecision', opened.get('hookSpecificOutput', {}))
+
+    def test_grok_billed_ledger_does_not_latch_the_context_gate(self):
+        session_id = 'grok-ledger'
+        folder = self.root / 'grok-ledger'
+        folder.mkdir()
+        transcript = folder / 'updates.jsonl'
+        transcript.write_text('')
+        # The ledger only grows. The window fell after compaction and stays under 250k.
+        (folder / 'usage.json').write_text(json.dumps({'sessionId': session_id, 'session': {
+            'inputTokens': 2000000, 'outputTokens': 1000, 'totalTokens': 2001000}}))
+        (folder / 'signals.json').write_text(json.dumps({'contextTokensUsed': 44080, 'contextWindowTokens': 256000}))
+        opened = self.call('grok', session_id=session_id, transcript_path=str(transcript),
+                           tool_name='read_file', tool_input={'target_file': 'README.md', 'offset': 1, 'limit': 5})
+        self.assertNotIn('permissionDecision', opened.get('hookSpecificOutput', {}))
+        (folder / 'signals.json').write_text(json.dumps({'contextTokensUsed': 300000, 'contextWindowTokens': 256000}))
+        with self.assertRaisesRegex(ValueError, 'context size'):
+            self.call('grok', session_id=session_id, transcript_path=str(transcript),
+                      tool_name='read_file', tool_input={'target_file': 'README.md', 'offset': 1, 'limit': 5})
+
+    def test_grok_refuses_another_sessions_usage_file(self):
+        folder = self.root / 'grok-other'
+        folder.mkdir()
+        transcript = folder / 'chat_history.jsonl'
+        transcript.write_text('')
+        (folder / 'usage.json').write_text(json.dumps({'sessionId': 'other', 'session': {'inputTokens': 1}}))
+        with self.assertRaisesRegex(ValueError, 'another session'):
+            self.call('grok', session_id='mine', tool_name='read_file', tool_input={'target_file': 'README.md', 'limit': 5},
+                      transcript_path=str(transcript))
+
+    def test_grok_compaction_before_its_handover_owes_the_closure_after_it(self):
+        session = hook.key('grok', {'session_id': 'context-grok'})
+        handover = hook.budget.handover_path(self.root, session)
+        state_file = self.root / '.aeion/context' / f'{session}.json'
+        grok = lambda **changes: self.call('grok', session_id='context-grok', **changes)
+        edit = {'tool_name': 'search_replace', 'tool_input': {'file_path': str(self.root / 'src.py')}}
+        denied = lambda result: result.get('hookSpecificOutput', {}).get('permissionDecision') == 'deny'
+        self.assertFalse(denied(grok(**edit)))
+        self.assertNotIn('continue', grok(hook_event_name='PreCompact'))
+        grok(hook_event_name='PostCompact')
+        self.assertTrue(denied(grok(**edit)))
+        self.assertFalse(denied(grok(tool_name='search_replace', tool_input={'file_path': str(self.root / 'work/current.md')})))
+        handover.write_text('## Scope\nx\n## Completed\nx\n## Remaining\nx\n## Constraints\nx\n## Evidence\nx\n')
+        state = json.loads(state_file.read_text())
+        state['checkpoint'] = {'tree': hook.budget.fingerprint(self.root),
+                               'handover': hook.budget.hashlib.sha256(handover.read_bytes()).hexdigest()}
+        hook.budget.atomic(state_file, json.dumps(state))
+        self.assertFalse(denied(grok(**edit)))
+        self.assertEqual(json.loads(state_file.read_text())['state'], 'RUNNING')
+        self.assertIn('verified handover', grok(hook_event_name='PreCompact')['systemMessage'])
+
+    def test_grok_session_start_is_delivered_as_a_system_message(self):
+        result = self.call('grok', hook_event_name='SessionStart', source='new')
+        self.assertIn('signals.json', result['systemMessage'])
+        self.assertIn('Checkpoint key', result['systemMessage'])
+
+    def test_grok_edits_are_recorded_for_feedback(self):
+        key = hook.key('grok', self.event)
+        log = Path(tempfile.gettempdir()) / f'claude-edited-{key}'
+        log.unlink(missing_ok=True)
+        self.addCleanup(log.unlink, missing_ok=True)
+        (self.root / 'a.py').write_text('a = 1\n')
+        self.call('grok', hook_event_name='PostToolUse', tool_name='search_replace',
+                  tool_input={'file_path': str(self.root / 'a.py'), 'old_string': 'a', 'new_string': 'b'})
+        self.assertEqual(set(log.read_text().splitlines()), {'a.py'})
+
+    def test_grok_hooks_route_every_event_to_the_adapter(self):
+        hooks = json.loads((ROOT / '.grok/hooks/factory.json').read_text())['hooks']
+        self.assertEqual(set(hooks), {'SessionStart', 'PreToolUse', 'PostToolUse', 'PreCompact', 'PostCompact', 'Stop'})
+        for event, entries in hooks.items():
+            self.assertTrue(all(h['command'].endswith(f'tools/agents/hook.py" grok {event}') for e in entries for h in e['hooks']))
 
     def test_read_only_loop_denies_writers_and_shell_composition(self):
         for command in ('tools/efficiency/bundle','tools/architecture/setup','git diff --output=x',

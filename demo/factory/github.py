@@ -256,9 +256,27 @@ class GitHubForge:
                  and (c.get('app') or {}).get('id') == 15368}
         if any(name not in valid or valid[name].get('status') != 'completed' for name in required):
             return {'status': 'pending', 'reason': 'ci_pending'}
-        if any(valid[name].get('conclusion') != 'success' for name in required):
-            return {'status': 'held', 'reason': 'ci_failed'}
+        failed = self._failed_checks(required, valid)
+        if failed:
+            # Names and conclusions only. Check logs and annotations can carry source or secrets.
+            return {'status': 'held', 'reason': 'ci_failed', 'failed_checks': failed}
         return {'status': 'passed', 'checks': required}
+
+    @staticmethod
+    def _failed_checks(required, valid):
+        conclusions = {'failure', 'cancelled', 'timed_out', 'action_required', 'skipped',
+                       'neutral', 'stale', 'startup_failure'}
+        name_ok = re.compile(r'[A-Za-z0-9_ ./:+-]{1,80}')
+        failed = []
+        for name in required:
+            conclusion = valid[name].get('conclusion')
+            if conclusion == 'success':
+                continue
+            failed.append({'name': name if isinstance(name, str) and name_ok.fullmatch(name) else 'check',
+                           'conclusion': conclusion if conclusion in conclusions else 'failed'})
+            if len(failed) == 8:
+                break
+        return failed
 
     def _confirmed_merge(self, pr):
         merge_sha = _sha(pr.get('merge_commit_sha'))

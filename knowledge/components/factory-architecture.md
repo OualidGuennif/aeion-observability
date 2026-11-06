@@ -62,6 +62,8 @@ egress. The supervisor packages production code before candidate tests, gives te
 workspace, and grades the product in separate application/verifier processes. Two eligible
 reviewer model families must differ from each other and from author/preparer families. Separate
 publisher/release subprocesses open the product PR, verify exact-head CI and confirm main.
+A required check that finished without success does not merge: it queues a bounded correction
+with the check names and the agents' notes. An unreadable or pending check stays held.
 Only integration of the current contract unlocks dependent MDs; a generated patch or old-contract
 success does not. The product has its own GitHub repository and credentials. Observer mirrors
 are not product workspaces. Fixed PostgreSQL migration/restore oracles, a separate unit-test
@@ -86,9 +88,10 @@ priors. The maintained architecture view names these boundaries and source ancho
 and lifecycle views additionally retain the foundation's reviewed delivery and context controls.
 
 Claude Code retains its native hooks. Codex, OpenCode, Pi, dsh (DeepSeek Harness), Devin, Droid
-(factory.ai) and Google Antigravity load the same instructions and skills, with narrow adapters to
+(factory.ai), Google Antigravity and Grok load the same instructions and skills, with narrow adapters to
 the existing secret guards, edit checks and handover checkpoints (Devin and Antigravity have no
-compaction checkpoint; Droid, which reports no tokens, owes its closure after a compaction). During closure, plain read commands (`cat`, `head`, `sed -n`, `rg` and
+compaction checkpoint; Droid, which reports no tokens, owes its closure after a compaction; Grok
+cannot refuse compaction). Grok's hooks live in `.grok/`. During closure, plain read commands (`cat`, `head`, `sed -n`, `rg` and
 the like, without operators, globs or secret files) are closure tools, because Codex reads only
 through its shell. Droid owns `.factory/`, so
 Æion Factory's local state lives in the ignored `.aeion/`. A per-clone flow mode selects local mode, the default

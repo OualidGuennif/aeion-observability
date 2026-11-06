@@ -218,7 +218,8 @@ without a migration.
 | build held `owner_review_required` | the diff touches a sensitive scope | owner reviews, then re-admits |
 | build held `reconciliation_needed` | a stale base/head was refused | reconcile before retrying |
 | publisher `uncertain` | forge effect unknown | the publisher reconciles; never re-publish |
-| build `failed` with `correction.round` 0 or 1 | a reject or failed gate queued the next correction round | nothing: it runs next |
+| build `failed` with `correction.round` 0 or 1 | a reject, a failed gate or a failed required CI check queued the next correction round | nothing: it runs next; a red pull request is not merged |
+| build held `ci_failed` with `correction.exhausted` | required CI failed and the correction rounds are used | read the check names in Build evidence, then cancel to free the feature |
 | build held `reviewer_rejected` after round 2, or `correction_unchanged` | automatic corrections exhausted or made no change | read the reasons; cancel, then fix the MD or relaunch |
 | build held `reviewer_rejected` (old v1 envelope) | reviewed without the base diff | once: `python -m factory.review_context BUILD_ID` from `demo/` |
 | build held `reviewer_failed`, vote `REVIEW_RESULT_MISSING` | no typed verdict, no rejection | once: add `--retry-failed-review`; a second failure stays held |

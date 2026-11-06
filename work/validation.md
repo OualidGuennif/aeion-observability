@@ -1,3 +1,26 @@
+## Independent review of 4146147 was not ok — 2026-11-06
+
+- Review of `origin/develop..HEAD` at `4146147b5f52d2b78e42d8a1fdb9cc054d255a24`: NOT OK. A Grok `read_file`, `grep`, or `list_dir` payload could name the opened path and a different decoy; the guard checked the decoy. The cockpit publication detail said correction rounds were finished for every `ci_failed` receipt, including one that had just queued another round.
+- Change: disagreement between those path fields is a refusal, and the finished-rounds sentence appears only when `correction.exhausted` is true.
+- Checks: `python3 -m unittest tools.agents.tests.test_hooks` — 65 OK. `python3 .claude/hooks/test_hooks.py` — 737 passed. `node --test demo/tests/test_cockpit_client.mjs` — 28 OK. knowledge-check PASS. `doc-links --diff origin/develop --worktree` PASS (150). The claude-security plugin was not run. The factory publication tests were not re-run; those files did not change in this fix.
+
+## Develop push still waiting on an independent review — 2026-11-06
+
+- The CI-correction commit 4146147b5f52d2b78e42d8a1fdb9cc054d255a24 is local. `git push origin develop` was refused: no `Review: OK` in `.aeion/reviews/4146147b5f52d2b78e42d8a1fdb9cc054d255a24.md`. The owner asked to advance that review. No independent reviewer ran, and no receipt was written, because the Factory 250k closure stopped the session first. origin/develop and origin/main were not moved. The live controller was not restarted.
+
+## Required CI failure queues a correction — 2026-11-06
+
+- Trigger: feature 001 build 3044b0f5, attempt b42253e4, PR 7. Gate passed, GLM and Qwen approved, then a required CI check failed. Publication held `ci_failed` and the feature stayed in progress, so the catalog could not continue. The forge result carried no check name. Owner-only agent notes stayed out of the next OpenShell prompt.
+- Change: a completed required check that is not success closes the attempt as failed and admits the next correction in the same transaction, with at most eight check names and conclusions and a short redacted copy of the agent notes. The open pull request is not merged. Pending, unreadable and every other publication hold stay held. The last round stays held for the owner.
+- Checks: `python3 -m unittest demo.tests.test_factory_publication_state demo.tests.test_factory_github_atomic demo.tests.test_factory_correction_rounds` — 42 OK. `node --test demo/tests/test_cockpit_client.mjs` — 28 OK. The live controller was not restarted and did not spend a new author session.
+
+## Æion Factory v2.1.1 — 2026-11-06
+
+- `tools/agents/template-update --ref v2.1.1` from the Factory checkout (885c37d089c4), baseline v2.1.0 from `.aeion-factory`. Connectors replaced for the Grok adapter: `tools/agents/hook.py`, `tools/agents/run`, `tools/context/budget.py`, `.claude/hooks/guard-path.py`, `tools/agents/connectors.py`, new `.grok/hooks/factory.json`. Hook and budget tests merged or updated. `command.md` and `Workflow_Agent.md` stay absent.
+- `AGENTS.md` and `README.md` keep the project's text. The version pin is v2.1.1 and the map names `.grok/`. The factory three-way proposals conflicted with the rewritten files and were not applied. Knowledge docs state the Grok harness: hooks in `.grok/hooks/factory.json`, context size `signals.json` `contextTokensUsed`, compaction that cannot be refused.
+- `.claude/hooks/guard-bash.py` stays the project copy. Factory v2.1.1 did not change it, and it still has the remote-helper URL and `--upload-pack`/`--receive-pack`/`--exec`/`-u` block the hook tests require. `adapter-check --ref v2.1.1`: 28 connectors match, this one reports DRIFT. Application `VERSION` stays 1.9.0.
+- Checks: hook tests 733 passed, adapter tests 65 passed, budget tests 40 passed, `tools/factory-tests` PASS, knowledge-check PASS, doc-links PASS (150), repo-health PASS. No live Grok session was run.
+
 ## Robust author attempts, agent feedback and retention — 2026-11-06
 
 - Trigger: build 96f9ddef (001, GLM author) stopped CLI_FAILED at step 96 (agent process exit 1, no recorded cause, 0.51 USD) and ended the launch.

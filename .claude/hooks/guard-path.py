@@ -73,6 +73,39 @@ except (ValueError, OSError):
 if not isinstance(event, dict) or not isinstance(event.get("tool_input"), dict):
     deny("the hook event must contain a tool_input object")
 tool_input = event["tool_input"]
+# Grok names the file target_file (read_file) or target_directory (list_dir). The Claude
+# settings hook sees that raw payload, so map those names before the path checks. A second
+# path field that names a different file is the one the tool would not open: refuse it.
+grok_tools = {
+    "read_file": "Read",
+    "search_replace": "Edit",
+    "write": "Write",
+    "grep": "Grep",
+    "list_dir": "Glob",
+    "run_terminal_command": "Bash",
+}
+grok_fields = ("file_path", "path", "target_file", "target_directory")
+grok_primary = {"read_file": "target_file", "list_dir": "target_directory",
+                "search_replace": "file_path", "write": "file_path"}
+original_tool = event.get("tool_name")
+if original_tool in grok_tools:
+    if original_tool == "grep":
+        named = [tool_input[key] for key in grok_fields if isinstance(tool_input.get(key), str)]
+        if len(set(named)) > 1:
+            deny("the tool names two different paths")
+        opened = named[0] if named else None
+    else:
+        opened = tool_input.get(grok_primary.get(original_tool))
+        for key in grok_fields:
+            other = tool_input.get(key)
+            if key != grok_primary.get(original_tool) and isinstance(other, str) and other != opened:
+                deny("the tool names two different paths")
+        opened = opened if isinstance(opened, str) else None
+    event["tool_name"] = grok_tools[original_tool]
+    if isinstance(opened, str):
+        tool_input["file_path"] = opened
+        if original_tool == "grep":
+            tool_input["path"] = opened
 path = tool_input.get("file_path", tool_input.get("filePath", tool_input.get("path", tool_input.get("notebook_path"))))
 if path is None and event.get("tool_name") == "Grep":
     path = ""

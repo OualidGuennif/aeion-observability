@@ -473,6 +473,24 @@ for raw in ["{", "null", "[]", "{}", '{"tool_input": []}', '{"tool_input": {"pat
     if "Traceback" in result.stderr:
         failures.append("guard-path exposed a traceback instead of a denial")
 expect("path allow: Grep can use its implicit root", run_hook("guard-path.py", {"pattern": "fixture"}, tool_name="Grep"), 0)
+expect("path allow: Grok read_file names target_file",
+       run_hook("guard-path.py", {"target_file": str(ROOT / "AGENTS.md")}, tool_name="read_file"), 0)
+expect("path deny: Grok read_file of a secret",
+       run_hook("guard-path.py", {"target_file": "/repo/.env"}, tool_name="read_file"), 2)
+expect("path deny: Grok read_file decoy hides the opened file",
+       run_hook("guard-path.py", {"target_file": "/repo/.env", "file_path": str(ROOT / "AGENTS.md")}, tool_name="read_file"), 2)
+expect("path deny: Grok grep decoy hides the opened path",
+       run_hook("guard-path.py", {"path": "/repo/.env", "target_file": str(ROOT / "AGENTS.md"), "pattern": "x"}, tool_name="grep"), 2)
+expect("path deny: Grok list_dir decoy hides the opened directory",
+       run_hook("guard-path.py", {"target_directory": "/repo/.env", "file_path": str(ROOT / "README.md")}, tool_name="list_dir"), 2)
+expect("path allow: Grok read_file agrees on one file",
+       run_hook("guard-path.py", {"target_file": str(ROOT / "AGENTS.md"), "file_path": str(ROOT / "AGENTS.md")}, tool_name="read_file"), 0)
+expect("path allow: Grok grep with no path",
+       run_hook("guard-path.py", {"pattern": "fixture"}, tool_name="grep"), 0)
+expect("path allow: Grok list_dir names target_directory",
+       run_hook("guard-path.py", {"target_directory": str(ROOT)}, tool_name="list_dir"), 0)
+expect("path deny: Grok list_dir of a secret",
+       run_hook("guard-path.py", {"target_directory": "/repo/.env"}, tool_name="list_dir"), 2)
 expect("path allow: Grep can use an empty default path", run_hook("guard-path.py", {"path": "", "pattern": "fixture"}, tool_name="Grep"), 0)
 
 # Intake decisions use public fixtures; no submitted command is executed.

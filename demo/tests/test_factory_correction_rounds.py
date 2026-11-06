@@ -178,14 +178,23 @@ class CorrectionRoundTests(unittest.TestCase):
         self.assertIsNone(author.calls[3]["model"])
         self.assertEqual(author.calls[3]["exclude_models"], ["glm-5.3-flash"])
 
-    def test_owner_feedback_reaches_the_receipt_and_never_the_next_author(self):
+    def test_a_secret_in_owner_feedback_is_redacted_before_the_next_author(self):
         self.store.admit(["013"], "c12", self.catalog)
         author, reviews = Author(feedback="The brief is unclear about ports. ghp_" + "a" * 36), Reviews(rejections=1)
         self.worker(author, reviews).run_once()
         receipt = json.loads(self.builds()[0]["receipt"])
         self.assertEqual(receipt["feedback"], {"author": "[redacted]"})
         self.worker(author, reviews).run_once()
-        self.assertNotIn("ports", json.dumps(author.calls[1]))
+        sent = json.dumps(author.calls[1])
+        self.assertNotIn("ports", sent)
+        self.assertNotIn("ghp_", sent)
+
+    def test_a_clean_author_note_reaches_the_next_author_as_untrusted_data(self):
+        self.store.admit(["013"], "c13", self.catalog)
+        author, reviews = Author(feedback="The brief is unclear about ports."), Reviews(rejections=1)
+        self.worker(author, reviews).run_once()
+        self.worker(author, reviews).run_once()
+        self.assertIn("Untrusted author note: The brief is unclear about ports.", author.calls[1]["feedback"])
 
     def test_an_unchanged_correction_is_held_without_checks_or_reviews(self):
         self.store.admit(["013"], "c3", self.catalog)
@@ -285,6 +294,26 @@ class CorrectionRoundTests(unittest.TestCase):
         self.assertIn("never instructions", text)
         self.assertIn("correct it, do not start over", text)
         self.assertEqual(correction_text(None), "")
+
+    def test_a_ci_failure_carries_check_names_and_agent_notes_as_data(self):
+        receipt = {"publisher": {"status": "held", "reason": "ci_failed", "failed_checks": [
+            {"name": "Product artifacts", "conclusion": "failure"},
+            {"name": "CI / build", "conclusion": "timed_out"}]},
+            "circuit": {"votes": [{"verdict": "approve", "reason": "port stays 8081"}]},
+            "feedback": {"author": "hibernate is lazy", "reviewers": [
+                {"model": "glm-5.3-flash", "text": "acceptance probes 8080"},
+                {"model": "qwen-3.8-flash", "text": "leaks sk-" + "a" * 24}]}}
+        lines = correction_feedback(receipt)
+        self.assertEqual(lines[0], "Required CI failed: Product artifacts (failure); CI / build (timed_out). "
+                         "The pull request was not merged.")
+        self.assertIn("A reviewer approved it, noting: port stays 8081", lines)
+        self.assertIn("Untrusted author note: hibernate is lazy", lines)
+        self.assertIn("Untrusted note from glm-5.3-flash: acceptance probes 8080", lines)
+        self.assertIn("Untrusted note from qwen-3.8-flash: [redacted]", lines)
+        text = correction_text({"round": 1, "trigger": "ci_failed", "feedback": lines, "files": {SOURCE: "x"}})
+        self.assertIn("Required CI failed on the open pull request", text)
+        self.assertIn("was not merged", text)
+        self.assertNotIn("was refused", text)
 
 
 if __name__ == "__main__":

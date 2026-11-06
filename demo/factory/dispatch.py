@@ -28,7 +28,8 @@ from .agent_files import BuilderError
 from .publish import FakeForge, Publisher
 from .review import SECRET_PATTERNS, content_digest, review
 from .review_circuit import two_vote_review, baseline_diff, CircuitError, MAX_SUBSTITUTIONS
-from .store import FAILED, LIVE_COMPLETE, MAX_ATTEMPTS, MAX_CORRECTION_ROUNDS, SIMULATED_COMPLETE, StoreError
+from .store import (FAILED, HELD, LIVE_COMPLETE, MAX_ATTEMPTS, MAX_CORRECTION_ROUNDS,
+                    SIMULATED_COMPLETE, StoreError, continuation_step)
 from .target import TargetError
 from .preparation import PreparationError
 
@@ -52,11 +53,11 @@ def next_step(attempt, number, crash=False):
     A refusal is corrected by the same model while rounds remain, then a new attempt starts on
     another model; a crash always starts the next attempt.
     """
-    if not crash and number < MAX_CORRECTION_ROUNDS:
-        return attempt, number + 1
-    if attempt < MAX_ATTEMPTS:
-        return attempt + 1, 0
-    return None
+    if crash:
+        if type(attempt) is int and 1 <= attempt < MAX_ATTEMPTS:
+            return attempt + 1, 0
+        return None
+    return continuation_step(attempt, number)
 
 
 def _token(value):
@@ -78,12 +79,25 @@ def _plain(value, limit):
 
 
 def correction_feedback(receipt):
-    """What refused a failed attempt: reviewer verdicts and protected-check results, as data lines.
+    """What stopped a failed attempt, as data lines for the next author.
 
-    Reviewer reasons are model output (at most 120 characters each, review_circuit); check names,
-    reasons and test names come from the gate. Nothing here is an instruction to the author.
+    Reviewer reasons and agent notes are model output. Check names come from the gate or from
+    the required CI result (name and conclusion only, never a log). Nothing here is an instruction.
     """
     lines = []
+    publisher = receipt.get('publisher') if isinstance(receipt.get('publisher'), dict) else {}
+    if publisher.get('reason') == 'ci_failed':
+        checks = []
+        for item in (publisher.get('failed_checks') or [])[:8]:
+            if not isinstance(item, dict) or item.get('conclusion') == 'success':
+                continue
+            name = _plain(item.get('name'), 80)
+            conclusion = item.get('conclusion') if isinstance(item.get('conclusion'), str) else 'failed'
+            conclusion = _plain(conclusion, 32) or 'failed'
+            if name:
+                checks.append(name + ' (' + conclusion + ')')
+        lines.append('Required CI failed' + (': ' + '; '.join(checks) if checks else '')
+                     + '. The pull request was not merged.')
     for vote in ((receipt.get('circuit') or {}).get('votes') or [])[:4]:
         if isinstance(vote, dict) and vote.get('verdict') in ('approve', 'reject'):
             reason = _plain(vote.get('reason'), 120)
@@ -101,6 +115,17 @@ def correction_feedback(receipt):
             tests = [_plain(t, 160) for t in (detail.get('failed_tests') or [])[:8]]
             if any(tests):
                 lines.append('Failing tests: ' + '; '.join(t for t in tests if t))
+    feedback = receipt.get('feedback') if isinstance(receipt.get('feedback'), dict) else {}
+    author = _plain(feedback.get('author'), 200)
+    if author:
+        lines.append('Untrusted author note: ' + author)
+    for note in (feedback.get('reviewers') or [])[:3]:
+        if not isinstance(note, dict):
+            continue
+        text = _plain(note.get('text'), 200)
+        who = _plain(note.get('model'), 40) or 'reviewer'
+        if text:
+            lines.append('Untrusted note from ' + who + ': ' + text)
     return lines[:12]
 
 
@@ -217,7 +242,7 @@ class DispatchWorker:
         return isinstance(files, dict) and content_digest(files) == verdict.get("digest")
 
     def _feedback(self, build, preparation_execution):
-        """Owner-only agent notes for this build: bounded printable text, never another agent's input."""
+        """Owner-facing agent notes. A later correction may copy a short redacted excerpt as data."""
         author = getattr(self.builder, 'last_feedback', None)
         execution = getattr(self.builder, 'last_execution', None)
         preparer = getattr(getattr(self.preparer, 'role', None), 'last_feedback', None)
@@ -362,6 +387,11 @@ class DispatchWorker:
     def run_once(self):
         """Claim one build, give its agent a session, run it, and end the session whatever happens."""
         assert_worker_isolated()
+        # A required CI failure is already durable. Continue it before polling the forge again,
+        # including a hold recorded by an older controller that only knew how to stop.
+        continued = self._continue_held_ci()
+        if continued is not None:
+            return continued
         if self.publication is not None:
             publication = self.publication.run_once()
             if publication is not None:
@@ -740,6 +770,56 @@ class DispatchWorker:
         finally:
             self.author_ms = int((time.monotonic() - started_author) * 1000)
         return self._judge_and_publish(build,session,repo,frozen,feature,target,base_sha,checks,required_checks)
+
+    def _continue_held_ci(self):
+        """Queue the next correction for one held build whose required CI failed, or None."""
+        for build in self.store.board():
+            if build.get('status') != HELD or build.get('hold_reason') != 'publication_blocked':
+                continue
+            receipt = self._receipt(build)
+            marker = receipt.get('correction') if isinstance(receipt.get('correction'), dict) else {}
+            publisher = receipt.get('publisher') if isinstance(receipt.get('publisher'), dict) else {}
+            if publisher.get('reason') != 'ci_failed' or marker.get('trigger') == 'ci_failed':
+                continue
+            try:
+                result = self.store.continue_after_ci_failure(
+                    build['build_id'], self.catalog, self._reviewed_candidate(build, receipt))
+            except StoreError:
+                return {'build_id': build['build_id'], 'result': {'status': 'held', 'reason': 'ci_failed'}}
+            if result.get('status') == 'unchanged':
+                continue
+            return {'build_id': build['build_id'], 'result': result}
+        return None
+
+    def _reviewed_candidate(self, build, receipt):
+        """The published bytes, restored into the candidate clone when the digest matches.
+
+        The publication request is the reviewed artifact. The next round reads those same paths
+        from this build's workspace, so a missing clone is rewritten with those bytes only.
+        """
+        request = self.store.publication_request(build.get('attempt_id')) or {}
+        files = request.get('files')
+        if not isinstance(files, dict) or not files:
+            return {}
+        try:
+            if content_digest(files) != receipt.get('artifact_digest'):
+                return {}
+        except (TypeError, UnicodeEncodeError):
+            return {}
+        root = (self.work_root / build['build_id'] / 'repo').resolve()
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+            for name, text in files.items():
+                if not isinstance(name, str) or not isinstance(text, str) or name.startswith('/') or '..' in name.split('/'):
+                    return {}
+                path = (root / name).resolve()
+                if not path.is_relative_to(root) or path.is_symlink():
+                    return {}
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text, encoding='utf-8')
+        except OSError:
+            return {}
+        return files
 
     @staticmethod
     def _receipt(row):

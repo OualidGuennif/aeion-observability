@@ -5,7 +5,7 @@ description: "Refuse obvious large dumps before execution; use targeted reads an
 status: stable
 generated:
   by: aeion-factory/1.6.2
-  at: 2026-10-29
+  at: 2026-11-06
 sources:
   - resource: ../../.claude/hooks/guard-path.py
   - resource: ../../.claude/hooks/guard-bash.py
@@ -78,8 +78,11 @@ policy changes no model, reasoning-effort or provider setting and claims no meas
 ## Invariants
 
 Secrets remain refused even with a limiter. Native adapters preserve tool kind and range/count
-arguments, so bounded reads work and large-file edits remain available. Guard regressions cover
-thresholds, long lines, explicit ranges, real native fields and misleading limiter placement.
+arguments, so bounded reads work and large-file edits remain available. Factory v2.1.1 replaced
+`tools/agents/hook.py` and `.claude/hooks/guard-path.py`. Checked 2026-11-06: the path guard still
+uses 65536 bytes, 400 lines and 1 MiB of scanning. Grok's tool names are mapped in
+[agent compatibility](../operations/agent-compatibility.md). Guard regressions cover thresholds,
+long lines, explicit ranges, real native fields and misleading limiter placement.
 
 ## Determinism
 

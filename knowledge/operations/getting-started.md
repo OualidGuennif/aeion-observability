@@ -15,7 +15,7 @@ generated:
 
 The launcher installs nothing. Install and connect your chosen agent separately, then trust the
 project and approve its hooks as required below. The optional Git hooks and architecture tools
-are described in [the overview](https://github.com/OualidGuennif/aeion-factory/blob/v2.1.0/README.md).
+are described in [the overview](https://github.com/OualidGuennif/aeion-factory/blob/v2.1.1/README.md).
 
 ## Prepare your agent
 
@@ -60,6 +60,7 @@ in step 3. A present configuration file alone does not prove the hooks are activ
    | Devin CLI | `devin` | Approve the project hooks (`.devin/`). |
    | Droid (factory.ai) | `droid` | Approve the project hooks (`.factory/settings.json`). |
    | Google Antigravity | `agy` | Trust the folder; hooks come from `.agents/hooks.json`. |
+   | Grok | `grok` | Trust the folder so `.grok/hooks/factory.json` loads. The Claude budget hook ignores a Grok envelope. |
 
 3. Check the hooks: ask the agent to run `cat .env`. The guard must refuse it and name its rule. If it runs, the hooks are not loaded: redo step 2.
 4. Give the agent this setup request:
@@ -72,7 +73,7 @@ in step 3. A present configuration file alone does not prove the hooks are activ
    > instructions, Knowledge and skills. Report anything that still needs configuration. Wait for
    > approval before implementing application features.
 
-5. Say yes to Graphify and Archify unless your policy forbids them, and turn on the team git flow when the project has a remote and reviews (see [optional tools](https://github.com/OualidGuennif/aeion-factory/blob/v2.1.0/README.md)).
+5. Say yes to Graphify and Archify unless your policy forbids them, and turn on the team git flow when the project has a remote and reviews (see [optional tools](https://github.com/OualidGuennif/aeion-factory/blob/v2.1.1/README.md)).
 6. From then on, start work with the managed launcher (`tools/agents/run <harness>`, below). Configure
    [GitHub main protection](github-protection.md) in the new repository;
    GitHub settings are not copied by templates.
@@ -110,6 +111,7 @@ in step 3. A present configuration file alone does not prove the hooks are activ
    | Pi | `.pi/extensions/factory/`, `.agents/skills` links | Restart from the project root and accept the trust prompt |
    | dsh | `.dsh/`, `.agents/skills` links | Start with `tools/agents/run dsh [web\|headless]`; see [dsh in detail](#deepseek-harness-dsh-in-detail) |
    | Devin, Droid, Antigravity | `.devin/`, `.factory/`, `.agents/hooks.json` | Approve the project hooks or trust the folder |
+   | Grok | `.grok/hooks/factory.json` | Trust the folder; `/hooks` lists it. The Claude budget hook ignores a Grok envelope |
 
 5. Check the hooks as in a new project (step 3), then say yes to the Git hooks, Graphify and Archify
    unless your policy forbids them. Use [the adoption guide](../../efficiency/00-EFFICIENCY.md) and
@@ -129,6 +131,7 @@ Run these from the repository root. Additional arguments are native CLI argument
 | Devin CLI | `tools/agents/run devin` | `.devin/hooks.v1.json` and `config.json`, `AGENTS.md`, shared `.agents/skills` |
 | Droid (factory.ai) | `tools/agents/run droid` | `.factory/settings.json` hooks, `AGENTS.md`, shared `.agents/skills` |
 | Google Antigravity | `tools/agents/run antigravity` | `.agents/hooks.json`, `AGENTS.md`, shared `.agents/skills` |
+| Grok | `tools/agents/run grok` | `.grok/hooks/factory.json`, `AGENTS.md`, shared `.claude/skills` and `.agents/skills` |
 
 The launchers enter the project root and check the architecture baseline for the current commit;
 without one they recommend it and continue. The original Claude entry point, `tools/context/run`,

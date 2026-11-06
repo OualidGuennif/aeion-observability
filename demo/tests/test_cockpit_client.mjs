@@ -234,7 +234,16 @@ test('the next step names one plain owner action and never presents a simulation
   assert.match(step.detail, /cancel and launch the feature again/);
   context.rejected = { ...held, receipt: JSON.stringify({ circuit: { reason: 'reviewer_rejected' } }) };
   assert.match(run('nextStep({mode:"live"}, fixture, [rejected]).detail'), /automatic attempts and correction rounds[^]*relaunch unchanged will likely be rejected again/);
+  assert.match(run('failedText({correction:{attempt:1, round:0, trigger:"ci_failed"}})'), /Required CI failed on the open pull request[^]*correction round 1 of 2[^]*was not merged/);
   assert.match(run('failedText({correction:{attempt:1, round:1, trigger:"gate_failed"}})'), /correction round 2 of 2 with the same model/);
+  assert.match(run('holdReason({status:"held", hold_reason:"publication_blocked", receipt:JSON.stringify({publisher:{reason:"ci_failed"}, correction:{exhausted:true}})})'), /^ci_failed$/);
+  assert.match(run('ciCheckText({failed_checks:[{name:"Product artifacts", conclusion:"failure"}]})'), /Product artifacts \(failure\)/);
+  context.queuedCi = JSON.stringify({publisher:{reason:"ci_failed", failed_checks:[{name:"Product artifacts", conclusion:"failure"}]}, correction:{attempt:1, round:0, trigger:"ci_failed"}});
+  assert.match(run('receiptSummary(queuedCi)'), /A required CI check failed/);
+  assert.match(run('receiptSummary(queuedCi)'), /Product artifacts \(failure\)/);
+  assert.doesNotMatch(run('receiptSummary(queuedCi)'), /rounds are finished/);
+  context.exhaustedCi = JSON.stringify({publisher:{reason:"ci_failed"}, correction:{exhausted:true}});
+  assert.match(run('receiptSummary(exhaustedCi)'), /rounds are finished/);
   assert.match(run('failedText({correction:{attempt:1, round:2, trigger:"reviewer_rejected"}})'), /attempt 2 of 3 on another model/);
   assert.match(run('failedText({correction:{attempt:2, round:0, trigger:"crash", crash:{failure:"CLI_FAILED"}}})'), /author agent stopped early[^]*attempt 3 of 3/);
   assert.doesNotMatch(run('failedText({error:"CLI_FAILED", correction:{attempt:3, round:0, trigger:"crash"}})'), /queued/);
