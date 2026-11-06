@@ -262,9 +262,24 @@ class ContextRelay:
                             # only finalized, unused output liability becomes available again.
                             resource_cost=Decimal(str(summary['cost_usd']))
                             spent_bound=max(resource_cost,projected)
+                            # A closed profile is admitted on a byte bound about eight times its
+                            # real token count, and every input token at the cache-write rate.
+                            # Measured 2026-11-06 (build ea3fe718): keeping both after settlement
+                            # stopped a Qwen author at 0.155 USD of 2 USD after 20 requests. Settle on
+                            # the provider's reported input count and price its reported cache reads
+                            # at the cache-read rate; the larger provider cost still wins.
+                            settled_input=counted
+                            reported_input=summary.get('input_tokens')
+                            if relay.context_basis=='provider_usage' and type(reported_input) is int and reported_input>=0:
+                                settled_input=reported_input
+                            cached=summary.get('cache_read_tokens')
+                            if type(cached) is not int or not 0<=cached<=settled_input:
+                                cached=0
+                            input_cost=(Decimal(settled_input-cached)*input_rate
+                                        +Decimal(cached)*Decimal(str(relay.prices.get('cacheRead',relay.prices['input']))))
                             if type(summary.get('output_tokens')) is int and 0<=summary['output_tokens']<=maximum:
                                 spent_bound=max(resource_cost,
-                                    (Decimal(counted)*input_rate+Decimal(summary['output_tokens'])*
+                                    (input_cost+Decimal(summary['output_tokens'])*
                                      Decimal(str(relay.prices['output'])))/1000000)
                             relay.projected_cost+=spent_bound-projected
                 except urllib.error.HTTPError as error:

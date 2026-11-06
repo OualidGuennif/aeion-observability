@@ -34,6 +34,8 @@ class SettlementTests(unittest.TestCase):
                 if owner.mode!='unknown_cost':usage['cost']=0.000001
                 if owner.mode=='missing_output':del usage['completion_tokens']
                 if owner.mode=='expensive':usage['cost']=0.1
+                if owner.mode=='cached':usage['prompt_tokens_details']={'cached_tokens':1500}
+                if owner.mode=='overcached':usage['prompt_tokens_details']={'cached_tokens':2001}
                 content='data: '+json.dumps({'usage':usage})+'\n\n'
                 if owner.mode!='unfinished':content+='data: [DONE]\n\n'
                 raw=content.encode();self.send_response(200)
@@ -66,6 +68,37 @@ class SettlementTests(unittest.TestCase):
         with relay.active:
             self.assertEqual(relay.projected_cost,Decimal('0.000936'))
         self.assertEqual(relay.forwarded_count,3)
+
+    def test_a_closed_profile_settles_on_the_reported_input_not_its_byte_bound(self):
+        # Build ea3fe718 (2026-11-06): a byte bound eight times the real input stopped the author
+        # with BUDGET_STOP after 20 requests and 0.155 USD of 2 USD.
+        class ByteBound:
+            context_basis='provider_usage'
+            def count(self,_):return 16000
+        relay=ContextRelay('fixture/model','synthetic',250000,lambda *_:None,lambda *_a,**_k:None,
+            counter=ByteBound(),upstream=f'http://127.0.0.1:{self.server.server_port}',
+            max_output_tokens=32768,prices={'input':0.15,'output':1.2},cost_limit='0.08')
+        relay.start();self.addCleanup(relay.close)
+        self.assertEqual([self.send(relay,i) for i in range(3)],[200,200,200])
+        with relay.active:
+            # 3 x (2000 reported input x 0.15 + 10 output x 1.2) / 1e6, not 16000 x 0.15 each.
+            self.assertEqual(relay.projected_cost,Decimal('0.000936'))
+        self.mode='missing_output';relay=self.relay()
+        self.assertEqual([self.send(relay,i) for i in range(3)],[200,200,409])
+
+    def test_reported_cache_reads_settle_at_the_cache_read_rate_and_bad_counts_at_full_rate(self):
+        for mode,expected in (('cached','0.000306'),('overcached','0.000936')):
+            with self.subTest(mode=mode):
+                self.mode=mode
+                relay=ContextRelay('fixture/model','synthetic',250000,lambda *_:None,lambda *_a,**_k:None,
+                    counter=type('C',(),{'count':lambda self,_:2000})(),
+                    upstream=f'http://127.0.0.1:{self.server.server_port}',max_output_tokens=32768,
+                    prices={'input':0.15,'cacheRead':0.01,'output':1.2},cost_limit='0.08')
+                relay.start();self.addCleanup(relay.close)
+                self.assertEqual([self.send(relay,i) for i in range(3)],[200,200,200])
+                with relay.active:
+                    # 3 x (500 x 0.15 + 1500 x 0.01 + 10 x 1.2) / 1e6; a count above the input is ignored.
+                    self.assertEqual(relay.projected_cost,Decimal(expected))
 
     def test_unknown_or_unfinished_usage_keeps_the_entire_liability(self):
         for mode in ('unknown_cost','unfinished','missing_output'):

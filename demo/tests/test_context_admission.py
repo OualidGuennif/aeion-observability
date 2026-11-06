@@ -112,11 +112,16 @@ class ProviderContextTests(unittest.TestCase):
         usage.feed(b'data: {"type":"message_stop"}\n\n')
         self.assertEqual(usage.summary()['input_tokens'],600)
         self.assertEqual(usage.summary()['output_tokens'],10)
+        self.assertEqual(usage.summary()['cache_read_tokens'],200)
 
     def test_openai_prompt_total_does_not_add_cached_tokens_twice(self):
         usage=ReportedUsage()
         usage.feed(b'data: {"usage":{"prompt_tokens":600,"prompt_tokens_details":{"cached_tokens":200},"completion_tokens":10,"cost":0.01}}\n\ndata: [DONE]\n\n')
         self.assertEqual(usage.summary()['input_tokens'],600)
+        self.assertEqual(usage.summary()['cache_read_tokens'],200)
+        usage=ReportedUsage()
+        usage.feed(b'data: {"usage":{"prompt_tokens":600,"cache_read_input_tokens":-1,"completion_tokens":10,"cost":0.01}}\n\n')
+        self.assertIsNone(usage.summary()['cache_read_tokens'])
 
 
 if __name__=='__main__':unittest.main()

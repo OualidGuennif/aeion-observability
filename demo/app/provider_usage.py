@@ -8,7 +8,7 @@ class ReportedUsage:
         self.buffer = b''
         self.ended = False
         self.cost = self.resource_cost = None
-        self.input_tokens = self.output_tokens = None
+        self.input_tokens = self.output_tokens = self.cache_read_tokens = None
 
     def feed(self, block):
         self.buffer += block
@@ -39,6 +39,11 @@ class ReportedUsage:
                     if type(usage.get(key)) is int and usage[key] >= 0:
                         setattr(self, field, usage[key])
                         break
+            details = usage.get('prompt_tokens_details')
+            cached = (details.get('cached_tokens') if isinstance(details, dict) and 'prompt_tokens' in usage
+                      else usage.get('cache_read_input_tokens'))
+            if type(cached) is int and cached >= 0:
+                self.cache_read_tokens = cached
             if type(usage.get('input_tokens')) is int and 'prompt_tokens' not in usage:
                 cached = [usage.get(key, 0) for key in ('cache_read_input_tokens','cache_creation_input_tokens')]
                 self.input_tokens = (usage['input_tokens'] + sum(cached)
@@ -60,4 +65,5 @@ class ReportedUsage:
         return {'complete': self.ended and self.cost is not None,
                 'cost_usd': self.resource_cost, 'charged_usd': self.cost,
                 'input_tokens': self.input_tokens, 'output_tokens': self.output_tokens,
+                'cache_read_tokens': self.cache_read_tokens,
                 'basis': 'provider_reported_resource_cost' if self.cost is not None else 'provider_cost_unreported'}

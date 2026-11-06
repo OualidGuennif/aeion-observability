@@ -277,7 +277,7 @@ DeepSeek's native `thinking`/`reasoning_effort` protocol is explicitly mapped by
 Pi1.4.0 adapter: low stays low, medium maps to high, max stays max. The relay enforces the supervisor's exact
 effort before forwarding. After measured16384-output failures and a32768 budget-stop, the owner
 requested looser local budgets under the existing$15/day ceiling. The full maintainer review
-now uses normal medium/high effort, a65536 maximum output and$1 per execution. Normal4096
+now runs at max effort (owner rule 2026-11-06), with a65536 maximum output and$1 per execution. Normal4096
 defaults, the300k combined context ceiling and daily purses remain enforced. The first approval
 and all failed attempts remain intact; rejection or unknown usage cannot retry. Public effort metadata
 is retained in Langfuse and memory, never hidden reasoning; profilev3 separates measured cohorts.
@@ -289,8 +289,13 @@ qualify_complete_review.py,test_factory_bootstrap).
 The reviewer already receives the complete packet; it has no shell/file capability to reread
 duplicate copies or attempt to run the product. The supervisor owns the real checks. A request
 reserves its maximum input/output cost before forwarding; after complete provider usage, the
-relay retains the larger of resource cost and conservatively priced counted input/actual output.
-Unused output liability is then available inside the same unchanged dollar reservation. Missing
+relay retains the larger of resource cost and conservatively priced input/actual output.
+Unused output liability is then available inside the same unchanged dollar reservation. Input is
+the counted input for a pinned tokenizer, or the provider-reported input for Qwen/Haiku, whose
+admission byte bound runs about eight times the real count; reported cache reads are priced at
+the cache-read rate, other input at the higher of the input and cache-write rates. Measured
+2026-11-06 (build ea3fe718): settling on the byte bound stopped a Qwen author with BUDGET_STOP
+after 20 requests at0.155 USD of its$2. Missing
 cost/output or unfinished streams retain their maximum liability; higher resource cost blocks
 later calls. A known closed bootstrap failure caused by cumulative unused reservations may be
 recovered once with the unchanged artifact and first approval, never unknown cost or a rejection
