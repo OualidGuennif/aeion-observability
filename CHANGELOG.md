@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- A required CI check that finishes without success no longer holds the feature until the owner
+  cancels. It queues the same bounded correction rounds as a rejected review or a failed gate,
+  and the next OpenShell author receives the check names plus a short redacted copy of the agents'
+  notes. The open pull request is not merged. An unreadable or pending check still waits.
 - Update the Æion Factory template from v2.1.0 to v2.1.1 so Grok loads the shared guards from
   `.grok/hooks/factory.json`. The 250k/300k size is `signals.json` `contextTokensUsed`; the Claude
   budget hook does not latch when Grok loads `.claude/settings.json`. The project's stricter git

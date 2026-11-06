@@ -78,8 +78,9 @@ when everything agrees:
 ```text
 Markdown spec ─► preparation ─► author agent (Flue + Pi, tools only inside an OpenShell sandbox)
    ─► protected checks ─► two independent reviewer models
-   ─► rejected or failed? up to two automatic correction rounds, then you decide
-   ─► pull request ─► CI on the exact head ─► product main
+   ─► rejected or failed gate? up to two automatic correction rounds, then you decide
+   ─► pull request ─► CI on the exact head ─► red CI? the same correction rounds
+   ─► product main
 ```
 
 Every step is traced, budgeted (15 USD a day per repository) and kept as a receipt. The author

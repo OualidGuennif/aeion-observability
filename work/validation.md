@@ -1,3 +1,9 @@
+## Required CI failure queues a correction — 2026-11-06
+
+- Trigger: feature 001 build 3044b0f5, attempt b42253e4, PR 7. Gate passed, GLM and Qwen approved, then a required CI check failed. Publication held `ci_failed` and the feature stayed in progress, so the catalog could not continue. The forge result carried no check name. Owner-only agent notes stayed out of the next OpenShell prompt.
+- Change: a completed required check that is not success closes the attempt as failed and admits the next correction in the same transaction, with at most eight check names and conclusions and a short redacted copy of the agent notes. The open pull request is not merged. Pending, unreadable and every other publication hold stay held. The last round stays held for the owner.
+- Checks: `python3 -m unittest demo.tests.test_factory_publication_state demo.tests.test_factory_github_atomic demo.tests.test_factory_correction_rounds` — 42 OK. `node --test demo/tests/test_cockpit_client.mjs` — 28 OK. The live controller was not restarted and did not spend a new author session.
+
 ## Æion Factory v2.1.1 — 2026-11-06
 
 - `tools/agents/template-update --ref v2.1.1` from the Factory checkout (885c37d089c4), baseline v2.1.0 from `.aeion-factory`. Connectors replaced for the Grok adapter: `tools/agents/hook.py`, `tools/agents/run`, `tools/context/budget.py`, `.claude/hooks/guard-path.py`, `tools/agents/connectors.py`, new `.grok/hooks/factory.json`. Hook and budget tests merged or updated. `command.md` and `Workflow_Agent.md` stay absent.

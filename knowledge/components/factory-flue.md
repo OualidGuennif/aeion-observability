@@ -203,7 +203,13 @@ author starts from the previous candidate only when its bytes still match the di
 receipt recorded and the base is unchanged: a refused candidate, or after a crash the scoped files
 the crashed author left, revalidated by `validate_artifact`. It receives the votes and check results
 as at most twelve printable lines with secret-like text redacted, labelled as untrusted data, or
-the crash code and error class. A correction that returns refused bytes unchanged is held
+the crash code and error class. A required CI check that completed without success (`ci_failed`,
+at most eight check names and conclusions, never a log or annotation) is the same kind of
+refusal: the attempt becomes `failed` and the next correction is admitted in that same
+transaction, starting from the published bytes when their digest still matches. The open pull
+request is not merged and is not updated. Pending, unreadable and every other publication hold
+stay held. When no correction remains, the attempt stays held for the owner
+(`test_factory_publication_state`, `test_factory_github_atomic`). A correction that returns refused bytes unchanged is held
 `correction_unchanged` without checks or votes (never after a crash, whose files nobody judged yet);
 after the third attempt the owner decides. The runner keeps one error-class token from the author
 CLI's stderr (`runner.error_class`: a CamelCase `…Error`/`…Exception`, `ERR_…` or a known POSIX
@@ -212,8 +218,9 @@ Every factory agent receives the same pipeline context (`demo/flue/src/context.t
 without network, the goal, the five steps, the attempt bounds and the rules) and leaves owner-only
 feedback, "RAS" or at most 800 characters: the author through the bridge `/v1/feedback`
 (`submit_feedback`, one reminder before it may stop), reviewers and the preparer through an
-optional field of their typed result. Notes land in the receipt `feedback`, never in another
-agent's input, the vote, telemetry or memory. `factory.retention` removes, at controller start and
+optional field of their typed result. Notes land in the receipt `feedback`. A later correction
+copies at most a few redacted lines into the next author's prompt as untrusted data, beside the
+vote reasons. They never enter the vote, telemetry or memory. `factory.retention` removes, at controller start and
 then daily, the workspaces of terminal builds older than seven days that no queued continuation
 needs, and asks the publish role to delete the `aeion/build-*` branch of a failed or cancelled build
 only when its pull request was closed without a merge (`test_factory_retention`). Every author prompt states that its OpenShell sandbox is not
@@ -369,7 +376,8 @@ stay recorded before an explicitly resumed review; unknown-cost attempts never a
 Metadata events and immutable receipts bind model/role/task/runtime, artifact/check/review
 digests, usage basis, budget claims, memory acknowledgments and publication state. Missing
 qualification, usage, checks, voters, privileges or expected base yields a visible hold. An
-uncertain external action is reconciled before retry; no automatic paid-author retry occurs.
+uncertain external action is reconciled before retry. A definite required-CI failure queues a
+bounded correction; it is not a merge and not an unbounded retry. Uncertain cost never auto-retries.
 
 ## Invariants
 

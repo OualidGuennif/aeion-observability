@@ -70,7 +70,7 @@ function reasonText(info) {
     protection_unreadable: "The release role needs read access to main branch protection before it can verify a safe merge.",
     protection_unqualified: "Main branch protection does not satisfy the factory policy. No merge was requested.",
     ci_pending: "Waiting for all required checks on this exact PR commit. No new implementation is needed.",
-    ci_failed: "A required CI check failed. Inspect the PR checks; the feature has not been merged.",
+    ci_failed: "A required CI check failed. The pull request was not merged. Automatic correction rounds are finished, so this feature stays on hold.",
     stale_base: "Main changed after the task was frozen. Rebase, checks and independent reviews must be repeated before publication.",
     stale_head: "The PR head changed after review. Publication is held until the exact artifact is verified again.",
     merge_not_confirmed: "A merge could not be confirmed on main. Keep this feature locked while the factory reconciles the remote result.",
@@ -85,22 +85,25 @@ const OWNER_ACTIONS = {
   dependency_missing: "Nothing to do: it starts after its prerequisites reach main.",
   budget_unavailable: "Wait for tomorrow's budget or raise DAILY_LIMIT_USD in demo/budget.conf (max $15).",
   budget_config_invalid: "Fix demo/budget.conf, then restart the controller.",
+  ci_failed: "Read the failing check names in Build evidence, then cancel this request to free the feature. A relaunch starts a new author; it does not resume these rounds.",
 };
 function holdReason(build) {
   const receipt = parseReceipt(build.receipt);
   if (receipt.reason === "correction_unchanged") return receipt.reason;
+  if ((receipt.publisher || {}).reason === "ci_failed" && receipt.correction?.exhausted === true) return "ci_failed";
   const circuit = receipt.circuit || {};
   return ["reviewer_failed", "reviewer_rejected"].includes(circuit.reason) ? circuit.reason : build.hold_reason;
 }
 function failedText(r) {
   const c = r.correction || {};
   const attempt = Number.isInteger(c.attempt) ? c.attempt : 1;
-  if (c.exhausted !== true && Number.isInteger(c.round) && ["reviewer_rejected", "gate_failed", "crash"].includes(c.trigger)) {
-    const cause = c.trigger === "reviewer_rejected" ? "A reviewer rejected this build" : c.trigger === "gate_failed" ? "A protected check refused this build" : "The author agent stopped early";
+  if (c.exhausted !== true && Number.isInteger(c.round) && ["reviewer_rejected", "gate_failed", "ci_failed", "crash"].includes(c.trigger)) {
+    const cause = { reviewer_rejected: "A reviewer rejected this build", gate_failed: "A protected check refused this build", ci_failed: "Required CI failed on the open pull request", crash: "The author agent stopped early" }[c.trigger];
+    const tail = c.trigger === "ci_failed" ? "The pull request was not merged." : "Nothing was published.";
     if (c.trigger !== "crash" && c.round < 2)
-      return `${cause}; the factory queued correction round ${c.round + 1} of 2 with the same model and that feedback. Nothing was published.`;
+      return `${cause}; the factory queued correction round ${c.round + 1} of 2 with the same model and that feedback. ${tail}`;
     if (attempt < 3)
-      return `${cause}; the factory queued attempt ${attempt + 1} of 3 on another model, starting from the validated files. Nothing was published.`;
+      return `${cause}; the factory queued attempt ${attempt + 1} of 3 on another model, starting from the validated files. ${tail}`;
   }
   return reasonText({reason:r.error || r.reason || "builder_error"});
 }
@@ -274,6 +277,15 @@ function voteText(vote) {
 function parseReceipt(raw) {
   try { return raw ? JSON.parse(raw) : {}; } catch { return {}; }
 }
+function ciCheckText(publication) {
+  const items = Array.isArray(publication.failed_checks) ? publication.failed_checks.slice(0, 8) : [];
+  const text = items.map((item) => {
+    const name = typeof item?.name === "string" ? item.name.slice(0, 80) : "";
+    const conclusion = typeof item?.conclusion === "string" ? item.conclusion.slice(0, 32) : "";
+    return name && conclusion ? `${name} (${conclusion})` : "";
+  }).filter(Boolean).join("; ");
+  return text ? esc(text) : "";
+}
 function receiptSummary(raw) {
   const r = parseReceipt(raw);
   const check = r.gate?.results?.prepared_product?.detail || r.gate?.results?.prepared_gradle?.detail || r.gate?.results?.gradle_test?.detail || r.execution?.check || r.draft_check || r.check || {};
@@ -324,6 +336,7 @@ function receiptSummary(raw) {
     ["Review", r.circuit?.status && esc(String(r.circuit.status))],
     ["Publication", publication.status && esc(String(publication.status))],
     ["Publication detail", publication.reason && esc(reasonText({reason: publication.reason}))],
+    ["CI checks", ciCheckText(publication)],
     ["Merged commit", publication.confirmed_main === true && /^[a-f0-9]{40}$/.test(publication.merge_sha) && esc(publication.merge_sha)],
     ["Confirmed main", publication.confirmed_main === true && /^[a-f0-9]{40}$/.test(publication.main_sha) && esc(publication.main_sha)],
   ].filter(([, value]) => value);

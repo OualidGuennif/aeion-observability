@@ -20,6 +20,7 @@ def request():
 class Transport:
  def __init__(self):
   self.calls=[];self.main=BASE;self.branch=None;self.pr=None;self.check='success';self.app=15368
+  self.output=None
   self.strict=True;self.protection_http=200;self.diff_files=FILES.copy()
  def __call__(self,method,url,payload,headers):
   self.calls.append((method,url,payload))
@@ -48,8 +49,9 @@ class Transport:
    return self.protection_http,{'required_status_checks':{'strict':self.strict,'checks':[{'context':'Product artifacts','app_id':15368}]},
      'enforce_admins':{'enabled':True},'allow_force_pushes':{'enabled':False},'allow_deletions':{'enabled':False}}
   if method=='GET' and '/check-runs' in path:
-   return 200,{'total_count':1,'check_runs':[{'head_sha':HEAD,'name':'Product artifacts','status':'completed',
-       'conclusion':self.check,'app':{'id':self.app}}]}
+   run={'head_sha':HEAD,'name':'Product artifacts','status':'completed','conclusion':self.check,'app':{'id':self.app}}
+   if self.output:run['output']=self.output
+   return 200,{'total_count':1,'check_runs':[run]}
   if method=='PUT' and path=='/pulls/7/merge':
    assert payload['sha']==HEAD
    self.main=MERGE;self.pr={**self.pr,'state':'closed','merged':True,'merge_commit_sha':MERGE}
@@ -97,6 +99,20 @@ class AtomicForgeTests(unittest.TestCase):
   result=self.forge.merge(7,expected_head=HEAD,expected_base=BASE)
   self.assertEqual(result['status'],'merged');self.assertEqual(result['merge_sha'],MERGE)
   self.assertEqual(result['main_sha'],MERGE)
+
+ def test_a_failed_required_check_names_itself_and_drops_its_log(self):
+  self.publish()
+  self.transport.check='failure'
+  self.transport.output={'summary':'leaked ghp_'+'a'*36}
+  result=self.forge.merge(7,expected_head=HEAD,expected_base=BASE)
+  self.assertEqual(result['status'],'held')
+  self.assertEqual(result['failed_checks'],[{'name':'Product artifacts','conclusion':'failure'}])
+  self.assertNotIn('ghp_',repr(result))
+  self.assertFalse(any(x[0]=='PUT' for x in self.transport.calls))
+  named=GitHubForge._failed_checks(['bad\nname','CI / build'],{
+      'bad\nname':{'conclusion':'failure'},'CI / build':{'conclusion':'timed_out'},
+      'skipped-not-required':{'conclusion':'success'}})
+  self.assertEqual(named,[{'name':'check','conclusion':'failure'},{'name':'CI / build','conclusion':'timed_out'}])
 
  def test_failed_or_forged_ci_and_non_strict_protection_never_merge(self):
   for key,value in [('check','failure'),('app',1),('strict',False),('protection_http',403)]:

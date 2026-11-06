@@ -6,7 +6,7 @@ import tempfile
 import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from factory.manifest import Catalog
-from factory.store import Store,StoreError,GATED,PR_OPEN,MERGED
+from factory.store import Store,StoreError,FAILED,GATED,HELD,PR_OPEN,QUEUED,MERGED
 from factory.publication import PublicationCoordinator
 from factory.review import content_digest
 from factory.publisher import verified_receipt
@@ -52,6 +52,53 @@ class PublicationStateTests(unittest.TestCase):
   self.assertEqual(resumed['phase'],'publish')
   self.assertEqual(resumed['request'],self.request)
   self.assertEqual(resumed['attempt_id'],job['attempt_id'])
+
+ def test_a_failed_required_check_queues_one_correction_and_other_holds_do_not(self):
+  self.receipt={**self.receipt,'artifact_digest':self.request['artifact_digest'],
+                'feedback':{'author':'hibernate stays lazy','reviewers':[{'model':'glm-5.3-flash','text':'port 8081'}]}}
+  self.stage();job=self.store.claim_publication()
+  self.store.finish_publication(job,{'status':'held','reason':'ci_failed','failed_checks':[
+      {'name':'Product artifacts','conclusion':'failure'}]},delay_ns=0)
+  result=self.store.continue_after_ci_failure(self.build['build_id'],self.catalog,self.request['files'])
+  self.assertEqual(result['status'],'failed')
+  self.assertEqual((result['correction']['attempt'],result['correction']['round']),(1,1))
+  first,second=self.store.board()
+  self.assertEqual(first['status'],FAILED)
+  marker=json.loads(first['receipt'])['correction']
+  self.assertEqual(marker['trigger'],'ci_failed')
+  self.assertEqual(marker['candidate_files'],['demo/forum-docs/x.md'])
+  self.assertEqual(marker['candidate_digest'],self.request['artifact_digest'])
+  self.assertEqual(json.loads(first['receipt'])['publisher']['failed_checks'][0]['name'],'Product artifacts')
+  self.assertEqual(second['status'],QUEUED)
+  self.assertEqual(self.store.correction_of(second['build_id']),
+                   {'previous_build_id':first['build_id'],'attempt':1,'round':1})
+  self.assertEqual(self.store.continue_after_ci_failure(
+      self.build['build_id'],self.catalog,self.request['files'])['status'],'unchanged')
+  self.assertEqual(len(self.store.board()),2)
+
+ def test_an_unreadable_or_permission_hold_is_not_a_correction(self):
+  for reason in ('ci_unreadable','tree_create_failed:403','protection_unqualified'):
+   with self.subTest(reason=reason):
+    self.setUp();self.stage();job=self.store.claim_publication()
+    self.store.finish_publication(job,{'status':'held','reason':reason},delay_ns=0)
+    result=self.store.continue_after_ci_failure(self.build['build_id'],self.catalog,self.request['files'])
+    self.assertEqual(result['status'],'unchanged')
+    self.assertEqual(self.store.board()[0]['status'],HELD)
+    self.assertEqual(len(self.store.board()),1)
+
+ def test_the_last_ci_failure_stays_held_for_the_owner(self):
+  self.stage();job=self.store.claim_publication()
+  self.store.finish_publication(job,{'status':'held','reason':'ci_failed'},delay_ns=0)
+  with self.store._connect() as conn:
+   conn.execute("INSERT INTO events (build_id,time_ns,actor,event,detail,generation) VALUES (?,?,?,?,?,?)",
+                (self.build['build_id'],1,'supervisor','correction',
+                 json.dumps({'previous_build_id':'a'*32,'attempt':3,'round':2}),0))
+  result=self.store.continue_after_ci_failure(self.build['build_id'],self.catalog,{})
+  self.assertEqual(result,{'status':'held','reason':'ci_failed','exhausted':True})
+  row=self.store.board()[0]
+  self.assertEqual(row['status'],HELD)
+  self.assertTrue(json.loads(row['receipt'])['correction']['exhausted'])
+  self.assertEqual(len(self.store.board()),1)
 
  def test_denial_resume_refuses_unknown_effect_changed_request_and_cancellation(self):
   self.stage();job=self.store.claim_publication()

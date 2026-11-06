@@ -62,6 +62,8 @@ egress. The supervisor packages production code before candidate tests, gives te
 workspace, and grades the product in separate application/verifier processes. Two eligible
 reviewer model families must differ from each other and from author/preparer families. Separate
 publisher/release subprocesses open the product PR, verify exact-head CI and confirm main.
+A required check that finished without success does not merge: it queues a bounded correction
+with the check names and the agents' notes. An unreadable or pending check stays held.
 Only integration of the current contract unlocks dependent MDs; a generated patch or old-contract
 success does not. The product has its own GitHub repository and credentials. Observer mirrors
 are not product workspaces. Fixed PostgreSQL migration/restore oracles, a separate unit-test

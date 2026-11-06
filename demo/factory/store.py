@@ -13,6 +13,7 @@ import uuid
 from pathlib import Path
 
 from .manifest import ManifestError
+from .review import content_digest
 
 PROPOSED = "proposed"
 QUEUED = "queued"
@@ -58,6 +59,20 @@ def continuation_link(value):
             or (attempt, number) == (1, 0)):
         return None
     return {'previous_build_id': value['previous_build_id'], 'attempt': attempt, 'round': number}
+
+
+def continuation_step(attempt, number):
+    """The next (attempt, round) after a judged refusal, or None when the owner decides."""
+    if (type(attempt) is not int or type(number) is not int
+            or not 1 <= attempt <= MAX_ATTEMPTS or not 0 <= number <= MAX_CORRECTION_ROUNDS):
+        return None
+    if number < MAX_CORRECTION_ROUNDS:
+        return attempt, number + 1
+    if attempt < MAX_ATTEMPTS:
+        return attempt + 1, 0
+    return None
+
+
 PROGRESS_PHASES = {'preparing', 'building', 'checking', 'reviewing', 'publishing',
     'waiting_ci', 'merging', 'model.step.started', 'tool.finished', 'gen_ai.request',
     'gate.closed', 'process.started', 'process.retired', 'protected_check.started',
@@ -672,6 +687,115 @@ class Store:
                     return True
             finally:
                 conn.close()
+
+    def continue_after_ci_failure(self, build_id, catalog, files):
+        """Turn one definite CI failure into the next correction, in a single transaction.
+
+        Only a held publication whose publisher reason is exactly ``ci_failed`` and whose job
+        lease is free. Pending, unreadable and every other hold stay as they are. ``files`` are
+        recorded only when their digest is the receipt's artifact digest. When no correction
+        remains, the attempt stays held and records that the rounds are exhausted.
+        """
+        names, digest = self._reviewed_files(files)
+        with self._lock:
+            conn = self._connect()
+            try:
+                with conn:
+                    conn.execute('BEGIN IMMEDIATE')
+                    row = self._row(conn, build_id)
+                    if row is None or row['status'] != HELD or row['hold_reason'] != 'publication_blocked':
+                        return {'status': 'unchanged'}
+                    job = conn.execute('SELECT * FROM publication_jobs WHERE attempt_id=?',
+                                       (row['attempt_id'],)).fetchone()
+                    if (job is None or job['phase'] != 'held' or (job['lease_until_ns'] or 0) > self._now()
+                            or row['cancellation_generation'] != job['generation']
+                            or not catalog.matches_contract(row) or not catalog.contract_current(row['feature_id'])):
+                        return {'status': 'unchanged'}
+                    try:
+                        receipt = json.loads(row['receipt'] or '{}')
+                    except ValueError:
+                        return {'status': 'unchanged'}
+                    if not isinstance(receipt, dict):
+                        return {'status': 'unchanged'}
+                    publisher = receipt.get('publisher') if isinstance(receipt.get('publisher'), dict) else {}
+                    marker = receipt.get('correction') if isinstance(receipt.get('correction'), dict) else {}
+                    if (publisher.get('status') != 'held' or publisher.get('reason') != 'ci_failed'
+                            or marker.get('trigger') == 'ci_failed'):
+                        return {'status': 'unchanged'}
+                    link = self._correction_link(conn, build_id)
+                    attempt, current = (link['attempt'], link['round']) if link else (1, 0)
+                    step = continuation_step(attempt, current)
+                    if digest != receipt.get('artifact_digest'):
+                        names, digest = None, None
+                    correction = {'attempt': attempt, 'round': current, 'trigger': 'ci_failed',
+                                  'candidate_files': names, 'candidate_digest': digest}
+                    now = self._now()
+                    if step is None:
+                        receipt['correction'] = {**correction, 'exhausted': True}
+                        conn.execute('UPDATE builds SET receipt=?,updated_ns=? WHERE build_id=?',
+                                     (json.dumps(receipt), now, build_id))
+                        self._event(conn, build_id, now, 'supervisor', 'ci_failed',
+                                    'corrections_exhausted', row['cancellation_generation'])
+                        return {'status': 'held', 'reason': 'ci_failed', 'exhausted': True}
+                    fid = row['feature_id']
+                    priors = [r for r in self._rows(conn, 'WHERE feature_id=?', (fid,)) if r['build_id'] != build_id]
+                    integrated = self._integration_ids(conn, catalog)
+                    if (any(r['status'] in IN_PROGRESS_FEATURE and not self._obsolete_unstarted(r, catalog) for r in priors)
+                            or any(r['status'] in COMPLETED_FEATURE and catalog.matches_contract(r) for r in priors)
+                            or fid in integrated or fid in self._publication_holds(conn)):
+                        return {'status': 'unchanged'}
+                    key = 'factory-correction:' + build_id
+                    if conn.execute('SELECT build_id FROM builds WHERE idempotency_key=?', (key,)).fetchone() is not None:
+                        return {'status': 'unchanged'}
+                    receipt['correction'] = correction
+                    conn.execute('UPDATE builds SET status=?,hold_reason=NULL,receipt=?,lease_until_ns=NULL,updated_ns=? '
+                                 'WHERE build_id=?', (FAILED, json.dumps(receipt), now, build_id))
+                    self._event(conn, build_id, now, 'supervisor', FAILED, json.dumps(correction),
+                                row['cancellation_generation'])
+                    payload = hashlib.sha256(json.dumps(
+                        {'ids': [fid], 'contracts': {fid: catalog.contracts[fid]}},
+                        sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+                    merged = self._merged_ids(conn, catalog)
+                    missing = catalog.missing_dependencies(fid, merged)
+                    status = HELD if missing else QUEUED
+                    new_id = uuid.uuid4().hex
+                    conn.execute(
+                        'INSERT INTO builds (build_id, feature_id, status, hold_reason, idempotency_key, '
+                        'payload_digest, catalog_digest, contract_digest, created_ns, updated_ns) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                        (new_id, fid, status, 'dependency_missing' if missing else None, key, payload,
+                         catalog.digest, catalog.contracts[fid], now, now))
+                    self._event(conn, new_id, now, 'supervisor', PROPOSED, None, 0)
+                    self._event(conn, new_id, now, 'supervisor', status,
+                                json.dumps({'missing': missing}) if missing else None, 0)
+                    link_out = {'previous_build_id': build_id, 'attempt': step[0], 'round': step[1]}
+                    self._event(conn, new_id, now, 'supervisor', 'correction',
+                                json.dumps(link_out, sort_keys=True), 0)
+                    return {'status': 'failed', 'build_id': build_id, 'correction': {
+                        'attempt': step[0], 'round': step[1], 'status': 'admitted', 'build_ids': [new_id]}}
+            finally:
+                conn.close()
+
+    @staticmethod
+    def _reviewed_files(files):
+        """Sorted names and digest of a caller-supplied candidate, or (None, None) when unusable."""
+        if not isinstance(files, dict) or not files or len(files) > 200:
+            return None, None
+        for name, text in files.items():
+            if (not isinstance(name, str) or not isinstance(text, str) or not name
+                    or name.startswith('/') or '\x00' in name or '..' in name.split('/')):
+                return None, None
+            if len(text.encode('utf-8')) > 512 * 1024:
+                return None, None
+        return sorted(files), content_digest(files)
+
+    def _correction_link(self, conn, build_id):
+        row = conn.execute("SELECT detail FROM events WHERE build_id=? AND event='correction' "
+                           "ORDER BY seq LIMIT 1", (build_id,)).fetchone()
+        try:
+            detail = json.loads(row['detail']) if row is not None else None
+        except (TypeError, ValueError):
+            return None
+        return continuation_link(detail)
 
     def publication_authorized(self, attempt_id, generation, lease_owner):
         with self._lock:
