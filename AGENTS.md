@@ -2,7 +2,7 @@
 
 Research and design workspace with an opt-in local Docker demo. Read [README](README.md) and the
 [framework specification](knowledge/components/observability.md) before extending it. The
-repository follows the [Æion Factory](https://github.com/OualidGuennif/aeion-factory) v2.1.0
+repository follows the [Æion Factory](https://github.com/OualidGuennif/aeion-factory) v2.1.1
 development template: `tools/`, `efficiency/` and the native harness folders come from it.
 
 ## Working rules
@@ -39,7 +39,7 @@ docs/        preserved upstream license notices shipped with the Factory guide
 tools/       Factory checks, agent launchers, architecture (Graphify/Archify)
 efficiency/  Factory's seven-phase engineering guide (read 00-EFFICIENCY.md first)
 loops/       Factory's loop jobs: orchestrator, prompts, schedules, Decisions API client
-.claude/ .pi/ .dsh/ .codex/ .opencode/ .agents/   native harness configs and shared skills
+.claude/ .pi/ .dsh/ .codex/ .opencode/ .agents/ .grok/   native harness configs and shared skills
 ```
 
 ## Build and test

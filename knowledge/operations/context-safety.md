@@ -1,7 +1,7 @@
 ---
 type: Runbook
 title: "Context safety and handover"
-description: "One 250k/300k rule for Claude, Codex, OpenCode, Pi and dsh: closure, verified handover, compaction, and its limits."
+description: "One 250k/300k rule for Claude, Codex, OpenCode, Pi, dsh and Grok: closure, verified handover, compaction, and its limits."
 status: stable
 review_after: 2027-01-29
 generated:
@@ -43,7 +43,10 @@ bounded transcript tail and retains native token counts, never transcript text. 
 counts once. Synthetic assistant records (API errors and hook stops, model `<synthetic>`) were
 never sent and are skipped, so a stop cannot hide the last real request and block every later
 prompt. After a "prompt is too long" error the real context may exceed that last observation; the
-request itself still fails natively. Missing or zero usage is unavailable, not an empty context. An incomplete final JSONL line is
+request itself still fails natively. Missing or zero usage is unavailable, not an empty context. A Grok envelope is not a Claude
+transcript: `hookEventName` in snake_case, or a transcript named `updates.jsonl` or `chat_history.jsonl`, makes `handle`
+return an empty object and write no state, so the first Grok prompt cannot latch STOPPED. The Grok
+adapter reads `contextTokensUsed` from `signals.json` beside that transcript. That figure is the live window and falls after compaction. `usage.json` beside it is the billed ledger and only grows, so it is not the context size. A zero window is a real reading. An incomplete final JSONL line is
 a transient write; a malformed complete record is invalid.
 
 Every event latches the first observed 250k crossing, including PreCompact. The hook alerts both
@@ -138,6 +141,7 @@ edit its own scripts/settings. Raw CLI launches outside the managed entry point 
 | Pi | `ctx.getContextUsage().tokens` | the extension compacts at settlement in TUI/RPC; the RPC headless runner keeps the process alive for that compaction; a one-shot print/JSON run stops cleanly at the gate with the verified handover (1.9.2) |
 | dsh | `ctx.tokenMeter.measure(session).totalTokens` | the plugin compacts before the next step through the root service (headless), or runs `/compact` on idle where the web profile isolates that service inside an agent-preset group |
 | Droid | nothing (no 250k alert) | native; a compaction before the handover owes it after, as for Codex |
+| Grok | `signals.json` `contextTokensUsed` beside `updates.jsonl` or `chat_history.jsonl` (not `usage.json`) | cannot be refused; a compaction before the handover owes the closure after |
 
 A harness reports usage after the response that asked for a tool, so the adapter keeps the last count
 until a new one arrives (0 after a compaction). A malformed count or a rollout from another session

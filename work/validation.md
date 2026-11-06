@@ -1,3 +1,10 @@
+## Æion Factory v2.1.1 — 2026-11-06
+
+- `tools/agents/template-update --ref v2.1.1` from the Factory checkout (885c37d089c4), baseline v2.1.0 from `.aeion-factory`. Connectors replaced for the Grok adapter: `tools/agents/hook.py`, `tools/agents/run`, `tools/context/budget.py`, `.claude/hooks/guard-path.py`, `tools/agents/connectors.py`, new `.grok/hooks/factory.json`. Hook and budget tests merged or updated. `command.md` and `Workflow_Agent.md` stay absent.
+- `AGENTS.md` and `README.md` keep the project's text. The version pin is v2.1.1 and the map names `.grok/`. The factory three-way proposals conflicted with the rewritten files and were not applied. Knowledge docs state the Grok harness: hooks in `.grok/hooks/factory.json`, context size `signals.json` `contextTokensUsed`, compaction that cannot be refused.
+- `.claude/hooks/guard-bash.py` stays the project copy. Factory v2.1.1 did not change it, and it still has the remote-helper URL and `--upload-pack`/`--receive-pack`/`--exec`/`-u` block the hook tests require. `adapter-check --ref v2.1.1`: 28 connectors match, this one reports DRIFT. Application `VERSION` stays 1.9.0.
+- Checks: hook tests 733 passed, adapter tests 65 passed, budget tests 40 passed, `tools/factory-tests` PASS, knowledge-check PASS, doc-links PASS (150), repo-health PASS. No live Grok session was run.
+
 ## Robust author attempts, agent feedback and retention — 2026-11-06
 
 - Trigger: build 96f9ddef (001, GLM author) stopped CLI_FAILED at step 96 (agent process exit 1, no recorded cause, 0.51 USD) and ended the launch.

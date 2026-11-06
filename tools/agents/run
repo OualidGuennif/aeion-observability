@@ -8,8 +8,8 @@ import subprocess
 import sys
 
 root = Path(__file__).resolve().parents[2]
-if len(sys.argv) < 2 or sys.argv[1] not in {'claude', 'codex', 'opencode', 'pi', 'dsh', 'devin', 'droid', 'antigravity'}:
-    sys.exit('usage: tools/agents/run <claude|codex|opencode|pi|dsh|devin|droid|antigravity> [native arguments]')
+if len(sys.argv) < 2 or sys.argv[1] not in {'claude', 'codex', 'opencode', 'pi', 'dsh', 'devin', 'droid', 'antigravity', 'grok'}:
+    sys.exit('usage: tools/agents/run <claude|codex|opencode|pi|dsh|devin|droid|antigravity|grok> [native arguments]')
 provider, arguments = sys.argv[1], sys.argv[2:]
 
 
@@ -79,4 +79,6 @@ if provider == 'droid':
     launch(['droid', *arguments])
 if provider == 'antigravity':
     launch(['agy', *arguments])
+if provider == 'grok':
+    launch(['grok', *arguments])
 launch(['opencode', *arguments])

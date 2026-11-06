@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Update the Æion Factory template from v2.1.0 to v2.1.1 so Grok loads the shared guards from
+  `.grok/hooks/factory.json`. The 250k/300k size is `signals.json` `contextTokensUsed`; the Claude
+  budget hook does not latch when Grok loads `.claude/settings.json`. The project's stricter git
+  transport guard stays.
 - Give one feature launch up to three author attempts on different models, each with up to two
   correction rounds by its own model; a crashed author's validated files carry to the next attempt
   with its crash code and error class. Every factory agent receives the same pipeline context and

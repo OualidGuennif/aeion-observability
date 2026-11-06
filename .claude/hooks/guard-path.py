@@ -73,6 +73,23 @@ except (ValueError, OSError):
 if not isinstance(event, dict) or not isinstance(event.get("tool_input"), dict):
     deny("the hook event must contain a tool_input object")
 tool_input = event["tool_input"]
+# Grok names the file target_file (read_file) or target_directory (list_dir). The Claude
+# settings hook sees that raw payload, so map those names before the path checks.
+grok_tools = {
+    "read_file": "Read",
+    "search_replace": "Edit",
+    "write": "Write",
+    "grep": "Grep",
+    "list_dir": "Glob",
+    "run_terminal_command": "Bash",
+}
+if event.get("tool_name") in grok_tools:
+    event["tool_name"] = grok_tools[event["tool_name"]]
+if "file_path" not in tool_input and isinstance(tool_input.get("target_file"), str):
+    tool_input["file_path"] = tool_input["target_file"]
+if ("file_path" not in tool_input and "path" not in tool_input
+        and isinstance(tool_input.get("target_directory"), str)):
+    tool_input["file_path"] = tool_input["target_directory"]
 path = tool_input.get("file_path", tool_input.get("filePath", tool_input.get("path", tool_input.get("notebook_path"))))
 if path is None and event.get("tool_name") == "Grep":
     path = ""

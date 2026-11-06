@@ -264,6 +264,31 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), str(MODULE.parents[2]))
 
+    def test_a_grok_envelope_does_not_latch_a_claude_stop(self):
+        path = self.root / "chat_history.jsonl"
+        path.write_text("not a claude record\n")
+        event = {**self.event, "hook_event_name": "UserPromptSubmit", "hookEventName": "user_prompt_submit",
+                 "transcript_path": str(path)}
+        self.assertEqual(budget.handle(self.root, event), {})
+        self.assertFalse((self.root / ".aeion/context/test-session.json").exists())
+        self.assertEqual(budget.handle(self.root, event), {})
+
+    def test_an_updates_jsonl_transcript_is_not_a_claude_session(self):
+        path = self.root / "updates.jsonl"
+        path.write_text("not a claude record\n")
+        event = {**self.event, "hook_event_name": "UserPromptSubmit", "transcript_path": str(path)}
+        event.pop("hookEventName", None)
+        self.assertFalse(budget.claude_native_session(event))
+        self.assertEqual(budget.handle(self.root, event), {})
+        self.assertFalse((self.root / ".aeion/context/test-session.json").exists())
+
+    def test_a_misnamed_claude_transcript_still_stops(self):
+        result = self.call(transcript_path=str(self.root / "notes.jsonl"))
+        self.assertFalse(result["continue"])
+        self.assertIn("invalid", result["stopReason"])
+        again = self.call(transcript_path=str(self.root / "notes.jsonl"))
+        self.assertIn("stopped", again["stopReason"])
+
     def test_invalid_counts_and_cross_session_paths_are_refused(self):
         for value in (True, -1, "1"):
             self.transcript.write_text(json.dumps({"type": "assistant", "message": {

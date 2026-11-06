@@ -86,9 +86,10 @@ priors. The maintained architecture view names these boundaries and source ancho
 and lifecycle views additionally retain the foundation's reviewed delivery and context controls.
 
 Claude Code retains its native hooks. Codex, OpenCode, Pi, dsh (DeepSeek Harness), Devin, Droid
-(factory.ai) and Google Antigravity load the same instructions and skills, with narrow adapters to
+(factory.ai), Google Antigravity and Grok load the same instructions and skills, with narrow adapters to
 the existing secret guards, edit checks and handover checkpoints (Devin and Antigravity have no
-compaction checkpoint; Droid, which reports no tokens, owes its closure after a compaction). During closure, plain read commands (`cat`, `head`, `sed -n`, `rg` and
+compaction checkpoint; Droid, which reports no tokens, owes its closure after a compaction; Grok
+cannot refuse compaction). Grok's hooks live in `.grok/`. During closure, plain read commands (`cat`, `head`, `sed -n`, `rg` and
 the like, without operators, globs or secret files) are closure tools, because Codex reads only
 through its shell. Droid owns `.factory/`, so
 Æion Factory's local state lives in the ignored `.aeion/`. A per-clone flow mode selects local mode, the default

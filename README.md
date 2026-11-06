@@ -97,11 +97,11 @@ build instead of guessing.
 | `examples/`, `tests/` | Offline synthetic fixtures and their tests |
 | `demo/` | The factory pilot: `app/` cockpit and relay, `factory/` supervisor, `flue/` agents, `openshell/` sandbox, `forum/` product catalog, `tests/` |
 | `work/` | Current work and the validation record |
-| `tools/`, `efficiency/`, `loops/`, `.claude/`, `.agents/`, … | Development tooling from the template |
+| `tools/`, `efficiency/`, `loops/`, `.claude/`, `.agents/`, `.grok/`, … | Development tooling from the template |
 
 ## Development
 
-Built from the [Æion Factory](https://github.com/OualidGuennif/aeion-factory) template (v2.1.0).
+Built from the [Æion Factory](https://github.com/OualidGuennif/aeion-factory) template (v2.1.1).
 Agent instructions: [AGENTS.md](AGENTS.md).
 
 ```bash
