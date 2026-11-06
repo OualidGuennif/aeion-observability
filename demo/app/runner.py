@@ -469,11 +469,13 @@ class Runner:
         output_limit=run.get('max_output_tokens',4096)
         relay_options = {'api': metadata['api'], 'required_effort': metadata.get('thinking'),
                          'max_output_tokens':output_limit}
-        review_effort=run.get('review_thinking_level','medium') if kind=='factory-review' else 'medium'
-        if review_effort not in ('low','medium'):
+        # Every role thinks at the model's maximum (owner rule 2026-11-06: never medium); only a
+        # bounded review recovery may ask for 'low'.
+        review_effort=run.get('review_thinking_level','max') if kind=='factory-review' else 'max'
+        if review_effort not in ('low','max'):
             raise ValueError('REASONING_EFFORT_INVALID')
-        if key=='deepseek':
-            relay_options['required_reasoning_effort']='low' if review_effort=='low' else 'high'
+        if key in ('deepseek','glm'):
+            relay_options['required_reasoning_effort']=review_effort
         if kind != 'lab':
             relay_options.update(prices=metadata, cost_limit=cost_limit - Decimal(run.get('projected_cost_usd', '0')),
                 max_requests=run.get('step_cap',12))

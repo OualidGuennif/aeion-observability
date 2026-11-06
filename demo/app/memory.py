@@ -38,7 +38,7 @@ def analysis(run):
         "factory_role": run.get('factory_role') if run.get('factory_role') in ('author','review','prepare') else None,
         "trace_id": run.get("trace_id"), "profile_version": run.get("profile_version", "unversioned"), "usage_complete": run.get("usage_complete", False),
         "synthetic": run["synthetic"], "model": run["model"] if not run["synthetic"] else "synthetic-replay",
-        **({'reasoning_effort':run['inference_effort']} if run.get('inference_effort') in ('low','medium','high','default') else {}),
+        **({'reasoning_effort':run['inference_effort']} if run.get('inference_effort') in ('low','medium','high','max','default') else {}),
         "status": run["status"], "agents": run["agents"],
         "failure_code": run.get("failure"), "handover_md_sha256": run.get("handover_md_sha256"),
         "gate": {"metric": run["metric"], "limit": run["limit"]},

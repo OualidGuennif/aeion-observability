@@ -27,7 +27,6 @@ SOURCE_PREFIX = 'demo/forum-app/'
 SOURCE_PREFIXES = (SOURCE_PREFIX, 'demo/forum-docs/', 'demo/forum-web/', 'knowledge/components/')
 SOURCE_SUFFIXES = {'.java', '.properties', '.gradle', '.sql', '.txt', '.md', '.json', '.yaml', '.yml',
                    '.ts', '.tsx', '.js', '.jsx', '.mjs', '.css', '.html', '.svg'}
-MAX_CHECKS = 3
 
 
 def previous_failure_text(previous):
@@ -141,6 +140,13 @@ class FlueBuilder:
                   'Read the existing source before editing. The supervisor owns Git and publication; '
                   'apply only scoped file changes. Do not edit the test harness or external contract. '
                   'Use run_protected_checks for independent feedback and fix failures before stopping.\n'
+                  # Measured 2026-11-06 (build cca2f099): several shell commands ran into the 300 s
+                  # command cap while the author had only three protected checks. Checks are now
+                  # bounded by the author window alone, so the fixed runner is the build tool.
+                  'Do not start Gradle, Maven or other builds in the shell: the sandbox has no network and '
+                  'such commands block until the 300-second command limit. run_protected_checks is the '
+                  'build and test runner; call it as often as you need. You may not stop while its last '
+                  'result has failed.\n'
                   'Read ' + acceptance_name + ' for the frozen acceptance/API contract. This file is read-only.\n'
                   'Write scopes: ' + json.dumps(frozen.write_scopes))
         if callable(getattr(self.check_sandbox, 'instructions', None)):
@@ -155,6 +161,7 @@ class FlueBuilder:
         run['limit'] = min(250000, frozen.context_limit)
         run['step_cap'] = frozen.step_cap
         run['max_output_tokens'] = self.max_output_tokens
+        run['inference_effort'] = 'max'
         runtime = FactorySession(run, progress)
         runtime.authorization_check = self.authorization_check
         span = runtime.telemetry.begin(run)
@@ -193,8 +200,6 @@ class FlueBuilder:
                 digest = content_digest(changed)
                 if digest in cache:
                     return cache[digest]
-                if len(cache) >= MAX_CHECKS:
-                    return {'status': 'held', 'reason': 'check_limit'}
                 if progress:
                     progress('protected_check.started', {'artifact_digest': digest})
                 # A check must not contaminate the candidate with build outputs or evaluator

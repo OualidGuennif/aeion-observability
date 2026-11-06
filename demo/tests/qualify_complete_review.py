@@ -74,11 +74,11 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--model',choices=('glm-5.3-flash','deepseek-4.1-flash','qwen-3.8-flash'),default='glm-5.3-flash')
     parser.add_argument('--max-output-tokens',type=int,choices=(16384,32768,65536),default=16384)
-    parser.add_argument('--deepseek-effort',choices=('low','medium'),default='low')
+    parser.add_argument('--deepseek-effort',choices=('low','max'),default='low')
     parser.add_argument('--omit-final-cost',action='store_true')
     args=parser.parse_args()
     Inference.output_window=args.max_output_tokens
-    Inference.effort='high' if args.deepseek_effort=='medium' else 'low'
+    Inference.effort=args.deepseek_effort
     Inference.omit_final_cost=args.omit_final_cost
     server=ThreadingHTTPServer(('127.0.0.1',0),Inference)
     threading.Thread(target=server.serve_forever,daemon=True).start()

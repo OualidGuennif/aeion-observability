@@ -13,8 +13,8 @@ const output = process.env.AEION_REVIEW_RESULT;
 if (!input?.startsWith('/') || !output?.startsWith('/')) throw new Error('Supervisor review paths required');
 const frozen = readFileSync(input, 'utf-8');
 const submit = submitReview(output);
-const effort = process.env.AEION_REVIEW_EFFORT ?? 'medium';
-if (effort !== 'low' && effort !== 'medium') throw new Error('Supervisor review effort invalid');
+const effort = process.env.AEION_REVIEW_EFFORT ?? 'max';
+if (effort !== 'low' && effort !== 'max') throw new Error('Supervisor review effort invalid');
 
 export function Reviewer() {
   useModel(model, { compaction: false, thinkingLevel: effort });
