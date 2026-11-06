@@ -38,6 +38,15 @@ PROVIDER_RETRY_DELAYS = (5, 20)
 RETRY_AFTER_CEILING_SECONDS = 30
 
 
+def _without_cache_markers(value):
+    # Prompt-cache markers move between turns but carry no tokens; compare requests without them.
+    if isinstance(value, dict):
+        return {k: _without_cache_markers(v) for k, v in value.items() if k != 'cache_control'}
+    if isinstance(value, list):
+        return [_without_cache_markers(v) for v in value]
+    return value
+
+
 def retry_delay(error, fallback):
     """Seconds before the next attempt: an integer Retry-After within the ceiling, else fallback."""
     raw = str((error.headers.get('Retry-After') if error.headers is not None else None) or '').strip()
@@ -49,7 +58,8 @@ def retry_delay(error, fallback):
 class ContextRelay:
     def __init__(self, model, api_key, limit, checkpoint, event, *, upstream=None, counter=None, bind=None, admission=None,
                  api='openai-completions', prices=None, cost_limit=None, required_effort=None,max_output_tokens=4096,
-                 required_reasoning_effort=None, max_requests=12, reasoning_thinking_object=True):
+                 required_reasoning_effort=None, max_requests=12, reasoning_thinking_object=True,
+                 budget_multiplier='1'):
         if type(max_requests) is not int or not 1<=max_requests<=200:
             raise ValueError('STEP_LIMIT_INVALID')
         self.max_requests=max_requests
@@ -72,6 +82,13 @@ class ContextRelay:
         self.upstream = upstream or ('https://opencode.ai/inference/go/anthropic/v1/messages'
             if api == 'anthropic-messages' else 'https://opencode.ai/inference/go/openai/v1/chat/completions')
         self.prices, self.cost_limit = prices, None if cost_limit is None else Decimal(str(cost_limit))
+        # OpenCode Go draws its plan allowance at a fixed multiple of the list price per model
+        # (measured 2026-11-06: Haiku and Luna 4x). Projections use that multiple so they stay a
+        # bound on the provider-reported resource cost settled after each response.
+        self.budget_multiplier = Decimal(str(budget_multiplier))
+        if not self.budget_multiplier.is_finite() or not 1 <= self.budget_multiplier <= 10:
+            raise ValueError('BUDGET_MULTIPLIER_INVALID')
+        self.previous_frame = self.previous_messages = None
         self.required_effort = required_effort
         self.projected_cost = Decimal('0')
         self.reported_usage = []
@@ -176,6 +193,10 @@ class ContextRelay:
                         relay.event("context.refused", **{"aeion.failure.code": stop})
                         return self.deny(409, stop)
                     context_count = counted
+                    input_bound = counted
+                    messages = _without_cache_markers(payload.get('messages'))
+                    frame = _without_cache_markers({k: v for k, v in payload.items()
+                                                    if k not in ('messages', 'max_tokens', 'max_completion_tokens')})
                     if relay.context_basis == 'provider_usage':
                         context_count = None
                         if relay.forwarded_count:
@@ -187,6 +208,14 @@ class ContextRelay:
                                 relay.last_error_code = 'USAGE_UNKNOWN'
                                 return self.deny(409, 'USAGE_UNKNOWN')
                             context_count = previous['input_tokens']
+                            # The byte bound overcounts a long conversation about eight times.
+                            # When this request only appends messages to the previous one, the
+                            # provider already counted that prefix exactly: bound just the new part.
+                            known = relay.previous_messages
+                            if (frame == relay.previous_frame and isinstance(known, list)
+                                    and len(known) < len(messages) and messages[:len(known)] == known):
+                                input_bound = min(counted, context_count
+                                                  + relay.counter.count({'messages': messages[len(known):]}))
                             if context_count + previous['output_tokens'] > 300000:
                                 relay.closed = True
                                 relay.last_error_code = 'PROVIDER_CONTEXT_VIOLATION'
@@ -201,12 +230,14 @@ class ContextRelay:
                         relay.checkpoint(context_count, False)
                     if relay.prices is not None and relay.cost_limit is not None:
                         input_rate = max(Decimal(str(relay.prices['input'])), Decimal(str(relay.prices.get('cacheWrite', 0))))
-                        projected = (Decimal(counted) * input_rate + Decimal(maximum) * Decimal(str(relay.prices['output']))) / 1000000
+                        projected = ((Decimal(input_bound) * input_rate + Decimal(maximum) * Decimal(str(relay.prices['output'])))
+                                     * relay.budget_multiplier / 1000000)
                         if relay.projected_cost + projected > relay.cost_limit:
                             relay.closed = True
                             relay.last_error_code = 'BUDGET_STOP'
                             return self.deny(409, 'BUDGET_STOP')
                         relay.projected_cost += projected
+                    relay.previous_frame, relay.previous_messages = frame, messages
                     headers = {name: value for name, value in self.headers.items()
                                if name.lower() in {'user-agent', 'anthropic-version', 'anthropic-beta'} or name.lower().startswith("x-opencode-")}
                     request = urllib.request.Request(relay.upstream, data=body, headers={**headers,
@@ -283,7 +314,7 @@ class ContextRelay:
                             if type(summary.get('output_tokens')) is int and 0<=summary['output_tokens']<=maximum:
                                 spent_bound=max(resource_cost,
                                     (input_cost+Decimal(summary['output_tokens'])*
-                                     Decimal(str(relay.prices['output'])))/1000000)
+                                     Decimal(str(relay.prices['output'])))*relay.budget_multiplier/1000000)
                             relay.projected_cost+=spent_bound-projected
                 except urllib.error.HTTPError as error:
                     relay.closed = True

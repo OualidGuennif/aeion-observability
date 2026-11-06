@@ -181,10 +181,12 @@ def main(closed_candidate=False):
                 assert len(receipt['circuit']['votes'])==2
             assert receipt['circuit']['status'] == 'approved'
             # Qualify the fourth allowlisted model's native protocol and explicit max effort.
-            review.build_id = row['build_id']
+            # Haiku's 4x allowance multiple projects above the 0.05 USD fixture review bound.
+            probe = FixtureReview(cost_limit='0.25')
+            probe.build_id = row['build_id']
             # Standalone synthetic native-protocol probe, outside the finished build lease.
-            review.authorization_check = lambda: True
-            assert review('claude-haiku-5.5', 'Review this harmless fixture: class Example {}')['verdict'] == 'approve'
+            probe.authorization_check = lambda: True
+            assert probe('claude-haiku-5.5', 'Review this harmless fixture: class Example {}')['verdict'] == 'approve'
             print(json.dumps({'haiku_max': True, 'calls': calls, 'state': str(folder)}), flush=True)
     finally:
         server.shutdown()

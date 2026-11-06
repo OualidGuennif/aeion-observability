@@ -15,7 +15,7 @@ from decimal import Decimal, InvalidOperation
 from bridge import SandboxBridge
 from json_input import loads
 from policy import gate_value, native_usage
-from profiles import PROFILES, model_metadata
+from profiles import PROFILES, budget_multiplier, model_metadata
 from relay import ContextRelay
 from sandbox import SANDBOX_OUT, Sandbox
 from scenarios import SCENARIOS, SOLUTIONS, contract
@@ -484,7 +484,7 @@ class Runner:
             relay_options['upstream']=PROFILES[key]['upstream']
         if kind != 'lab':
             relay_options.update(prices=metadata, cost_limit=cost_limit - Decimal(run.get('projected_cost_usd', '0')),
-                max_requests=run.get('step_cap',12))
+                max_requests=run.get('step_cap',12), budget_multiplier=budget_multiplier(key))
         relay = ContextRelay(run["model"], os.environ["OPENCODE_API_KEY"], run["limit"], relay_checkpoint,
                              lambda name, **attrs: self.event(run, name, **attrs), admission=admission, **relay_options)
         runtime = run.get("runtime", "flue-openshell")
@@ -598,7 +598,9 @@ class Runner:
                                     and (request_bound is None or usage['input'] > request_bound + 20000)):
                                 raise ValueError('CONTEXT_ACCOUNTING_MISMATCH')
                             with accounted:
-                                run["native_cost_usd"] = str(Decimal(run["native_cost_usd"]) + usage["cost"])
+                                # The harness prices at list cost; the budget counts the allowance draw.
+                                run["native_cost_usd"] = str(Decimal(run["native_cost_usd"]) + Decimal(str(usage["cost"]))
+                                                             * Decimal(budget_multiplier(key) if kind != 'lab' else '1'))
                                 state["last"], state["peak"] = observed, max(state["peak"], observed)
                                 if observed >= run["limit"]:
                                     state["threshold"] = True
