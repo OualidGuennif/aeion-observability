@@ -1,7 +1,9 @@
 """Paid Go profiles with pinned request counting; no free/Contributor fallback.
 
 Prices are USD per 1M tokens from the OpenCode Go page (checked 2026-10-27). DeepSeek uses its
-peak rate so the harness estimate stays an upper bound; estimates are never invoices.
+peak rate so the harness estimate stays an upper bound; estimates are never invoices. Mistral
+Large 4 is not in Go: it runs on OpenCode pay-as-you-go, billed to the Console balance, at its
+list price before the temporary 50% discount (OpenCode models page, checked 2026-11-06).
 """
 import datetime
 
@@ -23,13 +25,23 @@ PROFILES.update({
  'haiku': {'model':'opencode-go/claude-haiku-5-5','name':'Claude Haiku 5.5','tokenizer':None,
            'input':0.50,'output':2.50,'cache_read':0.05,'cache_write':0.625,'context':1000000,
            'api':'anthropic-messages','thinking':'max','counting':'provider-usage-v1'},
+ # Owner request 2026-11-06. Measured that day: GPT-6 Luna validates reasoning_effort and accepts
+ # "max" on Go chat completions; Mistral Large 4 rejects "max" and "xhigh", its maximum is "high".
+ 'luna': {'model':'opencode-go/gpt-6-luna','name':'GPT-6 Luna','tokenizer':None,
+          'input':0.20,'output':0.75,'cache_read':0.02,'cache_write':0.25,'context':1050000,
+          'counting':'provider-usage-v1','efforts':{'max':'max','low':'low'}},
+ 'mistral': {'model':'opencode-go/mistral-large-4','name':'Mistral Large 4','tokenizer':None,
+             'input':1.36,'output':4.18,'cache_read':0.14,'context':524288,
+             'counting':'provider-usage-v1','efforts':{'max':'high','low':'low'},
+             'upstream':'https://opencode.ai/inference/openai/v1/chat/completions'},
 })
 
 
-# The four owner-authorized workers are keyed by the factory catalog, which is the one
+# The owner-authorized workers are keyed by the factory catalog, which is the one
 # eligibility authority: this module must not keep a second expiry for them.
 SHARED_MODELS = {'glm': 'glm-5.3-flash', 'deepseek': 'deepseek-4.1-flash',
-                 'qwen': 'qwen-3.8-flash', 'haiku': 'claude-haiku-5.5'}
+                 'qwen': 'qwen-3.8-flash', 'haiku': 'claude-haiku-5.5',
+                 'luna': 'gpt-6-luna', 'mistral': 'mistral-large-4'}
 
 
 def available(key):

@@ -115,7 +115,7 @@ clone and reports a fixed error, never private Git diagnostics; the source HEAD 
 edits remain unchanged (test_factory_target).
 
 Authenticated CSRF-protected feature selection; a validated tier-3 target; a qualified model
-from the explicit four-model whitelist; operator-configured inference, publisher and release
+from the explicit six-model whitelist; operator-configured inference, publisher and release
 roles in separate processes. No agent receives host credentials, source paths or authority
 to select a repository, expand scopes, change tests, change budget or merge.
 
@@ -263,6 +263,14 @@ Haiku and Qwen adaptive thinking with `output_config.effort: max`. The relay ref
 DeepSeek, Haiku or Qwen request that does not carry that exact effort; only a bounded review
 recovery may ask for `low`. Measured 2026-11-06 on the paid Go endpoint: all four accepted their
 maximum, and GLM's reasoning grew from 6 to 43 tokens between `low` and `max` on the same prompt.
+The owner added two workers the same day. GPT-6 Luna (Go, family `openai`) validates
+`reasoning_effort` and accepts `max`. Mistral Large 4 (family `mistral`) rejects `max` and `xhigh`,
+so its maximum is `high`. It is not in Go: it runs on OpenCode pay-as-you-go, billed to the Console
+balance at its list price (1.36/4.18 USD per 1M input/output tokens). Both send `reasoning_effort`
+alone, and the relay refuses one with another value or a `thinking` object. They follow the four
+measured models in the cold-start order. At Mistral's price, the admission byte bound of a single
+request passes the 2 USD author cap once the context nears 150k tokens, so it suits review better
+than authoring.
 The author also gets three protections, measured on build cca2f099 (GLM stopped 37 minutes after
 its third and last allowed protected check had failed; about six shell commands hit the 300 s
 command cap). Protected checks are no longer counted: the author window and the cost cap bound

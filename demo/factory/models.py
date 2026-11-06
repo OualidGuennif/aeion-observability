@@ -5,7 +5,7 @@ come from different model families. This module only *names* models and scores t
 no call and holds no credential. Selection is deterministic for a given telemetry snapshot, so
 a decision can be reproduced and audited.
 
-This catalog is also the one eligibility authority for the four owner-authorized workers:
+This catalog is also the one eligibility authority for the owner-authorized workers:
 ``demo/app/profiles.py`` asks it for availability instead of keeping a second expiry, and the
 live client refuses an ineligible model before transport. A spend approval is not a provider
 requalification: a recorded profile expiry stays binding, so an expired harness qualification
@@ -32,8 +32,17 @@ MODELS = {
     "glm-5.3-flash": {"family": "zhipu", "wire": "glm-5.3-flash",
                       "roles": {"review", "author"},
                       "authorization": OWNER_AUTHORIZATION, "profile": "glm"},
+    # Added by the owner on 2026-11-06. Mistral Large 4 is billed to the pay-as-you-go balance.
+    "gpt-6-luna": {"family": "openai", "wire": "gpt-6-luna",
+                   "roles": {"review", "author"}, "retention_days": 30,
+                   "authorization": "2026-11-06"},
+    "mistral-large-4": {"family": "mistral", "wire": "mistral-large-4",
+                        "roles": {"review", "author"}, "billing": "pay-as-you-go",
+                        "authorization": "2026-11-06"},
 }
-DEFAULT_REVIEW_ORDER = ("glm-5.3-flash", "qwen-3.8-flash", "deepseek-4.1-flash", "claude-haiku-5.5")
+# New models follow the measured ones in the cold-start order until telemetry ranks them.
+DEFAULT_REVIEW_ORDER = ("glm-5.3-flash", "qwen-3.8-flash", "deepseek-4.1-flash", "claude-haiku-5.5",
+                        "gpt-6-luna", "mistral-large-4")
 MAX_RECORDS = 500
 
 

@@ -51,11 +51,22 @@ test('every authorized model maps the agents\' max level to its native maximum',
   const meta = JSON.parse(env.AEION_MODEL_JSON);
   const anthropic = { api: 'anthropic-messages', cacheWrite: 0.2 };
   for (const [id, extra, adaptive] of [['glm-5.3-flash', {}, false], ['deepseek-v4.1-flash', {}, false],
-    ['claude-haiku-5-5', anthropic, true], ['qwen3.8-flash', anthropic, true]]) {
+    ['claude-haiku-5-5', anthropic, true], ['qwen3.8-flash', anthropic, true],
+    ['gpt-6-luna', {}, false]]) {
     const model = modelFromEnv({ ...env, AEION_CONVERSATION_ID: 'fixture-1',
       AEION_MODEL_JSON: JSON.stringify({ ...meta, id, ...extra }) });
     assert.equal(model.thinkingLevelMap.max, 'max', id);
     if (adaptive) assert.equal(model.compat.forceAdaptiveThinking, true, id);
     else assert.equal(model.compat.supportsReasoningEffort, true, id);
+  }
+});
+
+test('GPT-6 Luna and Mistral Large 4 send OpenAI reasoning_effort at their native maximum', () => {
+  const meta = JSON.parse(env.AEION_MODEL_JSON);
+  for (const [id, top] of [['gpt-6-luna', 'max'], ['mistral-large-4', 'high']]) {
+    const model = modelFromEnv({ ...env, AEION_MODEL_JSON: JSON.stringify({ ...meta, id }) });
+    assert.equal(model.thinkingLevelMap.max, top, id);
+    assert.equal(model.compat.thinkingFormat, 'openai', id);
+    assert.equal(model.compat.supportsReasoningEffort, true, id);
   }
 });

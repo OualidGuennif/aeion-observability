@@ -49,7 +49,7 @@ def retry_delay(error, fallback):
 class ContextRelay:
     def __init__(self, model, api_key, limit, checkpoint, event, *, upstream=None, counter=None, bind=None, admission=None,
                  api='openai-completions', prices=None, cost_limit=None, required_effort=None,max_output_tokens=4096,
-                 required_reasoning_effort=None, max_requests=12):
+                 required_reasoning_effort=None, max_requests=12, reasoning_thinking_object=True):
         if type(max_requests) is not int or not 1<=max_requests<=200:
             raise ValueError('STEP_LIMIT_INVALID')
         self.max_requests=max_requests
@@ -59,6 +59,8 @@ class ContextRelay:
         if required_reasoning_effort not in (None,'low','high','max'):
             raise ValueError('REASONING_EFFORT_INVALID')
         self.required_reasoning_effort=required_reasoning_effort
+        # DeepSeek and GLM carry the effort beside a thinking object; OpenAI-style models do not.
+        self.reasoning_thinking_object=reasoning_thinking_object is not False
         self.model = model.split("/", 1)[1]
         self.key, self.limit, self.checkpoint, self.event = api_key, limit, checkpoint, event
         self.counter = counter or TokenBudget(self.model)
@@ -149,8 +151,9 @@ class ContextRelay:
                     if relay.required_effort and (payload.get('thinking', {}).get('type') != 'adaptive'
                             or payload.get('output_config', {}).get('effort') != relay.required_effort):
                         raise ValueError('CONTEXT_UNKNOWN')
-                    if relay.required_reasoning_effort and (payload.get('thinking',{}).get('type')!='enabled'
-                            or payload.get('reasoning_effort')!=relay.required_reasoning_effort):
+                    if relay.required_reasoning_effort and (payload.get('reasoning_effort')!=relay.required_reasoning_effort
+                            or (payload.get('thinking',{}).get('type')!='enabled' if relay.reasoning_thinking_object
+                                else 'thinking' in payload)):
                         raise ValueError('CONTEXT_UNKNOWN')
                     counted = relay.counter.count(payload)
                     relay.last_count = counted

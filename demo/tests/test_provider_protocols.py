@@ -151,6 +151,28 @@ class ProtocolTests(unittest.TestCase):
             'thinking':{'type':'enabled'},'reasoning_effort':'low'})[0],200)
         self.assertEqual(len(self.forwarded),1)
 
+    def test_openai_style_effort_is_exact_and_carries_no_thinking_object(self):
+        # GPT-6 Luna and Mistral Large 4 (measured 2026-11-06) send reasoning_effort alone.
+        for required,wrong in (('max',{}),('max',{'reasoning_effort':'high'}),
+                               ('max',{'reasoning_effort':'max','thinking':{'type':'enabled'}}),
+                               ('high',{'reasoning_effort':'max'})):
+            box=self.relay(required_reasoning_effort=required,reasoning_thinking_object=False)
+            with self.subTest(required=required,payload=wrong):
+                self.assertEqual(self.send(box,'/messages',wrong)[0],409)
+            self.assertEqual(box.forwarded_count,0)
+        for required in ('max','high'):
+            admitted=self.relay(required_reasoning_effort=required,reasoning_thinking_object=False)
+            self.assertEqual(self.send(admitted,'/messages',{'reasoning_effort':required})[0],200)
+        self.assertEqual(len(self.forwarded),2)
+
+    def test_new_profiles_map_max_to_each_native_maximum_and_mistral_to_pay_as_you_go(self):
+        from profiles import PROFILES, available, model_metadata
+        self.assertEqual((PROFILES['luna']['efforts']['max'],PROFILES['mistral']['efforts']['max']),('max','high'))
+        self.assertEqual(PROFILES['mistral']['upstream'],'https://opencode.ai/inference/openai/v1/chat/completions')
+        self.assertNotIn('upstream',PROFILES['luna'])
+        self.assertEqual(model_metadata('luna')['api'],'openai-completions')
+        self.assertTrue(available('luna') and available('mistral'))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -55,7 +55,8 @@ qualification pause. A named role loader consumes the provider credential; absen
 `target_feature_mismatch`. The [factory execution contract](factory-flue.md) owns the current
 external product checker, frozen dependency policy, review independence and publication gates.
 The owner authorized four workers on 2026-11-02 (`glm-5.3-flash`, `qwen-3.8-flash`,
-`deepseek-4.1-flash`, `claude-haiku-5.5`); internal display ids map to canonical wire ids and the
+`deepseek-4.1-flash`, `claude-haiku-5.5`) and added `gpt-6-luna` and `mistral-large-4` on 2026-11-06
+(Mistral is billed to the pay-as-you-go balance); internal display ids map to canonical wire ids and the
 authoring choice is the shared router's deterministic result. A completed paid attempt is
 `live_complete` with `simulated: false`, never `simulated_complete`.
 
