@@ -26,6 +26,12 @@ sources:
     title: "PostgreSQL and React CI inputs"
   - resource: ../../demo/factory/dispatch.py
     title: "Factory supervisor, routing and publication"
+  - resource: ../../demo/factory/retention.py
+    title: "Workspace and failed-branch retention"
+  - resource: ../../demo/flue/src/context.ts
+    title: "Shared factory agent context and feedback rule"
+  - resource: ../../demo/flue/src/tools/submit-feedback.ts
+    title: "Author owner-only feedback tool"
   - resource: ../../demo/factory/product_checks.py
     title: "Protected production and acceptance boundary"
   - resource: ../../demo/factory/flue_qualification.py
@@ -184,16 +190,33 @@ When the latest failed attempt at the exact same spec digest has a protected-che
 author prompt carries it as labelled data: the reason code, at most eight pattern-checked failing
 test names and eight compiler locations, never output or source, and only while the prompt stays
 within its 16000-byte bound (`Store.previous_check_failure`, test_factory_store/work_limits).
-A reviewer rejection or a failed final gate no longer stops a launch at its first attempt. The
-dispatcher closes the attempt as `failed` and admits, in the same transaction as its link, one
-supervisor correction build of the same feature (`Store.MAX_CORRECTION_ROUNDS` = 2, so at most
-three author attempts per owner launch; each round is reserved, checked and reviewed in full).
-The correction author starts from the refused candidate only when its bytes still match the
-digest the failed receipt recorded and the base is unchanged, and receives the votes and check
-results as at most twelve printable lines with secret-like text redacted, labelled as untrusted
-data. A correction that returns the refused bytes unchanged is held `correction_unchanged`
-without checks or votes; after the last round a rejection is held for the owner as before
-(`test_factory_correction_rounds`). Every author prompt states that its OpenShell sandbox is not
+One owner launch makes at most three author attempts (`Store.MAX_ATTEMPTS`), each on a model
+not yet used in that launch, and each attempt at most two correction rounds by its own model
+(`Store.MAX_CORRECTION_ROUNDS`): at most nine author builds, each with its own window, reservation,
+gate and two votes. A reviewer rejection or a failed final gate closes the build as `failed` and
+admits, in the same transaction as its link `{previous_build_id, attempt, round}`, the next round,
+or after the second round the next attempt. A retryable author stop (`RETRYABLE_AUTHOR_STOPS`:
+CLI or provider failure, per-build budget, step, output or time limit, no patch, no eligible model)
+starts the next attempt directly; scope, secret, revocation, sandbox, unknown cost or context
+accounting, funds and credential stops end the launch (`test_factory_correction_rounds`). The next
+author starts from the previous candidate only when its bytes still match the digest the failed
+receipt recorded and the base is unchanged: a refused candidate, or after a crash the scoped files
+the crashed author left, revalidated by `validate_artifact`. It receives the votes and check results
+as at most twelve printable lines with secret-like text redacted, labelled as untrusted data, or
+the crash code and error class. A correction that returns refused bytes unchanged is held
+`correction_unchanged` without checks or votes (never after a crash, whose files nobody judged yet);
+after the third attempt the owner decides. The runner keeps one error-class token from the author
+CLI's stderr (`runner.error_class`: a CamelCase `…Error`/`…Exception`, `ERR_…` or a known POSIX
+code), read in memory and never stored as text; build 96f9ddef (2026-11-06) exited 1 with no cause.
+Every factory agent receives the same pipeline context (`demo/flue/src/context.ts`: OpenShell
+without network, the goal, the five steps, the attempt bounds and the rules) and leaves owner-only
+feedback, "RAS" or at most 800 characters: the author through the bridge `/v1/feedback`
+(`submit_feedback`, one reminder before it may stop), reviewers and the preparer through an
+optional field of their typed result. Notes land in the receipt `feedback`, never in another
+agent's input, the vote, telemetry or memory. `factory.retention` removes, at controller start and
+then daily, the workspaces of terminal builds older than seven days that no queued continuation
+needs, and asks the publish role to delete the `aeion/build-*` branch of a failed or cancelled build
+only when its pull request was closed without a merge (`test_factory_retention`). Every author prompt states that its OpenShell sandbox is not
 the product runtime and that it must not change ports, routes, Docker or configuration defaults
 the brief does not ask for: build 80463a43 (2026-11-06) passed every check but was rejected for
 removing `/__release` and moving the default port.
@@ -365,7 +388,7 @@ uncertain external action is reconciled before retry; no automatic paid-author r
    and explicit cold-start priors. No memory, trace, vote or agent can grant capability.
 6. Two approving eligible models from different families, excluding the author and each other,
    must bind the complete identical artifact; missing/reject/error never means approval.
-   A correction round is a new author attempt with two new votes, never a retried vote.
+   A correction round or attempt is a new author build with two new votes, never a retried vote.
 7. The publisher/merger has no inference role. It verifies stored evidence, required CI and
    exact PR head/base before a protected merge. A concurrent change invalidates approval.
 8. Real data/history/budget liabilities survive restart. Synthetic qualification never marks

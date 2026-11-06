@@ -42,6 +42,7 @@ class SandboxBridge:
     def __init__(self, sandbox, *, bind=("127.0.0.1", 0), check=None):
         self.sandbox = sandbox
         self.check = check
+        self.feedback = None
         self.token = secrets.token_urlsafe(32)
         bridge = self
 
@@ -71,6 +72,13 @@ class SandboxBridge:
                         if request or bridge.check is None:
                             return self.reply(403, {'ok': False, 'error': 'CHECK_DENIED'})
                         return self.reply(200, {'ok': True, 'result': bridge.check()})
+                    if self.path == '/v1/feedback':
+                        # Owner-only note from the agent; never forwarded to another agent.
+                        note = request.get('text')
+                        if set(request) != {'text'} or not isinstance(note, str) or not 0 < len(note) <= 800:
+                            return self.reply(400, {'ok': False, 'error': 'FEEDBACK_INVALID'})
+                        bridge.feedback = note
+                        return self.reply(200, {'ok': True})
                     if self.path == "/v1/fs":
                         return self.reply(200, bridge.fs(request))
                     if self.path == "/v1/exec":

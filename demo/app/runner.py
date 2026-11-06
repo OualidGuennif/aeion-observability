@@ -4,6 +4,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import shutil
 import signal
 import subprocess
@@ -43,6 +44,23 @@ FAILURES = {"USAGE_UNKNOWN", "COST_UNKNOWN", "INVALID_ARTIFACT", "INVALID_CHECK_
             "OUTPUT_LIMIT", "AEION_HANDOVER",
             "INSUFFICIENT_FUNDS", "GO_REGION_REQUIRED", "QUOTA_STOP", "AUTH_ERROR", "SANDBOX_NOT_QUALIFIED",
             "SANDBOX_UNAVAILABLE", "SANDBOX_VERSION_MISMATCH", "SANDBOX_EXEC_FAILED", "SANDBOX_STOP_FAILED"}
+
+
+# Crash diagnostics keep one identifier, never stderr text: a CamelCase exception class or a
+# known Node/POSIX error code. Measured 2026-11-06 (build 96f9ddef): exit 1 with no cause.
+ERROR_CLASS = re.compile(rb'\b([A-Z][A-Za-z0-9]{0,48}(?:Error|Exception)|ERR_[A-Z0-9_]{2,48}|'
+                         rb'ECONNRESET|ECONNREFUSED|ECONNABORTED|EPIPE|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|'
+                         rb'EACCES|EPERM|ENOENT|EMFILE|ENOMEM|ENOSPC|EADDRINUSE)\b')
+
+
+def error_class(stream):
+    """Drain a process stream; keep only the last error-class token (at most 64 characters)."""
+    last = None
+    for line in iter(lambda: stream.readline(65536), b''):
+        found = ERROR_CLASS.findall(line)
+        if found:
+            last = found[-1].decode('ascii')[:64]
+    return last
 
 
 def max_cost():
@@ -528,14 +546,19 @@ class Runner:
         # the CLI parse the MD as another flag and print usage without starting an agent.
         argv = [str(FLUE / "node_modules/.bin/flue"), "run", entry, "--message=" + message,
                 "--id", instance, "--new", "--json", "--env", str(empty_env)]
-        process = None
+        process = drain = None
+        diagnostics = {}
         try:
             relay.start()
             if bridge:
                 bridge.start()
             # stdout carries the model reply and stderr streams conversation text: discard both.
             process = subprocess.Popen(argv, cwd=FLUE, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL, start_new_session=True)
+                                       stderr=subprocess.PIPE, start_new_session=True)
+            # stderr is read in memory, line by line, and only one class token survives.
+            drain = threading.Thread(target=lambda: diagnostics.update(error_class=error_class(process.stderr)),
+                                     daemon=True)
+            drain.start()
             self.event(run, "process.started", **{"aeion.process.pid": process.pid, "aeion.agent.number": run["agents"]})
             role_window=AUTHOR_TIMEOUT_CEILING_SECONDS if kind=='factory-build' else 900
             deadline = time.monotonic() + min(role_window, int(run.get('agent_timeout_seconds', AGENT_TIMEOUT_SECONDS)))
@@ -650,10 +673,16 @@ class Runner:
                         os.killpg(process.pid, signal.SIGKILL)
                         process.wait(timeout=5)
                 run['cli_exit_code'], run['cli_steps'] = process.returncode, state['steps']
+                if drain is not None:
+                    drain.join(timeout=5)
+                if diagnostics.get('error_class') and process.returncode:
+                    run['cli_error_class'] = diagnostics['error_class']
                 self.event(run, "process.retired", **{"aeion.process.pid": process.pid,
                     'aeion.process.exit_code': process.returncode, 'aeion.cli.steps': state['steps']})
             relay.close()
             if bridge:
+                # Owner-only agent feedback: kept off the run record, memory and telemetry.
+                self.agent_feedback = bridge.feedback or getattr(self, 'agent_feedback', None)
                 bridge.close()
             shutil.rmtree(scratch, ignore_errors=True)
             run["usage_complete"] = usage_is_complete(

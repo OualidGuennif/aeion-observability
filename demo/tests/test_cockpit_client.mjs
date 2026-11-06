@@ -233,7 +233,13 @@ test('the next step names one plain owner action and never presents a simulation
   assert.match(step.detail, /rerun the votes once without rerunning the author/);
   assert.match(step.detail, /cancel and launch the feature again/);
   context.rejected = { ...held, receipt: JSON.stringify({ circuit: { reason: 'reviewer_rejected' } }) };
-  assert.match(run('nextStep({mode:"live"}, fixture, [rejected]).detail'), /two automatic correction rounds[^]*relaunch unchanged will likely be rejected again/);
+  assert.match(run('nextStep({mode:"live"}, fixture, [rejected]).detail'), /automatic attempts and correction rounds[^]*relaunch unchanged will likely be rejected again/);
+  assert.match(run('failedText({correction:{attempt:1, round:1, trigger:"gate_failed"}})'), /correction round 2 of 2 with the same model/);
+  assert.match(run('failedText({correction:{attempt:1, round:2, trigger:"reviewer_rejected"}})'), /attempt 2 of 3 on another model/);
+  assert.match(run('failedText({correction:{attempt:2, round:0, trigger:"crash", crash:{failure:"CLI_FAILED"}}})'), /author agent stopped early[^]*attempt 3 of 3/);
+  assert.doesNotMatch(run('failedText({error:"CLI_FAILED", correction:{attempt:3, round:0, trigger:"crash"}})'), /queued/);
+  assert.equal(run('feedbackText({author:"RAS", reviewers:[{model:"glm-5.3-flash", text:"<b>ok</b>"}]})'), 'author: RAS · glm-5.3-flash: <b>ok</b>');
+  assert.equal(run('feedbackText(null)'), '');
   context.running = { feature_id: '001', status: 'dispatched', receipt: '{}', created_ns: 3 };
   assert.match(run('nextStep({mode:"live"}, fixture, [running]).title'), /being built/);
   assert.match(run('nextStep({mode:"live", hold_reason:"budget_config_invalid"}, fixture, []).detail'), /Fix demo\/budget.conf/);

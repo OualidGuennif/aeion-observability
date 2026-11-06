@@ -6,29 +6,47 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from factory.dispatch import DispatchWorker, correction_feedback
-from factory.flue_builder import correction_text
+from factory.agent_files import BuilderError
+from factory.dispatch import DispatchWorker, correction_feedback, next_step
+from factory.flue_builder import FlueBuilder, attempt_text, correction_text
+from factory.models import RoutingError
 from factory.publish import FakeForge
-from factory.store import FAILED, HELD, MAX_CORRECTION_ROUNDS, QUEUED, SIMULATED_COMPLETE, StoreError
+from factory.store import (FAILED, HELD, MAX_ATTEMPTS, MAX_CORRECTION_ROUNDS, QUEUED, SIMULATED_COMPLETE,
+                           StoreError, continuation_link)
 import test_factory_target_dispatch as fixtures
 
 SOURCE = "demo/forum-app/src/main/java/local/aeion/forum/Feature.java"
 
 
 class Author:
-    """Writes one scoped file; a correction keeps or changes it and records what it received."""
+    """Writes one scoped file; a correction keeps or changes it and records what it received.
 
-    def __init__(self, unchanged=False):
-        self.calls, self.unchanged = [], unchanged
+    ``crash`` maps a call number (1-based) to the exception that call raises after writing.
+    """
 
-    def run_build(self, *, repo, correction=None, **_):
+    def __init__(self, unchanged=False, crash=None, models=None, feedback=None):
+        self.calls, self.unchanged, self.crash = [], unchanged, crash or {}
+        self.models, self.feedback = models, feedback
+        self.last_execution = self.last_feedback = None
+        if models:
+            self.model = models[0]
+
+    def run_build(self, *, repo, build, correction=None, **_):
         self.calls.append(correction)
-        version = len(self.calls) if not (self.unchanged and correction) else 1
+        number = len(self.calls)
+        if self.models:
+            # The paid path records the author model; a stand-in proves the supervisor's choice.
+            self.model = self.models[number - 1]
+        version = number if not (self.unchanged and correction) else 1
         if correction and correction.get('files'):
             self.started_from = dict(correction['files'])
         path = repo / SOURCE
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(f"package local.aeion.forum;\n// version {version}\n")
+        self.last_feedback = self.feedback
+        self.last_execution = {'build_id': build['build_id'], 'failure': None, 'error_class': 'TypeError'}
+        if number in self.crash:
+            raise self.crash[number]
 
 
 class Reviews:
@@ -70,7 +88,7 @@ class CorrectionRoundTests(unittest.TestCase):
         self.assertEqual(marker["candidate_files"], [SOURCE])
         self.assertEqual(second["status"], QUEUED)
         self.assertEqual(self.store.correction_of(second["build_id"]),
-                         {"previous_build_id": first["build_id"], "round": 1})
+                         {"previous_build_id": first["build_id"], "attempt": 1, "round": 1})
 
         self.worker(author, reviews).run_once()
         correction = author.calls[1]
@@ -81,17 +99,93 @@ class CorrectionRoundTests(unittest.TestCase):
         self.assertEqual(self.builds()[1]["status"], SIMULATED_COMPLETE)
         self.assertIsNone(author.calls[0])
 
-    def test_rounds_are_bounded_then_the_owner_decides(self):
+    def test_rounds_then_attempts_are_bounded_then_the_owner_decides(self):
         self.store.admit(["013"], "c2", self.catalog)
         author, reviews = Author(), Reviews(rejections=99)
-        for _ in range(MAX_CORRECTION_ROUNDS + 2):
+        sessions = MAX_ATTEMPTS * (MAX_CORRECTION_ROUNDS + 1)
+        for _ in range(sessions + 2):
             self.worker(author, reviews).run_once()
         statuses = [build["status"] for build in self.builds()]
-        self.assertEqual(statuses, [FAILED] * MAX_CORRECTION_ROUNDS + [HELD])
+        self.assertEqual(statuses, [FAILED] * (sessions - 1) + [HELD])
         last = self.builds()[-1]
         self.assertEqual(last["hold_reason"], "owner_review_required")
-        self.assertEqual(json.loads(last["receipt"])["correction"], {"round": 2, "exhausted": True})
-        self.assertEqual(len(author.calls), MAX_CORRECTION_ROUNDS + 1)
+        self.assertEqual(json.loads(last["receipt"])["correction"],
+                         {"attempt": MAX_ATTEMPTS, "round": MAX_CORRECTION_ROUNDS, "exhausted": True})
+        self.assertEqual(len(author.calls), sessions)
+        positions = [(c["attempt"], c["round"]) for c in author.calls[1:]]
+        self.assertEqual(positions, [(1, 1), (1, 2), (2, 0), (2, 1), (2, 2), (3, 0), (3, 1), (3, 2)])
+        # A new attempt still learns why the last candidate was refused and starts from it.
+        self.assertTrue(author.calls[3]["feedback"])
+        self.assertIsNotNone(author.calls[3]["files"])
+
+    def test_a_crash_starts_the_next_attempt_from_the_validated_candidate(self):
+        self.store.admit(["013"], "c7", self.catalog)
+        author = Author(crash={1: ValueError("CLI_FAILED")})
+        reviews = Reviews(rejections=0)
+        self.worker(author, reviews).run_once()
+        first, second = self.builds()
+        marker = json.loads(first["receipt"])["correction"]
+        self.assertEqual((marker["attempt"], marker["round"], marker["trigger"]), (1, 0, "crash"))
+        self.assertEqual(marker["crash"], {"failure": "CLI_FAILED", "error_class": "TypeError"})
+        self.assertEqual(marker["candidate_files"], [SOURCE])
+        self.assertEqual(self.store.correction_of(second["build_id"]),
+                         {"previous_build_id": first["build_id"], "attempt": 2, "round": 0})
+        self.assertEqual(reviews.calls, 0)
+        self.worker(author, reviews).run_once()
+        correction = author.calls[1]
+        self.assertEqual((correction["attempt"], correction["round"], correction["trigger"]), (2, 0, "crash"))
+        self.assertEqual(correction["crash"], {"failure": "CLI_FAILED", "error_class": "TypeError"})
+        self.assertEqual(author.started_from, {SOURCE: "package local.aeion.forum;\n// version 1\n"})
+        self.assertIn("NEW ATTEMPT AFTER A CRASH", correction_text(correction))
+        self.assertEqual(self.builds()[1]["status"], SIMULATED_COMPLETE)
+
+    def test_an_unchanged_candidate_after_a_crash_is_still_judged(self):
+        self.store.admit(["013"], "c8", self.catalog)
+        author, reviews = Author(unchanged=True, crash={1: ValueError("AGENT_TIMEOUT")}), Reviews(rejections=0)
+        self.worker(author, reviews).run_once()
+        self.worker(author, reviews).run_once()
+        self.assertEqual(self.builds()[1]["status"], SIMULATED_COMPLETE)
+
+    def test_boundary_stops_never_continue(self):
+        for number, error in enumerate((BuilderError("protected_harness_changed"), ValueError("USAGE_UNKNOWN"),
+                                        ValueError("ATTEMPT_REVOKED"), RuntimeError("boom"))):
+            with self.subTest(error=error):
+                self.store.admit(["013"], "c9-" + str(number), self.catalog)
+                self.worker(Author(crash={1: error}), Reviews(rejections=0)).run_once()
+                last = self.builds()[-1]
+                self.assertEqual(last["status"], FAILED)
+                self.assertNotIn("correction", json.loads(last["receipt"]))
+
+    def test_a_crash_in_the_last_attempt_waits_for_the_owner(self):
+        self.store.admit(["013"], "c10", self.catalog)
+        author = Author(crash={n: ValueError("PROVIDER_ERROR") for n in range(1, 10)})
+        for _ in range(MAX_ATTEMPTS + 1):
+            self.worker(author, Reviews(rejections=0)).run_once()
+        self.assertEqual(len(author.calls), MAX_ATTEMPTS)
+        self.assertEqual([b["status"] for b in self.builds()], [FAILED] * MAX_ATTEMPTS)
+        self.assertTrue(json.loads(self.builds()[-1]["receipt"])["correction"]["exhausted"])
+
+    def test_a_new_attempt_excludes_every_model_of_the_launch_and_a_round_keeps_its_model(self):
+        self.store.admit(["013"], "c11", self.catalog)
+        author = Author(models=["glm-5.3-flash"] * 3 + ["qwen-3.8-flash"])
+        author.paid = True
+        author.last_usage = {"complete": True, "cost_usd": "0", "basis": "fixture"}
+        reviews = Reviews(rejections=99)
+        for _ in range(4):
+            self.worker(author, reviews).run_once()
+        self.assertEqual(author.calls[1]["model"], "glm-5.3-flash")
+        self.assertEqual(author.calls[1]["exclude_models"], [])
+        self.assertIsNone(author.calls[3]["model"])
+        self.assertEqual(author.calls[3]["exclude_models"], ["glm-5.3-flash"])
+
+    def test_owner_feedback_reaches_the_receipt_and_never_the_next_author(self):
+        self.store.admit(["013"], "c12", self.catalog)
+        author, reviews = Author(feedback="The brief is unclear about ports. ghp_" + "a" * 36), Reviews(rejections=1)
+        self.worker(author, reviews).run_once()
+        receipt = json.loads(self.builds()[0]["receipt"])
+        self.assertEqual(receipt["feedback"], {"author": "[redacted]"})
+        self.worker(author, reviews).run_once()
+        self.assertNotIn("ports", json.dumps(author.calls[1]))
 
     def test_an_unchanged_correction_is_held_without_checks_or_reviews(self):
         self.store.admit(["013"], "c3", self.catalog)
@@ -131,12 +225,50 @@ class CorrectionRoundTests(unittest.TestCase):
     def test_only_a_failed_attempt_of_the_same_feature_can_be_corrected(self):
         self.store.admit(["013"], "c6", self.catalog)
         queued = self.builds()[0]["build_id"]
-        for correction in ({"previous_build_id": queued, "round": 1},
-                           {"previous_build_id": queued, "round": MAX_CORRECTION_ROUNDS + 1},
-                           {"previous_build_id": "x" * 32, "round": 1}):
+        for number, correction in enumerate((
+                {"previous_build_id": queued, "round": 1},
+                {"previous_build_id": queued, "round": MAX_CORRECTION_ROUNDS + 1},
+                {"previous_build_id": queued, "attempt": MAX_ATTEMPTS + 1, "round": 0},
+                {"previous_build_id": queued, "attempt": 1, "round": 0},
+                {"previous_build_id": queued, "attempt": True, "round": 1},
+                {"previous_build_id": "x" * 32, "round": 1})):
             with self.subTest(correction=correction), self.assertRaisesRegex(StoreError, "correction_invalid"):
-                self.store.admit(["013"], "c6-" + str(correction["round"]), self.catalog,
+                self.store.admit(["013"], "c6-" + str(number), self.catalog,
                                  actor="supervisor", correction=correction)
+
+    def test_links_and_steps(self):
+        build = "a" * 32
+        self.assertEqual(continuation_link({"previous_build_id": build, "round": 2}),
+                         {"previous_build_id": build, "attempt": 1, "round": 2})
+        self.assertIsNone(continuation_link({"previous_build_id": build, "attempt": 2, "round": 0, "x": 1}))
+        self.assertEqual(next_step(1, 0), (1, 1))
+        self.assertEqual(next_step(1, MAX_CORRECTION_ROUNDS), (2, 0))
+        self.assertEqual(next_step(1, 0, crash=True), (2, 0))
+        self.assertIsNone(next_step(MAX_ATTEMPTS, MAX_CORRECTION_ROUNDS))
+        self.assertIsNone(next_step(MAX_ATTEMPTS, 0, crash=True))
+        self.assertIn("attempt 1 of 3, initial build", attempt_text(None))
+        self.assertIn("attempt 2 of 3, correction round 1 of 2", attempt_text({"attempt": 2, "round": 1}))
+
+    def test_the_builder_pins_a_rounds_model_and_excludes_earlier_attempts(self):
+        class Router:
+            models = {"m-one": {}, "m-two": {}, "m-three": {}}
+
+            def __init__(self):
+                self.calls = []
+
+            def select(self, purpose, **kwargs):
+                self.calls.append(kwargs)
+                raise RoutingError("no_eligible_model")
+
+        router = Router()
+        builder = FlueBuilder(self.root, {}, model="m-one")
+        for correction in ({"attempt": 1, "round": 1, "model": "m-two"},
+                           {"attempt": 2, "round": 0, "model": None, "exclude_models": ["m-one"]}):
+            with self.assertRaises(RoutingError):
+                builder.run_build(repo=self.root, frozen=None, feature={"tier": 3}, brief=None, target=object(),
+                                  build={"build_id": "b" * 32}, router=router, correction=correction)
+        self.assertEqual(sorted(router.calls[0]["exclude_models"]), ["m-one", "m-three"])
+        self.assertEqual(router.calls[1]["exclude_models"], ["m-one"])
 
     def test_feedback_is_bounded_printable_data_and_secrets_never_pass(self):
         receipt = {"circuit": {"votes": [

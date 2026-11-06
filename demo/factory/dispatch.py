@@ -28,11 +28,39 @@ from .agent_files import BuilderError
 from .publish import FakeForge, Publisher
 from .review import SECRET_PATTERNS, content_digest, review
 from .review_circuit import two_vote_review, baseline_diff, CircuitError, MAX_SUBSTITUTIONS
-from .store import FAILED, LIVE_COMPLETE, MAX_CORRECTION_ROUNDS, SIMULATED_COMPLETE, StoreError
+from .store import FAILED, LIVE_COMPLETE, MAX_ATTEMPTS, MAX_CORRECTION_ROUNDS, SIMULATED_COMPLETE, StoreError
 from .target import TargetError
 from .preparation import PreparationError
 
 DEFAULT_REQUIRED_CHECKS = ["scope", "spec_unchanged"]
+# Author stops that say nothing against the candidate or the boundary: the next attempt, on
+# another model, continues from the validated candidate. Everything else (scope or secret
+# refusals, revocation, a lost sandbox, unknown cost or context accounting, missing funds or
+# keys) stops the chain for the owner: unknown means no.
+RETRYABLE_AUTHOR_STOPS = frozenset({
+    'CLI_FAILED', 'CLI_STARTUP_FAILED', 'CLI_PROTOCOL_ERROR', 'HARNESS_COMPACTION',
+    'PROVIDER_ERROR', 'PROVIDER_UNAVAILABLE', 'PROVIDER_RATE_LIMITED', 'PROVIDER_TIMEOUT',
+    'PROVIDER_REJECTED', 'MODEL_DISABLED', 'TRANSPORT_ERROR', 'BUDGET_STOP', 'STEP_LIMIT',
+    'OUTPUT_LIMIT', 'AGENT_TIMEOUT', 'AGENT_DEADLINE', 'HANDOVER_NOT_READY', 'NO_PATCH',
+    'agent_deadline', 'handover_limit', 'no_eligible_model', 'model_ineligible'})
+TOKEN = re.compile(r'[A-Za-z][A-Za-z0-9_]{1,63}')
+
+
+def next_step(attempt, number, crash=False):
+    """The (attempt, round) after a refused or crashed one, or None when the owner decides.
+
+    A refusal is corrected by the same model while rounds remain, then a new attempt starts on
+    another model; a crash always starts the next attempt.
+    """
+    if not crash and number < MAX_CORRECTION_ROUNDS:
+        return attempt, number + 1
+    if attempt < MAX_ATTEMPTS:
+        return attempt + 1, 0
+    return None
+
+
+def _token(value):
+    return value if isinstance(value, str) and TOKEN.fullmatch(value) else None
 DEFAULT_TARGET_REPO = "agora/forum"
 HOLD_REASON_MAP = {
     "owner_review_required": "owner_review_required",
@@ -103,6 +131,7 @@ class DispatchWorker:
         self.target = target
         self.targets = dict(targets) if targets is not None else None
         self.correction = None
+        self.review_feedback = []
         self.check_sandbox = check_sandbox
         self.explicit_checks = checks is not None
         self.explicit_required_checks = required_checks is not None
@@ -187,6 +216,17 @@ class DispatchWorker:
         """The bytes about to be reviewed and published must be the bytes the gate hashed."""
         return isinstance(files, dict) and content_digest(files) == verdict.get("digest")
 
+    def _feedback(self, build, preparation_execution):
+        """Owner-only agent notes for this build: bounded printable text, never another agent's input."""
+        author = getattr(self.builder, 'last_feedback', None)
+        execution = getattr(self.builder, 'last_execution', None)
+        preparer = getattr(getattr(self.preparer, 'role', None), 'last_feedback', None)
+        notes = {'author': _plain(author, 800) if isinstance(execution, dict)
+                 and execution.get('build_id') == build['build_id'] else None,
+                 'preparer': _plain(preparer, 800) if preparation_execution else None,
+                 'reviewers': list(getattr(self, 'review_feedback', []))}
+        return {key: value for key, value in notes.items() if value} or None
+
     def _identity(self, build, feature, frozen, base_sha, verdict):
         """The four ids every receipt carries, so a board row reaches its trace and artifact."""
         execution = self.reused_execution or getattr(self.builder, 'last_execution', None)
@@ -208,6 +248,7 @@ class DispatchWorker:
             "dependency_changes": frozen.dependency_changes,
             "preparation": self.preparation_evidence,
             "preparation_execution": preparation_execution,
+            "feedback": self._feedback(build, preparation_execution),
             "base_sha": base_sha,
             "artifact_digest": verdict.get("digest"),
             "routing": self.author_routing,
@@ -343,6 +384,7 @@ class DispatchWorker:
         if build is None:
             return None
         self.started_build_ns = time.time_ns()
+        self.review_feedback = []
         self.author_routing, self.author_ms = None, None
         self.preparation_evidence = None
         self.correction = None
@@ -495,7 +537,13 @@ class DispatchWorker:
         # The wrapper owns this read: clear any earlier vote's usage before the call, so a
         # failure cannot settle the new reservation with stale cost.
         try:
+            if hasattr(self.review_complete, 'last_feedback'):
+                self.review_complete.last_feedback = None
             answer=self.review_complete(model, prompt)
+            note = getattr(self.review_complete, 'last_feedback', None)
+            if isinstance(note, str) and note:
+                self.review_feedback = [*getattr(self, 'review_feedback', [])[:3],
+                                        {'model': str(model)[:64], 'text': _plain(note, 800)}]
             if getattr(self.review_complete,'paid',False) or hasattr(self.review_complete,'last_usage'):
                 measured=getattr(self.review_complete,'last_usage',None)
                 try:
@@ -581,6 +629,7 @@ class DispatchWorker:
         self.author_model=prior['author_model'];self.author_routing=prior.get('routing')
         self.preparation_evidence=preparation;self.last_usage=None
         self.started_build_ns=time.time_ns()
+        self.review_feedback=[]
         self.router=Router(OutcomeTelemetry(self.store,cohort_for(self.catalog.by_id[build['feature_id']],
             target.protected_check.id),build['attempt_id'],synthetic=False,generation=build['attempt_generation']))
         self.review_complete.authorization_check=lambda:self._attempt_authorized(build)
@@ -673,40 +722,87 @@ class DispatchWorker:
                 self._take_builder_state()
         except Exception as exc:  # noqa: BLE001 - a failed builder never publishes
             self._take_builder_state()
-            result = self.store.complete_attempt(
-                build["attempt_id"], build["attempt_generation"],
-                {**self._identity(build,feature,frozen,base_sha,{}),
+            execution = getattr(self.builder, 'last_execution', None) or {}
+            stop_code = _token(str(exc)) or type(exc).__name__
+            receipt = {**self._identity(build,feature,frozen,base_sha,{}),
                  "reason": "builder_error", "detail": type(exc).__name__,
-                 "error": (getattr(self.builder,'last_execution',None) or {}).get('failure')
+                 "error": execution.get('failure')
                     or (str(exc) if isinstance(exc, BuilderError) else type(exc).__name__),
                  "telemetry": self._telemetry_evidence(
-                     build, feature, frozen, base_sha, {}, {"status": "builder_error"}, None)},
-                terminal=FAILED,
-            )
+                     build, feature, frozen, base_sha, {}, {"status": "builder_error"}, None)}
+            if hasattr(self.builder, 'run_build') and stop_code in RETRYABLE_AUTHOR_STOPS:
+                # The next attempt, on another model, starts from what this one left.
+                return self._fail_or_correct(build, feature, receipt, self._crash_candidate(repo, frozen),
+                    'crash', crash={'failure': stop_code, 'error_class': _token(execution.get('error_class'))})
+            result = self.store.complete_attempt(
+                build["attempt_id"], build["attempt_generation"], receipt, terminal=FAILED)
             return {"build_id": build["build_id"], "result": result}
         finally:
             self.author_ms = int((time.monotonic() - started_author) * 1000)
         return self._judge_and_publish(build,session,repo,frozen,feature,target,base_sha,checks,required_checks)
 
-    def _correction_input(self, build, frozen):
-        """Feedback and the exact previous candidate for a supervisor correction round, or None.
+    @staticmethod
+    def _receipt(row):
+        try:
+            receipt = json.loads(row['receipt']) if row and row.get('receipt') else {}
+        except ValueError:
+            receipt = {}
+        return receipt if isinstance(receipt, dict) else {}
 
-        The candidate is reused only when its bytes still match the digest its failed receipt
-        recorded and the base is unchanged; otherwise the round starts from the base with the
-        feedback alone. The candidate is untrusted either way: it is checked and reviewed again.
+    def _chain_models(self, build_id):
+        """Author models of every earlier build in this owner launch, nearest first (bounded walk)."""
+        models, current = [], build_id
+        for _ in range(MAX_ATTEMPTS * (MAX_CORRECTION_ROUNDS + 1)):
+            link = self.store.correction_of(current)
+            previous = self.store.build(link['previous_build_id']) if link else None
+            if previous is None:
+                break
+            model = self._receipt(previous).get('author_model')
+            if isinstance(model, str) and model not in models:
+                models.append(model)
+            current = previous['build_id']
+        return models
+
+    def _crash_candidate(self, repo, frozen):
+        """The validated scoped files a crashed author left in the host clone, or {}."""
+        try:
+            verdict = validate_artifact(repo, frozen.write_scopes)
+        except Exception:  # noqa: BLE001 - an unreadable clone carries nothing
+            return {}
+        files = verdict.pop('files', {})
+        if not verdict.get('accepted') or not self._content_bound(files, verdict):
+            return {}
+        return files
+
+    def _correction_input(self, build, frozen):
+        """Feedback, model choice and the exact previous candidate for a continuation, or None.
+
+        A correction round keeps the previous model; a new attempt excludes every model of this
+        launch. The candidate is reused only when its bytes still match the digest its failed
+        receipt recorded and the base is unchanged; otherwise the build starts from the base with
+        the feedback alone. The candidate is untrusted either way: it is checked and reviewed again.
         """
         link = self.store.correction_of(build['build_id'])
         if link is None:
             return None
         previous = self.store.build(link['previous_build_id'])
-        try:
-            receipt = json.loads(previous['receipt']) if previous and previous.get('receipt') else {}
-        except ValueError:
-            receipt = {}
+        receipt = self._receipt(previous)
         marker = receipt.get('correction') if isinstance(receipt.get('correction'), dict) else {}
-        empty = {'round': link['round'], 'feedback': [], 'files': None, 'candidate_digest': None}
+        marker_attempt = marker.get('attempt', 1)
+        follows = (marker_attempt == link['attempt'] and marker.get('round') == link['round'] - 1
+                   if link['round'] > 0 else marker_attempt == link['attempt'] - 1
+                   and type(marker.get('round')) is int)
+        crash = (marker.get('crash') if follows and marker.get('trigger') == 'crash'
+                 and isinstance(marker.get('crash'), dict) else None)
+        empty = {'attempt': link['attempt'], 'round': link['round'], 'feedback': [], 'files': None,
+                 'candidate_digest': None, 'trigger': marker.get('trigger') if follows else None,
+                 'crash': ({'failure': _token(crash.get('failure')), 'error_class': _token(crash.get('error_class'))}
+                           if crash else None),
+                 'model': (receipt.get('author_model') if link['round'] > 0
+                           and isinstance(receipt.get('author_model'), str) else None),
+                 'exclude_models': self._chain_models(build['build_id']) if link['round'] == 0 else []}
         if (previous is None or previous['status'] != FAILED or previous['feature_id'] != build['feature_id']
-                or receipt.get('spec_digest') != frozen.spec_digest or marker.get('round') != link['round'] - 1):
+                or receipt.get('spec_digest') != frozen.spec_digest or not follows):
             return empty
         names, files = marker.get('candidate_files'), None
         if (receipt.get('base_sha') == frozen.base_sha and isinstance(names, list) and 0 < len(names) <= 200
@@ -723,24 +819,30 @@ class DispatchWorker:
         return {**empty, 'feedback': correction_feedback(receipt), 'files': files,
                 'candidate_digest': marker.get('candidate_digest') if files is not None else None}
 
-    def _fail_or_correct(self, build, feature, receipt, files, trigger):
-        """Close a refused attempt as failed and queue the next correction round while one remains."""
+    def _fail_or_correct(self, build, feature, receipt, files, trigger, crash=None):
+        """Close a refused or crashed build as failed and queue its continuation while one remains.
+
+        The receipt marker names this build's attempt and round, why it stopped and the exact
+        candidate bytes, so the next build can only reuse what this receipt bound.
+        """
         link = self.store.correction_of(build['build_id'])
-        current = link['round'] if link else 0
-        receipt = {**receipt, 'correction': {'round': current, 'trigger': trigger,
-                   'candidate_files': sorted(files), 'candidate_digest': content_digest(files)}}
+        attempt, current = (link['attempt'], link['round']) if link else (1, 0)
+        step = next_step(attempt, current, crash=trigger == 'crash')
+        receipt = {**receipt, 'correction': {'attempt': attempt, 'round': current, 'trigger': trigger,
+                   'candidate_files': sorted(files), 'candidate_digest': content_digest(files) if files else None,
+                   **({'crash': crash} if crash else {}), **({'exhausted': True} if step is None else {})}}
         result = self.store.complete_attempt(build['attempt_id'], build['attempt_generation'],
                                              receipt, terminal=FAILED)
-        if result.get('status') != 'completed' or current >= MAX_CORRECTION_ROUNDS:
+        if result.get('status') != 'completed' or step is None:
             return {'build_id': build['build_id'], 'result': result}
         try:
             admitted = self.store.admit([feature['id']], 'factory-correction:' + build['build_id'],
                 self.catalog, actor='supervisor',
-                correction={'previous_build_id': build['build_id'], 'round': current + 1})
+                correction={'previous_build_id': build['build_id'], 'attempt': step[0], 'round': step[1]})
         except StoreError as error:
             admitted = {'status': 'refused', 'reason': str(error)}
         return {'build_id': build['build_id'], 'result': {**result, 'correction': {
-            'round': current + 1, **admitted}}}
+            'attempt': step[0], 'round': step[1], **admitted}}}
 
     def _judge_and_publish(self,build,session,repo,frozen,feature,target,base_sha,checks,required_checks,
                            first_reviewer=None):
@@ -762,6 +864,7 @@ class DispatchWorker:
             return {"build_id": build["build_id"], "result": result}
 
         if (self.correction is not None and self.correction.get('candidate_digest')
+                and self.correction.get('trigger') != 'crash'
                 and content_digest(files) == self.correction['candidate_digest']):
             # No progress: the correction returned the refused candidate unchanged. Asking the
             # same checks and reviewers again would only spend; the owner decides.
@@ -850,12 +953,14 @@ class DispatchWorker:
                     "telemetry": self._telemetry_evidence(
                         build, feature, frozen, base_sha, verdict, gate, None)}
                 link = self.store.correction_of(build['build_id'])
+                attempt, current = (link['attempt'], link['round']) if link else (1, 0)
                 if (circuit.get('reason') == 'reviewer_rejected' and first_reviewer is None
-                        and (link['round'] if link else 0) < MAX_CORRECTION_ROUNDS):
+                        and next_step(attempt, current) is not None):
                     # A substantive rejection becomes the next author's input, not an owner chore.
                     return self._fail_or_correct(build, feature, held, files, 'reviewer_rejected')
                 self.store.hold_dispatched(build["build_id"], "owner_review_required", receipt={
-                    **held, **({'correction': {'round': link['round'], 'exhausted': True}} if link else {})})
+                    **held, **({'correction': {'attempt': attempt, 'round': current, 'exhausted': True}}
+                               if link else {})})
                 return {"build_id": build["build_id"], "result": {
                     "status": "held", "reason": circuit.get("reason", "review_circuit_held"),
                     "circuit": circuit}}

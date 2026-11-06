@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { defineTool } from '@flue/runtime';
 import * as v from 'valibot';
+import { FEEDBACK_LIMIT } from '../context.ts';
 
 export function submitPreparation(resultFile: string) {
   if (!resultFile.startsWith('/')) throw new Error('Absolute supervisor result path required');
@@ -12,6 +13,8 @@ export function submitPreparation(resultFile: string) {
       status: v.picklist(['ready', 'blocked']),
       contract: v.pipe(v.string(), v.maxLength(48000)),
       reason: v.pipe(v.string(), v.maxLength(120)),
+      // Owner-only; optional so a missing note never blocks a preparation.
+      feedback: v.optional(v.pipe(v.string(), v.maxLength(FEEDBACK_LIMIT))),
     }),
     run({ data }) {
       const text = JSON.stringify(data);

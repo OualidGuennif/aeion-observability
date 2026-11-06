@@ -1,3 +1,10 @@
+## Robust author attempts, agent feedback and retention — 2026-11-06
+
+- Trigger: build 96f9ddef (001, GLM author) stopped CLI_FAILED at step 96 (agent process exit 1, no recorded cause, 0.51 USD) and ended the launch.
+- Change: one launch now makes up to three author attempts on different models, each up to two correction rounds by its own model; retryable author stops continue on a new model with the revalidated candidate, the crash code and one stderr error-class token (never stderr text). Every agent gets the same pipeline context and leaves owner-only feedback ("RAS" or ≤800 characters) in the receipt. Terminal workspaces older than seven days and the branches of failed builds whose PR was closed unmerged are removed.
+- Checks: demo 788 OK (test_factory_correction_rounds 15, new test_factory_retention 7, cockpit client 28), Flue npm test 28 OK (new feedback-context), repository tests OK, knowledge-check PASS, doc-links PASS (148), repo-health PASS.
+- Real Flue/OpenShell qualification (`demo/tests/qualify_factory_flue.py`): exit 0; author 7 scripted calls including `submit_feedback`, receipt feedback `{"author": "RAS"}`; 4 review and 2 Haiku calls. The log also shows span-export read timeouts to the local collector (127.0.0.1:4318), which did not affect the result.
+
 ## Go allowance multiples and appended-turn bound — 2026-11-06
 
 - Build df71b061 (001, Claude Haiku 5.5 author): first protected self-check failed `explicit_database_less_startup_rejected` at 9 min, then BUDGET_STOP at 11 min with provider-reported 1.07936522 USD against the 2 USD cap (list-price estimate 0.40). No correction round: a budget stop is neither a rejection nor a failed gate.

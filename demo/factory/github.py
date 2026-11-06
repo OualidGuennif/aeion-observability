@@ -270,6 +270,23 @@ class GitHubForge:
         return {'status': 'merged', 'merge_sha': merge_sha, 'main_sha': main, 'confirmed_main': True,
                 'pr': self._pr_result(pr)}
 
+    def prune_branch(self, attempt_id):
+        """Delete one factory branch, only when its pull request was closed without a merge."""
+        if not isinstance(attempt_id, str) or not re.fullmatch('[0-9a-f]{24,64}', attempt_id):
+            raise GitHubError('invalid_attempt')
+        if self.dry_run:
+            return {'status': 'held', 'reason': 'dry_run'}
+        branch = branch_name(attempt_id)
+        pr = self.find_pull_request(branch)
+        if not isinstance(pr, dict) or pr.get('state') != 'closed' or pr.get('merged_at'):
+            return {'status': 'held', 'reason': 'pull_request_not_closed_unmerged'}
+        status, _ = self._request('DELETE', f'/repos/{self.repo}/git/refs/heads/' + quote(branch, safe='/'))
+        if status == 204:
+            return {'status': 'deleted'}
+        if status in (404, 422):
+            return {'status': 'absent'}
+        return {'status': 'held', 'reason': 'branch_delete_failed:' + str(status)}
+
     def merge(self, number, *, expected_head, expected_base):
         head, base = _sha(expected_head), _sha(expected_base)
         if type(number) is not int or number < 1 or not self.allow_merge:

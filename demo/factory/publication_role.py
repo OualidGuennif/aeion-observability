@@ -12,7 +12,7 @@ from factory.gh_probe import load_secret
 from factory.publication import REPOSITORY
 from factory.publisher import verified_receipt
 from factory.publish import Publisher
-from factory.store import Store
+from factory.store import CANCELLED, FAILED, Store
 
 
 def operate(args):
@@ -21,11 +21,19 @@ def operate(args):
     state=Path(args.state).resolve()
     try:state.relative_to((ROOT/'demo/.local/factory').resolve())
     except ValueError:return {'status':'held','reason':'forbidden_publication_state'}
+    if args.action=='prune' and args.role!='publish':
+        return {'status':'held','reason':'wrong_publication_role'}
     # Check role conflicts both before and after the named loader; no unrelated key is loaded.
     assert_only(args.role)
     load_secret(names_for(args.role)[0]);assert_only(args.role)
     _,token=for_role(args.role)
     store=Store(state/'factory.db')
+    if args.action=='prune':
+        # The publish role removes only its own branch of a failed or cancelled build.
+        row=store.by_attempt(args.attempt)
+        if row is None or row['status'] not in (FAILED,CANCELLED):
+            return {'status':'held','reason':'prune_not_eligible'}
+        return GitHubForge(args.repo,token=token,dry_run=False).prune_branch(args.attempt)
     request=store.publication_request(args.attempt)
     if not request:return {'status':'held','reason':'publication_request_missing'}
     receipt=verified_receipt(store,request)
@@ -57,8 +65,11 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--state',required=True);parser.add_argument('--repo',required=True)
     parser.add_argument('--role',choices=['publish','release'],required=True)
-    parser.add_argument('--attempt',required=True);parser.add_argument('--lease',required=True)
+    parser.add_argument('--attempt',required=True);parser.add_argument('--lease',default='')
+    parser.add_argument('--action',choices=['operate','prune'],default='operate')
     args=parser.parse_args()
+    if args.action=='operate' and not args.lease:
+        parser.error('--lease is required')
     try:result=operate(args)
     except CredentialError:result={'status':'held','reason':'publication_credential_unavailable'}
     except GitHubError as error:result={'status':'held','reason':str(error)}

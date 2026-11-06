@@ -34,9 +34,30 @@ TERMINAL = {MERGED, FAILED, CANCELLED, SIMULATED_COMPLETE, LIVE_COMPLETE, BASELI
 COMPLETED_FEATURE = {MERGED, BASELINE, LIVE_COMPLETE}
 IN_PROGRESS_FEATURE = {QUEUED, DISPATCHED, BUILT, GATED, PR_OPEN, APPROVED, HELD}
 ACTIVE = {DISPATCHED, GATED, PR_OPEN, APPROVED}
-# Automatic correction rounds after a reviewer rejection or a failed gate: at most two, so one
-# owner launch makes at most three author attempts before the build waits for the owner.
+# One owner launch makes at most MAX_ATTEMPTS author attempts, each on a different model, and
+# each attempt at most MAX_CORRECTION_ROUNDS corrections by the same model after a reviewer
+# rejection or a failed gate: at most nine author sessions before the owner decides.
 MAX_CORRECTION_ROUNDS = 2
+MAX_ATTEMPTS = 3
+
+
+def continuation_link(value):
+    """A normalized supervisor link {previous_build_id, attempt, round}, or None when invalid.
+
+    Links written before attempts existed carry only a round; they belong to attempt 1. Attempt 1
+    round 0 is the owner launch itself and never a link.
+    """
+    if not isinstance(value, dict) or set(value) not in ({'previous_build_id', 'round'},
+                                                          {'previous_build_id', 'attempt', 'round'}):
+        return None
+    attempt, number = value.get('attempt', 1), value['round']
+    if (not isinstance(value['previous_build_id'], str)
+            or not re.fullmatch('[0-9a-f]{32}', value['previous_build_id'])
+            or type(attempt) is not int or type(number) is not int
+            or not 1 <= attempt <= MAX_ATTEMPTS or not 0 <= number <= MAX_CORRECTION_ROUNDS
+            or (attempt, number) == (1, 0)):
+        return None
+    return {'previous_build_id': value['previous_build_id'], 'attempt': attempt, 'round': number}
 PROGRESS_PHASES = {'preparing', 'building', 'checking', 'reviewing', 'publishing',
     'waiting_ci', 'merging', 'model.step.started', 'tool.finished', 'gen_ai.request',
     'gate.closed', 'process.started', 'process.retired', 'protected_check.started',
@@ -276,13 +297,10 @@ class Store:
                 or any(not isinstance(fid, str) for fid in feature_ids)
                 or not isinstance(idempotency_key, str) or not idempotency_key):
             raise StoreError("missing_ids_or_key")
-        if correction is not None and (len(feature_ids) != 1 or not isinstance(correction, dict)
-                or set(correction) != {'previous_build_id', 'round'}
-                or not isinstance(correction['previous_build_id'], str)
-                or not re.fullmatch('[0-9a-f]{32}', correction['previous_build_id'])
-                or type(correction['round']) is not int
-                or not 1 <= correction['round'] <= MAX_CORRECTION_ROUNDS):
-            raise StoreError("correction_invalid")
+        if correction is not None:
+            correction = continuation_link(correction)
+            if correction is None or len(feature_ids) != 1:
+                raise StoreError("correction_invalid")
         ids = []
         for fid in feature_ids:
             if fid not in catalog.by_id:
@@ -1077,7 +1095,7 @@ class Store:
                 conn.close()
 
     def correction_of(self, build_id):
-        """The failed attempt this build corrects and its round, or None for an owner launch."""
+        """The failed build this one continues, with its attempt and round, or None for an owner launch."""
         with self._lock:
             conn = self._connect()
             try:
@@ -1089,11 +1107,7 @@ class Store:
             detail = json.loads(row['detail']) if row is not None else None
         except (TypeError, ValueError):
             return None
-        if (not isinstance(detail, dict) or type(detail.get('round')) is not int
-                or not 1 <= detail['round'] <= MAX_CORRECTION_ROUNDS
-                or not re.fullmatch('[0-9a-f]{32}', str(detail.get('previous_build_id')))):
-            return None
-        return detail
+        return continuation_link(detail)
 
     def events(self, build_id, after_seq=0):
         with self._lock:
