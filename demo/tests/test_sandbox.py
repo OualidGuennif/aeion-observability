@@ -29,7 +29,7 @@ class QualificationTests(unittest.TestCase):
         sdk=types.ModuleType('openshell');sdk.SandboxClient=_UnreachableClient;sdk.TlsConfig=_UnreachableClient
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);(root/'tls').mkdir();(root/'qualification').mkdir();(root/'tls/ca.crt').write_bytes(b'fixture-ca')
-            evidence=dict(version='0.1.5',telemetry_disabled=True,agent_image='sha256:fixture',agent_uid=sandbox.AGENT_UID,work_volume=sandbox.WORK_VOLUME,work_dir=str(sandbox.WORK.resolve()),transport='rpc-copy',host_mounts=False,
+            evidence=dict(version=sandbox.VERSION,telemetry_disabled=True,agent_image='sha256:fixture',agent_uid=sandbox.AGENT_UID,work_volume=sandbox.WORK_VOLUME,work_dir=str(sandbox.WORK.resolve()),transport='rpc-copy',host_mounts=False,
                           ca_sha256=hashlib.sha256(b'fixture-ca').hexdigest(),expires_ns=time.time_ns()+10**12,
                           bundle_sha256={name:hashlib.sha256((Path(sandbox.__file__).resolve().parent.parent/name).read_bytes()).hexdigest() for name in sandbox.BUNDLE_FILES})
             for changes,flag in [({'expires_ns':0},'false'),({'agent_image':'different'},'false'),({'agent_uid':0},'false'),({'work_dir':'/elsewhere'},'false'),

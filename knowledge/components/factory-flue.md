@@ -184,6 +184,19 @@ When the latest failed attempt at the exact same spec digest has a protected-che
 author prompt carries it as labelled data: the reason code, at most eight pattern-checked failing
 test names and eight compiler locations, never output or source, and only while the prompt stays
 within its 16000-byte bound (`Store.previous_check_failure`, test_factory_store/work_limits).
+A reviewer rejection or a failed final gate no longer stops a launch at its first attempt. The
+dispatcher closes the attempt as `failed` and admits, in the same transaction as its link, one
+supervisor correction build of the same feature (`Store.MAX_CORRECTION_ROUNDS` = 2, so at most
+three author attempts per owner launch; each round is reserved, checked and reviewed in full).
+The correction author starts from the refused candidate only when its bytes still match the
+digest the failed receipt recorded and the base is unchanged, and receives the votes and check
+results as at most twelve printable lines with secret-like text redacted, labelled as untrusted
+data. A correction that returns the refused bytes unchanged is held `correction_unchanged`
+without checks or votes; after the last round a rejection is held for the owner as before
+(`test_factory_correction_rounds`). Every author prompt states that its OpenShell sandbox is not
+the product runtime and that it must not change ports, routes, Docker or configuration defaults
+the brief does not ask for: build 80463a43 (2026-11-06) passed every check but was rejected for
+removing `/__release` and moving the default port.
 Explicit operator bounds remain. `demo/budget.conf` sets the daily purse (at most $15), one
 author execution (at most $5, reserved and relay-enforced) and one review vote (at most $1);
 an invalid file holds builds as `budget_config_invalid` and admits no spending. A soft stop can retain a proposed candidate
@@ -341,6 +354,7 @@ uncertain external action is reconciled before retry; no automatic paid-author r
    and explicit cold-start priors. No memory, trace, vote or agent can grant capability.
 6. Two approving eligible models from different families, excluding the author and each other,
    must bind the complete identical artifact; missing/reject/error never means approval.
+   A correction round is a new author attempt with two new votes, never a retried vote.
 7. The publisher/merger has no inference role. It verifies stored evidence, required CI and
    exact PR head/base before a protected merge. A concurrent change invalidates approval.
 8. Real data/history/budget liabilities survive restart. Synthetic qualification never marks

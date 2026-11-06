@@ -22,14 +22,15 @@ except ImportError:  # setup.py is also a script or loaded by file path
 
 ROOT=Path(__file__).resolve().parents[1]
 STATE=ROOT/'.local/openshell'
-VERSION='0.1.5'
+VERSION='0.1.7'
 ARTIFACTS={
- ('Darwin','arm64'):{'openshell':('aarch64-apple-darwin','48d6f4b4a222dc0a120ee4d6a677cb931bcc57f9ac54aefb101588f99c9c7642'),'openshell-gateway':('aarch64-apple-darwin','8e6fd1b05999709a9042ec83fcd902e062507af3e817f28bcda181fb93b42e7a')},
- ('Linux','x86_64'):{'openshell':('x86_64-unknown-linux-musl','ca1ad6e6fbb4a6cd407e95763391b8ecff02912e7d9c467e7ca22696fe80af69'),'openshell-gateway':('x86_64-unknown-linux-gnu','6ed6a6aff420c65250082cc1db48dc6271a6f5eec0e0068133566ffae4aa788b')},
- ('Linux','aarch64'):{'openshell':('aarch64-unknown-linux-musl','30c949b4ac07a9c8245c1248eb82e4eb241615134fcabf3c9bf30dec7d00addf'),'openshell-gateway':('aarch64-unknown-linux-gnu','125f9f43b8d06da8280c78089904a6da2faa7c4cb03f82db3b31fc980cf6c62d')},
+ ('Darwin','arm64'):{'openshell':('aarch64-apple-darwin','c5899a2fe6b40c371e7d660bd8983cefb766d04658bd9193b12a80525b12c742'),'openshell-gateway':('aarch64-apple-darwin','fe47a385c16c10cde8905bf1bf627e4a9fbf4a81bcf44b388dec4d22618fbb48')},
+ ('Linux','x86_64'):{'openshell':('x86_64-unknown-linux-musl','5c1adfcae797eac9b2e8b9280c66c1f75e4e84d9e31ce6938c5b994314ef6098'),'openshell-gateway':('x86_64-unknown-linux-gnu','e1714dcfd85c949e2f53260bcfbf04b203f6f5cbd3a61e61c11c38cbc91cb102')},
+ ('Linux','aarch64'):{'openshell':('aarch64-unknown-linux-musl','696b523c263895b69eaa7c7e6afbb19b8af6c65cd79c7ffac7b685b6e3aa23da'),'openshell-gateway':('aarch64-unknown-linux-gnu','eb0ba91efebbcc61e4cfae5fb18934c5fe308ece1a09ba16c999d00c452109dc')},
 }
-SANDBOX_IMAGE='ghcr.io/nvidia/openshell/sandbox:0.1.5@sha256:e9adf9ecde328122414ad2ee8c6fc5d5b389e4cf168daf4357c46f5a77d55851'
-SUPERVISOR_IMAGE='ghcr.io/nvidia/openshell/supervisor:0.1.5@sha256:fabcd01f656e9d23df4386f82e80b4f48b90f3452d7d5c58889007643a069161'
+# v0.1.6 changed the sandbox/supervisor control connection: both images move together.
+SANDBOX_IMAGE='ghcr.io/nvidia/openshell/sandbox:0.1.7@sha256:89819c03f291d9b909c3fc2962360e24af4516627422d18f3e681829f003f347'
+SUPERVISOR_IMAGE='ghcr.io/nvidia/openshell/supervisor:0.1.7@sha256:a07864bd0c546716039c2000a919f50ce8f7f1f67ba37dda350cf64d3a7cfb06'
 
 
 def command(args,**kwargs):
@@ -72,7 +73,10 @@ def main():
     sdk=STATE/'sdk'
     if not (sdk/'bin/python').exists():
         command([sys.executable,'-m','venv',str(sdk)])
-        command([str(sdk/'bin/python'),'-m','pip','install','openshell==0.1.5'],stdout=subprocess.DEVNULL)
+    installed=subprocess.run([str(sdk/'bin/python'),'-c',"import importlib.metadata as m;print(m.version('openshell'))"],
+        capture_output=True,text=True).stdout.strip()
+    if installed!=VERSION:
+        command([str(sdk/'bin/python'),'-m','pip','install','openshell=='+VERSION],stdout=subprocess.DEVNULL)
     env=dict(os.environ,OPENSHELL_TELEMETRY_ENABLED='false',GRPC_VERBOSITY='ERROR',
         OPENSHELL_LOCAL_TLS_DIR=str(STATE/'tls'),XDG_DATA_HOME=str(STATE/'data'),
         XDG_STATE_HOME=str(STATE/'state'),XDG_CONFIG_HOME=str(STATE/'config'),

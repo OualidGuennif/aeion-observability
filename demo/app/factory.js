@@ -44,7 +44,8 @@ function reasonText(info) {
     target_feature_mismatch: "This feature does not match the configured execution target.",
     owner_review_required: "Owner review is required before proceeding.",
     reviewer_failed: "A reviewer could not finish its vote (timeout, provider refusal or no typed verdict). Nothing was published; Review votes shows which one and why.",
-    reviewer_rejected: "An independent reviewer rejected the change. Nothing was published; the reason is in Build evidence.",
+    reviewer_rejected: "An independent reviewer rejected the change after the automatic correction rounds. Nothing was published; the reasons are in Build evidence.",
+    correction_unchanged: "A correction round returned the refused candidate unchanged, so it was not checked or reviewed again. Nothing was published.",
     worker_error: "The worker stopped unexpectedly. The request is held for review; no automatic paid retry.",
     reconciliation_needed: "An interrupted attempt or remote action needs reconciliation. Another launch stays locked while its effects are unknown.",
     catalog_changed: "The specification changed after this request. Refresh and read the current MD. A new selection replaces only an obsolete request that never started; uncertain attempts stay locked.",
@@ -77,7 +78,7 @@ function reasonText(info) {
 }
 const OWNER_ACTIONS = {
   reviewer_failed: "The operator may rerun the votes once without rerunning the author (review_context --retry-failed-review); otherwise cancel and launch the feature again.",
-  reviewer_rejected: "Read the reviewer reason in Build evidence, then cancel this request. Relaunching unchanged will likely be rejected again.",
+  reviewer_rejected: "The factory already ran its two automatic correction rounds. Read the reviewer reasons in Build evidence, then cancel this request; a relaunch unchanged will likely be rejected again.",
   worker_error: "Cancel this request, then launch the feature again.",
   catalog_changed: "Cancel this request, then launch the feature again with the current MD.",
   reconciliation_needed: "Do not relaunch. Ask the agent to reconcile this attempt first.",
@@ -86,8 +87,16 @@ const OWNER_ACTIONS = {
   budget_config_invalid: "Fix demo/budget.conf, then restart the controller.",
 };
 function holdReason(build) {
-  const circuit = parseReceipt(build.receipt).circuit || {};
+  const receipt = parseReceipt(build.receipt);
+  if (receipt.reason === "correction_unchanged") return receipt.reason;
+  const circuit = receipt.circuit || {};
   return ["reviewer_failed", "reviewer_rejected"].includes(circuit.reason) ? circuit.reason : build.hold_reason;
+}
+function failedText(r) {
+  const c = r.correction || {};
+  if (Number.isInteger(c.round) && c.round < 2 && ["reviewer_rejected", "gate_failed"].includes(c.trigger))
+    return `${c.trigger === "reviewer_rejected" ? "A reviewer rejected this attempt" : "A protected check refused this attempt"}; the factory queued correction round ${c.round + 1} of 2 with that feedback. Nothing was published.`;
+  return reasonText({reason:r.error || r.reason || "builder_error"});
 }
 function ownerAction(reason) {
   return OWNER_ACTIONS[reason] || "Open Build evidence below. Cancel the request to free the feature, or ask the agent if the reason is unclear.";
@@ -367,7 +376,7 @@ function buildCard(build) {
   const time = build.updated_ns ? new Date(build.updated_ns / 1e6) : null;
   return `<article class="build-card" data-build-id="${esc(build.build_id)}"><div class="build-card-heading"><span class="feature-number">FEATURE ${esc(build.feature_id)}</span>` +
     `<span class="badge ${esc(build.status)}">${esc(label)}</span></div><h3>${esc(feature?.title || build.feature_id)}</h3>` +
-    (obsolete ? "<p>This historical result does not certify the current MD.</p>" : build.status === "failed" ? `<p>${esc(reasonText({reason:r.error || r.reason || "builder_error"}))}</p>` : build.hold_reason ? `<p>${esc(reasonText({ reason: holdReason(build), missing_dependencies: feature?.availability?.missing_dependencies || [] }))}</p><p class="owner-action">${esc(ownerAction(holdReason(build)))}</p>` :
+    (obsolete ? "<p>This historical result does not certify the current MD.</p>" : build.status === "failed" ? `<p>${esc(failedText(r))}</p>` : build.hold_reason ? `<p>${esc(reasonText({ reason: holdReason(build), missing_dependencies: feature?.availability?.missing_dependencies || [] }))}</p><p class="owner-action">${esc(ownerAction(holdReason(build)))}</p>` :
       `<p>${build.status === "live_complete" ? "Checked implementation ready for integration." : build.status === "baseline" || build.status === "merged" ? "Implemented at a verified product base." : simulation ? "Historical fixture, separate from real implementation." : "Protected checks and review govern the next step."}</p>`) +
     stageProgress(build) + receiptSummary(build.receipt) + `<div class="build-actions">${time ? `<time datetime="${time.toISOString()}">${esc(time.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }))}</time>` : ""}` +
     (!TERMINAL.includes(build.status) ? `<button class="cancel" data-cancel="${esc(build.build_id)}">Cancel request</button>` : "") + "</div></article>";

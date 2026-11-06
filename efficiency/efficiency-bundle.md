@@ -865,8 +865,8 @@ Source fingerprints identify consulted material; full upstream pages are not rep
 
 - **NVIDIA OpenShell contributors** — mandatory sandbox gateway, policy enforcement and SDK,
   version 0.1.5. [Release](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.5),
-  [telemetry opt-out](https://docs.nvidia.com/openshell/v0.1.5/observability/telemetry/),
-  [runtimes](https://docs.nvidia.com/openshell/v0.1.5/how-it-works/sandboxes/runtimes/).
+  [telemetry opt-out](https://docs.nvidia.com/openshell/v0.1.7/observability/telemetry/),
+  [runtimes](https://docs.nvidia.com/openshell/v0.1.7/how-it-works/sandboxes/runtimes/).
 - **models.dev contributors** — the public OpenCode Go catalog subset used by the earlier
   OpenCode harness evidence, retrieved 2026-10-26 from [the catalog](https://models.dev/api.json).
   The current profiles carry their own Go prices and limits; neither is an account entitlement check.
