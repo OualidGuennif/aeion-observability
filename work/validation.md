@@ -5,6 +5,9 @@
 - Probe (one ~3k-token request per model, numbers only): Go reports `cost` 0 (plan), `list_cost` and an `allowance` draw. allowance/list: GLM 1.333, DeepSeek 1.2, Qwen 2.667, Haiku 4.0, Luna 4.0; Mistral bills the balance, `cost` = `list_cost` (at the 50% discount; the profile keeps the full list price). A streamed Haiku probe confirmed `message_delta` carries input, cache-write and cache-read counts, so usage parsing was correct. The budget already counted the larger amount (allowance), so Haiku's 1.08 USD was four times its list cost.
 - Cause of the early stop: the next request's projection used the whole byte bound (about eight times the real input) at list price. Fix: per-profile `budget_multiplier` (rounded up) in projections, settlement bounds and the harness estimate; an appended turn bounded by the previous reported input plus its new messages; the router skips a model whose single request exceeds half its purpose's cap (Haiku: no review, no preparation); `AUTHOR_MAX_USD` 5.00 (owner request).
 - Checks: demo 773 OK (new test_factory_budget_fit, AllowanceProjectionTests), knowledge-check and doc-links PASS.
+- Native requalification (protocol 2970defa…) first failed: the synthetic Haiku protocol probe reused the 0.05 USD fixture review bound, which
+  Haiku's 4x projection now exceeds (relay BUDGET_STOP before transport). The probe now has its own 0.25 USD synthetic bound; rerun qualified and activated, ready() True.
+- Independent review of 32995e8: GLM 5.3 Flash approve (0.038 USD), Qwen 3.8 Flash approve (0.081 USD).
 
 ## Æion Factory v2.1.0 and README — 2026-11-06
 
