@@ -35,6 +35,8 @@ under its heading: `- <preference> (<source>, YYYY-MM-DD)`.
 - No narration between tool calls: a hook warns, never blocks (chat, 2026-10-28)
 - Keep reasoning private and omit optional progress narration, including JSON notes; speak only
   for necessary user decisions and concise final results (chat, 2026-10-29).
+- GitHub release notes carry the changelog lines only, with no "Generated with Claude Code" line
+  (chat, 2026-11-04)
 
 ## Engineering
 
@@ -42,6 +44,10 @@ under its heading: `- <preference> (<source>, YYYY-MM-DD)`.
   reference material, with no automatic agent launching, imposed model or generic source-derived
   thresholds. Enrich only from ECC, Addy Osmani agent-skills and the two Anthropic plugin
   repositories; local develop edits authorized, no push requested (chat, 2026-10-31).
+- Avoid overengineering: design a new feature or service from first principles, but in an existing
+  or production-critical system the smallest fitting change wins, a redesign needs a concrete gain
+  and the owner's yes, and the author's design preference comes first; take from ub-mode only what
+  is clearly useful (chat, 2026-11-06).
 
 ## UI
 

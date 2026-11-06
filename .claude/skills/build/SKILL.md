@@ -15,7 +15,8 @@ After `plan` (and `spec` when behaviour changes). Not before a yes.
 ## Process
 1. Under git, inspect the current branch/worktree and work on the owner-approved branch.
    A branch switch or pull must preserve existing work; do not perform either blindly.
-2. Pick the smallest slice that moves toward the plan; write its test first when practical.
+2. Pick the smallest slice that moves toward the plan; settle the data's shape first, and write
+   its test first when practical.
 3. Edit; read the diagnostics and hook output after each edit; fix before moving on.
 4. Run the slice's tests and add its `CHANGELOG.md` line. Commit with a what/why message
    only when a commit is included in the owner-authorized workflow.
@@ -26,9 +27,11 @@ After `plan` (and `spec` when behaviour changes). Not before a yes.
 | --- | --- |
 | "I'll run the tests at the end" | Then one failure hides behind ten changes. |
 | "This helper will be useful later" | No abstraction without two real users. |
+| "While I'm here, I'll redesign this" | In a running system the smallest fitting change wins; propose the redesign in the plan. |
 
 ## Red flags
-A commit with failing tests; a slice touching ten files; silenced diagnostics.
+A commit with failing tests; a slice touching ten files; silenced diagnostics; a requirement bolted
+onto a design that does not fit it, or a rewrite nobody approved.
 
 ## Verification
 - [ ] Every commit passed the pre-commit and its tests.

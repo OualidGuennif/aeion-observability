@@ -316,7 +316,19 @@ class TemplateUpdateTests(unittest.TestCase):
         self.commit_project()
         code, output = self.run_tool('--ref', 'v2.0.0', '--repo', str(self.project))
         self.assertEqual(code, 2, output)
-        self.assertIn('from its own repository; run template-update from the Æion Factory clone', output)
+        self.assertIn(f'from its own repository {self.project.resolve()}; run template-update from the Æion Factory clone', output)
+        self.assertEqual((self.project / HOOK).read_text(), HOOK_V1)
+
+    def test_a_project_copy_names_the_factory_clone_before_a_mistyped_root(self):
+        # Run from inside a project, `--root <its name>` resolves to a folder inside the project.
+        self.project_file('.aeion-factory', 'v1.0.0\n')
+        self.commit_project()
+        code, output = self.run_tool('--ref', 'v2.0.0', '--repo', str(self.project),
+                                     '--root', str(self.project / 'project'))
+        self.assertEqual(code, 2, output)
+        self.assertIn('run template-update from the Æion Factory clone', output)
+        self.assertIn('--root <project>', output)
+        self.assertNotIn('no such project', output)
         self.assertEqual((self.project / HOOK).read_text(), HOOK_V1)
 
     def release_2_1(self):
