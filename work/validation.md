@@ -1,3 +1,10 @@
+## Æion Factory v2.1.0 and README — 2026-11-06
+
+- `tools/agents/template-update --ref v2.1.0` from the Factory checkout (5f8a9798a9eb): contract files replaced (build skill, template-update tool and tests, marker); patches for `agent-compatibility.md`, `engineering.md` and `owner-preferences.md` applied; `CREDITS.md` merged by hand (ub-mode credit); the `sources.md` patch skipped (project-owned research register); efficiency bundle regenerated.
+- `.claude/hooks/guard-bash.py` kept as the project version: Factory v2.1.0 lacks the project's remote-helper URL and `--upload-pack`/`--receive-pack`/`--exec`/`-u` block that `test_hooks.py` and `security.md` require. `adapter-check --ref v2.1.0`: 27 connectors match, this one reports DRIFT by design (fail closed); upstreaming it to Factory is an owner decision.
+- README rewritten around three parts (framework, offline examples, local factory pilot), the pipeline and a repository map. No folders moved: protocol hashes, CI paths and doc links depend on the current layout.
+- Checks: hook tests 728 passed, factory-tests PASS, template-update tests OK, repository tests OK, fixture validation PASS, knowledge-check, doc-links (146) and repo-health PASS.
+
 ## Automatic correction rounds and OpenShell v0.1.7 — 2026-11-06
 
 - Build 80463a43 (001, DeepSeek author): gate passed, GLM approved, Qwen rejected unrequested changes (removed `/__release` and `aeion.release`, default port 8081→8080); held. Its claim of two JPA repositories was checked and is false.

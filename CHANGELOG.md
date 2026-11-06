@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Update the Æion Factory template from v2.0.3 to v2.1.0 (build skill, template-update tool, engineering
+  and owner-preference policies, ub-mode credit); the project keeps its stricter git transport guard.
+- Rewrite the README around the repository's three parts: framework, offline examples, local factory pilot.
 - Turn a reviewer rejection or a failed final gate into at most two automatic correction rounds:
   the next author starts from the exact refused candidate with the reasons as bounded untrusted
   data, and faces the full gate and two new votes; an unchanged correction or a third refusal
