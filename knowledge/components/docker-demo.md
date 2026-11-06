@@ -32,6 +32,13 @@ of upstream silence before reporting `PROVIDER_TIMEOUT`; other socket failures a
 the **Agora forum** (`demo/forum-app/`, Quarkus/Java). Nine observation services use Docker; a
 private native mTLS gateway owns OpenShell sandboxes through its Docker compute driver. This is an
 explicitly authorized local pilot, not a production OPS boundary or general model benchmark.
+OpenShell is pinned at v0.1.7 (binaries, SDK and the sandbox/supervisor images by digest; read
+2026-11-06 from the [v0.1.6](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.6) and
+[v0.1.7](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.7) upgrade notes). The gateway
+must now authenticate callers; its client CA turns on mTLS user authentication by default, so
+no `allow_unauthenticated_users` opt-in is set. Sandbox and supervisor images move together
+(the v0.1.6 control connection changed direction). The OCSF 1.8.0, Podman CA, MicroVM user
+and shared-supervisor changes do not apply to this Docker-driver setup.
 The controller loads the OpenShell gRPC client, so it sets `GRPC_ENABLE_FORK_SUPPORT=false`
 before that import: otherwise every subprocess fork restarts gRPC threads that can abort the
 child on macOS before its exec (`demo/app/grpc_fork.py`, test_grpc_fork).
@@ -99,9 +106,9 @@ HTTP traces. Primary integration references, checked 2026-10-27:
   `supportsReasoningEffort`), observed on the wire with a local fake server.
 - [OpenCode Go](https://github.com/anomalyco/opencode/blob/caebbcc0807e630629725f320f35a09aa4a427be/services/www/src/docs/content/console/go.mdx)
   client requirements (own user agent, stable `x-opencode-session`; Pi validated) and prices.
-- [OpenShell telemetry](https://docs.nvidia.com/openshell/v0.1.5/observability/telemetry/),
-  [Python SDK](https://docs.nvidia.com/openshell/v0.1.5/sdk/python/),
-  [sandbox runtimes](https://docs.nvidia.com/openshell/v0.1.5/how-it-works/sandboxes/runtimes/) and the
+- [OpenShell telemetry](https://docs.nvidia.com/openshell/v0.1.7/observability/telemetry/),
+  [Python SDK](https://docs.nvidia.com/openshell/v0.1.7/sdk/python/),
+  [sandbox runtimes](https://docs.nvidia.com/openshell/v0.1.7/how-it-works/sandboxes/runtimes/) and the
   Docker driver [volume admission](https://github.com/NVIDIA/OpenShell/blob/bdb956f2cd65a635f1294fccf1d138d263bf650f/crates/openshell-core/src/resource_admission.rs)
   (operator labels; raw host paths refused) and [host-backed volumes](https://github.com/NVIDIA/OpenShell/blob/bdb956f2cd65a635f1294fccf1d138d263bf650f/crates/openshell-driver-docker/src/lib.rs)
   (`enable_bind_mounts`).

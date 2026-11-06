@@ -9,7 +9,7 @@ import time
 
 from settings import AGENT_UID, DATA, DEMO, OPENSHELL_STATE, WORK, WORK_VOLUME
 
-VERSION = '0.1.5'
+VERSION = '0.1.7'
 # Sandbox-owned work directory. Writes here stay inside the sandbox, which is the only
 # transport that is reliable on Docker Desktop: host-backed volume writes land but the
 # syscall returns EACCES, so results are collected over the exec channel instead.

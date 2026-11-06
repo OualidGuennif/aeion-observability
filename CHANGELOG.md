@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Turn a reviewer rejection or a failed final gate into at most two automatic correction rounds:
+  the next author starts from the exact refused candidate with the reasons as bounded untrusted
+  data, and faces the full gate and two new votes; an unchanged correction or a third refusal
+  waits for the owner. Authors are told their OpenShell sandbox is not the product runtime and
+  must not change ports, routes or defaults the brief does not ask for.
+- Update OpenShell from 0.1.5 to 0.1.7 (binaries, Python SDK, sandbox and supervisor images by
+  digest); the existing mTLS client CA satisfies the gateway authentication now required.
 - Add GPT-6 Luna (OpenCode Go) and Mistral Large 4 (OpenCode pay-as-you-go balance) as factory
   authors and reviewers at their native maximum effort (`max` and `high`), enforced by the relay.
 - Settle each forwarded request on the provider's reported input count, with cache reads at the

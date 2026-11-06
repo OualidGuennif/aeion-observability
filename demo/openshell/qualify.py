@@ -33,7 +33,7 @@ def main():
     client=SandboxClient(args.endpoint,tls=TlsConfig(ca_path=tls/'ca.crt',cert_path=tls/'client/tls.crt',key_path=tls/'client/tls.key'),timeout=120)
     folder=root/'qualification';folder.mkdir(mode=0o700,exist_ok=True)
     out=folder/'security.json';out.unlink(missing_ok=True)
-    assert client.health().version=='0.1.5' and args.uid>0
+    assert client.health().version=='0.1.7' and args.uid>0
     name='ae-qualification';ref=None
     # A run-shaped folder inside the work volume: only `run/` is mounted; `outside/` must stay invisible.
     work=args.work.resolve();probe_root=Path(tempfile.mkdtemp(prefix='.bind-probe-',dir=work));run=probe_root/'run'
@@ -93,7 +93,7 @@ print(json.dumps(checks))'''
         mounts=json.loads(subprocess.check_output([shutil.which('docker'),'inspect','--format','{{json .Mounts}}',workload],close_fds=False))
         assert network=='none'
         assert not any(m['Source'].endswith('docker.sock') or m['Type']=='bind' for m in mounts)
-        evidence.update(version='0.1.5',telemetry_disabled=True,network_mode='none',sandbox_id=ref.id,agent_uid=args.uid,
+        evidence.update(version='0.1.7',telemetry_disabled=True,network_mode='none',sandbox_id=ref.id,agent_uid=args.uid,
             work_volume=args.volume,work_dir=str(work),transport='rpc-copy',host_mounts=False,sandbox_out=SANDBOX_OUT,
             agent_image=args.image,ca_sha256=hashlib.sha256((tls/'ca.crt').read_bytes()).hexdigest(),
             qualified_ns=time.time_ns(),expires_ns=time.time_ns()+86400000000000)

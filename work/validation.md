@@ -1,3 +1,11 @@
+## Automatic correction rounds and OpenShell v0.1.7 — 2026-11-06
+
+- Build 80463a43 (001, DeepSeek author): gate passed, GLM approved, Qwen rejected unrequested changes (removed `/__release` and `aeion.release`, default port 8081→8080); held. Its claim of two JPA repositories was checked and is false.
+- Change: a reviewer rejection or failed final gate now ends the attempt as failed and queues at most two correction rounds of the same feature (supervisor admission keyed `factory-correction:<build>`, linked in the same transaction). The correction author starts from the refused candidate only when its content digest and base match, receives at most 12 sanitized, secret-redacted feedback lines as untrusted data, and gets two new votes. An unchanged correction holds `correction_unchanged` without checks or votes; after round 2 a rejection holds for the owner. The author prompt now explains the OpenShell sandbox and forbids adapting ports, routes, Compose files or defaults to it.
+- OpenShell 0.1.5 → 0.1.7: release assets checked against the GitHub digests; images pinned by digest (`docker buildx imagetools inspect`, the 0.1.5 digests reproduced the existing pins). A throwaway v0.1.7 gateway with the demo configuration started with "mTLS user authentication enabled", so the v0.1.6 authentication requirement needs no opt-in. Real `demo/openshell/setup.py` qualification PASS (uid, filesystem denied, network denied, read-only workspace, outside folder invisible, no host mounts).
+- Flue/Pi: Flue 2.3.0 (latest, 2026-10-12) declares `@earendil-works/pi-ai` and `pi-agent-core` `^1.1.0`, but its runtime imports `Type` from pi-ai, which 1.4.0 re-exports and 1.5.0 (2026-11-02) removed. Pi stays at 1.4.0 until a Flue release stops importing it; Flue main has no newer commit.
+- Checks: demo 769 OK, cockpit client 28 OK, repository tests 33 OK, knowledge-check, doc-links and repo-health PASS.
+
 ## Byte-bound budget stop — 2026-11-06
 
 - Build ea3fe718 (001, Qwen 3.8 Flash author at max, 08:28–08:40) failed `builder_error` `BUDGET_STOP` after 20 forwarded requests, with provider cost 0.15493343 USD of the author's 2 USD (input 974278, output 53937 tokens).
