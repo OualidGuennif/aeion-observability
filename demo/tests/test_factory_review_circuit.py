@@ -50,7 +50,7 @@ class CircuitTelemetryTests(unittest.TestCase):
         self.assertTrue(independent_circuit(result))
 
     def test_only_one_substitution_and_never_for_a_refusal_or_a_billed_answer(self):
-        result,calls=self.busy_circuit({'deepseek-4.1-flash','claude-haiku-5.5'},failure='PROVIDER_UNAVAILABLE')
+        result,calls=self.busy_circuit({'deepseek-4.1-flash','gpt-6-luna'},failure='PROVIDER_UNAVAILABLE')
         self.assertEqual((result['status'],result['reason'],len(calls)),('held','reviewer_failed',3))
         self.assertEqual(len(result['unavailable_reviewers']),1)
         self.assertEqual(result['votes'][-1]['verdict'],'error')
@@ -125,7 +125,7 @@ class CircuitTelemetryTests(unittest.TestCase):
         result=two_vote_review('glm-5.3-flash','007',FILES,Router(Telemetry()),vote,
             acceptance='class IndependentContract {}',preparer_model='qwen-3.8-flash')
         self.assertEqual(result['status'],'approved')
-        self.assertEqual({model for model,_ in seen},{'deepseek-4.1-flash','claude-haiku-5.5'})
+        self.assertEqual({model for model,_ in seen},{'deepseek-4.1-flash','gpt-6-luna'})
         self.assertTrue(all('class IndependentContract {}' in prompt for _,prompt in seen))
         self.assertEqual(result['acceptance_digest'],hashlib.sha256(b'class IndependentContract {}').hexdigest())
     def test_budget_or_local_preflight_rejection_does_not_become_a_model_failure(self):

@@ -1,3 +1,11 @@
+## Go allowance multiples and appended-turn bound — 2026-11-06
+
+- Build df71b061 (001, Claude Haiku 5.5 author): first protected self-check failed `explicit_database_less_startup_rejected` at 9 min, then BUDGET_STOP at 11 min with provider-reported 1.07936522 USD against the 2 USD cap (list-price estimate 0.40). No correction round: a budget stop is neither a rejection nor a failed gate.
+- OpenCode Go page (read 2026-11-06): Haiku 5.5 lists 0.10/0.50 USD per 1M input/output up to 100K tokens and 0.50/2.50 above; the profile keeps the upper tier. The price was not the cause.
+- Probe (one ~3k-token request per model, numbers only): Go reports `cost` 0 (plan), `list_cost` and an `allowance` draw. allowance/list: GLM 1.333, DeepSeek 1.2, Qwen 2.667, Haiku 4.0, Luna 4.0; Mistral bills the balance, `cost` = `list_cost` (at the 50% discount; the profile keeps the full list price). A streamed Haiku probe confirmed `message_delta` carries input, cache-write and cache-read counts, so usage parsing was correct. The budget already counted the larger amount (allowance), so Haiku's 1.08 USD was four times its list cost.
+- Cause of the early stop: the next request's projection used the whole byte bound (about eight times the real input) at list price. Fix: per-profile `budget_multiplier` (rounded up) in projections, settlement bounds and the harness estimate; an appended turn bounded by the previous reported input plus its new messages; the router skips a model whose single request exceeds half its purpose's cap (Haiku: no review, no preparation); `AUTHOR_MAX_USD` 5.00 (owner request).
+- Checks: demo 773 OK (new test_factory_budget_fit, AllowanceProjectionTests), knowledge-check and doc-links PASS.
+
 ## Æion Factory v2.1.0 and README — 2026-11-06
 
 - `tools/agents/template-update --ref v2.1.0` from the Factory checkout (5f8a9798a9eb): contract files replaced (build skill, template-update tool and tests, marker); patches for `agent-compatibility.md`, `engineering.md` and `owner-preferences.md` applied; `CREDITS.md` merged by hand (ub-mode credit); the `sources.md` patch skipped (project-owned research register); efficiency bundle regenerated.

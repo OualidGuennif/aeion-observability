@@ -281,9 +281,7 @@ The owner added two workers the same day. GPT-6 Luna (Go, family `openai`) valid
 so its maximum is `high`. It is not in Go: it runs on OpenCode pay-as-you-go, billed to the Console
 balance at its list price (1.36/4.18 USD per 1M input/output tokens). Both send `reasoning_effort`
 alone, and the relay refuses one with another value or a `thinking` object. They follow the four
-measured models in the cold-start order. At Mistral's price, the admission byte bound of a single
-request passes the 2 USD author cap once the context nears 150k tokens, so it suits review better
-than authoring.
+measured models in the cold-start order.
 The author also gets three protections, measured on build cca2f099 (GLM stopped 37 minutes after
 its third and last allowed protected check had failed; about six shell commands hit the 300 s
 command cap). Protected checks are no longer counted: the author window and the cost cap bound
@@ -316,7 +314,20 @@ the counted input for a pinned tokenizer, or the provider-reported input for Qwe
 admission byte bound runs about eight times the real count; reported cache reads are priced at
 the cache-read rate, other input at the higher of the input and cache-write rates. Measured
 2026-11-06 (build ea3fe718): settling on the byte bound stopped a Qwen author with BUDGET_STOP
-after 20 requests at0.155 USD of its$2. Missing
+after 20 requests at0.155 USD of its$2. When a request only appends messages to the previous one
+(same model settings, cache markers ignored), its input is bounded by the previous reported input
+plus the byte bound of the new messages; anything else keeps the full byte bound.
+
+Go reports a plan `allowance` draw beside `list_cost`, at a fixed multiple of the list price per
+model; the budget counts the larger. Measured 2026-11-06: GLM 1.33, DeepSeek 1.2, Qwen 2.67, Haiku
+4, Luna 4; Mistral is charged to the balance at its list cost (1). Each profile carries this
+`budget_multiplier` (rounded up); projections, settlement bounds and the harness estimate use it,
+and a profile without one cannot run. Build df71b061 (Haiku author) stopped at 1.08 USD of 2 USD:
+its allowance draw was four times the list estimate and the next request's byte bound did not
+fit. The router also skips a model whose single request (whole output window plus 16384 input
+tokens, at its multiple) exceeds half of its purpose's cap: Haiku at 0.70 USD per request does
+not review (1 USD vote) or prepare (0.50 USD) (test_factory_budget_fit,
+test_relay_budget_settlement). Missing
 cost/output or unfinished streams retain their maximum liability; higher resource cost blocks
 later calls. A known closed bootstrap failure caused by cumulative unused reservations may be
 recovered once with the unchanged artifact and first approval, never unknown cost or a rejection

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Count each model at its measured Go allowance multiple (Haiku and Luna 4x the list price), bound an
+  appended turn by the previous reported input plus its new messages instead of the whole byte bound,
+  skip a model whose single request exceeds half of its purpose's cap, and raise the author cap to 5 USD.
 - Update the Æion Factory template from v2.0.3 to v2.1.0 (build skill, template-update tool, engineering
   and owner-preference policies, ub-mode credit); the project keeps its stricter git transport guard.
 - Rewrite the README around the repository's three parts: framework, offline examples, local factory pilot.

@@ -117,6 +117,38 @@ class Telemetry:
         }
 
 
+# One paid request reserves its whole output window plus a minimal input at the model's budget
+# rate (list price times the measured allowance multiple). A model whose single request already
+# costs more than half of its purpose's cap cannot finish within it: Claude Haiku 5.5 at 4x is
+# about 0.70 USD per 65536-token review request against a 1 USD vote. Such a model is not selected.
+PURPOSE_OUTPUT_TOKENS = {"author": 65536, "review": 65536, "prepare": 32768}
+PREPARE_CAP_USD = "0.50"
+
+
+def request_floor_usd(model, purpose):
+    from decimal import Decimal
+    from app.profiles import PROFILES, SHARED_MODELS, budget_multiplier
+    key = next(k for k, v in SHARED_MODELS.items() if v == model)
+    profile = PROFILES[key]
+    rate = max(Decimal(str(profile["input"])), Decimal(str(profile.get("cache_write", 0))))
+    return ((Decimal(PURPOSE_OUTPUT_TOKENS[purpose]) * Decimal(str(profile["output"])) + 16384 * rate)
+            * Decimal(budget_multiplier(key)) / 1000000)
+
+
+def fits_budget(model, purpose):
+    """Unknown price, multiple or cap means no: fail closed."""
+    from decimal import Decimal
+    try:
+        if purpose == "prepare":
+            cap = Decimal(PREPARE_CAP_USD)
+        else:
+            from .budget import settings
+            cap = settings()["AUTHOR_MAX_USD" if purpose == "author" else "REVIEW_MAX_USD"]
+        return request_floor_usd(model, purpose) <= cap / 2
+    except Exception:
+        return False
+
+
 class Router:
     """Choose the most efficient eligible model, never a family already used in this review."""
 
@@ -142,7 +174,7 @@ class Router:
                 continue
             if require_role and require_role not in spec["roles"]:
                 continue
-            if not eligibility(model)[0]:
+            if not eligibility(model)[0] or not fits_budget(model, purpose):
                 continue
             candidates.append(model)
         if not candidates:

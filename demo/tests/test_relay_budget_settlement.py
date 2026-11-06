@@ -180,3 +180,49 @@ class SettlementTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class AllowanceProjectionTests(unittest.TestCase):
+    """Build df71b061 (2026-11-06): a Haiku author stopped at 1.08 of 2 USD on its byte bound."""
+
+    setUp=SettlementTests.setUp
+
+    def closed(self,multiplier='1'):
+        class ByteBound:
+            context_basis='provider_usage'
+            def count(self,payload):return 100000*len(payload['messages'])
+        relay=ContextRelay('fixture/model','synthetic',250000,lambda *_:None,lambda *_a,**_k:None,
+            counter=ByteBound(),upstream=f'http://127.0.0.1:{self.server.server_port}',
+            max_output_tokens=32768,prices={'input':0.15,'output':1.2},cost_limit='0.08',
+            budget_multiplier=multiplier)
+        relay.start();self.addCleanup(relay.close);return relay
+
+    def post(self,relay,messages):
+        body=json.dumps({'model':'model','messages':messages,'max_tokens':32768,'stream':True}).encode()
+        request=urllib.request.Request(relay.url+'/chat/completions',data=body,
+            headers={'Authorization':'Bearer '+relay.token,'Content-Type':'application/json'})
+        try:
+            with urllib.request.urlopen(request,timeout=4) as response:response.read();return response.status
+        except urllib.error.HTTPError as error:
+            with error:error.read();return error.code
+
+    def test_an_appended_turn_is_bounded_by_the_reported_prefix_plus_its_new_messages(self):
+        first=[{'role':'user','content':[{'type':'text','text':'brief','cache_control':{'type':'ephemeral'}}]}]
+        later=[{'role':'user','content':[{'type':'text','text':'brief'}]},{'role':'assistant','content':'ok'},
+               {'role':'user','content':[{'type':'text','text':'result','cache_control':{'type':'ephemeral'}}]}]
+        relay=self.closed()
+        # The full byte bound (300000 x 0.15 + 32768 x 1.2) / 1e6 = 0.0843 would exceed 0.08; the
+        # reported 2000-token prefix plus 200000 for two new messages fits. Cache markers are ignored.
+        self.assertEqual([self.post(relay,first),self.post(relay,later)],[200,200])
+        relay=self.closed()
+        changed=[{'role':'user','content':'another brief'},*later[1:]]
+        self.assertEqual([self.post(relay,first),self.post(relay,changed)],[200,409])
+        self.assertEqual(relay.last_error_code,'BUDGET_STOP')
+
+    def test_the_allowance_multiple_scales_the_projection_and_must_be_sane(self):
+        relay=self.closed('4')
+        # (100000 x 0.15 + 32768 x 1.2) x 4 / 1e6 = 0.2173 > 0.08 before any transport.
+        self.assertEqual(self.post(relay,[{'role':'user','content':'x'}]),409)
+        self.assertEqual(self.posts,0)
+        for bad in ('0.5','11','NaN','x'):
+            with self.subTest(bad=bad),self.assertRaises(Exception):self.closed(bad)
