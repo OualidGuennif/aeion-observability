@@ -77,7 +77,8 @@ A failed build that queued an automatic continuation says so ("correction round 
 same model, or "attempt N of 3 on another model" after the second round or a crash), and the next
 build of the same feature appears in the queue without an owner launch. A required CI failure
 uses that same sentence and names the failing checks; only the exhausted case stays on hold and
-asks the owner to cancel. After the third attempt a
+asks the owner to cancel. Build evidence says the rounds are finished only in that exhausted
+case. A queued round says the check failed and the pull request was not merged. After the third attempt a
 rejection is held with its reasons; a correction that changed nothing is held
 `correction_unchanged` (test_factory_correction_rounds, test_cockpit_client). Build evidence shows the attempt and
 round, the crashed author's error class and the agents' owner-only feedback as escaped text.

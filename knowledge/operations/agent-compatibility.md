@@ -57,7 +57,7 @@ sources:
     title: "OpenCode integration and its live note"
 generated:
   by: aeion-factory/1.6
-  at: 2026-11-02
+  at: 2026-11-06
 ---
 
 # Agent compatibility
@@ -216,7 +216,7 @@ with one line naming a missing agent binary and the setup link, exit 1.
   reads an empty answer as a refusal. Unverified until a live run: whether that `allow` also
   skips Antigravity's own approval prompt (a `run_command` with `SafeToAutoRun: false`); until
   then, assume it may. No compaction checkpoint or token stop.
-- Grok loads `AGENTS.md`, `CLAUDE.md` and the skill folders, and also `.claude/settings.json`. The Claude budget hook returns an empty object for a `hookEventName` envelope or a `chat_history.jsonl` or `updates.jsonl` transcript and does not latch STOPPED. Guards run from `.grok/hooks/factory.json`: `run_terminal_command`, `read_file` (`target_file`), `search_replace`, `write`, `grep` and `list_dir` (`target_directory`) map onto the shared guards; an unknown tool with a `command` string is a shell call. `signals.json` beside `updates.jsonl` or `chat_history.jsonl` supplies the 250k/300k size as `contextTokensUsed` (it falls after compaction; missing is unmeasured, zero is a real reading). `usage.json` in that directory is the billed ledger and is not the context size. `SessionStart` uses `systemMessage`. `PreCompact` cannot be refused; `PostCompact` resumes in closure when the handover was not verified. Not live-qualified.
+- Grok loads `AGENTS.md`, `CLAUDE.md` and the skill folders, and also `.claude/settings.json`. The Claude budget hook returns an empty object for a `hookEventName` envelope or a `chat_history.jsonl` or `updates.jsonl` transcript and does not latch STOPPED. Guards run from `.grok/hooks/factory.json`: `run_terminal_command`, `read_file` (`target_file`), `search_replace`, `write`, `grep` and `list_dir` (`target_directory`) map onto the shared guards; an unknown tool with a `command` string is a shell call. A second path field that names a different file is refused: `read_file` is checked at `target_file`, `list_dir` at `target_directory`, `search_replace` and `write` at `file_path`, and `grep` at every path field. `signals.json` beside `updates.jsonl` or `chat_history.jsonl` supplies the 250k/300k size as `contextTokensUsed` (it falls after compaction; missing is unmeasured, zero is a real reading). `usage.json` in that directory is the billed ledger and is not the context size. `SessionStart` uses `systemMessage`. `PreCompact` cannot be refused; `PostCompact` resumes in closure when the handover was not verified. Not live-qualified.
 - Managed CLI launchers enter the repository root and check the exact-HEAD architecture baseline;
   its absence is a warning, because installing the integrations needs the user's yes.
 - Raw command/MCP paths, host-managed/cloud orchestration and deliberate local modification are

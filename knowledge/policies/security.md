@@ -5,7 +5,7 @@ description: "Secrets, untrusted input, SQL and commands, access boundaries, lea
 status: stable
 generated:
   by: aeion-factory/1.0
-  at: 2026-10-20T00:00:00Z
+  at: 2026-11-06
 sources:
   - id: owasp
     resource: https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html
@@ -30,6 +30,9 @@ Requirements for a change, not claims about what production already satisfies.
 
 - An agent never reads, prints or copies a secret: no `.env`, `env.local`, credential file,
   private key or environment dump. Only templates are tracked. The hooks refuse these reads.
+  Checked 2026-11-06 after Factory v2.1.1 replaced the adapter: `guard-path.py` still exits 2
+  on a secret path and on an unbounded read, and the refusal names this doc. A Grok call that
+  names two different paths is refused, so a decoy path cannot hide the file the tool opens.
 - No secret in a prompt, a log, an issue, a commit or a test fixture; tests use fake values.
 - A leaked secret is compromised: rotate it, update its consumers, verify. Deleting the file or
   rewriting history revokes nothing. Keep redacted evidence.

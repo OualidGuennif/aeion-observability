@@ -87,6 +87,13 @@ const OWNER_ACTIONS = {
   budget_config_invalid: "Fix demo/budget.conf, then restart the controller.",
   ci_failed: "Read the failing check names in Build evidence, then cancel this request to free the feature. A relaunch starts a new author; it does not resume these rounds.",
 };
+function publicationDetail(receipt) {
+  const reason = (receipt.publisher || {}).reason;
+  if (!reason) return "";
+  if (reason === "ci_failed" && receipt.correction?.exhausted !== true)
+    return "A required CI check failed. The pull request was not merged.";
+  return reasonText({reason});
+}
 function holdReason(build) {
   const receipt = parseReceipt(build.receipt);
   if (receipt.reason === "correction_unchanged") return receipt.reason;
@@ -335,7 +342,7 @@ function receiptSummary(raw) {
     ["Failed tests", Array.isArray(check.failed_tests) && check.failed_tests.length && esc(check.failed_tests.join("; "))],
     ["Review", r.circuit?.status && esc(String(r.circuit.status))],
     ["Publication", publication.status && esc(String(publication.status))],
-    ["Publication detail", publication.reason && esc(reasonText({reason: publication.reason}))],
+    ["Publication detail", publication.reason && esc(publicationDetail(r))],
     ["CI checks", ciCheckText(publication)],
     ["Merged commit", publication.confirmed_main === true && /^[a-f0-9]{40}$/.test(publication.merge_sha) && esc(publication.merge_sha)],
     ["Confirmed main", publication.confirmed_main === true && /^[a-f0-9]{40}$/.test(publication.main_sha) && esc(publication.main_sha)],

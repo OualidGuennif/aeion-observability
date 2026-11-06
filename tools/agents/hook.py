@@ -240,6 +240,35 @@ def antigravity_event(event):
     return {**event, 'tool_name': tool, 'tool_input': data, 'antigravity_paths': paths, 'antigravity_globs': globs}
 
 
+def grok_bind_path(tool, data):
+    """Point the guard at the file the Grok tool opens.
+
+    ``read_file`` opens ``target_file``, ``list_dir`` opens ``target_directory``, and ``grep``
+    opens ``path``. A second path field that names a different file is a refusal: the guard
+    would otherwise check the decoy and let the tool open the other one.
+    """
+    fields = ('file_path', 'path', 'target_file', 'target_directory')
+    primary = {'read_file': 'target_file', 'list_dir': 'target_directory',
+               'search_replace': 'file_path', 'write': 'file_path'}.get(tool)
+    if tool == 'grep':
+        named = [data[key] for key in fields if isinstance(data.get(key), str)]
+        if len(set(named)) > 1:
+            raise ValueError('the tool names two different paths')
+        if named:
+            data['file_path'] = data['path'] = named[0]
+        return data
+    if primary is None:
+        return data
+    opened = data.get(primary)
+    for key in fields:
+        other = data.get(key)
+        if key != primary and isinstance(other, str) and other != opened:
+            raise ValueError('the tool names two different paths')
+    if isinstance(opened, str):
+        data['file_path'] = opened
+    return data
+
+
 def grok_event(event):
     """Map a Grok tool call onto the shared guards. Other events pass through."""
     if event.get('hook_event_name') not in {'PreToolUse', 'PostToolUse'}:
@@ -256,11 +285,8 @@ def grok_event(event):
         data = {}
     else:
         data = dict(data)
-    # The guards read file_path. Grok's read_file and list_dir use their own names.
-    if 'file_path' not in data and isinstance(data.get('target_file'), str):
-        data['file_path'] = data['target_file']
-    if 'file_path' not in data and isinstance(data.get('target_directory'), str):
-        data['file_path'] = data['target_directory']
+    # The guards read file_path. Bind the field the tool actually opens, and refuse a decoy.
+    grok_bind_path(tool, data)
     mapped = GROK_TOOLS.get(tool, tool)
     # An unknown tool that carries a command string is a shell call until proven otherwise.
     if mapped not in GROK_KNOWN and isinstance(data.get('command'), str):

@@ -922,6 +922,15 @@ class HookTests(unittest.TestCase):
             self.call('grok', tool_name='grep', tool_input={'pattern': 'x', 'path': '.', 'glob': '.env'})
         with self.assertRaisesRegex(hook.GuardRefusal, 'secret'):
             self.call('grok', tool_name='future_shell', tool_input={'command': 'cat .env'})
+        # A decoy path must not hide the file the tool actually opens.
+        with self.assertRaisesRegex(ValueError, 'two different paths'):
+            self.call('grok', tool_name='read_file', tool_input={'target_file': path, 'file_path': 'README.md'})
+        with self.assertRaisesRegex(ValueError, 'two different paths'):
+            self.call('grok', tool_name='grep', tool_input={'pattern': 'x', 'path': path, 'target_file': 'README.md'})
+        with self.assertRaisesRegex(ValueError, 'two different paths'):
+            self.call('grok', tool_name='list_dir', tool_input={'target_directory': path, 'file_path': 'README.md'})
+        with self.assertRaisesRegex(hook.GuardRefusal, 'secret'):
+            self.call('grok', tool_name='read_file', tool_input={'target_file': path, 'file_path': path})
         self.assertEqual(self.call('grok', tool_name='run_terminal_command', tool_input={'command': 'git status --short'}), {})
         self.assertEqual(self.call('grok', tool_name='read_file', tool_input={'target_file': 'README.md', 'offset': 1, 'limit': 20}), {})
 

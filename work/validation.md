@@ -1,3 +1,13 @@
+## Independent review of 4146147 was not ok — 2026-11-06
+
+- Review of `origin/develop..HEAD` at `4146147b5f52d2b78e42d8a1fdb9cc054d255a24`: NOT OK. A Grok `read_file`, `grep`, or `list_dir` payload could name the opened path and a different decoy; the guard checked the decoy. The cockpit publication detail said correction rounds were finished for every `ci_failed` receipt, including one that had just queued another round.
+- Change: disagreement between those path fields is a refusal, and the finished-rounds sentence appears only when `correction.exhausted` is true.
+- Checks: `python3 -m unittest tools.agents.tests.test_hooks` — 65 OK. `python3 .claude/hooks/test_hooks.py` — 737 passed. `node --test demo/tests/test_cockpit_client.mjs` — 28 OK. knowledge-check PASS. `doc-links --diff origin/develop --worktree` PASS (150). The claude-security plugin was not run. The factory publication tests were not re-run; those files did not change in this fix.
+
+## Develop push still waiting on an independent review — 2026-11-06
+
+- The CI-correction commit 4146147b5f52d2b78e42d8a1fdb9cc054d255a24 is local. `git push origin develop` was refused: no `Review: OK` in `.aeion/reviews/4146147b5f52d2b78e42d8a1fdb9cc054d255a24.md`. The owner asked to advance that review. No independent reviewer ran, and no receipt was written, because the Factory 250k closure stopped the session first. origin/develop and origin/main were not moved. The live controller was not restarted.
+
 ## Required CI failure queues a correction — 2026-11-06
 
 - Trigger: feature 001 build 3044b0f5, attempt b42253e4, PR 7. Gate passed, GLM and Qwen approved, then a required CI check failed. Publication held `ci_failed` and the feature stayed in progress, so the catalog could not continue. The forge result carried no check name. Owner-only agent notes stayed out of the next OpenShell prompt.
