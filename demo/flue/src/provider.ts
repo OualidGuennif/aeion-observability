@@ -26,7 +26,11 @@ const MAX_THINKING: Record<string, Record<string, string>> = {
   'glm-5.3-flash': { minimal: 'low', low: 'low', medium: 'high', high: 'high', xhigh: 'max', max: 'max' },
   'claude-haiku-5-5': { xhigh: 'max', max: 'max' },
   'qwen3.8-flash': { xhigh: 'max', max: 'max' },
+  // Measured 2026-11-06: GPT-6 Luna accepts reasoning_effort "max"; Mistral Large 4 tops out at "high".
+  'gpt-6-luna': { minimal: 'low', low: 'low', medium: 'medium', high: 'high', xhigh: 'max', max: 'max' },
+  'mistral-large-4': { minimal: 'low', low: 'low', medium: 'high', high: 'high', xhigh: 'high', max: 'high' },
 };
+const OPENAI_EFFORT = new Set(['gpt-6-luna', 'mistral-large-4']);
 const ADAPTIVE = new Set(['claude-haiku-5-5', 'qwen3.8-flash']);
 
 export function modelFromEnv(env: NodeJS.ProcessEnv = process.env) {
@@ -73,6 +77,7 @@ export function modelFromEnv(env: NodeJS.ProcessEnv = process.env) {
       ...(meta.id === 'deepseek-v4.1-flash' ? { thinkingFormat: 'deepseek' as const } : {}),
       // GLM honors reasoning_effort only beside its Z.ai thinking object (measured 2026-11-06).
       ...(meta.id === 'glm-5.3-flash' ? { thinkingFormat: 'zai' as const } : {}),
+      ...(OPENAI_EFFORT.has(meta.id) ? { thinkingFormat: 'openai' as const } : {}),
       supportsUsageInStreaming: true,
       maxTokensField: 'max_tokens' as const,
     },

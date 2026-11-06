@@ -117,7 +117,8 @@ deterministic offline builder (real base, real write scopes, real protected chec
 `AEION_FACTORY_EXECUTION=live` loads automatic task preparation, the shared model catalog and the
 Flue/Pi tier3 builder. The provider credential is consumed by its named role loader and its absence
 holds the build as `provider_unconfigured` instead of simulating. The owner authorized the four
-workers (`glm-5.3-flash`, `qwen-3.8-flash`, `deepseek-4.1-flash`, `claude-haiku-5.5`) on 2026-11-02;
+workers (`glm-5.3-flash`, `qwen-3.8-flash`, `deepseek-4.1-flash`, `claude-haiku-5.5`) on 2026-11-02
+and added `gpt-6-luna` and `mistral-large-4` (pay-as-you-go balance, not Go) on 2026-11-06;
 display ids are translated to canonical wire ids before every request.
 
 Legacy pinned Java candidate checks run in a disposable Docker container: no network, no Docker socket, no

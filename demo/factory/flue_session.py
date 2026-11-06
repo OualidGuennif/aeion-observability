@@ -18,7 +18,8 @@ from profiles import PROFILES, PROFILE_VERSION
 
 SESSION_TIMEOUT_SECONDS = 900
 MODEL_PROFILE = {'glm-5.3-flash': 'glm', 'deepseek-4.1-flash': 'deepseek',
-                 'qwen-3.8-flash': 'qwen', 'claude-haiku-5.5': 'haiku'}
+                 'qwen-3.8-flash': 'qwen', 'claude-haiku-5.5': 'haiku',
+                 'gpt-6-luna': 'luna', 'mistral-large-4': 'mistral'}
 
 
 def check_evidence(check):

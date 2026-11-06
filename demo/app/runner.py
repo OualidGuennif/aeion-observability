@@ -476,6 +476,12 @@ class Runner:
             raise ValueError('REASONING_EFFORT_INVALID')
         if key in ('deepseek','glm'):
             relay_options['required_reasoning_effort']=review_effort
+        elif PROFILES[key].get('efforts'):
+            # OpenAI-style models send reasoning_effort alone, mapped to their native maximum.
+            relay_options.update(required_reasoning_effort=PROFILES[key]['efforts'][review_effort],
+                                 reasoning_thinking_object=False)
+        if PROFILES[key].get('upstream'):
+            relay_options['upstream']=PROFILES[key]['upstream']
         if kind != 'lab':
             relay_options.update(prices=metadata, cost_limit=cost_limit - Decimal(run.get('projected_cost_usd', '0')),
                 max_requests=run.get('step_cap',12))

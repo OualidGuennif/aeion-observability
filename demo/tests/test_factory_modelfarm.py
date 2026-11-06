@@ -22,15 +22,15 @@ def broken(model, prompt):
 
 
 class RegistryTests(unittest.TestCase):
-    def test_four_models_in_four_families(self):
-        self.assertEqual(len(MODELS), 4)
-        self.assertEqual(len({spec["family"] for spec in MODELS.values()}), 4)
+    def test_six_models_in_six_families(self):
+        self.assertEqual(len(MODELS), 6)
+        self.assertEqual(len({spec["family"] for spec in MODELS.values()}), 6)
 
     def test_eligible_excludes_models_and_families(self):
         remaining = eligible(exclude_models=["glm-5.3-flash"])
         self.assertNotIn("glm-5.3-flash", remaining)
-        self.assertEqual(len(remaining), 3)
-        self.assertEqual(eligible(exclude_families=["anthropic"]),
+        self.assertEqual(len(remaining), 5)
+        self.assertEqual(eligible(exclude_families=["anthropic", "openai", "mistral"]),
                          ["deepseek-4.1-flash", "glm-5.3-flash", "qwen-3.8-flash"])
 
     def test_router_prefers_efficiency_then_is_deterministic(self):
@@ -47,7 +47,13 @@ class RegistryTests(unittest.TestCase):
 
     def test_no_eligible_model_raises(self):
         with self.assertRaisesRegex(RoutingError, "no_eligible_model"):
-            Router().select("review", exclude_families=["zhipu", "qwen", "deepseek", "anthropic"])
+            Router().select("review", exclude_families=["zhipu", "qwen", "deepseek", "anthropic",
+                                                        "openai", "mistral"])
+
+    def test_new_models_follow_the_measured_ones_in_the_cold_start_order(self):
+        self.assertEqual(Router().select("author", require_role="author"), "glm-5.3-flash")
+        self.assertEqual(Router().select("review", exclude_families=["zhipu", "qwen", "deepseek", "anthropic"]),
+                         "gpt-6-luna")
 
 
 class CircuitTests(unittest.TestCase):

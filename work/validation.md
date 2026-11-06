@@ -1,3 +1,16 @@
+## Byte-bound budget stop — 2026-11-06
+
+- Build ea3fe718 (001, Qwen 3.8 Flash author at max, 08:28–08:40) failed `builder_error` `BUDGET_STOP` after 20 forwarded requests, with provider cost 0.15493343 USD of the author's 2 USD (input 974278, output 53937 tokens).
+- Cause: Qwen and Haiku have no pinned local tokenizer, so the relay admits each request on a byte bound (`2 x UTF-8 bytes + 512 x messages + 16384`, about eight times the real tokens) priced at the cache-write rate, and its settlement kept that counted input after the provider had reported the real usage. Twenty settled byte bounds plus the next request's reservation passed 2 USD. The runner's native cost check (Pi estimate 0.058 USD) was not involved.
+- Fix: settlement uses the provider-reported input count for provider-usage profiles and prices reported cache reads at the cache-read rate (other input stays at the higher of input and cache-write); the larger provider cost still wins, and missing or unfinished usage still keeps the whole liability. New regression tests fail on the previous relay.
+- Checks: demo 759 OK, repository tests, knowledge-check and doc-links PASS.
+
+## GPT-6 Luna and Mistral Large 4 — 2026-11-06
+
+- Owner request: add both at max. OpenCode docs and the public models endpoint (checked 2026-11-06): GPT-6 Luna is in Go (`gpt-6-luna`, context 1050000, upper tier 0.20/0.75/0.02/0.25 USD per 1M, efforts none..max); Mistral Large 4 is pay-as-you-go only (`mistral-large-4`, context 524288, list 1.36/4.18/0.14, 50% off for now, efforts none and high).
+- Probe on the paid endpoints (metadata only): Luna accepted `reasoning_effort` max, xhigh and high on Go chat completions (billing `go-plus`) and rejected an unknown value with the list none..max. Mistral answered "Model is unavailable" on Go; on pay-as-you-go it accepted high (billing `balance`) and rejected max and xhigh (supported: low, medium, high).
+- Wired as profiles `luna` and `mistral`, catalog families `openai` and `mistral` behind the four measured models in the cold-start order, provider maps max to max and high, relay enforcement of the exact `reasoning_effort` without a thinking object, Mistral upstream on the pay-as-you-go URL. Checks: demo 762 OK, Flue 25 PASS. Real factory runs with these models are not yet measured.
+
 ## Max effort and green-finish author — 2026-11-06
 
 - Build cca2f099 (001, GLM 5.3 Flash author, 01:25–02:15, 80 steps, 0.21265383 USD) failed the final gate: 1 of 60 tests, `DatabaseLessBootTest > livenessAnswersWithoutADatabase()` (Quarkus `InactiveBeanException`), reproduced by an isolated rerun in the factory's Docker check runner. The gate had recorded that name; no parser defect.

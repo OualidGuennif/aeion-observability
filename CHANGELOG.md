@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add GPT-6 Luna (OpenCode Go) and Mistral Large 4 (OpenCode pay-as-you-go balance) as factory
+  authors and reviewers at their native maximum effort (`max` and `high`), enforced by the relay.
+- Settle each forwarded request on the provider's reported input count, with cache reads at the
+  cache-read rate, so a Qwen or Haiku author is no longer stopped for budget on an admission byte
+  bound about eight times its real input (build ea3fe718: BUDGET_STOP at 0.155 USD of 2 USD).
 - Run every agent at its model's maximum reasoning effort (GLM, DeepSeek, Haiku and Qwen; never
   medium), with the relay enforcing it. The author may run protected checks as often as its window
   allows, may not stop while its last check failed (up to three reminders naming the failing
