@@ -233,7 +233,7 @@ test('the next step names one plain owner action and never presents a simulation
   assert.match(step.detail, /rerun the votes once without rerunning the author/);
   assert.match(step.detail, /cancel and launch the feature again/);
   context.rejected = { ...held, receipt: JSON.stringify({ circuit: { reason: 'reviewer_rejected' } }) };
-  assert.match(run('nextStep({mode:"live"}, fixture, [rejected]).detail'), /Relaunching unchanged will likely be rejected/);
+  assert.match(run('nextStep({mode:"live"}, fixture, [rejected]).detail'), /two automatic correction rounds[^]*relaunch unchanged will likely be rejected again/);
   context.running = { feature_id: '001', status: 'dispatched', receipt: '{}', created_ns: 3 };
   assert.match(run('nextStep({mode:"live"}, fixture, [running]).title'), /being built/);
   assert.match(run('nextStep({mode:"live", hold_reason:"budget_config_invalid"}, fixture, []).detail'), /Fix demo\/budget.conf/);

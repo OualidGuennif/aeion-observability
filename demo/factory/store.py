@@ -34,6 +34,9 @@ TERMINAL = {MERGED, FAILED, CANCELLED, SIMULATED_COMPLETE, LIVE_COMPLETE, BASELI
 COMPLETED_FEATURE = {MERGED, BASELINE, LIVE_COMPLETE}
 IN_PROGRESS_FEATURE = {QUEUED, DISPATCHED, BUILT, GATED, PR_OPEN, APPROVED, HELD}
 ACTIVE = {DISPATCHED, GATED, PR_OPEN, APPROVED}
+# Automatic correction rounds after a reviewer rejection or a failed gate: at most two, so one
+# owner launch makes at most three author attempts before the build waits for the owner.
+MAX_CORRECTION_ROUNDS = 2
 PROGRESS_PHASES = {'preparing', 'building', 'checking', 'reviewing', 'publishing',
     'waiting_ci', 'merging', 'model.step.started', 'tool.finished', 'gen_ai.request',
     'gate.closed', 'process.started', 'process.retired', 'protected_check.started',
@@ -263,12 +266,23 @@ class Store:
                            'reason': reason, 'missing_dependencies': missing}
         return result
 
-    def admit(self, feature_ids, idempotency_key, catalog, actor="owner"):
-        """Admit one or more feature ids. Missing dependencies hold; replay returns the same builds."""
+    def admit(self, feature_ids, idempotency_key, catalog, actor="owner", correction=None):
+        """Admit one or more feature ids. Missing dependencies hold; replay returns the same builds.
+
+        ``correction`` links one supervisor-admitted build to the failed attempt it corrects, in the
+        same transaction, so a crash can never create an unlinked (and so unbounded) extra round.
+        """
         if (not isinstance(feature_ids, list) or not feature_ids
                 or any(not isinstance(fid, str) for fid in feature_ids)
                 or not isinstance(idempotency_key, str) or not idempotency_key):
             raise StoreError("missing_ids_or_key")
+        if correction is not None and (len(feature_ids) != 1 or not isinstance(correction, dict)
+                or set(correction) != {'previous_build_id', 'round'}
+                or not isinstance(correction['previous_build_id'], str)
+                or not re.fullmatch('[0-9a-f]{32}', correction['previous_build_id'])
+                or type(correction['round']) is not int
+                or not 1 <= correction['round'] <= MAX_CORRECTION_ROUNDS):
+            raise StoreError("correction_invalid")
         ids = []
         for fid in feature_ids:
             if fid not in catalog.by_id:
@@ -297,6 +311,11 @@ class Store:
                         if existing["payload_digest"] != payload_digest:
                             return {"status": "conflict", "build_ids": []}
                         return {"status": "replayed", "build_ids": [b["build_id"] for b in self._rows(conn, "WHERE idempotency_key=?", (idempotency_key,))]}
+                    if correction is not None:
+                        previous = self._row(conn, correction['previous_build_id'])
+                        if (previous is None or previous['status'] != FAILED
+                                or previous['feature_id'] != feature_ids[0]):
+                            raise StoreError("correction_invalid")
                     integrated = self._integration_ids(conn, catalog)
                     uncertain = self._publication_holds(conn)
                     for fid in ids:
@@ -337,6 +356,9 @@ class Store:
                         self._event(conn, build_id, now, actor, PROPOSED, None, 0)
                         self._event(conn, build_id, now, actor, status,
                                     json.dumps({"missing": missing}) if missing else None, 0)
+                        if correction is not None:
+                            self._event(conn, build_id, now, actor, 'correction',
+                                        json.dumps(correction, sort_keys=True), 0)
                         created.append(build_id)
                     return {"status": "admitted", "build_ids": created}
             finally:
@@ -1045,6 +1067,33 @@ class Store:
                 return self._rows(conn)
             finally:
                 conn.close()
+
+    def build(self, build_id):
+        with self._lock:
+            conn = self._connect()
+            try:
+                return self._row(conn, build_id)
+            finally:
+                conn.close()
+
+    def correction_of(self, build_id):
+        """The failed attempt this build corrects and its round, or None for an owner launch."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                row = conn.execute("SELECT detail FROM events WHERE build_id=? AND event='correction' "
+                                   "ORDER BY seq LIMIT 1", (build_id,)).fetchone()
+            finally:
+                conn.close()
+        try:
+            detail = json.loads(row['detail']) if row is not None else None
+        except (TypeError, ValueError):
+            return None
+        if (not isinstance(detail, dict) or type(detail.get('round')) is not int
+                or not 1 <= detail['round'] <= MAX_CORRECTION_ROUNDS
+                or not re.fullmatch('[0-9a-f]{32}', str(detail.get('previous_build_id')))):
+            return None
+        return detail
 
     def events(self, build_id, after_seq=0):
         with self._lock:

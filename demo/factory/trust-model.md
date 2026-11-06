@@ -85,7 +85,9 @@ review vote, and the second vote must not come from either of the first two mode
 - vote 1 comes from a second family, vote 2 from a third — `models.py` enforces distinct families,
   not just distinct names;
 - any reject, any transport error and any malformed answer yields `held`; there is no retry that
-  turns a failure into an approval;
+  turns a failure into an approval. A reject (or a failed gate) instead starts at most two
+  supervisor correction rounds: a new author attempt gets the reasons as bounded, labelled
+  untrusted data and the exact refused candidate, then faces the full gate and two new votes;
 - the complete changed bytes must fit the 24000-character review envelope. If they do not, the
   circuit holds (`review_input_too_large`) instead of sending an excerpt: a voter that never
   received the tail cannot approve the artifact. An unknown author holds before any vote because

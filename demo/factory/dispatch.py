@@ -7,6 +7,7 @@ diff, then asks the publisher policy before recording anything.
 """
 import json
 import hashlib
+import re
 import subprocess
 import tempfile
 import time
@@ -25,9 +26,9 @@ from .models import Router, Telemetry
 from .routing import OutcomeTelemetry, cohort_for
 from .agent_files import BuilderError
 from .publish import FakeForge, Publisher
-from .review import content_digest, review
+from .review import SECRET_PATTERNS, content_digest, review
 from .review_circuit import two_vote_review, baseline_diff, CircuitError, MAX_SUBSTITUTIONS
-from .store import FAILED, LIVE_COMPLETE, SIMULATED_COMPLETE
+from .store import FAILED, LIVE_COMPLETE, MAX_CORRECTION_ROUNDS, SIMULATED_COMPLETE, StoreError
 from .target import TargetError
 from .preparation import PreparationError
 
@@ -38,6 +39,41 @@ HOLD_REASON_MAP = {
     "stale_base": "reconciliation_needed",
     "stale_head": "reconciliation_needed",
 }
+
+
+def _plain(value, limit):
+    """One bounded line of untrusted text: printable characters only, secret-like text removed."""
+    if not isinstance(value, str):
+        return ''
+    text = re.sub(r'[^\x20-\x7e\u00a0-\u024f\u2010-\u2027\u2190-\u21ff]+', ' ', value)[:limit].strip()
+    return '[redacted]' if any(pattern.search(text) for pattern in SECRET_PATTERNS) else text
+
+
+def correction_feedback(receipt):
+    """What refused a failed attempt: reviewer verdicts and protected-check results, as data lines.
+
+    Reviewer reasons are model output (at most 120 characters each, review_circuit); check names,
+    reasons and test names come from the gate. Nothing here is an instruction to the author.
+    """
+    lines = []
+    for vote in ((receipt.get('circuit') or {}).get('votes') or [])[:4]:
+        if isinstance(vote, dict) and vote.get('verdict') in ('approve', 'reject'):
+            reason = _plain(vote.get('reason'), 120)
+            if reason:
+                lines.append(('A reviewer rejected it: ' if vote['verdict'] == 'reject'
+                              else 'A reviewer approved it, noting: ') + reason)
+    gate = receipt.get('gate') or {}
+    if gate.get('status') == 'failed':
+        for name, result in sorted((gate.get('results') or {}).items()):
+            if not isinstance(result, dict) or result.get('status') != 'failed':
+                continue
+            detail = result.get('detail') if isinstance(result.get('detail'), dict) else {}
+            lines.append('Protected check ' + _plain(name, 40) + ' failed: '
+                         + (_plain(detail.get('reason'), 96) or 'check_failed'))
+            tests = [_plain(t, 160) for t in (detail.get('failed_tests') or [])[:8]]
+            if any(tests):
+                lines.append('Failing tests: ' + '; '.join(t for t in tests if t))
+    return lines[:12]
 
 
 def _isolation_unqualified(result):
@@ -66,6 +102,7 @@ class DispatchWorker:
         self.config = config or {}
         self.target = target
         self.targets = dict(targets) if targets is not None else None
+        self.correction = None
         self.check_sandbox = check_sandbox
         self.explicit_checks = checks is not None
         self.explicit_required_checks = required_checks is not None
@@ -308,6 +345,7 @@ class DispatchWorker:
         self.started_build_ns = time.time_ns()
         self.author_routing, self.author_ms = None, None
         self.preparation_evidence = None
+        self.correction = None
         for role in (self.builder, self.review_complete):
             if role is not None and hasattr(role, 'authorization_check'):
                 role.authorization_check = lambda: self._attempt_authorized(build)
@@ -538,6 +576,7 @@ class DispatchWorker:
             hashlib.sha256(row['receipt'].encode()).hexdigest(),lease_ns,retry_failed_review=retry_failed_review)
         if build is None:raise CircuitError('review_context_not_eligible')
         self.review_context=json.loads(build['receipt'])['review_context']
+        self.correction=None
         self.reused_execution=prior['execution']
         self.author_model=prior['author_model'];self.author_routing=prior.get('routing')
         self.preparation_evidence=preparation;self.last_usage=None
@@ -619,10 +658,15 @@ class DispatchWorker:
                 self._write_simulated_impl(repo, frozen, feature)
             else:
                 if hasattr(self.builder, 'run_build'):
-                    previous = self.store.previous_check_failure(feature['id'], frozen.spec_digest)
+                    self.correction = self._correction_input(build, frozen)
+                    # A correction round carries its own feedback; an owner launch keeps the hint
+                    # from the last failed check of this exact spec.
+                    previous = (None if self.correction is not None
+                                else self.store.previous_check_failure(feature['id'], frozen.spec_digest))
                     self.builder.run_build(repo=repo, frozen=frozen, feature=feature,
                         brief=repo.parent / 'BRIEF.md', target=target, build=build,
-                        progress=progress, router=self.router, previous_failure=previous)
+                        progress=progress, router=self.router, previous_failure=previous,
+                        **({'correction': self.correction} if self.correction is not None else {}))
                 else:
                     self.builder(repo=repo, frozen=frozen, feature=feature,
                                  brief=repo.parent / "BRIEF.md")
@@ -644,6 +688,60 @@ class DispatchWorker:
             self.author_ms = int((time.monotonic() - started_author) * 1000)
         return self._judge_and_publish(build,session,repo,frozen,feature,target,base_sha,checks,required_checks)
 
+    def _correction_input(self, build, frozen):
+        """Feedback and the exact previous candidate for a supervisor correction round, or None.
+
+        The candidate is reused only when its bytes still match the digest its failed receipt
+        recorded and the base is unchanged; otherwise the round starts from the base with the
+        feedback alone. The candidate is untrusted either way: it is checked and reviewed again.
+        """
+        link = self.store.correction_of(build['build_id'])
+        if link is None:
+            return None
+        previous = self.store.build(link['previous_build_id'])
+        try:
+            receipt = json.loads(previous['receipt']) if previous and previous.get('receipt') else {}
+        except ValueError:
+            receipt = {}
+        marker = receipt.get('correction') if isinstance(receipt.get('correction'), dict) else {}
+        empty = {'round': link['round'], 'feedback': [], 'files': None, 'candidate_digest': None}
+        if (previous is None or previous['status'] != FAILED or previous['feature_id'] != build['feature_id']
+                or receipt.get('spec_digest') != frozen.spec_digest or marker.get('round') != link['round'] - 1):
+            return empty
+        names, files = marker.get('candidate_files'), None
+        if (receipt.get('base_sha') == frozen.base_sha and isinstance(names, list) and 0 < len(names) <= 200
+                and all(isinstance(name, str) and '..' not in name.split('/') and not name.startswith('/')
+                        and any(name.startswith(scope) for scope in frozen.write_scopes) for name in names)):
+            source = self.work_root / previous['build_id'] / 'repo'
+            try:
+                loaded = {name: (source / name).read_text(encoding='utf-8') for name in names
+                          if (source / name).is_file() and not (source / name).is_symlink()}
+            except (OSError, UnicodeDecodeError):
+                loaded = {}
+            if len(loaded) == len(names) and content_digest(loaded) == marker.get('candidate_digest'):
+                files = loaded
+        return {**empty, 'feedback': correction_feedback(receipt), 'files': files,
+                'candidate_digest': marker.get('candidate_digest') if files is not None else None}
+
+    def _fail_or_correct(self, build, feature, receipt, files, trigger):
+        """Close a refused attempt as failed and queue the next correction round while one remains."""
+        link = self.store.correction_of(build['build_id'])
+        current = link['round'] if link else 0
+        receipt = {**receipt, 'correction': {'round': current, 'trigger': trigger,
+                   'candidate_files': sorted(files), 'candidate_digest': content_digest(files)}}
+        result = self.store.complete_attempt(build['attempt_id'], build['attempt_generation'],
+                                             receipt, terminal=FAILED)
+        if result.get('status') != 'completed' or current >= MAX_CORRECTION_ROUNDS:
+            return {'build_id': build['build_id'], 'result': result}
+        try:
+            admitted = self.store.admit([feature['id']], 'factory-correction:' + build['build_id'],
+                self.catalog, actor='supervisor',
+                correction={'previous_build_id': build['build_id'], 'round': current + 1})
+        except StoreError as error:
+            admitted = {'status': 'refused', 'reason': str(error)}
+        return {'build_id': build['build_id'], 'result': {**result, 'correction': {
+            'round': current + 1, **admitted}}}
+
     def _judge_and_publish(self,build,session,repo,frozen,feature,target,base_sha,checks,required_checks,
                            first_reviewer=None):
         """One shared gate/review/publication path for fresh work and the bounded context repair."""
@@ -662,6 +760,14 @@ class DispatchWorker:
                  "attempt_id": build["attempt_id"], "verdict": verdict}, terminal=FAILED,
             )
             return {"build_id": build["build_id"], "result": result}
+
+        if (self.correction is not None and self.correction.get('candidate_digest')
+                and content_digest(files) == self.correction['candidate_digest']):
+            # No progress: the correction returned the refused candidate unchanged. Asking the
+            # same checks and reviewers again would only spend; the owner decides.
+            self.store.hold_dispatched(build['build_id'], 'owner_review_required', receipt={
+                **self._identity(build, feature, frozen, base_sha, verdict), 'reason': 'correction_unchanged'})
+            return {'build_id': build['build_id'], 'result': {'status': 'held', 'reason': 'correction_unchanged'}}
 
         # The builder faithfully reports the spec it read; the gate re-checks this
         # claim against the frozen spec digest (spec_unchanged).
@@ -686,12 +792,9 @@ class DispatchWorker:
         if gate["status"] == "failed":
             evidence = self._telemetry_evidence(
                 build, feature, frozen, base_sha, verdict, gate, None)
-            result = self.store.complete_attempt(
-                build["attempt_id"], build["attempt_generation"],
+            return self._fail_or_correct(build, feature,
                 {**self._identity(build, feature, frozen, base_sha, verdict),
-                 "gate": gate, "telemetry": evidence}, terminal=FAILED,
-            )
-            return {"build_id": build["build_id"], "result": result}
+                 "gate": gate, "telemetry": evidence}, files, 'gate_failed')
 
         # Independent deterministic review: the publisher never sees an unreviewed diff.
         review_verdict = review(frozen, verdict, files)
@@ -741,12 +844,18 @@ class DispatchWorker:
                                       acceptance=target.protected_check.contract_test.read_bytes().decode('utf-8') if target else '',
                                       baseline=diff,base_sha=frozen.base_sha,first_reviewer=first_reviewer)
             if circuit["status"] != "approved":
-                self.store.hold_dispatched(build["build_id"], "owner_review_required", receipt={
-                    **self._identity(build, feature, frozen, base_sha, verdict),
+                held = {**self._identity(build, feature, frozen, base_sha, verdict),
                     "gate": gate, "review": review_verdict, "circuit": circuit,
                     "reason": circuit.get("reason", "review_circuit_held"),
                     "telemetry": self._telemetry_evidence(
-                        build, feature, frozen, base_sha, verdict, gate, None)})
+                        build, feature, frozen, base_sha, verdict, gate, None)}
+                link = self.store.correction_of(build['build_id'])
+                if (circuit.get('reason') == 'reviewer_rejected' and first_reviewer is None
+                        and (link['round'] if link else 0) < MAX_CORRECTION_ROUNDS):
+                    # A substantive rejection becomes the next author's input, not an owner chore.
+                    return self._fail_or_correct(build, feature, held, files, 'reviewer_rejected')
+                self.store.hold_dispatched(build["build_id"], "owner_review_required", receipt={
+                    **held, **({'correction': {'round': link['round'], 'exhausted': True}} if link else {})})
                 return {"build_id": build["build_id"], "result": {
                     "status": "held", "reason": circuit.get("reason", "review_circuit_held"),
                     "circuit": circuit}}

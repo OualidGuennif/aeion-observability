@@ -71,11 +71,12 @@ class PipelineTests(unittest.TestCase):
         self.assertNotIn("authorization", body)
         self.assertNotIn("token", body)
 
-    def test_rejected_circuit_holds_and_queues_nothing(self):
+    def test_rejected_circuit_publishes_nothing_and_queues_one_correction(self):
         self.store.admit(["001"], "k3", self.cat)
         result = self.worker(lambda model, prompt: {"verdict": "reject", "reason": "backdoor"}).run_once()
-        self.assertEqual(result["result"]["status"], "held")
-        self.assertEqual(self.store.board()[0]["hold_reason"], "owner_review_required")
+        self.assertEqual(result["result"]["status"], "completed")
+        self.assertEqual(result["result"]["correction"]["round"], 1)
+        self.assertEqual([b["status"] for b in self.store.board()], ["failed", "queued"])
         self.assertEqual(list((self.state / "publish-queue").glob("*.json")), [])
 
     def test_unconfigured_circuit_never_publishes(self):
