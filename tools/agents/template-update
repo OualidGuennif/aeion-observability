@@ -264,10 +264,12 @@ def plan_file(repo, root, base, ref, relative):
 
 
 def update(root, repo, ref, from_ref, check, force):
-    # A project's own copy reads releases from the project, which never holds the new one.
-    if root == repo:
-        raise Refused(f"refusing to update {root} from its own repository; run template-update from the "
-                      f"Æion Factory clone: <factory>/tools/agents/template-update --ref <tag> --root {root}")
+    # A project's own copy reads releases from the project, which never holds the new one. Its marker says so
+    # before --root is judged: run from inside a project, a relative --root usually names no folder at all.
+    if root == repo or (repo / MARKER).is_file():
+        target = root if root.is_dir() else "<project>"
+        raise Refused(f"refusing to update a project from its own repository {repo}; run template-update from the "
+                      f"Æion Factory clone: <factory>/tools/agents/template-update --ref <tag> --root {target}")
     if not root.is_dir():
         raise Refused(f"no such project: {root}")
     if not ref_exists(repo, ref):

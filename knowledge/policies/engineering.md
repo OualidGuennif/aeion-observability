@@ -25,15 +25,33 @@ sources:
 A change is made in one order, and each pass keeps its result:
 
 1. **Make it work.** The smallest edit that solves the problem; one decision in one place; a test
-   written first, and seen failing for the expected reason, when an honest test is practical.
+   written first, and seen failing for the expected reason, when an honest test is practical. The
+   shape of the data is settled before the logic that uses it.
 2. **Make it right.** The root cause, not the symptom; the structure that makes the illegal state
-   unrepresentable and checks data once, where it enters.
+   unrepresentable and checks data once, where it enters. A restructuring first pins today's
+   behaviour with a test, then proves it unchanged.
 3. **Follow practice.** The project's rules for naming, tests, docs, review and release.
 
 Before the passes: write the premise in one sentence. When two fixes that share a premise fail the
 same check, attack the premise instead of trying a third fix, and subtract what the change no longer
 needs. When the work is not obvious at a glance, build the small tool that does one unit, then let
 it do the rest.
+
+## Fit the design to the change
+
+New code with no running users yet (a feature, a service, a module) is designed as if the
+requirement had been there from the start, not bolted onto a design built for something else.
+Inside an existing system, above all one in production, the smallest change that fits wins: a
+redesign is proposed only when its gain is concrete and larger than its risk, and it waits for the
+owner's yes. The owner's stated design preference comes before both. A requirement that does not
+fit the current design is said in the plan, never bolted on or rewritten silently.
+
+## State that survives retries and concurrency
+
+- An operation that can be retried or interrupted (a migration, a deploy step, a loop or hook
+  action, a file write) ends in the same state when run twice or after a crash halfway.
+- Two writers never share mutable state they do not both need. When they must, one writer owns it,
+  and the structure enforces that (a lock, an owning process, a separate worktree), not a convention.
 
 ## Code reads top to bottom
 

@@ -24,6 +24,10 @@ as a measured Æion result.
   and Sekhon (confidence sequences). See the [papers and reading scope](knowledge/references/sources.md).
 - **Æion Factory and contributors** — the fixed development foundation, CRAFTED, specification
   structure and evidence-led workflow. [Repository](https://github.com/OualidGuennif/aeion-factory).
+- **Robert C. Martin, ub-mode** — the build principles carried by the Factory engineering policy
+  (the data's shape first, a design fitted to the change, idempotent operations, one writer for
+  shared state) are adapted in our own words; no ub-mode text is copied.
+  [Repository](https://github.com/unclebob/ub-mode).
 - **Flue (withastro) and Pi (earendil-works) contributors** — the pinned agent harness
   (`@flue/runtime`/`@flue/cli` 2.3.0, Apache-2.0) and its model/agent core (`@earendil-works/pi-ai`
   1.4.0, MIT) used by the local showcase. [Flue](https://github.com/withastro/flue),
@@ -60,7 +64,7 @@ documentation, software, papers, names and trademarks retain their respective ri
 Source fingerprints identify consulted material; full upstream pages are not republished here.
 
 - **NVIDIA OpenShell contributors** — mandatory sandbox gateway, policy enforcement and SDK,
-  version 0.1.5. [Release](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.5),
+  version 0.1.7. [Release](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.7),
   [telemetry opt-out](https://docs.nvidia.com/openshell/v0.1.7/observability/telemetry/),
   [runtimes](https://docs.nvidia.com/openshell/v0.1.7/how-it-works/sandboxes/runtimes/).
 - **models.dev contributors** — the public OpenCode Go catalog subset used by the earlier
@@ -70,11 +74,12 @@ Source fingerprints identify consulted material; full upstream pages are not rep
 
 ## Factory security maintenance
 
-Æion Factory v2.0.3 supplies source-hash-bound patch recipes for the skill-creator eval viewer
+Æion Factory v2.1.0 supplies source-hash-bound patch recipes for the skill-creator eval viewer
 and ECC continuous-learning importer in `tools/skills/patches.json`. This project's passive
 catalog intentionally remains empty; no upstream skill or agent was materialized by this update.
 Project-specific OpenShell, Langfuse and models.dev attribution above remains authoritative.
 
 The bundled Factory guide also preserves the upstream Superpowers MIT notice in
 [docs/licenses/superpowers-MIT.txt](docs/licenses/superpowers-MIT.txt), copied unchanged from
-Factoryv2.0.3. This notice grants no license to unrelated proprietary tools or services.
+Factory v2.0.3 and unchanged in v2.1.0. This notice grants no license to unrelated proprietary
+tools or services.

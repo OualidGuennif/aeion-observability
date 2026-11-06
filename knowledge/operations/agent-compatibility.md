@@ -377,7 +377,9 @@ tools/agents/template-update --from-ref v1.8.5 --ref main --root ../app
 - `--ref`: the target tag, `main`, `develop` or a commit id.
 - `--root`: the project that adopted the factory; `--repo`: the factory repository holding both
   references (default: the checkout the tool runs from). A project's own copy of the tool cannot
-  see a newer release, so `--root` and `--repo` must differ: run it from the factory clone.
+  see a newer release, so `--root` and `--repo` must differ and `--repo` must not hold an
+  `.aeion-factory` marker: run it from the factory clone. That refusal comes before `--root` is
+  checked, since a relative `--root` typed inside a project names a folder that does not exist.
 - `--check` writes nothing; `--force` permits moving to an older factory release.
 
 ### Outputs
@@ -412,7 +414,8 @@ under `--check`, when anything would change or the inferred baseline is partial)
 `<root> has uncommitted changes`, `not an adopted project: no factory connector in <path>`,
 `refusing linked [connector] destination <path> below <root>`,
 `refusing non-regular [connector] destination <relative>`, `refusing to downgrade <a> to <b>`, and
-`refusing to update <root> from its own repository; run template-update from the Æion Factory clone`.
+`refusing to update a project from its own repository <repo>; run template-update from the Æion
+Factory clone` (its hint names `--root <project>` when `--root` is no folder).
 
 ### Invariants
 
@@ -437,8 +440,9 @@ under `--check`, when anything would change or the inferred baseline is partial)
    `test_a_missing_launcher_is_written_executable`,
    `test_a_launcher_that_lost_its_mode_is_repaired`.
 9. A directory with no connector is not an adopted project, and a repository never updates itself
-   (the factory, or a project running its own copy) — `test_it_refuses_a_project_with_no_connector`,
-   `test_it_refuses_to_update_a_repository_from_itself`.
+   (the factory, or a project running its own copy, even with a mistyped `--root`) —
+   `test_it_refuses_a_project_with_no_connector`, `test_it_refuses_to_update_a_repository_from_itself`,
+   `test_a_project_copy_names_the_factory_clone_before_a_mistyped_root`.
 10. An untouched factory file takes the target, an edit merges, a conflict keeps the project's file
     with a proposal in a folder that ignores itself, and a file the project deleted stays deleted —
     `test_an_untouched_factory_file_takes_the_target`, `test_a_project_edit_merges_with_the_target`,
