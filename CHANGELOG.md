@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Give one feature launch up to three author attempts on different models, each with up to two
+  correction rounds by its own model; a crashed author's validated files carry to the next attempt
+  with its crash code and error class. Every factory agent receives the same pipeline context and
+  leaves owner-only feedback in the receipt. Workspaces of terminal builds are removed after seven
+  days, and a failed build's branch is deleted once its pull request was closed unmerged.
+
 - Count each model at its measured Go allowance multiple (Haiku and Luna 4x the list price), bound an
   appended turn by the previous reported input plus its new messages instead of the whole byte bound,
   skip a model whose single request exceeds half of its purpose's cap, and raise the author cap to 5 USD.

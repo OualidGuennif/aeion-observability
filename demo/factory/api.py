@@ -23,6 +23,7 @@ from .dispatch import DispatchWorker
 from .freeze import AUTHOR_TIMEOUT_SECONDS
 from .gateway import Gateway, SessionError
 from .releases import ReleaseError, ReleaseService
+from .retention import Retention
 
 COOKIE = "aeion_factory"
 MAX_BODY = 65536
@@ -72,9 +73,12 @@ class FactoryApp:
         self.worker.progress = lambda build_id, phase: self.hub.publish(
             'build_progress', {'build_id': build_id, 'phase': phase})
         self.worker.admission_check = lambda: self._execution_blocker() is None
+        prune = None
         if self.execution.get('publication'):
-            from .publication import PublicationCoordinator
+            from .publication import PublicationCoordinator, prune_branch
             self.worker.publication = PublicationCoordinator(self.store)
+            prune = lambda attempt_id: prune_branch(self.state_dir, attempt_id)
+        self.retention = Retention(self.store, self.state_dir / "work", prune_branch=prune)
         self.observer = Observer(self.store)
         self.token_path = self.state_dir / "admin.token"
         token = bootstrap_token if bootstrap_token is not None else self._load_or_create_token()
@@ -295,6 +299,10 @@ class FactoryApp:
         result = None if paused else self.worker.run_once()
         if result is not None:
             self.hub.publish("build_updated", result)
+        try:
+            self.retention.tick()
+        except Exception:  # noqa: BLE001 - cleanup must never break the build loop
+            pass
         for proposal in self.observer.propose():
             self.hub.publish("observed", proposal)
         if self.release_service is not None:

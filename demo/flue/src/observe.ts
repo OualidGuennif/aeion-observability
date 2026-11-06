@@ -6,7 +6,8 @@ import { observe } from '@flue/runtime';
 // `task` is always listed by Flue; with no declared subagent every delegation is refused.
 // `activate_skill`/`read_skill_resource` come with mounted skills; `submit_triage` is tier 1 output.
 const TOOLS = new Set(['read', 'write', 'edit', 'bash', 'grep', 'glob', 'task', 'activate_skill', 'read_skill_resource',
-                       'submit_triage', 'submit_review', 'run_protected_checks']);
+                       'submit_triage', 'submit_review', 'submit_preparation', 'submit_feedback',
+                       'run_protected_checks']);
 const FINISH = new Set(['stop', 'toolUse', 'length', 'error', 'aborted']);
 const OUTCOMES = new Set(['completed', 'failed', 'aborted']);
 

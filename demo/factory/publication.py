@@ -48,6 +48,24 @@ class RoleExecutor:
         return body
 
 
+def prune_branch(state_dir, attempt_id, repo=REPOSITORY):
+    """Ask the isolated publish role to delete one failed build's branch; typed status only."""
+    if not isinstance(attempt_id, str) or not re.fullmatch('[0-9a-f]{24,64}', attempt_id):
+        return {'status': 'held', 'reason': 'invalid_attempt'}
+    argv = [sys.executable, str(ROOT / 'demo/factory/publication_role.py'), '--state', str(Path(state_dir).resolve()),
+            '--repo', repo, '--role', 'publish', '--attempt', attempt_id, '--action', 'prune']
+    env = {'PATH':os.environ.get('PATH','/usr/bin:/bin'),'LANG':'C.UTF-8',
+           'HOME':'/nonexistent','PYTHONDONTWRITEBYTECODE':'1'}
+    try:
+        result = subprocess.run(argv,env=env,capture_output=True,text=True,timeout=60)
+        body = json.loads(result.stdout) if not result.returncode and len(result.stdout.encode()) <= 4096 else None
+    except (OSError,subprocess.TimeoutExpired,ValueError):
+        body = None
+    if not isinstance(body,dict) or body.get('status') not in {'deleted','absent','held','pending'}:
+        return {'status':'pending','reason':'publisher_unavailable'}
+    return {'status': body['status'], **({'reason': str(body.get('reason'))[:96]} if body.get('reason') else {})}
+
+
 class PublicationCoordinator:
     def __init__(self, store, executor=None, repo=REPOSITORY):
         self.store,self.repo=store,repo

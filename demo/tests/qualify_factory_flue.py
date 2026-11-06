@@ -70,6 +70,10 @@ class Inference(BaseHTTPRequestHandler):
             elif number == 6:
                 assert 'passed' in str(last_tool(payload)), 'Repaired artifact must pass the real contract'
                 checks.append('passed-feedback')
+                # Owner-only feedback leaves through the supervisor bridge before the author stops.
+                call = ('submit_feedback', {'text': 'RAS'})
+            elif number == 7:
+                assert 'Feedback recorded' in str(last_tool(payload)), 'Feedback must reach the bridge'
             else:
                 raise AssertionError('Unexpected author retry')
         elif role == 'prepare':
@@ -172,6 +176,8 @@ def main(closed_candidate=False):
                 'gate': receipt.get('gate'), 'circuit': receipt.get('circuit'), 'calls': calls}), flush=True)
             assert row['status'] == 'simulated_complete'
             assert builder.last_execution['sessions'] == 2
+            assert builder.last_feedback == (None if closed_candidate else 'RAS')
+            assert receipt.get('feedback') == (None if closed_candidate else {'author': 'RAS'})
             assert checks == (['failed-feedback'] if closed_candidate else ['failed-feedback','passed-feedback'])
             if closed_candidate:
                 assert builder.last_execution['failure']=='STEP_LIMIT'

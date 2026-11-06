@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { defineTool } from '@flue/runtime';
 import * as v from 'valibot';
+import { FEEDBACK_LIMIT } from '../context.ts';
 
 export function submitReview(resultFile: string) {
   if (!resultFile.startsWith('/')) throw new Error('Absolute supervisor result path required');
@@ -9,7 +10,9 @@ export function submitReview(resultFile: string) {
     name: 'submit_review',
     description: 'Submit your independent verdict on the complete frozen artifact. A rejection blocks publication.',
     input: v.strictObject({ verdict: v.picklist(['approve', 'reject']),
-      reason: v.pipe(v.string(), v.maxLength(120)) }),
+      reason: v.pipe(v.string(), v.maxLength(120)),
+      // Owner-only; optional so a missing note never blocks a verdict.
+      feedback: v.optional(v.pipe(v.string(), v.maxLength(FEEDBACK_LIMIT))) }),
     run({ data }) {
       if (existsSync(resultFile)) {
         if (readFileSync(resultFile, 'utf-8') !== JSON.stringify(data)) throw new Error('Review is immutable');

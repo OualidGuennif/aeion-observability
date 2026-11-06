@@ -26,13 +26,13 @@ class FlueReview:
         self.max_prompt_bytes,self.cost_limit=max_prompt_bytes,str(cost_limit)
         self.max_output_tokens=max_output_tokens
         self.deepseek_effort=deepseek_effort
-        self.last_usage = self.last_execution = None
+        self.last_usage = self.last_execution = self.last_feedback = None
         self.build_id = 'unbound-review'
         self.progress = None
         self.authorization_check = None
 
     def __call__(self, model, prompt):
-        self.last_usage = self.last_execution = None
+        self.last_usage = self.last_execution = self.last_feedback = None
         self.last_usage = {'complete':True,'cost_usd':'0','basis':'proven_no_transport'}
         if len(prompt.encode('utf-8')) > self.max_prompt_bytes or not eligibility(model)[0]:
             raise ValueError('REVIEW_NOT_ADMITTED')
@@ -50,14 +50,18 @@ class FlueReview:
                 output = Path(directory) / 'result.json'
                 self.last_usage=None
                 outcome = runtime.live(run, Path(directory), None, prompt=prompt, kind='factory-review', review_result=output)
-                if outcome != 'complete' or not output.is_file() or output.stat().st_size > 1024:
+                if outcome != 'complete' or not output.is_file() or output.stat().st_size > 4096:
                     raise ValueError('REVIEW_RESULT_MISSING')
                 if usage(run)['complete'] is not True:
                     raise ValueError('USAGE_UNKNOWN')
                 result = json.loads(output.read_text())
-                if (set(result) != {'verdict', 'reason'} or result['verdict'] not in ('approve', 'reject')
-                        or not isinstance(result['reason'], str) or len(result['reason']) > 120):
+                if (not isinstance(result, dict) or set(result) - {'feedback'} != {'verdict', 'reason'}
+                        or result['verdict'] not in ('approve', 'reject')
+                        or not isinstance(result['reason'], str) or len(result['reason']) > 120
+                        or not isinstance(result.get('feedback', ''), str) or len(result.get('feedback', '')) > 800):
                     raise ValueError('REVIEW_RESULT_INVALID')
+                # Owner-only: the vote that other agents may see carries the verdict and reason alone.
+                self.last_feedback = result.pop('feedback', None) or None
                 return result
         except Exception as caught:
             error = caught

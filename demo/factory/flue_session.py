@@ -150,6 +150,7 @@ class FactorySession(Runner):
                 'provider_http_status':run.get('provider_http_status'),
                 'provider_retries':run.get('provider_retries',0),
                 'process_exit_code':run.get('cli_exit_code'), 'cli_steps':run.get('cli_steps'),
+                'error_class':run.get('cli_error_class'),
                 'retained_files_count':run.get('retained_files_count'),
                 'retained_artifact_digest':run.get('retained_artifact_digest'),
                 'candidate_recovered':run.get('candidate_recovered') is True,

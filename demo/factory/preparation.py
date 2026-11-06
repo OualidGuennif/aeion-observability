@@ -122,11 +122,11 @@ class FluePreparation:
     def __init__(self):
         self.authorization_check = None
         self.progress = None
-        self.last_usage = self.last_execution = None
+        self.last_usage = self.last_execution = self.last_feedback = None
 
     def __call__(self, model, prompt, build_id):
         from .flue_session import FactorySession, new_run, usage
-        self.last_usage = self.last_execution = None
+        self.last_usage = self.last_execution = self.last_feedback = None
         if len(prompt.encode('utf-8')) > MAX_PROMPT_BYTES or not eligibility(model)[0]:
             raise PreparationError('preparation_not_admitted')
         run = new_run(model, build_id, 'prepare', '0.50', synthetic=not self.paid)
@@ -145,11 +145,14 @@ class FluePreparation:
                 if usage(run)['complete'] is not True:
                     raise PreparationError('preparation_usage_unknown')
                 result = json.loads(_read(output, 65536))
-                if (not isinstance(result, dict) or set(result) != {'status', 'contract', 'reason'}
+                if (not isinstance(result, dict) or set(result) - {'feedback'} != {'status', 'contract', 'reason'}
                         or result['status'] not in ('ready', 'blocked')
                         or not isinstance(result['contract'], str) or not isinstance(result['reason'], str)
-                        or len(result['reason']) > 120):
+                        or len(result['reason']) > 120
+                        or not isinstance(result.get('feedback', ''), str) or len(result.get('feedback', '')) > 800):
                     raise PreparationError('preparation_response_invalid')
+                # Owner-only: the frozen contract never carries the preparer's note.
+                self.last_feedback = result.pop('feedback', None) or None
                 return result
         except Exception as caught:
             error = caught

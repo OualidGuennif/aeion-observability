@@ -73,10 +73,14 @@ artifacts remain outside default telemetry. PostgreSQL/React helpers are not pro
 The transition baseline explains an absent registered migration operator or browser source.
 A stopped author proposal can continue only with validated files, confirmed removal, complete
 bounded cost and current authorization; the independent acceptance and two reviews still decide.
-A failed attempt that queued an automatic correction round says so ("correction round N of 2"),
-and the next build of the same feature appears in the queue without an owner launch. After the
-last round a rejection is held with its reasons; a correction that changed nothing is held
-`correction_unchanged` (test_factory_correction_rounds).
+A failed build that queued an automatic continuation says so ("correction round N of 2" with the
+same model, or "attempt N of 3 on another model" after the second round or a crash), and the next
+build of the same feature appears in the queue without an owner launch. After the third attempt a
+rejection is held with its reasons; a correction that changed nothing is held
+`correction_unchanged` (test_factory_correction_rounds). Build evidence shows the attempt and
+round, the crashed author's error class and the agents' owner-only feedback as escaped text.
+The controller removes terminal workspaces older than seven days at start and then daily
+(`factory.retention`).
 Build evidence includes the preparer (or registered static kind), negative baseline, memory acknowledgments,
 publisher/CI blocker, confined PR link and confirmed main SHA. The actual user browser still
 requires sign-in after a controller restart; synthetic browser/API verification is distinct.

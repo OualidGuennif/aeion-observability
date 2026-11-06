@@ -44,7 +44,7 @@ function reasonText(info) {
     target_feature_mismatch: "This feature does not match the configured execution target.",
     owner_review_required: "Owner review is required before proceeding.",
     reviewer_failed: "A reviewer could not finish its vote (timeout, provider refusal or no typed verdict). Nothing was published; Review votes shows which one and why.",
-    reviewer_rejected: "An independent reviewer rejected the change after the automatic correction rounds. Nothing was published; the reasons are in Build evidence.",
+    reviewer_rejected: "An independent reviewer rejected the change after the automatic attempts and correction rounds. Nothing was published; the reasons are in Build evidence.",
     correction_unchanged: "A correction round returned the refused candidate unchanged, so it was not checked or reviewed again. Nothing was published.",
     worker_error: "The worker stopped unexpectedly. The request is held for review; no automatic paid retry.",
     reconciliation_needed: "An interrupted attempt or remote action needs reconciliation. Another launch stays locked while its effects are unknown.",
@@ -78,7 +78,7 @@ function reasonText(info) {
 }
 const OWNER_ACTIONS = {
   reviewer_failed: "The operator may rerun the votes once without rerunning the author (review_context --retry-failed-review); otherwise cancel and launch the feature again.",
-  reviewer_rejected: "The factory already ran its two automatic correction rounds. Read the reviewer reasons in Build evidence, then cancel this request; a relaunch unchanged will likely be rejected again.",
+  reviewer_rejected: "The factory already ran its automatic attempts and correction rounds. Read the reviewer reasons in Build evidence, then cancel this request; a relaunch unchanged will likely be rejected again.",
   worker_error: "Cancel this request, then launch the feature again.",
   catalog_changed: "Cancel this request, then launch the feature again with the current MD.",
   reconciliation_needed: "Do not relaunch. Ask the agent to reconcile this attempt first.",
@@ -94,9 +94,24 @@ function holdReason(build) {
 }
 function failedText(r) {
   const c = r.correction || {};
-  if (Number.isInteger(c.round) && c.round < 2 && ["reviewer_rejected", "gate_failed"].includes(c.trigger))
-    return `${c.trigger === "reviewer_rejected" ? "A reviewer rejected this attempt" : "A protected check refused this attempt"}; the factory queued correction round ${c.round + 1} of 2 with that feedback. Nothing was published.`;
+  const attempt = Number.isInteger(c.attempt) ? c.attempt : 1;
+  if (c.exhausted !== true && Number.isInteger(c.round) && ["reviewer_rejected", "gate_failed", "crash"].includes(c.trigger)) {
+    const cause = c.trigger === "reviewer_rejected" ? "A reviewer rejected this build" : c.trigger === "gate_failed" ? "A protected check refused this build" : "The author agent stopped early";
+    if (c.trigger !== "crash" && c.round < 2)
+      return `${cause}; the factory queued correction round ${c.round + 1} of 2 with the same model and that feedback. Nothing was published.`;
+    if (attempt < 3)
+      return `${cause}; the factory queued attempt ${attempt + 1} of 3 on another model, starting from the validated files. Nothing was published.`;
+  }
   return reasonText({reason:r.error || r.reason || "builder_error"});
+}
+function feedbackText(f) {
+  if (!f || typeof f !== "object") return "";
+  const parts = [];
+  if (typeof f.author === "string") parts.push(`author: ${f.author}`);
+  if (typeof f.preparer === "string") parts.push(`preparer: ${f.preparer}`);
+  if (Array.isArray(f.reviewers)) for (const v of f.reviewers)
+    if (v && typeof v.text === "string") parts.push(`${typeof v.model === "string" ? v.model : "reviewer"}: ${v.text}`);
+  return parts.join(" · ");
 }
 function ownerAction(reason) {
   return OWNER_ACTIONS[reason] || "Open Build evidence below. Cancel the request to free the feature, or ask the agent if the reason is unclear.";
@@ -287,6 +302,9 @@ function receiptSummary(raw) {
     ["Base", r.base_sha && esc(String(r.base_sha))],
     ["Model", r.author_model && esc(String(r.author_model))],
     ["Agent failure", r.execution?.failure && esc(String(r.execution.failure))],
+    ["Error class", r.execution?.error_class && esc(String(r.execution.error_class))],
+    ["Attempt and round", Number.isInteger(r.correction?.round) && esc(`attempt ${Number.isInteger(r.correction.attempt) ? r.correction.attempt : 1} of 3 · round ${r.correction.round} of 2${r.correction.crash?.failure ? " · after crash " + r.correction.crash.failure : ""}`)],
+    ["Agent feedback (owner only)", esc(feedbackText(r.feedback))],
     ["Review votes", Array.isArray(r.circuit?.votes) && r.circuit.votes.length && esc(r.circuit.votes.map(voteText).join("; "))],
     ["Busy reviewer replaced", Array.isArray(r.circuit?.unavailable_reviewers) && r.circuit.unavailable_reviewers.length && esc(r.circuit.unavailable_reviewers.map(voteText).join("; "))],
     ["CLI exit", Number.isInteger(r.execution?.process_exit_code) && String(r.execution.process_exit_code)],

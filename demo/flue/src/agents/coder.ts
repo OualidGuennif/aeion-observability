@@ -6,7 +6,9 @@ import { useAgentFinish, useModel, usePersistentState, useSandbox, useTool } fro
 import { observeToFile } from '../observe.ts';
 import { registerProvider } from '../provider.ts';
 import { openshell } from '../sandboxes/openshell.ts';
+import { FEEDBACK_RULE, PIPELINE } from '../context.ts';
 import { factoryChecks, finishReminder, lastCheckResult, MAX_FINISH_REMINDERS } from '../tools/factory-checks.ts';
+import { FEEDBACK_REMINDER, feedbackSubmitted, submitFeedback } from '../tools/submit-feedback.ts';
 
 const model = registerProvider();
 observeToFile();
@@ -16,18 +18,29 @@ export function Coder() {
   useSandbox(openshell());
   const building = process.env.AEION_FACTORY_BUILD === '1';
   const [reminders, setReminders] = usePersistentState('factory-build-finish-reminders', 0);
-  if (building) useTool(factoryChecks());
+  const [feedbackReminded, setFeedbackReminded] = usePersistentState('factory-build-feedback-reminded', false);
+  if (building) {
+    useTool(factoryChecks());
+    useTool(submitFeedback());
+  }
   // Measured 2026-11-06 (build cca2f099): the author stopped 37 minutes after its last failed
   // check. A factory author may not finish on a missing or failed check; after a bounded number
   // of reminders it may stop and the unchanged final gate decides.
   useAgentFinish(({ append }) => {
-    if (!building || reminders >= MAX_FINISH_REMINDERS) return;
-    const reminder = finishReminder(lastCheckResult());
-    if (reminder === null) return;
-    setReminders(reminders + 1);
-    append({ kind: 'signal', type: 'factory.build.checks_required', body: reminder });
+    if (!building) return;
+    const reminder = reminders < MAX_FINISH_REMINDERS ? finishReminder(lastCheckResult()) : null;
+    if (reminder !== null) {
+      setReminders(reminders + 1);
+      append({ kind: 'signal', type: 'factory.build.checks_required', body: reminder });
+      return;
+    }
+    // One reminder for the owner-only feedback; the build never depends on its content.
+    if (feedbackSubmitted() || feedbackReminded) return;
+    setFeedbackReminded(true);
+    append({ kind: 'signal', type: 'factory.build.feedback_required', body: FEEDBACK_REMINDER });
   });
   return [
+    ...(building ? [PIPELINE, 'Your role: the author, step (2).', FEEDBACK_RULE + ' Use submit_feedback.', ''] : []),
     'You are a coding agent working in a sandboxed workspace.',
     'Complete the task described in the user message using the file and shell tools.',
     'Follow the task constraints exactly; protected checks run after you stop.',
