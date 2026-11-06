@@ -2,19 +2,31 @@
 // Case 3: autonomous coding. Tools run only inside the supervisor's OpenShell sandbox;
 // model calls go through the counting relay. No compaction: context continuity is the
 // supervisor's HANDOVER.md, delivered to a fresh session in the user message.
-import { useModel, useSandbox, useTool } from '@flue/runtime';
+import { useAgentFinish, useModel, usePersistentState, useSandbox, useTool } from '@flue/runtime';
 import { observeToFile } from '../observe.ts';
 import { registerProvider } from '../provider.ts';
 import { openshell } from '../sandboxes/openshell.ts';
-import { factoryChecks } from '../tools/factory-checks.ts';
+import { factoryChecks, finishReminder, lastCheckResult, MAX_FINISH_REMINDERS } from '../tools/factory-checks.ts';
 
 const model = registerProvider();
 observeToFile();
 
 export function Coder() {
-  useModel(model, { compaction: false, thinkingLevel: 'medium' });
+  useModel(model, { compaction: false, thinkingLevel: 'max' });
   useSandbox(openshell());
-  if (process.env.AEION_FACTORY_BUILD === '1') useTool(factoryChecks());
+  const building = process.env.AEION_FACTORY_BUILD === '1';
+  const [reminders, setReminders] = usePersistentState('factory-build-finish-reminders', 0);
+  if (building) useTool(factoryChecks());
+  // Measured 2026-11-06 (build cca2f099): the author stopped 37 minutes after its last failed
+  // check. A factory author may not finish on a missing or failed check; after a bounded number
+  // of reminders it may stop and the unchanged final gate decides.
+  useAgentFinish(({ append }) => {
+    if (!building || reminders >= MAX_FINISH_REMINDERS) return;
+    const reminder = finishReminder(lastCheckResult());
+    if (reminder === null) return;
+    setReminders(reminders + 1);
+    append({ kind: 'signal', type: 'factory.build.checks_required', body: reminder });
+  });
   return [
     'You are a coding agent working in a sandboxed workspace.',
     'Complete the task described in the user message using the file and shell tools.',

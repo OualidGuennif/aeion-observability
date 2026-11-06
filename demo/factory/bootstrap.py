@@ -386,7 +386,7 @@ def review(state,resume_known_output_limit=False,resume_unforwarded=False,second
     if len(prompt.encode())>REVIEW_BYTES:raise ValueError('bootstrap_review_too_large')
     store=Store(state/'factory.db');budget=DailyBudget(ROOT/'demo/.local/budget/ledger.jsonl')
     role=FlueReview(max_prompt_bytes=REVIEW_BYTES,cost_limit=BOOTSTRAP_REVIEW_COST,
-        max_output_tokens=recovery_window or BOOTSTRAP_OUTPUT_WINDOW,deepseek_effort='medium')
+        max_output_tokens=recovery_window or BOOTSTRAP_OUTPUT_WINDOW,deepseek_effort='max')
     role.timeout_seconds=900 if recovery_window is None or resume_budget_settlement else 600 if recovery_window==32768 else 360
     role.build_id=request['build_id']
     role.authorization_check=lambda:store.attempt_authorized(request['attempt_id'],request['attempt_generation'])

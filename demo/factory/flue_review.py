@@ -14,14 +14,14 @@ class FlueReview:
     paid = True
     timeout_seconds = 180
 
-    def __init__(self, max_prompt_bytes=MAX_PROMPT_CHARS, cost_limit='0.05',max_output_tokens=4096,deepseek_effort='medium'):
+    def __init__(self, max_prompt_bytes=MAX_PROMPT_CHARS, cost_limit='0.05',max_output_tokens=4096,deepseek_effort='max'):
         from decimal import Decimal,InvalidOperation
         try:amount=Decimal(cost_limit)
         except (InvalidOperation,TypeError):raise ValueError('REVIEW_BOUNDS_INVALID') from None
         if (type(max_prompt_bytes) is not int or not 1 <= max_prompt_bytes <= MAX_COMPLETE_REVIEW_BYTES
                 or not amount.is_finite() or not Decimal('0') < amount <= Decimal('1.00')
                 or type(max_output_tokens) is not int or not 1 <= max_output_tokens <= 65536
-                or deepseek_effort not in ('low','medium')):
+                or deepseek_effort not in ('low','max')):
             raise ValueError('REVIEW_BOUNDS_INVALID')
         self.max_prompt_bytes,self.cost_limit=max_prompt_bytes,str(cost_limit)
         self.max_output_tokens=max_output_tokens
@@ -38,8 +38,8 @@ class FlueReview:
             raise ValueError('REVIEW_NOT_ADMITTED')
         run = new_run(model, self.build_id, 'review', self.cost_limit, synthetic=not self.paid)
         run['max_output_tokens']=self.max_output_tokens
-        run['review_thinking_level']=self.deepseek_effort if model=='deepseek-4.1-flash' else 'medium'
-        run['inference_effort']=(self.deepseek_effort if self.deepseek_effort=='low' else 'high') if model=='deepseek-4.1-flash' else 'medium' if model=='claude-haiku-5.5' else 'default'
+        run['review_thinking_level']=self.deepseek_effort if model=='deepseek-4.1-flash' else 'max'
+        run['inference_effort']=run['review_thinking_level']
         run['agent_timeout_seconds'] = self.timeout_seconds
         runtime = FactorySession(run, self.progress)
         runtime.authorization_check = self.authorization_check

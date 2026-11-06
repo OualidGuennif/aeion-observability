@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Run every agent at its model's maximum reasoning effort (GLM, DeepSeek, Haiku and Qwen; never
+  medium), with the relay enforcing it. The author may run protected checks as often as its window
+  allows, may not stop while its last check failed (up to three reminders naming the failing
+  tests), and is told not to start Gradle or other builds in the offline sandbox shell.
 - Keep a busy model provider from holding a passed build: the relay retries HTTP 429/5xx twice
   (honouring a short `Retry-After`), names what remains `PROVIDER_RATE_LIMITED` or
   `PROVIDER_UNAVAILABLE`, and a review vote that produced nothing goes once to the next eligible

@@ -16,9 +16,18 @@ type ModelMetadata = {
   cacheRead: number;
   cacheWrite?: number;
   api?: 'openai-completions' | 'anthropic-messages';
-  thinking?: 'medium';
+  thinking?: 'max';
   maxOutputTokens?: number;
 };
+
+// Native effort names per model. Agents use only 'max', or 'low' for a bounded review recovery.
+const MAX_THINKING: Record<string, Record<string, string>> = {
+  'deepseek-v4.1-flash': { minimal: 'low', low: 'low', medium: 'high', high: 'high', xhigh: 'max', max: 'max' },
+  'glm-5.3-flash': { minimal: 'low', low: 'low', medium: 'high', high: 'high', xhigh: 'max', max: 'max' },
+  'claude-haiku-5-5': { xhigh: 'max', max: 'max' },
+  'qwen3.8-flash': { xhigh: 'max', max: 'max' },
+};
+const ADAPTIVE = new Set(['claude-haiku-5-5', 'qwen3.8-flash']);
 
 export function modelFromEnv(env: NodeJS.ProcessEnv = process.env) {
   const relayUrl = env.AEION_RELAY_URL;
@@ -44,24 +53,26 @@ export function modelFromEnv(env: NodeJS.ProcessEnv = process.env) {
     // Anthropic SDK appends /v1/messages; the OpenAI SDK appends /chat/completions.
     baseUrl: api === 'anthropic-messages' ? relayUrl.slice(0, -3) : relayUrl,
     ...(api === 'anthropic-messages' ? { headers: { 'x-opencode-session': session! } } : {}),
-    // Reasoning is replayed as reasoning_content. DeepSeek has an explicit native
-    // effort mapping below; other OpenAI-compatible models retain their provider defaults.
+    // Reasoning is replayed as reasoning_content. Every authorized model declares its native
+    // maximum so the agents' 'max' level reaches the provider instead of being clamped down.
+    // Measured 2026-11-06 on the paid Go endpoint: GLM and DeepSeek accept reasoning_effort
+    // "max"; Haiku and Qwen accept adaptive thinking with output_config.effort "max".
     reasoning: true,
     input: ['text' as const],
     cost: { input: meta.input, output: meta.output, cacheRead: meta.cacheRead, cacheWrite: meta.cacheWrite ?? 0 },
     contextWindow: meta.context,
     maxTokens: maxOutputTokens,
-    ...(meta.id === 'deepseek-v4.1-flash' ? { thinkingLevelMap: {
-      minimal: 'low', low: 'low', medium: 'high', high: 'high', xhigh: 'high', max: 'max',
-    } as const } : {}),
+    thinkingLevelMap: MAX_THINKING[meta.id] ?? {},
     compat: api === 'anthropic-messages' ? {
-      forceAdaptiveThinking: meta.id === 'claude-haiku-5-5',
+      forceAdaptiveThinking: ADAPTIVE.has(meta.id),
       supportsTemperature: meta.id !== 'claude-haiku-5-5',
     } : {
       supportsDeveloperRole: false,
       supportsStore: false,
-      supportsReasoningEffort: meta.id === 'deepseek-v4.1-flash',
+      supportsReasoningEffort: meta.id in MAX_THINKING,
       ...(meta.id === 'deepseek-v4.1-flash' ? { thinkingFormat: 'deepseek' as const } : {}),
+      // GLM honors reasoning_effort only beside its Z.ai thinking object (measured 2026-11-06).
+      ...(meta.id === 'glm-5.3-flash' ? { thinkingFormat: 'zai' as const } : {}),
       supportsUsageInStreaming: true,
       maxTokensField: 'max_tokens' as const,
     },

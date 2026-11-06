@@ -15,7 +15,7 @@ const frozen = readFileSync(input, 'utf-8');
 const submit = submitPreparation(output);
 
 export function Preparer() {
-  useModel(model, { compaction: false, thinkingLevel: 'medium' });
+  useModel(model, { compaction: false, thinkingLevel: 'max' });
   useAgentStart(({ append }) => {
     append({ kind: 'signal', type: 'factory.preparation.packet', tagName: 'frozen_preparation_packet',
       body: frozen, attributes: { trust: 'untrusted-task-data' } });

@@ -1,3 +1,11 @@
+## Max effort and green-finish author — 2026-11-06
+
+- Build cca2f099 (001, GLM 5.3 Flash author, 01:25–02:15, 80 steps, 0.21265383 USD) failed the final gate: 1 of 60 tests, `DatabaseLessBootTest > livenessAnswersWithoutADatabase()` (Quarkus `InactiveBeanException`), reproduced by an isolated rerun in the factory's Docker check runner. The gate had recorded that name; no parser defect.
+- Causes found: the author ran at provider-default effort (GLM got no effort parameter; every Flue agent asked Pi for `medium`); `MAX_CHECKS = 3` left it without feedback after its third failed check at 01:38; it stopped at 02:15 without retesting; about six shell commands ran into the 300 s sandbox command cap.
+- Probe (paid Go endpoint, metadata only): GLM and DeepSeek accept `reasoning_effort: max`, GLM also beside its Z.ai `thinking` object (reasoning 6 tokens at `low`, 43 at `max`); Haiku and Qwen accept adaptive thinking with `output_config.effort: max`.
+- Owner decision: max for every model and role, never medium; unlimited author checks; no finish on a red check; no Gradle in the sandbox shell. Implemented with relay enforcement for all four models, `low` kept only for a bounded review recovery.
+- Checks: demo 757 OK, Flue 24 PASS (new factory-checks tests), repository tests, knowledge-check and doc-links PASS. Native qualification PASS (all seven capabilities), protocol 2ec97b297386efc5524921c0fe59d48bc8a9a2c5bb8393bb9ae5f147a18da159, proof demo/.local/factory/admission-ekojbbav/proof.json. Model quality at max effort is not yet measured.
+
 ## Busy provider retry and reviewer substitution — 2026-11-05
 
 - Build ac5b5ce1 (001, GLM 5.3 Flash author, about 34 min): protected gate passed for the first time, Qwen 3.8 Flash approved, DeepSeek 4.1 Flash vote failed `PROVIDER_REJECTED` with zero tokens 3.3 s after its first request. The one-time operator `--retry-failed-review` ran DeepSeek first and failed the same way; the build is held `reviewer_failed`. The local privacy-filtered OTel log (`otel-logs` volume, metadata only) shows `aeion.http.status` 429 at both failures and no other refusing status today; DeepSeek had served 159 earlier requests, so the model id was valid. DeepSeek never finished a factory vote (fe0e69f0: TRANSPORT_ERROR).

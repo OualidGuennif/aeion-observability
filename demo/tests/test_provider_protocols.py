@@ -112,16 +112,16 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(self.forwarded, [])
         self.assertEqual(box.forwarded_count, 0)
 
-    def test_medium_effort_is_required_before_any_haiku_forward(self):
-        box = self.relay(required_effort='medium')
+    def test_max_effort_is_required_before_any_haiku_forward(self):
+        box = self.relay(required_effort='max')
         self.assertEqual(self.send(box, '/messages')[0], 409)
         self.assertEqual(box.last_error_code, 'CONTEXT_UNKNOWN')
         self.assertEqual(self.forwarded, [])
 
-    def test_explicit_adaptive_medium_is_admitted(self):
-        box = self.relay(required_effort='medium')
+    def test_explicit_adaptive_max_is_admitted(self):
+        box = self.relay(required_effort='max')
         self.assertEqual(self.send(box, '/messages?beta=true', {
-            'thinking': {'type': 'adaptive'}, 'output_config': {'effort': 'medium'}})[0], 200)
+            'thinking': {'type': 'adaptive'}, 'output_config': {'effort': 'max'}})[0], 200)
         self.assertEqual(len(self.forwarded), 1)
 
     def test_larger_output_requires_the_supervisor_bound_and_keeps_default_strict(self):

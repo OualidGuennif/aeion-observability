@@ -253,12 +253,28 @@ Native inference uses OpenAI completions for GLM/DeepSeek and Anthropic messages
 Qwen/Haiku. The pinned Anthropic SDK appends `/v1/messages?beta=true`; its model base URL is
 the relay origin, with a supervisor-issued stable conversation header. The relay admits only
 the exact plain/beta paths and forwards to its fixed upstream; arbitrary queries cannot select
-an endpoint. Haiku requires adaptive thinking with medium effort before forwarding
-(`test_provider_protocols`, Flue provider tests). Synthetic protocol qualification does not
+an endpoint. Haiku and Qwen require adaptive thinking with `max` effort before forwarding
+(`test_provider_protocols`, Flue provider tests).
+
+Owner rule (2026-11-06): every agent role thinks at its model's maximum, never medium. Each Flue
+agent asks Pi for the `max` level and the provider adapter maps it to the native maximum: GLM
+sends its Z.ai `thinking` object with `reasoning_effort: max`, DeepSeek `reasoning_effort: max`,
+Haiku and Qwen adaptive thinking with `output_config.effort: max`. The relay refuses a GLM,
+DeepSeek, Haiku or Qwen request that does not carry that exact effort; only a bounded review
+recovery may ask for `low`. Measured 2026-11-06 on the paid Go endpoint: all four accepted their
+maximum, and GLM's reasoning grew from 6 to 43 tokens between `low` and `max` on the same prompt.
+The author also gets three protections, measured on build cca2f099 (GLM stopped 37 minutes after
+its third and last allowed protected check had failed; about six shell commands hit the 300 s
+command cap). Protected checks are no longer counted: the author window and the cost cap bound
+them, and identical snapshots still reuse their cached result. A factory author that tries to stop
+while its last check is missing or failed receives the failing tests and is told to continue, up
+to three times (`MAX_FINISH_REMINDERS`); after that the unchanged final gate decides. The brief
+forbids Gradle, Maven or other builds in the sandbox shell, which has no network, and names
+`run_protected_checks` as the build and test runner (factory-checks.test.mjs, provider.test.mjs). Synthetic protocol qualification does not
 establish provider acceptance, current billing/privacy evidence or model-quality ranking.
 
 DeepSeek's native `thinking`/`reasoning_effort` protocol is explicitly mapped by the pinned
-Pi1.4.0 adapter: low stays low, medium maps to high. The relay enforces the supervisor's exact
+Pi1.4.0 adapter: low stays low, medium maps to high, max stays max. The relay enforces the supervisor's exact
 effort before forwarding. After measured16384-output failures and a32768 budget-stop, the owner
 requested looser local budgets under the existing$15/day ceiling. The full maintainer review
 now uses normal medium/high effort, a65536 maximum output and$1 per execution. Normal4096

@@ -19,10 +19,10 @@ PROFILES={
 PROFILES.update({
  'qwen': {'model':'opencode-go/qwen3.8-flash','name':'Qwen 3.8 Flash','tokenizer':None,
           'input':0.15,'output':0.47,'cache_read':0.016,'cache_write':0.20,'context':1000000,
-          'api':'anthropic-messages','counting':'provider-usage-v1'},
+          'api':'anthropic-messages','thinking':'max','counting':'provider-usage-v1'},
  'haiku': {'model':'opencode-go/claude-haiku-5-5','name':'Claude Haiku 5.5','tokenizer':None,
            'input':0.50,'output':2.50,'cache_read':0.05,'cache_write':0.625,'context':1000000,
-           'api':'anthropic-messages','thinking':'medium','counting':'provider-usage-v1'},
+           'api':'anthropic-messages','thinking':'max','counting':'provider-usage-v1'},
 })
 
 
