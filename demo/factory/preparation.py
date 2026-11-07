@@ -181,6 +181,41 @@ class TaskPreparer:
         self.last_model = None
         self.product = bool(product)
 
+    def resume_prepared(self, destination):
+        """Reuse this build's prepared contract. A linked or altered folder is refused."""
+        folder = Path(destination)
+        meta_path, brief = folder / 'task.json', folder / 'BRIEF.md'
+        if (folder.is_symlink() or not folder.is_dir() or any(path.is_symlink() for path in (meta_path, brief))
+                or not meta_path.is_file() or not brief.is_file()):
+            raise PreparationError('preparation_workspace_refused')
+        try:
+            evidence = json.loads(meta_path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            raise PreparationError('preparation_workspace_refused') from None
+        feature, base, paths = evidence.get('feature_id'), evidence.get('base_sha'), evidence.get('write_paths')
+        identity = {'feature_id': feature, 'catalog_digest': evidence.get('catalog_digest'),
+                    'spec_digest': evidence.get('spec_digest'), 'architecture_digest': evidence.get('architecture_digest'),
+                    'base_sha': base, 'write_paths': list(paths) if isinstance(paths, list) else paths}
+        contract = folder / 'acceptance.mjs'
+        if (not self.product or feature in ('002', '014') or not isinstance(feature, str)
+                or not isinstance(base, str) or not SHA_RE.fullmatch(base)
+                or not isinstance(paths, list) or not all(isinstance(path, str) and path for path in paths)
+                or evidence.get('task_digest') != _digest(json.dumps(identity, sort_keys=True, separators=(',', ':')))
+                or contract.is_symlink() or not contract.is_file()):
+            raise PreparationError('preparation_workspace_refused')
+        try:
+            spec, text = brief.read_text(encoding='utf-8'), contract.read_text(encoding='utf-8')
+        except (OSError, UnicodeError):
+            raise PreparationError('preparation_workspace_refused') from None
+        if evidence.get('spec_digest') != _digest(spec) or evidence.get('acceptance_digest') != _digest(text):
+            raise PreparationError('preparation_workspace_refused')
+        self.last_model = None
+        self.role.last_execution = self.role.last_usage = None
+        check = ProtectedCheck('prepared_product', [], {}, contract, 'FACTORY_EXTERNAL_ACCEPTANCE.mjs', 900)
+        target = Target('prepared-' + feature, feature, REPOSITORY, self.root, self.source,
+                         base, list(paths), brief, check)
+        return target, evidence
+
     def _public_interfaces(self, base):
         listing = _git(['-C', str(self.source), 'ls-tree', '-r', base, '--', JAVA_MAIN])
         if listing.returncode:

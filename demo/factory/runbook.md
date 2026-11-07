@@ -61,7 +61,7 @@ publisher refuses anything unreviewed. Nothing auto-merges.
 | `AEION_LOCAL_DIR` | `demo/.local` | owner-only state root (mode `0700`) |
 | `AEION_DATA_DIR` | `demo/.local/data` | cockpit data |
 | `AEION_WORK_DIR` | `demo/.local/work` | >= disposable work trees |
-| `AEION_DAILY_LIMIT_USD`, `AEION_AUTHOR_MAX_USD`, `AEION_REVIEW_MAX_USD` | from `demo/budget.conf` | spending bounds, never above $15/day, $5/execution, $1/vote |
+| `AEION_DAILY_LIMIT_USD`, `AEION_AUTHOR_MAX_USD`, `AEION_REVIEW_MAX_USD` | from `demo/budget.conf` (150, 50, 1) | spending bounds, never above $150/day, $50/execution, $1/vote |
 
 Never pass a secret on the command line or in a unit file. The factory prints nothing from the
 environment. The first start writes `demo/.local/factory/admin.token` (mode `0600`); that token is

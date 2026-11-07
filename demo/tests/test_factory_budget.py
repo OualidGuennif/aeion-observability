@@ -1,4 +1,4 @@
-"""The two daily purses: journal first, settle after, fail closed past $15."""
+"""The two daily purses: journal first, settle after, fail closed past the daily cap."""
 import json
 import sys
 import tempfile
@@ -31,29 +31,29 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(b.spent("aeion-observability"), Decimal("0.10"))
         self.assertEqual(b.settle(reservation, "0.10"), Decimal("0.10"))
         self.assertEqual(b.spent("aeion-observability"), Decimal("0.10"))
-        self.assertEqual(b.remaining("aeion-observability"), Decimal("14.90"))
+        self.assertEqual(b.remaining("aeion-observability"), Decimal("149.90"))
         lines = (self.root / "ledger.jsonl").read_text().splitlines()
         self.assertEqual([json.loads(line)["kind"] for line in lines], ["reserve", "settle"])
 
     def test_an_open_reservation_counts_against_the_day(self):
         b = budget(self.root)
-        b.admit("aeion-observability", "14.50")
+        b.admit("aeion-observability", "149.50")
         with self.assertRaisesRegex(BudgetError, "budget_unavailable"):
             b.admit("aeion-observability", "0.60")
 
     def test_a_scope_cannot_spend_past_its_limit(self):
         b = budget(self.root)
-        b.admit("aeion-observability", "14.95")
+        b.admit("aeion-observability", "149.95")
         with self.assertRaisesRegex(BudgetError, "budget_unavailable"):
             b.admit("aeion-observability", "0.10")
-        self.assertEqual(b.spent("aeion-observability"), Decimal("14.95"))
+        self.assertEqual(b.spent("aeion-observability"), Decimal("149.95"))
 
     def test_a_higher_actual_cost_counts_and_the_next_call_is_refused(self):
         b = budget(self.root)
         reservation = b.admit("aeion-observability", "0.10")
         self.assertEqual(b.settle(reservation, "1.00"), Decimal("1.00"))
         with self.assertRaises(BudgetError):
-            b.admit("aeion-observability", "14.50")
+            b.admit("aeion-observability", "149.50")
 
     def test_settling_twice_is_idempotent(self):
         b = budget(self.root)
@@ -63,10 +63,10 @@ class BudgetTests(unittest.TestCase):
 
     def test_the_two_purses_are_independent(self):
         b = budget(self.root)
-        b.admit("aeion-observability", "15.00")
+        b.admit("aeion-observability", "150.00")
         self.assertEqual(b.remaining("aeion-observability"), Decimal("0"))
-        self.assertEqual(b.remaining("aeion-autonomous-forum"), Decimal("15.00"))
-        b.admit("aeion-autonomous-forum", "15.00")
+        self.assertEqual(b.remaining("aeion-autonomous-forum"), Decimal("150.00"))
+        b.admit("aeion-autonomous-forum", "150.00")
 
     def test_zero_cost_is_still_journalled(self):
         b = budget(self.root)
@@ -122,9 +122,19 @@ class BudgetTests(unittest.TestCase):
         b = budget(self.root)
         b.admit("aeion-observability", "0.25")
         summary = b.summary()
-        self.assertEqual(summary["aeion-observability"]["limit_usd"], "15.00")
+        self.assertEqual(summary["aeion-observability"]["limit_usd"], "150.00")
         self.assertEqual(summary["aeion-observability"]["spent_usd"], "0.25")
+        self.assertEqual(summary["aeion-observability"]["settled_usd"], "0.00")
+        self.assertEqual(summary["aeion-observability"]["reserved_usd"], "0.25")
         self.assertEqual(summary["aeion-autonomous-forum"]["spent_usd"], "0.00")
+        self.assertEqual(summary["aeion-autonomous-forum"]["settled_usd"], "0.00")
+        self.assertEqual(summary["aeion-autonomous-forum"]["reserved_usd"], "0.00")
+        reservation = b.admit("aeion-autonomous-forum", "1.00")
+        b.settle(reservation, "0.40")
+        split = b.summary()
+        self.assertEqual(split["aeion-autonomous-forum"]["settled_usd"], "0.40")
+        self.assertEqual(split["aeion-autonomous-forum"]["reserved_usd"], "0.00")
+        self.assertEqual(split["aeion-autonomous-forum"]["spent_usd"], "0.40")
 
 
 class BudgetDayTests(unittest.TestCase):
@@ -163,17 +173,17 @@ class BudgetSettingsTests(unittest.TestCase):
 
     def test_the_shipped_file_is_valid_and_within_the_owner_ceilings(self):
         bounds = budget_module.settings()
-        self.assertLessEqual(bounds["DAILY_LIMIT_USD"], Decimal("15.00"))
-        self.assertLessEqual(bounds["AUTHOR_MAX_USD"], Decimal("5.00"))
-        self.assertLessEqual(bounds["REVIEW_MAX_USD"], Decimal("1.00"))
+        self.assertEqual(bounds["DAILY_LIMIT_USD"], Decimal("150.00"))
+        self.assertEqual(bounds["AUTHOR_MAX_USD"], Decimal("50.00"))
+        self.assertEqual(bounds["REVIEW_MAX_USD"], Decimal("1.00"))
 
     def test_owner_values_up_to_each_ceiling_are_accepted(self):
-        bounds = self.settings("DAILY_LIMIT_USD=15.00\nAUTHOR_MAX_USD=5.00  # extreme case\nREVIEW_MAX_USD=0.50\n")
-        self.assertEqual(bounds["AUTHOR_MAX_USD"], Decimal("5.00"))
+        bounds = self.settings("DAILY_LIMIT_USD=150.00\nAUTHOR_MAX_USD=50.00  # extreme case\nREVIEW_MAX_USD=0.50\n")
+        self.assertEqual(bounds["AUTHOR_MAX_USD"], Decimal("50.00"))
         self.assertEqual(bounds["REVIEW_MAX_USD"], Decimal("0.50"))
 
     def test_values_above_a_ceiling_unknown_keys_or_nonsense_are_refused_whole(self):
-        for text in ("AUTHOR_MAX_USD=5.01\n", "DAILY_LIMIT_USD=16\n", "REVIEW_MAX_USD=2\n",
+        for text in ("AUTHOR_MAX_USD=50.01\n", "DAILY_LIMIT_USD=151\n", "REVIEW_MAX_USD=2\n",
                      "AUTHOR_MAX_USD=0\n", "AUTHOR_MAX_USD=-1\n", "AUTHOR_MAX_USD=NaN\n",
                      "AUTHOR_MAX_USD=Infinity\n", "AUTHOR_MAX_USD=abc\n", "TASK_MAX=3\n", "AUTHOR_MAX_USD\n",
                      "DAILY_LIMIT_USD=2.00\nAUTHOR_MAX_USD=1.00\nREVIEW_MAX_USD=0.60\n"):
@@ -185,7 +195,7 @@ class BudgetSettingsTests(unittest.TestCase):
         self.assertEqual(budget_module.author_timeout_seconds(self.conf), 1800)
         self.conf.write_text("AUTHOR_TIMEOUT_MINUTES=180\n")
         self.assertEqual(budget_module.author_timeout_seconds(self.conf), 10800)
-        self.assertEqual(budget_module.settings(self.conf)["AUTHOR_MAX_USD"], Decimal("2.00"))
+        self.assertEqual(budget_module.settings(self.conf)["AUTHOR_MAX_USD"], Decimal("50.00"))
         for raw in ("181", "4", "0", "-30", "90.5", "abc", "1e2", "\u0661\u0662\u0660", ""):
             with self.subTest(raw=raw):
                 self.conf.write_text(f"AUTHOR_TIMEOUT_MINUTES={raw}\n")
@@ -209,6 +219,8 @@ class BudgetSettingsTests(unittest.TestCase):
         budget_module.os.environ["AEION_AUTHOR_MAX_USD"] = "3.00"
         self.assertEqual(self.settings("AUTHOR_MAX_USD=1.00\n")["AUTHOR_MAX_USD"], Decimal("3.00"))
         budget_module.os.environ["AEION_AUTHOR_MAX_USD"] = "50"
+        self.assertEqual(self.settings("AUTHOR_MAX_USD=1.00\n")["AUTHOR_MAX_USD"], Decimal("50.00"))
+        budget_module.os.environ["AEION_AUTHOR_MAX_USD"] = "50.01"
         with self.assertRaisesRegex(BudgetError, "budget_config_invalid"):
             self.settings("AUTHOR_MAX_USD=1.00\n")
 

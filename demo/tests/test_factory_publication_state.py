@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from factory.dispatch import repair_blind_ci
 from factory.manifest import Catalog
 from factory.store import Store,StoreError,FAILED,GATED,HELD,PR_OPEN,QUEUED,MERGED
 from factory.publication import PublicationCoordinator
@@ -75,6 +76,25 @@ class PublicationStateTests(unittest.TestCase):
   self.assertEqual(self.store.continue_after_ci_failure(
       self.build['build_id'],self.catalog,self.request['files'])['status'],'unchanged')
   self.assertEqual(len(self.store.board()),2)
+
+ def test_a_placeholder_ci_name_is_replaced_and_that_correction_is_queued_once(self):
+  self.stage();job=self.store.claim_publication()
+  self.store.finish_publication(job,{'status':'held','reason':'ci_failed','failed_checks':[
+      {'name':'check','conclusion':'failure'}]},delay_ns=0)
+  self.store.continue_after_ci_failure(self.build['build_id'],self.catalog,self.request['files'])
+  claimed=self.store.claim_next(self.catalog)
+  self.store.hold_dispatched(claimed['build_id'],'owner_review_required',
+                             receipt={'reason':'correction_unchanged'})
+  bad=repair_blind_ci(self.store,claimed['build_id'],[{'name':'bad\nname','conclusion':'failure'}])
+  self.assertEqual(bad['status'],'unchanged')
+  names=[{'name':'Knowledge, links and repository health','conclusion':'failure'}]
+  repaired=repair_blind_ci(self.store,claimed['build_id'],names)
+  self.assertEqual(repaired['status'],'queued')
+  self.assertEqual(repair_blind_ci(self.store,claimed['build_id'],names)['status'],'unchanged')
+  first,second=self.store.board()
+  self.assertEqual(json.loads(first['receipt'])['publisher']['failed_checks'],names)
+  self.assertEqual(second['status'],QUEUED)
+  self.assertTrue(json.loads(second['receipt'])['ci_repair_retried'])
 
  def test_an_unreadable_or_permission_hold_is_not_a_correction(self):
   for reason in ('ci_unreadable','tree_create_failed:403','protection_unqualified'):

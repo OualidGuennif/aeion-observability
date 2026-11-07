@@ -1,3 +1,117 @@
+## A resumed correction keeps the failed check — 2026-11-07
+
+- A correction round that resumes after a network stop still carries the failed check name, the fixed repair sentence, and the reviewer line. After three resumes the next attempt still carries that check name. The two tests failed before the prompt and the crash receipt kept those lines, then passed.
+- `python3 -m unittest` of correction rounds, preparation, and publication state: 61 OK. dispatch.py is 1494 lines.
+
+## Resume reuses the prepared contract — 2026-11-07
+
+- A same-model resume with a preparer reuses the prepared contract and does not call prepare. A refused contract is prepared again. A resumed correction round pins the interrupted model. A down provider holds network_unavailable before preparation. A linked or altered prepared folder is refused. Features 002 and 014 are prepared again.
+- The three new dispatch tests failed when those branches were inverted, then passed after they were restored. `python3 -m unittest` of github atomic, budget, target dispatch, correction rounds, publication state, review reassessment, preparation and connectivity: 124 OK. knowledge-check PASS. `doc-links --diff origin/develop --worktree` PASS (152). repo-health PASS. dispatch.py is 1494 lines. store.py is 1478 lines. factory-flue.md is 522 lines.
+- Feature 001 stays held. It was not relaunched. Product pull requests 7 and 8 were not merged. The publish token still cannot read branch protection. VERSION stays 1.9.0.
+
+## Review retry, workspace replace, system CA and settled spend — 2026-11-07
+
+- A passed gate with a reviewer failure and no earlier retry is eligible once. A refused retry is not fetched again. A same-build retry removes only that build's repo and prepared folder, refuses a symlink, and leaves another build's repo in place. A claim that never starts the author settles its reservation at zero. An author that forwarded without complete usage keeps the reservation. The summary reports settled and reserved apart from the admission total. GitHub TLS uses `/private/etc/ssl/cert.pem` when certifi cannot be imported. The cockpit shows settled spend, not the remaining purse, as the burned amount.
+- Checks: `python3 -m unittest demo.tests.test_factory_github_atomic demo.tests.test_factory_budget demo.tests.test_factory_target_dispatch demo.tests.test_factory_correction_rounds demo.tests.test_factory_publication_state demo.tests.test_factory_review_reassessment` — 100 OK. `node --test demo/tests/test_cockpit_client.mjs` — 29 pass. knowledge-check PASS. `doc-links --diff origin/develop --worktree` PASS (152). repo-health PASS. dispatch.py is 1499 lines. store.py is 1478 lines.
+- Feature 001 stays held. It was not relaunched. Product pull requests 7 and 8 were not merged. The publish token still cannot read branch protection.
+
+## Review hold and the budget figure — 2026-11-07
+
+- Build fc6f2d0d26ce finished its author, passed the gate, and held owner_review_required. qwen-3.8-flash approved. deepseek-4.1-flash returned no verdict (AGENT_TIMEOUT). Nothing was published. The measured author cost settled at about 0.09 USD.
+- The forum purse for 2026-11-07 settled 3.19 USD across eight rows. Four open reservations still sum to 61.00 USD and are counted inside spent, so the summary reads spent 64.19 and remaining 85.81 of 150.00. Observability spent 0.00. The large figure is reserved capacity, not settled provider spend. The automatic review retry, workspace replace, system CA fallback, and settled-versus-reserved display are not in the code yet.
+
+## The same correction was queued after the old workspace blocked the clone — 2026-11-07
+
+- After preparation, build fc6f2d0d26ce held as base_unavailable. materialize refuses an existing destination. This build's prepared folder and repo were removed. The previous build's repo was kept. The same build was queued, then dispatched, and an aeion-check container was running. Features 002, 003 and 013 stayed catalog_changed.
+
+## Admission activated and the same correction is preparing — 2026-11-07
+
+- Native admission with controller PID 97378 exited 0: status qualified, activated true, product delivery not claimed, ready() true. The listener stayed PID 97378 on 127.0.0.1:8088.
+- The queued correction was claimed and held as preparation_unavailable. The receipt error class was FileExistsError. The existing preparation folder for build fc6f2d0d26ce was removed, and that same build was queued again. A read-only query then showed it dispatched, phase preparing, with one aeion-check container. Features 002, 003 and 013 stayed catalog_changed. Pull request 8 was not merged.
+
+## The blind correction was queued once — 2026-11-07
+
+- The factory publish token read branch protection as HTTP 403, message class "Resource not accessible by personal access token". The default TLS context of the controller Python also fails closed; `/etc/ssl/cert.pem` verifies. The local gh session read protection as qualified (strict, enforce admins, no force-push, no deletion, five required checks) and the check runs for the open pull request.
+- The only failed required check was "Knowledge, links and repository health" with conclusion failure. `repair_blind_ci` queued build fc6f2d0d26ce once. A read-only query then showed feature 001 queued, hold empty, ci_repair_retried true. Features 002, 003 and 013 stayed catalog_changed. Listener PID 97378. Admission for that process was started and is not finished. The pull request was not merged.
+
+## CI correction controller restarted; the name reread failed closed — 2026-11-07
+
+- Controller PID 79581 was stopped after the CI-name code was on disk. The restart script started PID 97378 and printed repair_status=unreadable. The follow-up call failed with SSLCertVerificationError before protection() returned. The receipt still stores the check name as check. Build fc6f2d0d26ce stayed held. Admission for the new protocol hash has not run.
+- The earlier unit checks remain: 52 OK, cockpit client 28 pass, knowledge-check PASS, doc-links PASS (151), repo-health PASS.
+
+## CI correction names the check and repairs a blind round — 2026-11-07
+
+- A comma in a required check name is kept. A known check adds one fixed supervisor repair sentence. The CI log is not copied. `repair_blind_ci` replaces a placeholder name `check` and queues that same unchanged correction once.
+- Checks: `python3 -m unittest demo.tests.test_factory_github_atomic demo.tests.test_factory_correction_rounds demo.tests.test_factory_publication_state` — 52 OK. `node --test demo/tests/test_cockpit_client.mjs` — 28 pass. knowledge-check PASS. doc-links PASS (151). repo-health PASS.
+- Build fc6f2d0d26ce was held `correction_unchanged` when these unit checks finished. The restart result is in the section above.
+
+## Owner reported a feature 001 launch — 2026-11-07
+
+- After the French go message, the owner launched feature 001. A read-only sqlite query showed build 4a5e891089e0 dispatched, phase model.step.started, empty hold, empty failure token, updated age 0 seconds. Recent event names were progress. Active rows: 001 dispatched; 002, 003 and 013 held for catalog_changed. Listener PID 79581. Two OpenShell containers were up.
+
+## Budget ceilings raised and the security proof refreshes itself — 2026-11-07
+
+- Owner ceilings are 150 USD per repository per day and 50 USD per author execution. Review votes stay at 1 USD. `demo/budget.conf` matches those ceilings. `.env.example` carries `AEION_DAILY_LIMIT_USD=150` and `AEION_AUTHOR_MAX_USD=50`. The private env was not edited.
+- A proof with an hour or more left does not start a probe. A failed probe keeps the previous file. An expired or missing file stays closed. `qualify.py` no longer removes the proof before the probe.
+- A stale proof holds the same build as `sandbox_qualification_stale` and starts no author. When the check returns fresh, that same build is queued again.
+- Checks: `python3 -m unittest demo.tests.test_openshell_security_window demo.tests.test_factory_budget demo.tests.test_factory_keys demo.tests.test_factory_execution demo.tests.test_factory_api demo.tests.test_factory_correction_rounds` — 97 OK. `node --test demo/tests/test_cockpit_client.mjs` — 28 pass. knowledge-check PASS. `doc-links --diff origin/develop --worktree` PASS (151). repo-health PASS.
+- Feature 001 had no dispatched build. Its latest row was cancelled. Controller PID 70041 was replaced by PID 79581, listening on 127.0.0.1:8088, mode live. The security proof had 22.8 hours left, so startup did not probe. Native admission with that controller environment exited 0: status qualified, activated true, product delivery not claimed, ready() true. Feature 001 was not launched.
+
+## Budget raise and automatic security refresh are requested — 2026-11-07
+
+- The owner asked for 150 USD per day and 50 USD per author execution, for those two defaults in the env example, and for the controller to refresh the OpenShell security proof itself when less than one hour remains. None of that is in the tree. demo/budget.conf is still 15 / 5 / 1. The controller initial environment does not set the three AEION budget keys (listener PID 70041, booleans only). The owner fills the private env. Feature 001 was reported on hold for the daily budget and was not relaunched from here.
+
+## OpenShell security evidence had expired — 2026-11-07
+
+- Feature 001 build e74d624e1dc2 failed before any model request. The author failure is SANDBOX_NOT_QUALIFIED. The security evidence was 0.4 hours past its 24-hour limit. The factory tool proof was still valid. `demo/openshell/qualify.py` was run with the live controller settings and exited 0. The new evidence has 24 hours left. The owner relaunches 001.
+
+## Qualification activated again — 2026-11-07
+
+- Native admission with the live controller environment finished activated, product delivery not claimed. ready() is true. Controller PID 70041 listens on 127.0.0.1:8088, mode live. sandbox.blocked is absent. No OpenShell container remained before the marker was cleared.
+- The first admission of the day failed preparation with SANDBOX_STOP_FAILED and wrote sandbox.blocked. The idle sweep was removing every OpenShell pair at once, including a qualification sandbox. The sweep now keeps a pair younger than 30 minutes (test_factory_connectivity). knowledge-check and doc-links --diff origin/develop --worktree passed after that change.
+
+## Cockpit paused on a stale tool qualification — 2026-11-07
+
+- The owner cannot select a feature. The cockpit reason is flue_factory_unqualified: Flue/Pi worker or checker qualification is missing, expired or changed. Feature 001 is cancelled. Features 002 and 003 stay on hold for catalog_changed.
+- The stored proof hash 6efc295936ee2a26ccc6e751a43cfbfb6c7f9ecdb9ea4fd93cb9f94b01b4a8df predates the uncommitted protocol edits in flue_builder.py, store.py, review_circuit.py, artifact.py and dispatch.py. Admission has not been rerun. PID 66553 already loads those files.
+- Idle OpenShell pairs: a live sweep removed the leftover pair. After the following restart, the listener was PID 66553 on 127.0.0.1:8088 and no OpenShell sandbox remained. The reaper is loaded by file path.
+
+## A working CLI stop resumes the same model — 2026-11-07
+
+- A `CLI_FAILED` with 44 tool steps, 45 forwards, finish `toolUse` and error class `IllegalStateException` queues the same build again for `deepseek-4.1-flash` and keeps the scoped file. It does not admit attempt 2. Two steps, `CLI_STARTUP_FAILED`, and `PROVIDER_ERROR` still start another model. A `TRANSPORT_ERROR` with no steps resumes the same model. The fourth working stop after three resumes is a crash. A failed provider probe holds `network_unavailable` and does not call the author. An expired lease with three `tool.finished` events is queued; one that reached `publishing` stays `reconciliation_needed`. A reviewer `TRANSPORT_ERROR` retries the same model three times.
+- Checks: `python3 -m unittest demo.tests.test_factory_connectivity demo.tests.test_factory_correction_rounds demo.tests.test_factory_review_circuit demo.tests.test_factory_s2 demo.tests.test_factory_recovery demo.tests.test_factory_store` — 87 OK. `node --test demo/tests/test_cockpit_client.mjs` — 28 OK. `tools/knowledge/knowledge-check` PASS. `tools/knowledge/doc-links` PASS. The live controller was not restarted. Feature 001 was not cancelled. Nothing was committed or pushed.
+
+## First correction author crashed; the next round is running — 2026-11-07
+
+- Build 336259feef1e failed. Execution role author, failure CLI_FAILED, error class IllegalStateException, process exit 1, finish toolUse, 44 CLI steps, model opencode-go/deepseek-v4.1-flash. No check verdict was stored. The factory queued the next correction instead of holding the feature.
+- Successor 81e212a782db is dispatched under controller PID 55334. Product pull request 7 stays unmerged.
+
+## CI failure queued a live correction — 2026-11-07
+
+- Native admission activated. ready() is true. Protocol evidence is demo/.local/factory/admission-h2jh_d2o/proof.json. It claims tools, not product delivery.
+- Build 3044b0f5 moved from held to failed. Its correction marker is ci_failed, attempt 2, round 0. Successor 336259feef1e was admitted with idempotency factory-correction and is dispatched. A protected check process is running under controller PID 55334. Product pull request 7 is still unmerged. No tick failure was recorded.
+
+## Controller restarted; qualification is in progress — 2026-11-07
+
+- PID 54005 was stopped and replaced by PID 55334. The new process listens on 127.0.0.1:8088, command demo/app/server.py, mode live. No secret was printed.
+- Feature 001 build 3044b0f5 stayed held. ready() was false because the stored protocol hash does not match the current tree. The held row still matches the current catalog and contract. No other 001 build is in progress, and no completed 001 row matches this contract.
+- A first admission run from the shell failed at flue_openshell with ModuleNotFoundError and did not write a proof. The rerun uses the live controller environment. flue_openshell and external_acceptance passed. The proof is not activated yet.
+
+## Controller restart is the next live step — 2026-11-07
+
+- The owner asked to restart the controller and monitor feature 001. The restart has not run. PID 54005 still listens on 127.0.0.1:8088 with the previous code. A dry-run matched that process: mode live, no secret printed. Build 3044b0f5 is still held, publication_blocked, publisher reason ci_failed, product pull request 7. It was not cancelled.
+
+## main and develop meet at 935744d — 2026-11-07
+
+- Required linear history on main was disabled. Required checks `docker-demo` and `offline-examples`, admin enforcement, conversation resolution and the force-push ban stayed.
+- Pull request 33 merged as `935744d955a4b52a76505ab3d1249d135ec0f643`. develop fast-forwarded to that commit and was pushed. `origin/main...origin/develop` is 0 and 0. No force-push. No version tag. The live controller was not restarted.
+
+## Develop is pushed; main stays on a linear history — 2026-11-06
+
+- Independent re-review of `6f7ab991b09787b37395371d5d8be486eb7ba138`: OK. The decoy path and the premature finished-rounds sentence are fixed. Receipt: `.aeion/reviews/6f7ab991b09787b37395371d5d8be486eb7ba138.md`, also posted on the commit.
+- `git push origin develop` fast-forwarded `b784ccc..6f7ab99`. CI run 42307821720 and pull-request run 42308030352: `docker-demo`, `offline-examples`, and knowledge/links/repo-health passed.
+- Pull request 33 (`develop` → `main`) is open. Merge commits are refused because main requires a linear history. Rebase is refused because develop contains merge `44a59a6`. No force-push. No branch-protection change. No version tag. The live controller was not restarted.
+
 ## Independent review of 4146147 was not ok — 2026-11-06
 
 - Review of `origin/develop..HEAD` at `4146147b5f52d2b78e42d8a1fdb9cc054d255a24`: NOT OK. A Grok `read_file`, `grep`, or `list_dir` payload could name the opened path and a different decoy; the guard checked the decoy. The cockpit publication detail said correction rounds were finished for every `ci_failed` receipt, including one that had just queued another round.

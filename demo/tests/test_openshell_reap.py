@@ -91,6 +91,23 @@ class ReapTests(unittest.TestCase):
         self.assertEqual(lease_state(store=active, now=NOW)["state"], "active")
         self.assertEqual(lease_state(store=self.idle_store, now=NOW), {"state": "idle", "count": 0})
 
+    def test_an_idle_factory_removes_a_young_orphan_pair(self):
+        calls = []
+        docker = fake_docker(calls, {"sandbox": 30, "sandbox-supervisor": 30})
+        report = sweep(older_than=0, execute=True, now=NOW, docker=docker, store=self.idle_store)
+        self.assertIsNone(report["blocked"])
+        self.assertEqual(sorted(report["removed"]), ["sandbox", "sandbox-supervisor"])
+        self.assertEqual(sorted(call[2] for call in calls), ["sandbox", "sandbox-supervisor"])
+
+    def test_active_lease_holds_a_young_orphan_too(self):
+        active = write_store(self.directory, [("live", "dispatched", NOW_NS + 60_000_000_000)], "young-held.db")
+        calls = []
+        docker = fake_docker(calls, {"sandbox": 30})
+        report = sweep(older_than=0, execute=True, now=NOW, docker=docker, store=active)
+        self.assertEqual(report["blocked"], "build_lease_active")
+        self.assertEqual(report["removed"], [])
+        self.assertEqual(calls, [])
+
     def test_active_lease_holds_the_sweep(self):
         active = write_store(self.directory, [("live", "dispatched", NOW_NS + 60_000_000_000)], "held.db")
         calls = []

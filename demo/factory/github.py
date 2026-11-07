@@ -30,11 +30,19 @@ class GitHubError(ValueError):
 
 
 def tls_context():
+    """Verify GitHub with certifi, or with the system CA bundle when certifi is absent.
+
+    Verification stays on. A missing bundle still uses the default context, which fails closed.
+    """
     try:
         import certifi
         return ssl.create_default_context(cafile=certifi.where())
     except (ImportError, OSError):
-        return ssl.create_default_context()
+        pass
+    for candidate in ('/etc/ssl/cert.pem', '/private/etc/ssl/cert.pem'):
+        if os.path.isfile(candidate):
+            return ssl.create_default_context(cafile=candidate)
+    return ssl.create_default_context()
 
 
 def branch_name(attempt_id):
@@ -266,7 +274,8 @@ class GitHubForge:
     def _failed_checks(required, valid):
         conclusions = {'failure', 'cancelled', 'timed_out', 'action_required', 'skipped',
                        'neutral', 'stale', 'startup_failure'}
-        name_ok = re.compile(r'[A-Za-z0-9_ ./:+-]{1,80}')
+        # A comma is a normal character in a GitHub check name. A newline is not.
+        name_ok = re.compile(r'[A-Za-z0-9_ .,/:+-]{1,80}')
         failed = []
         for name in required:
             conclusion = valid[name].get('conclusion')
@@ -277,6 +286,23 @@ class GitHubForge:
             if len(failed) == 8:
                 break
         return failed
+
+    def read_failed_checks(self, head):
+        """Failed required checks for one commit, or None when the read is not definite.
+
+        Names and conclusions only. The caller keeps the stored names when this returns None.
+        """
+        try:
+            head = _sha(head)
+            protection = self.protection()
+            if protection.get('status') != 'qualified':
+                return None
+            ci = self._ci(head, protection['checks'])
+        except (GitHubError, OSError, TimeoutError):
+            return None
+        if ci.get('status') == 'held' and ci.get('reason') == 'ci_failed' and ci.get('failed_checks'):
+            return ci['failed_checks']
+        return None
 
     def _confirmed_merge(self, pr):
         merge_sha = _sha(pr.get('merge_commit_sha'))

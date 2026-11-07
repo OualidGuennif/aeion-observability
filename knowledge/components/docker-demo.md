@@ -210,7 +210,8 @@ and [cockpit](../../demo/app/server.py) separate the observed workload from its 
 ## Acceptance checks
 
 The [runbook](../../demo/README.md) distinguishes offline regressions, real-harness/local-inference
-qualification, real Go tasks, backend reads and UI checks. Require MD-before-refusal ordering,
+qualification, real Go tasks, backend reads and UI checks. Its two purses are capped at $150 per
+day, with $50 reserved for one author execution. Require MD-before-refusal ordering,
 fresh conversation identity, preserved partial files, the pre-dispatch admission barrier, >300k
 preflight refusal, known/unknown accounting, actual Langfuse generations/costs, memory
 readback/recall and metadata-only log correlation. The [backend verifier](../../demo/verify_backend.py)

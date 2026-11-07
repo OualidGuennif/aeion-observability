@@ -35,7 +35,8 @@ function reasonText(info) {
     execution_unavailable: "The product repository or task preparation adapter is unavailable to the factory.",
     sandbox_unqualified: "The isolated checker needs qualification.",
     budget_unavailable: "The daily budget is unavailable or exhausted.",
-    budget_config_invalid: "demo/budget.conf is invalid or above its ceiling ($15/day, $5 per author execution, $1 per review vote). No paid work starts until it is fixed.",
+    budget_config_invalid: "demo/budget.conf is invalid or above its ceiling ($150/day, $50 per author execution, $1 per review vote). No paid work starts until it is fixed.",
+    sandbox_qualification_stale: "The OpenShell security proof is missing or expired, and refreshing it failed. No new author was started. This same request resumes when the proof is fresh.",
     STEP_LIMIT: "The worker reached its allowed model-step limit. This attempt is preserved; the feature has not been implemented.",
     CLI_STARTUP_FAILED: "The agent CLI stopped before its first model request. The factory must repair its launcher; no implementation was started.",
     builder_error: "Implementation stopped. Open Build evidence for the exact agent failure and the full Langfuse session.",
@@ -45,7 +46,7 @@ function reasonText(info) {
     owner_review_required: "Owner review is required before proceeding.",
     reviewer_failed: "A reviewer could not finish its vote (timeout, provider refusal or no typed verdict). Nothing was published; Review votes shows which one and why.",
     reviewer_rejected: "An independent reviewer rejected the change after the automatic attempts and correction rounds. Nothing was published; the reasons are in Build evidence.",
-    correction_unchanged: "A correction round returned the refused candidate unchanged, so it was not checked or reviewed again. Nothing was published.",
+    correction_unchanged: "A correction round returned the refused candidate unchanged, so it was not checked or reviewed again. Nothing was published. If the check name could not be recorded, this same correction is queued once more with the real name.",
     worker_error: "The worker stopped unexpectedly. The request is held for review; no automatic paid retry.",
     reconciliation_needed: "An interrupted attempt or remote action needs reconciliation. Another launch stays locked while its effects are unknown.",
     catalog_changed: "The specification changed after this request. Refresh and read the current MD. A new selection replaces only an obsolete request that never started; uncertain attempts stay locked.",
@@ -71,21 +72,24 @@ function reasonText(info) {
     protection_unqualified: "Main branch protection does not satisfy the factory policy. No merge was requested.",
     ci_pending: "Waiting for all required checks on this exact PR commit. No new implementation is needed.",
     ci_failed: "A required CI check failed. The pull request was not merged. Automatic correction rounds are finished, so this feature stays on hold.",
+    network_unavailable: "The model provider could not be reached. No new author was started. This same request resumes when the connection works again.",
     stale_base: "Main changed after the task was frozen. Rebase, checks and independent reviews must be repeated before publication.",
     stale_head: "The PR head changed after review. Publication is held until the exact artifact is verified again.",
     merge_not_confirmed: "A merge could not be confirmed on main. Keep this feature locked while the factory reconciles the remote result.",
     profile_expired: "The model profile needs requalification." })[reason] || (reason ? `Waiting: ${reason}. Inspect the request evidence.` : "Ready for automatic preparation and build.");
 }
 const OWNER_ACTIONS = {
-  reviewer_failed: "The operator may rerun the votes once without rerunning the author (review_context --retry-failed-review); otherwise cancel and launch the feature again.",
+  reviewer_failed: "The controller reruns the votes once without rerunning the author. A second failure stays on hold.",
   reviewer_rejected: "The factory already ran its automatic attempts and correction rounds. Read the reviewer reasons in Build evidence, then cancel this request; a relaunch unchanged will likely be rejected again.",
   worker_error: "Cancel this request, then launch the feature again.",
   catalog_changed: "Cancel this request, then launch the feature again with the current MD.",
   reconciliation_needed: "Do not relaunch. Ask the agent to reconcile this attempt first.",
   dependency_missing: "Nothing to do: it starts after its prerequisites reach main.",
-  budget_unavailable: "Wait for tomorrow's budget or raise DAILY_LIMIT_USD in demo/budget.conf (max $15).",
+  budget_unavailable: "Wait for tomorrow's budget or raise DAILY_LIMIT_USD in demo/budget.conf (max $150).",
+  sandbox_qualification_stale: "Wait. The factory refreshes the proof and resumes this same request. Do not relaunch; a relaunch starts a new author.",
   budget_config_invalid: "Fix demo/budget.conf, then restart the controller.",
   ci_failed: "Read the failing check names in Build evidence, then cancel this request to free the feature. A relaunch starts a new author; it does not resume these rounds.",
+  network_unavailable: "Wait. The factory resumes this same request when the provider answers again. Do not relaunch; a relaunch starts a new author.",
 };
 function publicationDetail(receipt) {
   const reason = (receipt.publisher || {}).reason;
@@ -466,10 +470,12 @@ function renderBudgets(budget) {
   const scopes = budget?.scopes || {};
   const names = { "aeion-autonomous-forum": "Forum workers", "aeion-observability": "Observability" };
   $("budgets").innerHTML = budget?.status === "available" ? Object.entries(scopes).map(([scope, value]) => {
+    const settled = Number(value.settled_usd ?? value.spent_usd);
+    const reserved = Number(value.reserved_usd || 0);
     const remaining = Number(value.remaining_usd), limit = Number(value.limit_usd);
-    const percent = limit > 0 ? Math.max(0, Math.min(100, (1 - remaining / limit) * 100)) : 100;
-    return `<div class="budget-row"><div><span>${esc(names[scope] || scope)}</span><strong>$${remaining.toFixed(2)}</strong></div>` +
-      `<progress class="budget-track" max="100" value="${percent}" aria-label="Daily budget used"></progress><p>remaining of $${limit.toFixed(2)} · ${esc(value.day)}</p></div>`;
+    const percent = limit > 0 ? Math.max(0, Math.min(100, ((settled + reserved) / limit) * 100)) : 100;
+    return `<div class="budget-row"><div><span>${esc(names[scope] || scope)}</span><strong>$${settled.toFixed(2)}</strong></div>` +
+      `<progress class="budget-track" max="100" value="${percent}" aria-label="Daily budget used"></progress><p>$${reserved.toFixed(2)} reserved · $${remaining.toFixed(2)} remaining of $${limit.toFixed(2)} · ${esc(value.day)}</p></div>`;
   }).join("") : '<p class="fineprint">Budget information is unavailable. Spending remains subject to the server guard.</p>';
 }
 function pushEvent(event) {

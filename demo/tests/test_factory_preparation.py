@@ -193,6 +193,64 @@ class PreparationTests(unittest.TestCase):
             self.prepare()
         self.assertEqual(str(self.budget.spent('aeion-autonomous-forum')), '0.50')
 
+    def _contract(self, feature='007', spec='# 007\n', acceptance='export function ready() {}\n',
+                  paths=None):
+        folder = self.root / 'prepared' / feature
+        if folder.exists():
+            raise AssertionError('fixture folder already exists')
+        folder.mkdir(parents=True)
+        paths = paths or ['demo/forum-app/src/main/java/local/aeion/forum/']
+        identity = {'feature_id': feature, 'catalog_digest': 'a' * 64, 'spec_digest': _sha(spec),
+                    'architecture_digest': 'b' * 64, 'base_sha': self.base, 'write_paths': list(paths)}
+        evidence = {**identity, 'task_digest': _sha(json.dumps(identity, sort_keys=True, separators=(',', ':'))),
+                    'acceptance_digest': _sha(acceptance), 'preparer_model': 'glm-5.3-flash',
+                    'negative_control': 'failed_contract_assertion', 'synthetic': True}
+        (folder / 'task.json').write_text(json.dumps(evidence), encoding='utf-8')
+        (folder / 'BRIEF.md').write_text(spec, encoding='utf-8')
+        (folder / 'acceptance.mjs').write_text(acceptance, encoding='utf-8')
+        return folder
+
+    def _preparer(self):
+        preparer = TaskPreparer(self.root, self.source, role=self.role, product=True)
+        preparer.last_model = 'glm-5.3-flash'
+        self.role.last_execution = {'forwarded_count': 4}
+        self.role.last_usage = {'complete': True, 'cost_usd': '0.50'}
+        return preparer
+
+    def test_a_product_resume_reuses_the_prepared_contract_without_a_model(self):
+        folder = self._contract()
+        preparer = self._preparer()
+        target, evidence = preparer.resume_prepared(folder)
+        self.assertEqual(target.feature_id, '007')
+        self.assertEqual(target.brief, folder / 'BRIEF.md')
+        self.assertEqual(target.protected_check.contract_test, folder / 'acceptance.mjs')
+        self.assertEqual(evidence['feature_id'], '007')
+        self.assertIsNone(preparer.last_model)
+        self.assertIsNone(self.role.last_execution)
+        self.assertIsNone(self.role.last_usage)
+
+    def test_a_linked_or_altered_prepared_contract_is_refused(self):
+        folder = self._contract()
+        preparer = self._preparer()
+        linked = self.root / 'linked-prepared'
+        linked.symlink_to(folder, target_is_directory=True)
+        with self.assertRaisesRegex(PreparationError, 'preparation_workspace_refused'):
+            preparer.resume_prepared(linked)
+        brief = folder / 'BRIEF.md'
+        brief.write_text(brief.read_text() + '\n', encoding='utf-8')
+        with self.assertRaisesRegex(PreparationError, 'preparation_workspace_refused'):
+            preparer.resume_prepared(folder)
+        for feature in ('002', '014'):
+            with self.assertRaisesRegex(PreparationError, 'preparation_workspace_refused'):
+                preparer.resume_prepared(self._contract(feature=feature))
+        plain = TaskPreparer(self.root, self.source, role=self.role, product=False)
+        with self.assertRaisesRegex(PreparationError, 'preparation_workspace_refused'):
+            plain.resume_prepared(self._contract(feature='008'))
+
+
+def _sha(text):
+    return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
 
 if __name__ == '__main__':
     unittest.main()

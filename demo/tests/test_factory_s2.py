@@ -8,7 +8,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory.manifest import Catalog
 from factory.freeze import FreezeError, freeze_build
-from factory.artifact import ArtifactError, changed_entries, validate_artifact, _path_problem
+from factory.artifact import ArtifactError, changed_entries, scoped_texts, validate_artifact, _path_problem
 
 
 def feat(fid, depends_on=(), parallel=False, write=None):
@@ -90,6 +90,15 @@ class ArtifactTests(unittest.TestCase):
         self.assertTrue(verdict["accepted"])
         self.assertIn("demo/forum/product/app.py", verdict["allowed"])
         self.assertIsNotNone(verdict["digest"])
+
+    def test_scoped_texts_keep_allowed_paths_when_another_path_is_rejected(self):
+        (self.repo / "demo/forum/product/app.py").write_text("kept\n")
+        (self.repo / "demo/factory").mkdir(parents=True)
+        (self.repo / "demo/factory/evil.py").write_text("no\n")
+        verdict = validate_artifact(self.repo, self.scopes)
+        self.assertFalse(verdict["accepted"])
+        self.assertNotIn("files", verdict)
+        self.assertEqual(scoped_texts(self.repo, self.scopes), {"demo/forum/product/app.py": "kept\n"})
 
     def test_out_of_scope_change_rejected(self):
         (self.repo / "demo/factory").mkdir(parents=True)

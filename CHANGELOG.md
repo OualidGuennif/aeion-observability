@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+- A reviewer that returns no verdict is retried once by the controller, on the same author
+  artifact, without a new author. A second failure stays on hold. A same-build retry replaces
+  only that build's prepared folder and repo, and keeps a same-model resume clone. That resume
+  reuses the prepared contract already on disk, and still carries the failed check name and
+  reviewer lines. A provider that does not answer holds the build before preparation spends.
+  GitHub TLS
+  uses the system CA bundle when certifi is missing. The cockpit shows settled spend apart from
+  reserved capacity. A claim that never forwarded settles at zero. An incomplete forwarded
+  usage stays reserved.
+- A required CI check name keeps its comma. A known check adds one fixed repair sentence
+  to the next author, and the CI log is still not copied. A correction that returned the
+  same bytes after every stored check name was the placeholder `check` is queued once
+  more after the real names replace it.
+- Raise the owner spending ceilings to $150 per repository per day and $50 per author
+  execution. A review vote stays at $1. The same defaults are in `.env.example` as
+  `AEION_DAILY_LIMIT_USD` and `AEION_AUTHOR_MAX_USD`. A value above the ceiling still
+  closes spending.
+- Refresh the OpenShell security proof before a sandbox opens once less than one hour
+  remains. The previous proof stays until the new one is published. A failed refresh
+  holds that same request and resumes it when the proof is fresh, without another attempt.
+- A CLI stop while the author was still working (three or more tool steps, forwarded requests,
+  or tool/model events) queues the same build for the same model, up to three times, and keeps
+  the workspace. A stop with no such work, a startup failure, or a provider error still starts
+  the next attempt on another model. A network stop resumes the same model after two successful
+  connects to the provider; a failed connect holds the build and starts no author. An expired
+  lease with that working evidence is queued the same way, unless publication had started. A
+  reviewer transport error retries the same model up to three times. While no build lease is
+  active, an OpenShell sandbox pair older than 30 minutes is removed at startup and about
+  every 30 seconds. A younger pair stays, so qualification is not interrupted. The reaper is
+  loaded by file path.
 - A required CI check that finishes without success no longer holds the feature until the owner
   cancels. It queues the same bounded correction rounds as a rejected review or a failed gate,
   and the next OpenShell author receives the check names plus a short redacted copy of the agents'

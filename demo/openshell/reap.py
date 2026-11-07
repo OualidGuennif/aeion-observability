@@ -120,7 +120,10 @@ def sweep(older_than=DEFAULT_OLDER_THAN, execute=False, now=None, docker=None, s
     removed = []
     if execute and not blocked:
         for container_id, name in aged:
-            docker("rm", "-f", container_id)
+            try:
+                docker("rm", "-f", container_id)
+            except (subprocess.CalledProcessError, OSError):
+                continue
             removed.append(name)
     return {
         "execute": bool(execute),

@@ -124,3 +124,24 @@ def validate_artifact(repo, write_scopes):
         return {"accepted": False, "allowed": sorted(allowed), "rejected": rejected, "digest": None}
     return {"accepted": True, "allowed": sorted(allowed), "rejected": [],
             "digest": content_digest(files), "files": files}
+
+
+def scoped_texts(repo, write_scopes):
+    """UTF-8 texts of paths that passed the path and content checks.
+
+    A rejected sibling does not drop these. They are for a same-model resume, never for a
+    publication receipt: a rejected diff still has no digest and is not accepted.
+    """
+    verdict = validate_artifact(repo, write_scopes)
+    if verdict.get('accepted'):
+        files = verdict.get('files')
+        return dict(files) if isinstance(files, dict) else {}
+    files = {}
+    root = Path(repo)
+    for path in verdict.get('allowed') or []:
+        if not isinstance(path, str):
+            continue
+        text, problem = _read_text(root / path)
+        if problem is None and isinstance(text, str):
+            files[path] = text
+    return files

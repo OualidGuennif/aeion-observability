@@ -92,10 +92,16 @@ class RoleTests(unittest.TestCase):
             self.assertIn(row["name"] + "=", example, row["name"])
             for permission in row["permissions"]:
                 self.assertIn(permission, example, f"{row['name']} missing {permission}")
-        # A template that carries a value would leak the placeholder into a real `.env`.
+        # A template that carries a credential value would leak the placeholder into a real `.env`.
+        # The two spending defaults are owner ceilings, not secrets.
+        allowed = {"AEION_DAILY_LIMIT_USD": "150", "AEION_AUTHOR_MAX_USD": "50"}
         for line in example.splitlines():
             if "=" in line and not line.lstrip().startswith("#"):
-                self.assertEqual(line.split("=", 1)[1].strip(), "", line)
+                name, value = (part.strip() for part in line.split("=", 1))
+                if name in allowed:
+                    self.assertEqual(value, allowed[name], line)
+                else:
+                    self.assertEqual(value, "", line)
 
 
 class QueueTests(unittest.TestCase):

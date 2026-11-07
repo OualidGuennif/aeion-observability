@@ -80,7 +80,8 @@ uses that same sentence and names the failing checks; only the exhausted case st
 asks the owner to cancel. Build evidence says the rounds are finished only in that exhausted
 case. A queued round says the check failed and the pull request was not merged. After the third attempt a
 rejection is held with its reasons; a correction that changed nothing is held
-`correction_unchanged` (test_factory_correction_rounds, test_cockpit_client). Build evidence shows the attempt and
+`correction_unchanged` (test_factory_correction_rounds, test_cockpit_client). A round whose
+required check name was stored only as `check` is queued once more after the real name is written. Build evidence shows the attempt and
 round, the crashed author's error class and the agents' owner-only feedback as escaped text.
 The controller removes terminal workspaces older than seven days at start and then daily
 (`factory.retention`).
@@ -98,6 +99,8 @@ without certifying rewritten MDs; only an explicitly new admission retires an ob
 that has never started (test_factory_contract_identity).
 
 The root and /factory serve the same cockpit; /lab serves the existing advanced lab. Catalog entries add availability (state, selectable, reason, missing dependencies). Board responses add the two purse summaries, or an unavailable budget state. A repeated completed feature is refused as feature_already_completed:<id>; an active duplicate is feature_in_progress:<id>. The API returns HTTP 409 for those admission conflicts. Idempotent replay retains the existing response.
+A network hold says no new author was started and that the same request resumes when the provider answers again (test_cockpit_client). A stale OpenShell security proof says the same: wait, the factory resumes that request when the proof is fresh. A reviewer that returns no verdict says the controller reruns the votes once without rerunning the author, and that a second failure stays on hold. The budget block shows settled spend as the burned amount, then reserved capacity and what remains of the purse. Admission still counts open reservations. The copy names the owner ceilings of $150 per day, $50 per author execution and $1 per review vote.
+While no build lease is active, the live controller removes an OpenShell sandbox pair only after it is 30 minutes old. A younger pair stays, including one still used by qualification. A dispatched build keeps its sandbox (test_openshell_reap, test_factory_connectivity). The reaper is loaded by file path, because the installed OpenShell package owns that import name.
 
 ## Invariants
 
@@ -115,7 +118,7 @@ The root and /factory serve the same cockpit; /lab serves the existing advanced 
    (`author_window_seconds` from the board), time since the last tool or model step, and the
    count of failed draft self-tests. Ten silent minutes or three failed drafts raise a visible
    warning; the window and author budget remain the only stops (test_cockpit_client).
-9. Claim, completion, cancellation, hold and recovery preconditions are serialized across Store instances. The worker lease covers configured preparation, author, protected-check and two-review deadlines plus teardown. Expired attempts hold as reconciliation_needed, preserve attempt identity, and never automatically repeat an uncertain paid action (test_factory_recovery).
+9. Claim, completion, cancellation, hold and recovery preconditions are serialized across Store instances. The worker lease covers configured preparation, author, protected-check and two-review deadlines plus teardown. An expired attempt with no evidence the agent was still working holds as reconciliation_needed, preserves attempt identity, and does not start another paid action (test_factory_recovery). An expired attempt whose tool or model progress shows it was still working, and that has no publication job, is queued again for the same model at most three times (test_factory_connectivity). A live paid controller that cannot reach the provider twice holds the build as network_unavailable and starts no author; the cockpit says to wait rather than relaunch (test_cockpit_client).
 10. Compiler failures expose bounded filenames, line numbers and identifiers, never source lines,
     values or complete compiler output (test_factory_target_check and test_cockpit_client).
 11. Independent review receives all changed files within the bounded complete-review envelope; larger

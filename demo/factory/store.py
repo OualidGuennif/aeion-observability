@@ -96,6 +96,10 @@ HOLD_REASONS = {
     # demo/budget.conf is unreadable, unknown, above its owner ceiling or inconsistent.
     "budget_config_invalid",
     "flue_factory_unqualified", "publication_blocked", "catalog_changed", "preparation_unavailable",
+    # The provider host did not answer two connects. No model was called.
+    "network_unavailable",
+    # The OpenShell security proof was missing or expired and the refresh probe failed.
+    "sandbox_qualification_stale",
 }
 
 SCHEMA = """
@@ -1080,8 +1084,159 @@ class Store:
                 conn.close()
 
     # ------------------------------------------------------------------ recovery
+    def work_event_count(self, build_id):
+        """How many tool or model progress events this build already recorded."""
+        from .connectivity import TOOL_PHASES
+        if not isinstance(build_id, str):
+            return 0
+        with self._lock:
+            conn = self._connect()
+            try:
+                rows = conn.execute(
+                    "SELECT detail FROM events WHERE build_id=? AND event='progress'", (build_id,)).fetchall()
+            finally:
+                conn.close()
+        count = 0
+        for event in rows:
+            try:
+                body = json.loads(event['detail']) if event['detail'] else {}
+            except ValueError:
+                continue
+            if isinstance(body, dict) and body.get('phase') in TOOL_PHASES:
+                count += 1
+        return count
+
+    def resume_interrupted(self, attempt_id, generation, continued):
+        """Put a dispatched build back on the queue for the same model and the same workspace.
+
+        The attempt is not failed and no later attempt is admitted. After three resumes the
+        caller uses the existing crash path. A publication already in flight is not resumed.
+        """
+        from .connectivity import MAX_SAME_MODEL_RESUMES, REMOTE_PHASES
+        marker = self._clean_continued(continued)
+        with self._lock:
+            conn = self._connect()
+            try:
+                with conn:
+                    conn.execute('BEGIN IMMEDIATE')
+                    row = conn.execute('SELECT * FROM builds WHERE attempt_id=?', (attempt_id,)).fetchone()
+                    if row is None:
+                        return {'status': 'unchanged'}
+                    if row['status'] != DISPATCHED:
+                        return {'status': 'not_dispatched'}
+                    if row['attempt_generation'] != generation or row['cancellation_generation'] != generation:
+                        return {'status': 'stale_attempt'}
+                    receipt = self._receipt_dict(row)
+                    if self._remote_attempt(conn, row, receipt, REMOTE_PHASES):
+                        return {'status': 'remote'}
+                    previous = receipt.get('continued') if isinstance(receipt.get('continued'), dict) else {}
+                    resumes = previous.get('resumes') if type(previous.get('resumes')) is int else 0
+                    if resumes >= MAX_SAME_MODEL_RESUMES:
+                        return {'status': 'exhausted'}
+                    marker['resumes'] = resumes + 1
+                    if not marker.get('model') and isinstance(previous.get('model'), str):
+                        marker['model'] = previous['model']
+                    self._write_continued(conn, row, receipt, marker)
+                    return {'status': 'queued', 'resumes': marker['resumes']}
+            finally:
+                conn.close()
+
+    def release_network_hold(self, build_id):
+        """Queue a build that was held only because the provider host was unreachable."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                with conn:
+                    conn.execute('BEGIN IMMEDIATE')
+                    row = conn.execute('SELECT * FROM builds WHERE build_id=?', (build_id,)).fetchone()
+                    if row is None or row['status'] != HELD or row['hold_reason'] != 'network_unavailable':
+                        return {'status': 'unchanged'}
+                    now = self._now()
+                    conn.execute(
+                        'UPDATE builds SET status=?, hold_reason=NULL, lease_until_ns=NULL, updated_ns=? WHERE build_id=?',
+                        (QUEUED, now, build_id))
+                    self._event(conn, build_id, now, 'supervisor', 'released',
+                                json.dumps({'reason': 'network_unavailable'}), row['cancellation_generation'])
+                    return {'status': 'queued'}
+            finally:
+                conn.close()
+
+    def release_qualification_hold(self, build_id):
+        """Queue a build that was held only because the OpenShell security proof was stale."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                with conn:
+                    conn.execute('BEGIN IMMEDIATE')
+                    row = conn.execute('SELECT * FROM builds WHERE build_id=?', (build_id,)).fetchone()
+                    if row is None or row['status'] != HELD or row['hold_reason'] != 'sandbox_qualification_stale':
+                        return {'status': 'unchanged'}
+                    now = self._now()
+                    conn.execute(
+                        'UPDATE builds SET status=?, hold_reason=NULL, lease_until_ns=NULL, updated_ns=? WHERE build_id=?',
+                        (QUEUED, now, build_id))
+                    self._event(conn, build_id, now, 'supervisor', 'released',
+                                json.dumps({'reason': 'sandbox_qualification_stale'}), row['cancellation_generation'])
+                    return {'status': 'queued'}
+            finally:
+                conn.close()
+
+    @staticmethod
+    def _receipt_dict(row):
+        try:
+            receipt = json.loads(row['receipt']) if row['receipt'] else {}
+        except ValueError:
+            receipt = {}
+        return receipt if isinstance(receipt, dict) else {}
+
+    @staticmethod
+    def _clean_continued(continued):
+        """The few supervisor fields a resume may store. Anything else is dropped."""
+        from .connectivity import MODEL_NAME, RESUME_TRIGGERS
+        if not isinstance(continued, dict):
+            raise StoreError('invalid_continuation')
+        failure = continued.get('failure')
+        if not isinstance(failure, str) or not re.fullmatch(r'[A-Z][A-Z0-9_]{1,63}', failure):
+            raise StoreError('invalid_continuation')
+        trigger = continued.get('trigger')
+        clean = {'failure': failure, 'trigger': trigger if trigger in RESUME_TRIGGERS else 'cli_interrupted'}
+        error_class = continued.get('error_class')
+        if isinstance(error_class, str) and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,80}', error_class):
+            clean['error_class'] = error_class
+        steps = continued.get('cli_steps')
+        if type(steps) is int and 0 <= steps <= 10000:
+            clean['cli_steps'] = steps
+        model = continued.get('model')
+        if isinstance(model, str) and MODEL_NAME.fullmatch(model):
+            clean['model'] = model
+        return clean
+
+    @staticmethod
+    def _remote_attempt(conn, row, receipt, remote_phases):
+        progress = receipt.get('progress') if isinstance(receipt.get('progress'), dict) else {}
+        if progress.get('phase') in remote_phases:
+            return True
+        return conn.execute(
+            'SELECT 1 FROM publication_jobs WHERE attempt_id=?', (row['attempt_id'],)).fetchone() is not None
+
+    def _write_continued(self, conn, row, receipt, marker):
+        receipt['continued'] = marker
+        now = self._now()
+        conn.execute(
+            'UPDATE builds SET status=?, hold_reason=NULL, receipt=?, lease_until_ns=NULL, updated_ns=? WHERE build_id=?',
+            (QUEUED, json.dumps(receipt), now, row['build_id']))
+        self._event(conn, row['build_id'], now, 'supervisor', 'resumed',
+                    json.dumps({'trigger': marker['trigger'], 'resumes': marker['resumes']}),
+                    row['cancellation_generation'])
+
     def reconcile(self):
-        """Hold expired attempts: their paid/forge side effects are not known after a crash."""
+        """Recover an expired attempt.
+
+        Tool or model progress and no publication job means the agent was still working, so
+        the same build is queued again. An attempt with no such evidence, or one that had
+        reached publication, stays reconciliation_needed: its paid or forge effects are unknown.
+        """
+        from .connectivity import MAX_SAME_MODEL_RESUMES, REMOTE_PHASES, TOOL_PHASES, WORKING_FLOOR
         with self._lock:
             conn = self._connect()
             try:
@@ -1090,6 +1245,9 @@ class Store:
                     now = self._now()
                     rows = conn.execute("SELECT * FROM builds WHERE status=? AND lease_until_ns < ?", (DISPATCHED, now)).fetchall()
                     for row in rows:
+                        if self._queue_expired_resume(conn, row, now, REMOTE_PHASES, TOOL_PHASES,
+                                                      WORKING_FLOOR, MAX_SAME_MODEL_RESUMES):
+                            continue
                         conn.execute(
                             "UPDATE builds SET status=?, hold_reason=?, lease_until_ns=NULL, updated_ns=? WHERE build_id=?",
                             (HELD, "reconciliation_needed", now, row["build_id"]),
@@ -1099,6 +1257,38 @@ class Store:
                     return len(rows)
             finally:
                 conn.close()
+
+    def _queue_expired_resume(self, conn, row, now, remote_phases, tool_phases, floor, cap):
+        receipt = self._receipt_dict(row)
+        if self._remote_attempt(conn, row, receipt, remote_phases):
+            return False
+        work, model = 0, None
+        for event in conn.execute(
+                "SELECT detail FROM events WHERE build_id=? AND event='progress'", (row['build_id'],)):
+            try:
+                body = json.loads(event['detail']) if event['detail'] else {}
+            except ValueError:
+                continue
+            if not isinstance(body, dict) or body.get('phase') not in tool_phases:
+                continue
+            work += 1
+            detail = body.get('detail') if isinstance(body.get('detail'), dict) else {}
+            if isinstance(detail.get('model'), str):
+                model = detail['model']
+        if work < floor:
+            return False
+        previous = receipt.get('continued') if isinstance(receipt.get('continued'), dict) else {}
+        resumes = previous.get('resumes') if type(previous.get('resumes')) is int else 0
+        if resumes >= cap:
+            return False
+        marker = {'failure': 'LEASE_EXPIRED', 'trigger': 'lease_expired', 'resumes': resumes + 1}
+        if not isinstance(model, str):
+            model = previous.get('model') if isinstance(previous.get('model'), str) else None
+        from .connectivity import MODEL_NAME
+        if isinstance(model, str) and MODEL_NAME.fullmatch(model):
+            marker['model'] = model
+        self._write_continued(conn, row, receipt, marker)
+        return True
 
     # ------------------------------------------------------------------ reads / fixtures
     def meta_get(self, key, default=None):

@@ -113,6 +113,17 @@ class AtomicForgeTests(unittest.TestCase):
       'bad\nname':{'conclusion':'failure'},'CI / build':{'conclusion':'timed_out'},
       'skipped-not-required':{'conclusion':'success'}})
   self.assertEqual(named,[{'name':'check','conclusion':'failure'},{'name':'CI / build','conclusion':'timed_out'}])
+  kept=GitHubForge._failed_checks(['Knowledge, links and repository health'],{
+      'Knowledge, links and repository health':{'conclusion':'failure'}})
+  self.assertEqual(kept,[{'name':'Knowledge, links and repository health','conclusion':'failure'}])
+
+ def test_a_definite_ci_failure_can_be_reread_as_names_only(self):
+  self.publish()
+  self.transport.check='failure'
+  self.assertEqual(self.forge.read_failed_checks(HEAD),[{'name':'Product artifacts','conclusion':'failure'}])
+  self.transport.check='success'
+  self.assertIsNone(self.forge.read_failed_checks(HEAD))
+  self.assertFalse(any(x[0]=='PUT' for x in self.transport.calls))
 
  def test_failed_or_forged_ci_and_non_strict_protection_never_merge(self):
   for key,value in [('check','failure'),('app',1),('strict',False),('protection_http',403)]:
@@ -129,6 +140,34 @@ class AtomicForgeTests(unittest.TestCase):
     result=self.forge.merge(7,expected_head=HEAD,expected_base=BASE)
     self.assertNotEqual(result['status'],'merged')
     self.assertFalse(any(x[0]=='PUT' for x in self.transport.calls))
+
+
+class TlsContextTests(unittest.TestCase):
+    def test_a_missing_certifi_uses_the_system_bundle_and_keeps_verification(self):
+        import builtins
+        import factory.github as github
+        seen = {}
+
+        def fake_context(cafile=None):
+            seen['cafile'] = cafile
+            return 'context'
+
+        real_import = builtins.__import__
+
+        def guarded(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == 'certifi':
+                raise ImportError('missing')
+            return real_import(name, globals, locals, fromlist, level)
+
+        def existing(path):
+            return path == '/private/etc/ssl/cert.pem'
+
+        with unittest.mock.patch.object(github.ssl, 'create_default_context', side_effect=fake_context), \
+                unittest.mock.patch('builtins.__import__', side_effect=guarded), \
+                unittest.mock.patch.object(github.os.path, 'isfile', side_effect=existing):
+            self.assertEqual(github.tls_context(), 'context')
+        self.assertEqual(seen['cafile'], '/private/etc/ssl/cert.pem')
+        self.assertNotEqual(seen['cafile'], None)
 
 
 if __name__=='__main__':unittest.main()
