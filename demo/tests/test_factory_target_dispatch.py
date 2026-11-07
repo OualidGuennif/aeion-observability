@@ -10,7 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory.budget import DailyBudget
-from factory.dispatch import DispatchWorker
+from factory.dispatch import DispatchWorker, replace_own_directory, review_retry_eligible
+from factory.review_circuit import CircuitError
 from factory.manifest import Catalog
 from factory.publish import FakeForge
 from factory.store import FAILED, HELD, SIMULATED_COMPLETE, Store
@@ -145,6 +146,114 @@ class TargetDispatchTests(unittest.TestCase):
         task = (self.root / "work" / build["build_id"] / "TASK.md").read_text()
         self.assertIn("BRIEF.md", task)
         self.assertIn("demo/forum-app/src/main/java/local/aeion/forum/", task)
+
+    def test_a_same_build_retry_replaces_only_its_own_workspace(self):
+        self.store.admit(["013"], "k-ws", self.catalog)
+        build_id = self.store.board()[0]["build_id"]
+        own = self.root / "work" / build_id
+        (own / "repo").mkdir(parents=True)
+        (own / "repo" / "stale").write_text("old")
+        previous = self.root / "work" / ("b" * 32) / "repo"
+        previous.mkdir(parents=True)
+        (previous / "candidate").write_text("keep")
+        outside = self.root / "outside"
+        outside.mkdir()
+        (own / "linked").symlink_to(outside, target_is_directory=True)
+        with self.assertRaises(ValueError):
+            replace_own_directory(self.root / "work", build_id, "linked")
+        hostile = self.root / "work" / ("c" * 32)
+        hostile.mkdir()
+        (hostile / "repo").symlink_to(outside, target_is_directory=True)
+        with self.assertRaises(ValueError):
+            replace_own_directory(self.root / "work", "c" * 32, "repo")
+        self.assertTrue(outside.is_dir())
+        self.assertTrue((hostile / "repo").is_symlink())
+        with self.assertRaises(ValueError):
+            replace_own_directory(self.root / "work", "not-a-build", "repo")
+        result = self.worker(self.builder).run_once()
+        self.assertEqual(result["result"]["status"], "completed")
+        self.assertFalse((own / "repo" / "stale").exists())
+        self.assertTrue((own / "repo" / ".git").is_dir())
+        self.assertEqual((previous / "candidate").read_text(), "keep")
+
+    def test_a_claim_that_never_starts_the_author_settles_at_zero(self):
+        budget = DailyBudget(
+            self.root / "ledger.jsonl",
+            limits={"aeion-observability": Decimal("15.00"),
+                    "aeion-autonomous-forum": Decimal("15.00")},
+            today=lambda: "2026-11-02",
+        )
+        self.store.admit(["013"], "k-zero", self.catalog)
+
+        class Idle:
+            last_execution = {"build_id": "other", "forwarded_count": 4}
+
+            def __call__(self, **_kwargs):
+                raise AssertionError("author started")
+
+        missing = dataclasses.replace(self.target, base_source=self.root / "missing")
+        worker = self.worker(Idle(), target=missing, budget=budget, require_circuit=False)
+        worker.config["cost_reservation_usd"] = "5.00"
+        result = worker.run_once()
+        self.assertEqual(result["result"]["reason"], "base_unavailable")
+        entries = [json.loads(line) for line in (self.root / "ledger.jsonl").read_text().splitlines()]
+        self.assertEqual([entry["kind"] for entry in entries], ["reserve", "settle"])
+        self.assertEqual(entries[-1]["usd"], "0.00")
+        self.assertEqual(budget.spent("aeion-autonomous-forum"), Decimal("0.00"))
+
+    def test_an_incomplete_forwarded_author_keeps_its_reservation(self):
+        budget = DailyBudget(
+            self.root / "ledger.jsonl",
+            limits={"aeion-observability": Decimal("15.00"),
+                    "aeion-autonomous-forum": Decimal("15.00")},
+            today=lambda: "2026-11-02",
+        )
+        self.store.admit(["013"], "k-open", self.catalog)
+
+        class Forwarded:
+            paid = True
+
+            def __init__(self):
+                self.last_execution = None
+                self.last_usage = None
+
+            def run_build(self, *, build, **_kwargs):
+                self.last_execution = {"build_id": build["build_id"], "forwarded_count": 2}
+                raise RuntimeError("nope")
+
+        worker = self.worker(Forwarded(), budget=budget, require_circuit=False)
+        worker.config["cost_reservation_usd"] = "5.00"
+        worker.run_once()
+        self.assertEqual(self.store.board()[0]["status"], FAILED)
+        entries = [json.loads(line) for line in (self.root / "ledger.jsonl").read_text().splitlines()]
+        self.assertEqual([entry["kind"] for entry in entries], ["reserve"])
+        self.assertEqual(budget.spent("aeion-autonomous-forum"), Decimal("5.00"))
+
+    def test_a_refused_review_retry_is_not_fetched_on_the_next_tick(self):
+        calls = []
+
+        class Board:
+            def board(self):
+                return [{"status": "held", "hold_reason": "owner_review_required",
+                         "build_id": "ab" * 16,
+                         "receipt": json.dumps({
+                             "circuit": {"reason": "reviewer_failed", "review_input_version": 2},
+                             "gate": {"status": "passed"}})}]
+
+        worker = DispatchWorker.__new__(DispatchWorker)
+        worker.store = Board()
+
+        def reassess(build_id, retry_failed_review=False):
+            calls.append((build_id, retry_failed_review))
+            raise CircuitError("review_context_checkout_changed")
+
+        worker.reassess_review_context = reassess
+        self.assertIsNone(worker._continue_held_review())
+        self.assertEqual(calls, [("ab" * 16, True)])
+        self.assertIsNone(worker._continue_held_review())
+        self.assertEqual(len(calls), 1)
+        self.assertFalse(review_retry_eligible({"circuit": {"reason": "reviewer_rejected"},
+                                                 "gate": {"status": "passed"}}))
 
     def test_missing_base_holds_instead_of_inventing_one(self):
         self.store.admit(["013"], "k2", self.catalog)

@@ -22,7 +22,8 @@ from profiles import PROFILES, PROFILE_VERSION, available
 from scenarios import SCENARIOS
 from selection import recommend
 from lifecycle import plan, recover
-from settings import DATA, SERVICES, WORK, LOCAL, FACTORY_MANIFEST, FACTORY_STATE, FACTORY_SPEC_DIR
+from settings import (DATA, SERVICES, WORK, LOCAL, FACTORY_MANIFEST, FACTORY_STATE, FACTORY_SPEC_DIR,
+                      OPENSHELL_STATE, WORK_VOLUME, AGENT_UID)
 
 import sys as _sys
 _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -155,17 +156,119 @@ def read_checkpoint(observation_id):
     return {"status": "ok", "id": int(observation_id),
             **{key: state.get(key) for key in ("task", "previous_agent", "artifact", "sha256")},
             "check": {key: check.get(key) for key in ("passed", "total") if key in check}}
-# One journal, two independent $15.00 purses: the cockpit and the forum workers never share money.
+# One journal, two independent $150.00 purses: the cockpit and the forum workers never share money.
 BUDGET = DailyBudget(os.environ.get("AEION_BUDGET_LEDGER") or LOCAL / "budget/ledger.jsonl")
 runner = Runner(Telemetry(), save, memory=memory, audit=Audit(DATA), budget=BUDGET,
                 budget_scope="aeion-observability")
 
 factory = FactoryApp(FACTORY_MANIFEST, FACTORY_STATE, spec_dir=FACTORY_SPEC_DIR, budget=BUDGET,
                      execution=EXECUTION)
+# A live paid controller checks the provider twice before spending, and can reap orphaned
+# containers after a same-model resume. Fixture apps do not construct this probe.
+_SECURITY_LOCK = threading.Lock()
+_SECURITY_RETRY_NS = 60 * 1_000_000_000
+_security_attempt_ns = 0
+_security_window_module = None
+
+
+def _security_window():
+    """Load the proof-window helper by file path. The installed package owns the name openshell."""
+    global _security_window_module
+    if _security_window_module is None:
+        import importlib.util
+        path = Path(__file__).resolve().parents[1] / "openshell" / "security_window.py"
+        spec = importlib.util.spec_from_file_location("aeion_openshell_security_window", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _security_window_module = module
+    return _security_window_module
+
+
+def _security_evidence_path():
+    root = Path(os.environ.get("OPENSHELL_TLS_DIR", OPENSHELL_STATE / "tls"))
+    return root.parent / "qualification" / "security.json"
+
+
+def _run_security_probe():
+    """Rerun the host security probe. Its stdout and stderr are discarded."""
+    import subprocess
+    qualify = Path(__file__).resolve().parents[1] / "openshell" / "qualify.py"
+    endpoint = os.environ.get("OPENSHELL_ENDPOINT")
+    image = os.environ.get("OPENSHELL_AGENT_IMAGE")
+    if not endpoint or not image:
+        raise RuntimeError("security_probe_unconfigured")
+    completed = subprocess.run(
+        [_sys.executable, str(qualify), "--endpoint", endpoint, "--state", str(OPENSHELL_STATE),
+         "--image", image, "--uid", str(AGENT_UID), "--work", str(WORK), "--volume", WORK_VOLUME],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    if completed.returncode != 0:
+        raise RuntimeError("security_probe_failed")
+
+
+def ensure_openshell_security():
+    """True when a sandbox may open. A proof with an hour or more left is not probed."""
+    global _security_attempt_ns
+    window = _security_window()
+    path = _security_evidence_path()
+    now = time.time_ns()
+    if not window.needs_refresh(path, now_ns=now):
+        return True
+    with _SECURITY_LOCK:
+        now = time.time_ns()
+        if not window.needs_refresh(path, now_ns=now):
+            return True
+        if _security_attempt_ns and now - _security_attempt_ns < _SECURITY_RETRY_NS:
+            return window.still_unexpired(path, now_ns=now)
+        _security_attempt_ns = now
+        try:
+            _run_security_probe()
+        except Exception:
+            return window.still_unexpired(path, now_ns=time.time_ns())
+        return (not window.needs_refresh(path)) or window.still_unexpired(path)
+
+
+def _install_security_refresh():
+    """Sandbox() looks up connection in its module, so a patch here covers every open."""
+    import sandbox
+    original = sandbox.connection
+
+    def connection(*args, **kwargs):
+        ensure_openshell_security()
+        return original(*args, **kwargs)
+
+    sandbox.connection = connection
+
+
+if EXECUTION.get('mode') == 'live' and getattr(EXECUTION.get('builder'), 'paid', False):
+    from factory.connectivity import Connectivity
+    factory.worker.connectivity = Connectivity()
+    factory.worker.security_fresh = ensure_openshell_security
+    _install_security_refresh()
+
+
+def _reap_idle_sandboxes():
+    """Drop OpenShell sandbox pairs when no build lease is active.
+
+    Cancel and a killed author leave the supervisor and its sandbox running. The sweep
+    refuses while a build is dispatched, and it never selects the Langfuse or forum containers.
+    """
+    try:
+        from factory.connectivity import reap_idle
+        reap_idle(factory.store.path)
+    except Exception as error:
+        print(json.dumps({"event": "factory.reap.failed", "error_type": type(error).__name__}),
+              file=_sys.stderr, flush=True)
+
+
+_reap_idle_sandboxes()
 
 
 def _factory_tick_loop():
+    last_reap = time.monotonic()
     while True:
+        if time.monotonic() - last_reap >= 30:
+            _reap_idle_sandboxes()
+            last_reap = time.monotonic()
         try:
             factory.tick()
         except Exception as error:

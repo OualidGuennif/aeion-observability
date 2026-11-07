@@ -24,9 +24,9 @@ class Author:
     ``crash`` maps a call number (1-based) to the exception that call raises after writing.
     """
 
-    def __init__(self, unchanged=False, crash=None, models=None, feedback=None):
+    def __init__(self, unchanged=False, crash=None, models=None, feedback=None, execution=None):
         self.calls, self.unchanged, self.crash = [], unchanged, crash or {}
-        self.models, self.feedback = models, feedback
+        self.models, self.feedback, self.execution = models, feedback, execution
         self.last_execution = self.last_feedback = None
         if models:
             self.model = models[0]
@@ -45,6 +45,8 @@ class Author:
         path.write_text(f"package local.aeion.forum;\n// version {version}\n")
         self.last_feedback = self.feedback
         self.last_execution = {'build_id': build['build_id'], 'failure': None, 'error_class': 'TypeError'}
+        if self.execution:
+            self.last_execution.update(self.execution)
         if number in self.crash:
             raise self.crash[number]
 
@@ -138,6 +140,145 @@ class CorrectionRoundTests(unittest.TestCase):
         self.assertEqual(author.started_from, {SOURCE: "package local.aeion.forum;\n// version 1\n"})
         self.assertIn("NEW ATTEMPT AFTER A CRASH", correction_text(correction))
         self.assertEqual(self.builds()[1]["status"], SIMULATED_COMPLETE)
+
+    def test_a_cli_failure_while_the_agent_was_still_working_resumes_the_same_model(self):
+        self.store.admit(["013"], "c14", self.catalog)
+        author = Author(crash={1: ValueError("CLI_FAILED")}, execution={
+            'cli_steps': 44, 'forwarded_count': 45, 'finish_reason': 'toolUse',
+            'error_class': 'IllegalStateException'})
+        ghosts = type('Ghosts', (), {'paths': [], 'reap': lambda self, path: self.paths.append(path)})()
+        worker = self.worker(author, Reviews(rejections=0))
+        worker.connectivity = ghosts
+        worker.run_once()
+        self.assertEqual(len(self.builds()), 1)
+        resumed = self.builds()[0]
+        self.assertEqual(resumed['status'], QUEUED)
+        continued = json.loads(resumed['receipt'])['continued']
+        self.assertEqual(continued['trigger'], 'cli_interrupted')
+        self.assertEqual(continued['failure'], 'CLI_FAILED')
+        self.assertEqual(continued['error_class'], 'IllegalStateException')
+        self.assertEqual(continued['cli_steps'], 44)
+        self.assertEqual(continued['resumes'], 1)
+        self.assertEqual(continued['model'], 'deepseek-4.1-flash')
+        self.assertEqual(ghosts.paths, [self.store.path])
+        self.assertNotIn('correction', json.loads(resumed['receipt']))
+
+        self.worker(author, Reviews(rejections=0)).run_once()
+        correction = author.calls[1]
+        self.assertTrue(correction['resume'])
+        self.assertEqual((correction['attempt'], correction['round'], correction['trigger']),
+                         (1, 0, 'cli_interrupted'))
+        self.assertEqual(correction['model'], 'deepseek-4.1-flash')
+        self.assertEqual(author.started_from, {SOURCE: "package local.aeion.forum;\n// version 1\n"})
+        text = correction_text(correction)
+        self.assertIn('CONTINUE THE SAME ATTEMPT', text)
+        self.assertIn('IllegalStateException', text)
+        self.assertIn('44 tool steps', text)
+        self.assertNotIn('NEW ATTEMPT AFTER A CRASH', text)
+        self.assertEqual(len(self.builds()), 1)
+        self.assertEqual(self.builds()[0]['status'], SIMULATED_COMPLETE)
+
+    def test_a_cli_failure_before_real_work_still_starts_another_model(self):
+        self.store.admit(["013"], "c15", self.catalog)
+        author = Author(crash={1: ValueError("CLI_FAILED")}, execution={
+            'cli_steps': 2, 'forwarded_count': 2, 'finish_reason': 'toolUse',
+            'error_class': 'IllegalStateException'})
+        self.worker(author, Reviews(rejections=0)).run_once()
+        first, second = self.builds()
+        self.assertEqual(json.loads(first['receipt'])['correction']['trigger'], 'crash')
+        self.assertEqual(self.store.correction_of(second['build_id'])['attempt'], 2)
+
+    def test_a_startup_failure_stays_a_crash_even_after_tool_steps(self):
+        self.store.admit(["013"], "c16", self.catalog)
+        author = Author(crash={1: ValueError("CLI_STARTUP_FAILED")}, execution={
+            'cli_steps': 44, 'forwarded_count': 45, 'error_class': 'IllegalStateException'})
+        self.worker(author, Reviews(rejections=0)).run_once()
+        self.assertEqual(json.loads(self.builds()[0]['receipt'])['correction']['trigger'], 'crash')
+        self.assertEqual(self.store.correction_of(self.builds()[1]['build_id']),
+                         {'previous_build_id': self.builds()[0]['build_id'], 'attempt': 2, 'round': 0})
+
+    def test_a_provider_error_stays_a_crash_even_when_the_agent_had_been_working(self):
+        self.store.admit(["013"], "c17", self.catalog)
+        author = Author(crash={1: ValueError("PROVIDER_ERROR")}, execution={
+            'cli_steps': 44, 'forwarded_count': 45, 'error_class': 'IllegalStateException'})
+        self.worker(author, Reviews(rejections=0)).run_once()
+        self.assertEqual(json.loads(self.builds()[0]['receipt'])['correction']['trigger'], 'crash')
+        self.assertEqual(self.store.correction_of(self.builds()[1]['build_id'])['attempt'], 2)
+
+    def test_a_network_stop_resumes_the_same_model_without_saved_steps(self):
+        self.store.admit(["013"], "c18", self.catalog)
+        author = Author(crash={1: ValueError("TRANSPORT_ERROR")})
+        self.worker(author, Reviews(rejections=0)).run_once()
+        self.assertEqual(len(self.builds()), 1)
+        self.assertEqual(json.loads(self.builds()[0]['receipt'])['continued']['trigger'], 'network')
+        self.worker(author, Reviews(rejections=0)).run_once()
+        self.assertEqual(author.calls[1]['trigger'], 'network')
+        self.assertTrue(author.calls[1]['resume'])
+        self.assertEqual(author.calls[1]['model'], 'deepseek-4.1-flash')
+        self.assertEqual(self.builds()[0]['status'], SIMULATED_COMPLETE)
+
+    def test_three_same_model_resumes_then_a_fourth_stop_is_a_crash(self):
+        self.store.admit(["013"], "c19", self.catalog)
+        author = Author(crash={n: ValueError("CLI_FAILED") for n in range(1, 5)}, execution={
+            'cli_steps': 44, 'forwarded_count': 45, 'error_class': 'IllegalStateException'})
+        reviews = Reviews(rejections=0)
+        for _ in range(3):
+            self.worker(author, reviews).run_once()
+        self.assertEqual(len(self.builds()), 1)
+        self.assertEqual(self.builds()[0]['status'], QUEUED)
+        self.assertEqual(json.loads(self.builds()[0]['receipt'])['continued']['resumes'], 3)
+        self.worker(author, reviews).run_once()
+        self.assertEqual(self.builds()[0]['status'], FAILED)
+        self.assertEqual(json.loads(self.builds()[0]['receipt'])['correction']['trigger'], 'crash')
+        self.assertEqual(self.store.correction_of(self.builds()[1]['build_id'])['attempt'], 2)
+
+    def test_a_down_provider_holds_the_build_and_does_not_start_the_author(self):
+        self.store.admit(["013"], "c20", self.catalog)
+        author = Author()
+        author.paid = True
+        author.last_usage = {'complete': True, 'cost_usd': '0', 'basis': 'fixture'}
+
+        class Link:
+            def __init__(self):
+                self.up = False
+                self.calls = 0
+            def reachable(self):
+                self.calls += 1
+                return self.up
+            def reap(self, _path):
+                return []
+
+        link = Link()
+        worker = self.worker(author, Reviews(rejections=0))
+        worker.connectivity = link
+        worker.run_once()
+        self.assertEqual(author.calls, [])
+        self.assertEqual(self.builds()[0]['status'], HELD)
+        self.assertEqual(self.builds()[0]['hold_reason'], 'network_unavailable')
+        self.assertGreaterEqual(link.calls, 1)
+        link.up = True
+        worker.run_once()
+        self.assertEqual(len(author.calls), 1)
+        self.assertNotEqual(self.builds()[0]['hold_reason'], 'network_unavailable')
+
+    def test_a_stale_sandbox_proof_holds_the_same_build_and_starts_no_author(self):
+        self.store.admit(["013"], "c21", self.catalog)
+        author = Author()
+        author.paid = True
+        author.last_usage = {'complete': True, 'cost_usd': '0', 'basis': 'fixture'}
+        worker = self.worker(author, Reviews(rejections=0))
+        worker.security_fresh = lambda: False
+        worker.run_once()
+        self.assertEqual(author.calls, [])
+        self.assertEqual(len(self.builds()), 1)
+        self.assertEqual(self.builds()[0]['status'], HELD)
+        self.assertEqual(self.builds()[0]['hold_reason'], 'sandbox_qualification_stale')
+        worker.security_fresh = lambda: True
+        worker.run_once()
+        self.assertEqual(len(self.builds()), 1)
+        self.assertEqual(len(author.calls), 1)
+        self.assertNotIn('correction', json.loads(self.builds()[0]['receipt'] or '{}'))
+        self.assertNotEqual(self.builds()[0]['hold_reason'], 'sandbox_qualification_stale')
 
     def test_an_unchanged_candidate_after_a_crash_is_still_judged(self):
         self.store.admit(["013"], "c8", self.catalog)
@@ -306,12 +447,14 @@ class CorrectionRoundTests(unittest.TestCase):
         lines = correction_feedback(receipt)
         self.assertEqual(lines[0], "Required CI failed: Product artifacts (failure); CI / build (timed_out). "
                          "The pull request was not merged.")
+        self.assertIn("Supervisor: Repair this check only: fix the failing product build or test.", lines[1])
         self.assertIn("A reviewer approved it, noting: port stays 8081", lines)
         self.assertIn("Untrusted author note: hibernate is lazy", lines)
         self.assertIn("Untrusted note from glm-5.3-flash: acceptance probes 8080", lines)
         self.assertIn("Untrusted note from qwen-3.8-flash: [redacted]", lines)
         text = correction_text({"round": 1, "trigger": "ci_failed", "feedback": lines, "files": {SOURCE: "x"}})
         self.assertIn("Required CI failed on the open pull request", text)
+        self.assertIn("Change only what those failed checks require", text)
         self.assertIn("was not merged", text)
         self.assertNotIn("was refused", text)
 

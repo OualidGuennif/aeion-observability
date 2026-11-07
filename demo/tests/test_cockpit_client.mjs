@@ -133,6 +133,12 @@ test('a publication hold and changed specification explain the next safe action'
   assert.ok(run('reasonText({reason:"catalog_changed"})').includes('specification changed'));
   assert.ok(run('reasonText({reason:"protection_unreadable"})').includes('read access'));
   assert.ok(run('reasonText({reason:"publication_blocked"})').includes('publication evidence'));
+  assert.ok(run('reasonText({reason:"network_unavailable"})').includes('No new author was started'));
+  assert.ok(run('ownerAction("network_unavailable")').includes('Do not relaunch'));
+  assert.ok(run('reasonText({reason:"sandbox_qualification_stale"})').includes('No new author was started'));
+  assert.ok(run('ownerAction("sandbox_qualification_stale")').includes('Do not relaunch'));
+  assert.match(run('ownerAction("budget_unavailable")'), /max \$150/);
+  assert.match(run('reasonText({reason:"budget_config_invalid"})'), /\$150\/day/);
 });
 
 test('simulator and offline notices never promise real implementation or publication', () => {
@@ -209,6 +215,17 @@ test('no ready selection during active work explains progress rather than a glob
 });
 
 
+test('the budget block shows settled spend apart from reserved capacity', () => {
+  const { context, run } = client();
+  const el = {};
+  context.document.getElementById = (id) => id === 'budgets' ? el : { value: '' };
+  run('renderBudgets({status:"available", scopes:{"aeion-autonomous-forum":{settled_usd:"3.19", reserved_usd:"61.00", remaining_usd:"85.81", limit_usd:"150.00", spent_usd:"64.19", day:"2026-11-07"}}})');
+  assert.match(el.innerHTML, /\$3\.19/);
+  assert.match(el.innerHTML, /\$61\.00 reserved/);
+  assert.match(el.innerHTML, /\$85\.81 remaining of \$150\.00/);
+  assert.doesNotMatch(el.innerHTML, /<strong>\$85\.81<\/strong>/);
+});
+
 test('an interrupted worker still exposes its checked draft cause and preserved files', () => {
   const {context,run}=client();
   context.receipt=JSON.stringify({execution:{failure:'AGENT_TIMEOUT',retained_files_count:11,
@@ -230,8 +247,8 @@ test('the next step names one plain owner action and never presents a simulation
   const step = run('nextStep({mode:"live"}, fixture, [held])');
   assert.match(step.title, /Feature 001 is on hold/);
   assert.match(step.detail, /could not finish its vote/);
-  assert.match(step.detail, /rerun the votes once without rerunning the author/);
-  assert.match(step.detail, /cancel and launch the feature again/);
+  assert.match(step.detail, /reruns the votes once without rerunning the author/);
+  assert.match(step.detail, /second failure stays on hold/);
   context.rejected = { ...held, receipt: JSON.stringify({ circuit: { reason: 'reviewer_rejected' } }) };
   assert.match(run('nextStep({mode:"live"}, fixture, [rejected]).detail'), /automatic attempts and correction rounds[^]*relaunch unchanged will likely be rejected again/);
   assert.match(run('failedText({correction:{attempt:1, round:0, trigger:"ci_failed"}})'), /Required CI failed on the open pull request[^]*correction round 1 of 2[^]*was not merged/);

@@ -8,6 +8,7 @@ diff, then asks the publisher policy before recording anything.
 import json
 import hashlib
 import re
+import shutil
 import subprocess
 import tempfile
 import time
@@ -15,7 +16,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from . import boundary as stop
-from .artifact import validate_artifact
+from .artifact import scoped_texts, validate_artifact
+from .connectivity import NETWORK_STOPS, same_model_resume, resume_trigger
 from .budget import BudgetError
 from .checks import DEFAULT_CHECKS, ProtectedChecks, target_check
 from .freeze import FreezeError, freeze_build
@@ -28,7 +30,7 @@ from .agent_files import BuilderError
 from .publish import FakeForge, Publisher
 from .review import SECRET_PATTERNS, content_digest, review
 from .review_circuit import two_vote_review, baseline_diff, CircuitError, MAX_SUBSTITUTIONS
-from .store import (FAILED, HELD, LIVE_COMPLETE, MAX_ATTEMPTS, MAX_CORRECTION_ROUNDS,
+from .store import (FAILED, HELD, LIVE_COMPLETE, MAX_ATTEMPTS, MAX_CORRECTION_ROUNDS, QUEUED,
                     SIMULATED_COMPLETE, StoreError, continuation_step)
 from .target import TargetError
 from .preparation import PreparationError
@@ -62,12 +64,126 @@ def next_step(attempt, number, crash=False):
 
 def _token(value):
     return value if isinstance(value, str) and TOKEN.fullmatch(value) else None
+
+
+def replace_own_directory(work_root, build_id, name):
+    """Remove only this build's prepared or repo directory. Anything else is refused."""
+    if (name not in ('prepared', 'repo') or not isinstance(build_id, str)
+            or not re.fullmatch(r'[a-f0-9]{32}', build_id)):
+        raise ValueError('workspace_refused')
+    root = Path(work_root).resolve()
+    build_root = root / build_id
+    if build_root.is_symlink():
+        raise ValueError('workspace_refused')
+    directory = build_root / name
+    if directory.is_symlink() or (directory.exists() and directory.resolve().parent != build_root.resolve()):
+        raise ValueError('workspace_refused')
+    if directory.exists():
+        shutil.rmtree(directory)
+
+
+def review_retry_eligible(receipt):
+    """One automatic vote retry: a passed gate, a failed reviewer, and no earlier retry."""
+    if not isinstance(receipt, dict):
+        return False
+    circuit = receipt.get('circuit') if isinstance(receipt.get('circuit'), dict) else {}
+    context = receipt.get('review_context') if isinstance(receipt.get('review_context'), dict) else {}
+    gate = receipt.get('gate') if isinstance(receipt.get('gate'), dict) else {}
+    return (circuit.get('reason') == 'reviewer_failed'
+            and circuit.get('review_input_version') == 2
+            and context.get('retry_failed_review') is not True
+            and gate.get('status') == 'passed')
+
+
 DEFAULT_TARGET_REPO = "agora/forum"
 HOLD_REASON_MAP = {
     "owner_review_required": "owner_review_required",
     "stale_base": "reconciliation_needed",
     "stale_head": "reconciliation_needed",
 }
+
+
+# Fixed repair notes for required checks this factory knows. They are our text, never a CI log.
+CI_REPAIRS = {
+    "Knowledge, links and repository health":
+        "Repair this check only: a changed code file needs its owning knowledge document updated "
+        "in the same change (rule L3), or a Docs-Checked note when no fact changed. "
+        "Do not redesign the feature.",
+    "Product artifacts":
+        "Repair this check only: fix the failing product build or test. Do not change ports, "
+        "routes, or defaults the brief does not name.",
+    "Graphify and Archify":
+        "Repair this check only: fix the repository structure check. Do not redesign the feature.",
+    "secret-scan":
+        "Repair this check only: remove credential-shaped text from the change. Do not copy that text.",
+    "dependency-scan":
+        "Repair this check only: fix the dependency finding. Do not add a package the brief does not name.",
+    "sast-scan":
+        "Repair this check only: fix the static-analysis finding in the changed code.",
+}
+
+
+def _named_checks(failed_checks):
+    """A short list of real check names, or None when the list is not safe to store."""
+    name_ok = re.compile(r'[A-Za-z0-9_ .,/:+-]{1,80}')
+    conclusions = {'failure', 'cancelled', 'timed_out', 'action_required', 'skipped',
+                   'neutral', 'stale', 'startup_failure', 'failed'}
+    if not isinstance(failed_checks, list) or not 0 < len(failed_checks) <= 8:
+        return None
+    clean = []
+    for item in failed_checks:
+        if not isinstance(item, dict):
+            return None
+        name, conclusion = item.get('name'), item.get('conclusion')
+        if (not isinstance(name, str) or not name_ok.fullmatch(name) or name == 'check'
+                or conclusion not in conclusions):
+            return None
+        clean.append({'name': name, 'conclusion': conclusion})
+    return clean
+
+
+def repair_blind_ci(store, build_id, failed_checks):
+    """Name a placeholder CI failure and queue that same unchanged correction once."""
+    clean = _named_checks(failed_checks)
+    if clean is None:
+        return {'status': 'unchanged'}
+    with store._lock:
+        conn = store._connect()
+        try:
+            with conn:
+                conn.execute('BEGIN IMMEDIATE')
+                row = store._row(conn, build_id)
+                if row is None or row['status'] != HELD or row['hold_reason'] != 'owner_review_required':
+                    return {'status': 'unchanged'}
+                receipt = store._receipt_dict(row)
+                if receipt.get('reason') != 'correction_unchanged' or receipt.get('ci_repair_retried') is True:
+                    return {'status': 'unchanged'}
+                link = store._correction_link(conn, build_id)
+                if link is None:
+                    return {'status': 'unchanged'}
+                previous = store._row(conn, link['previous_build_id'])
+                if previous is None or previous['status'] != FAILED:
+                    return {'status': 'unchanged'}
+                prior = store._receipt_dict(previous)
+                publisher = prior.get('publisher') if isinstance(prior.get('publisher'), dict) else {}
+                stored = publisher.get('failed_checks') if isinstance(publisher.get('failed_checks'), list) else []
+                if (publisher.get('reason') != 'ci_failed' or not stored
+                        or any(not isinstance(item, dict) or item.get('name') != 'check' for item in stored)):
+                    return {'status': 'unchanged'}
+                prior['publisher'] = {**publisher, 'failed_checks': clean}
+                receipt['ci_repair_retried'] = True
+                now = store._now()
+                conn.execute('UPDATE builds SET receipt=?,updated_ns=? WHERE build_id=?',
+                             (json.dumps(prior), now, previous['build_id']))
+                conn.execute(
+                    'UPDATE builds SET status=?,hold_reason=NULL,receipt=?,lease_until_ns=NULL,updated_ns=? '
+                    'WHERE build_id=?',
+                    (QUEUED, json.dumps(receipt), now, build_id))
+                store._event(conn, build_id, now, 'supervisor', QUEUED,
+                             json.dumps({'reason': 'ci_repair_retried'}), row['cancellation_generation'])
+                return {'status': 'queued', 'build_id': build_id}
+        finally:
+            conn.close()
 
 
 def _plain(value, limit):
@@ -82,7 +198,8 @@ def correction_feedback(receipt):
     """What stopped a failed attempt, as data lines for the next author.
 
     Reviewer reasons and agent notes are model output. Check names come from the gate or from
-    the required CI result (name and conclusion only, never a log). Nothing here is an instruction.
+    the required CI result (name and conclusion only, never a log). A known check also adds one
+    fixed supervisor repair sentence. Agent text is not an instruction.
     """
     lines = []
     publisher = receipt.get('publisher') if isinstance(receipt.get('publisher'), dict) else {}
@@ -96,7 +213,10 @@ def correction_feedback(receipt):
             conclusion = _plain(conclusion, 32) or 'failed'
             if name:
                 checks.append(name + ' (' + conclusion + ')')
-        lines.append('Required CI failed' + (': ' + '; '.join(checks) if checks else '')
+                repair = CI_REPAIRS.get(name)
+                if repair and repair not in lines:
+                    lines.append('Supervisor: ' + repair)
+        lines.insert(0, 'Required CI failed' + (': ' + '; '.join(checks) if checks else '')
                      + '. The pull request was not merged.')
     for vote in ((receipt.get('circuit') or {}).get('votes') or [])[:4]:
         if isinstance(vote, dict) and vote.get('verdict') in ('approve', 'reject'):
@@ -167,6 +287,9 @@ class DispatchWorker:
         self.allow_unbudgeted = bool(allow_unbudgeted)
         self.startup_hold = startup_hold
         self.admission_check = None
+        self.connectivity = None
+        self._network_checked = False
+        self._network_ok = None
         self.paid = bool(getattr(builder, "paid", False))
         self.last_usage = None
         if checks is not None:
@@ -368,21 +491,49 @@ class DispatchWorker:
             note=f"{build['build_id']}:{build['feature_id']}",
         )
 
-    def _settle(self, reservation):
-        """Close the reservation only with measured, complete usage; unknown stays open."""
-        if reservation is None:
+    def _settle(self, reservation, build=None):
+        """Close a reservation with measured cost, or with zero when this claim never forwarded.
+
+        A forward whose usage is still incomplete stays open. Unknown cost is not turned into zero.
+        """
+        if reservation is None or self.budget is None:
             return
         usage = self.last_usage
-        if not isinstance(usage, dict) or usage.get("complete") is not True:
+        if isinstance(usage, dict) and usage.get("complete") is True and usage.get("cost_usd") is not None:
+            try:
+                self.budget.settle(reservation, Decimal(str(usage["cost_usd"])))
+            except (BudgetError, InvalidOperation, ValueError):
+                return
             return
-        raw = usage.get("cost_usd")
-        if raw is None:
-            return
-        try:
-            self.budget.settle(reservation, Decimal(str(raw)))
-        except (BudgetError, InvalidOperation, ValueError):
-            # The reservation stays open and keeps counting: fail closed, never free the money.
-            return
+        if build is not None and self._author_never_forwarded(build):
+            try:
+                self.budget.settle(reservation, Decimal("0"))
+            except (BudgetError, InvalidOperation, ValueError):
+                return
+
+    def _author_never_forwarded(self, build):
+        """True only when this claim did not send the author to a provider."""
+        execution = getattr(self.builder, "last_execution", None) if self.builder is not None else None
+        if getattr(self, "_author_started", False):
+            if not isinstance(execution, dict) or execution.get("build_id") != build.get("build_id"):
+                return False
+            count = execution.get("forwarded_count")
+            return not (type(count) is int and count > 0)
+        if isinstance(execution, dict) and execution.get("build_id") == build.get("build_id"):
+            count = execution.get("forwarded_count")
+            return not (type(count) is int and count > 0)
+        return True
+
+    def _review_never_forwarded(self):
+        """True when this vote's role recorded no provider forward. A bare callable stays unknown."""
+        reviewer = self.review_complete
+        if reviewer is None or not hasattr(reviewer, "last_execution"):
+            return False
+        execution = reviewer.last_execution
+        if not isinstance(execution, dict):
+            return True
+        count = execution.get("forwarded_count")
+        return not (type(count) is int and count > 0)
 
     def run_once(self):
         """Claim one build, give its agent a session, run it, and end the session whatever happens."""
@@ -392,12 +543,37 @@ class DispatchWorker:
         continued = self._continue_held_ci()
         if continued is not None:
             return continued
+        retried = self._continue_held_review()
+        if retried is not None:
+            return retried
         if self.publication is not None:
             publication = self.publication.run_once()
             if publication is not None:
                 return publication
         self.last_usage = None
+        self._author_started = False
         self.review_context = self.reused_execution = None
+        self._network_checked = False
+        self._network_ok = None
+        if self.paid and self.connectivity is not None and self._provider_needed():
+            self._network_ok = self._probe_provider()
+            self._network_checked = True
+            if self._network_ok:
+                self._release_network_holds()
+            elif self._held_for_network():
+                # Already explaining the outage. Do not claim another author.
+                return None
+        if self.paid and getattr(self, 'security_fresh', None) is not None:
+            if not any(row.get('status') == 'dispatched' for row in self.store.board()):
+                try:
+                    proof_fresh = self.security_fresh() is True
+                except Exception:  # noqa: BLE001 - an unreadable proof is not a sandbox open
+                    proof_fresh = False
+                if proof_fresh:
+                    self._release_security_holds()
+                elif self._held_for_security():
+                    # Already explaining the stale proof. Do not claim another author.
+                    return None
         # Cover the longest admitted check, one author call, two votes and teardown.
         # Expiry is recovery from an interrupted process, not an ordinary slow check.
         targets = list((self.targets or {}).values()) or ([self.target] if self.target else [])
@@ -444,8 +620,20 @@ class DispatchWorker:
             self.store.hold_dispatched(build['build_id'], 'target_unavailable')
             return {'build_id': build['build_id'],
                     'result': {'status': 'held', 'reason': 'target_unavailable'}}
+        if not self._security_ready(build):
+            return {'build_id': build['build_id'],
+                    'result': {'status': 'held', 'reason': 'sandbox_qualification_stale'}}
         prepared_target = None
         if self.preparer is not None:
+            if not self._keeps_resume_clone(build):
+                try:
+                    replace_own_directory(self.work_root, build['build_id'], 'prepared')
+                except (ValueError, OSError):
+                    self.store.hold_dispatched(build['build_id'], 'preparation_unavailable', receipt={
+                        'build_id': build['build_id'], 'attempt_id': build['attempt_id'],
+                        'reason': 'preparation_workspace_refused'})
+                    return {'build_id': build['build_id'],
+                            'result': {'status': 'held', 'reason': 'preparation_unavailable'}}
             self._progress(build,'preparing')
             self.preparer.role.progress = lambda phase, detail=None: self._progress(build,phase,detail)
             started=time.monotonic()
@@ -506,7 +694,7 @@ class DispatchWorker:
             try:
                 self._record_author(build)
             finally:
-                self._settle(reservation)
+                self._settle(reservation, build)
 
     def _open_session(self, build):
         """Mint the session this attempt may use; without a gateway there is nothing to mint."""
@@ -585,14 +773,17 @@ class DispatchWorker:
             return answer
         finally:
             usage = getattr(self.review_complete, "last_usage", None)
-            if reservation is not None and isinstance(usage, dict):
-                raw = usage.get("cost_usd")
-                if usage.get("complete") is True and raw is not None:
-                    try:
-                        self.budget.settle(reservation, Decimal(str(raw)))
-                    except (BudgetError, InvalidOperation, ValueError):
-                        # Unknown or unreadable cost keeps the reservation counted.
-                        pass
+            if reservation is not None and isinstance(usage, dict) and usage.get("complete") is True and usage.get("cost_usd") is not None:
+                try:
+                    self.budget.settle(reservation, Decimal(str(usage["cost_usd"])))
+                except (BudgetError, InvalidOperation, ValueError):
+                    # Unknown or unreadable cost keeps the reservation counted.
+                    pass
+            elif reservation is not None and self._review_never_forwarded():
+                try:
+                    self.budget.settle(reservation, Decimal("0"))
+                except (BudgetError, InvalidOperation, ValueError):
+                    pass
 
     def _zero_transport_proven(self):
         """Only a build with no paid builder and no model review can prove zero spend."""
@@ -673,8 +864,77 @@ class DispatchWorker:
             self.store.hold_dispatched(build_id,'worker_error')
             return {'build_id':build_id,'result':{'status':'held','reason':'worker_error','error_type':type(error).__name__}}
 
+    def _provider_needed(self):
+        for build in self.store.board():
+            if build.get('status') == 'queued':
+                return True
+            if build.get('status') == 'held' and build.get('hold_reason') == 'network_unavailable':
+                return True
+        return False
+
+    def _held_for_network(self):
+        return any(build.get('status') == 'held' and build.get('hold_reason') == 'network_unavailable'
+                   for build in self.store.board())
+
+    def _probe_provider(self):
+        try:
+            return self.connectivity.reachable() is True
+        except Exception:  # noqa: BLE001 - an unreadable probe is a down provider, never a model call
+            return False
+
+    def _release_network_holds(self):
+        for build in self.store.board():
+            if build.get('status') == 'held' and build.get('hold_reason') == 'network_unavailable':
+                self.store.release_network_hold(build['build_id'])
+
+    def _held_for_security(self):
+        return any(build.get('status') == 'held' and build.get('hold_reason') == 'sandbox_qualification_stale'
+                   for build in self.store.board())
+
+    def _release_security_holds(self):
+        for build in self.store.board():
+            if build.get('status') == 'held' and build.get('hold_reason') == 'sandbox_qualification_stale':
+                self.store.release_qualification_hold(build['build_id'])
+
+    def _security_ready(self, build):
+        """A paid controller refreshes the OpenShell proof before preparation spends."""
+        check = getattr(self, 'security_fresh', None)
+        if not self.paid or check is None:
+            return True
+        try:
+            fresh = check() is True
+        except Exception:  # noqa: BLE001 - a probe that raises is a stale proof, never an author
+            fresh = False
+        if fresh:
+            return True
+        self.store.hold_dispatched(build['build_id'], 'sandbox_qualification_stale')
+        return False
+
+    def _network_ready(self, build):
+        """A paid controller with a probe must reach the provider twice before any model call."""
+        if not self.paid or self.connectivity is None:
+            return True
+        if not self._network_checked:
+            self._network_ok = self._probe_provider()
+            self._network_checked = True
+        if self._network_ok:
+            return True
+        self.store.hold_dispatched(build['build_id'], 'network_unavailable')
+        return False
+
+    def _reap_ghosts(self):
+        if self.connectivity is None:
+            return
+        try:
+            self.connectivity.reap(self.store.path)
+        except Exception:  # noqa: BLE001 - a reap failure must not lose the queued resume
+            return
+
     def _run(self, build, session, target_override=None):
         feature = self.catalog.by_id[build["feature_id"]]
+        if not self._network_ready(build):
+            return {'build_id': build['build_id'],
+                    'result': {'status': 'held', 'reason': 'network_unavailable'}}
         progress = lambda phase, detail=None: self._progress(build, phase, detail)
         target = target_override or (self.targets.get(feature["id"]) if self.targets is not None else self.target)
         target_repo = target.target_repo if target is not None else self.target_repo
@@ -697,7 +957,16 @@ class DispatchWorker:
                 repo, base_sha = self._make_repo(build["build_id"])
             else:
                 repo = self.work_root / build["build_id"] / "repo"
-                base_sha = target.materialize(repo)
+                # A same-model resume keeps the clone the interrupted author already wrote.
+                # Cloning again raises destination_exists and throws that work away.
+                if self._keeps_resume_clone(build):
+                    base_sha = target.base_sha
+                else:
+                    try:
+                        replace_own_directory(self.work_root, build['build_id'], 'repo')
+                    except (ValueError, OSError) as exc:
+                        raise TargetError('workspace_refused') from exc
+                    base_sha = target.materialize(repo)
             frozen = freeze_build(
                 build, self.catalog, self.spec_dir, base_sha,
                 {**self.config, **({'dependency_changes':dict(target.dependency_changes)}
@@ -736,8 +1005,10 @@ class DispatchWorker:
             if self.builder is None:
                 self._write_simulated_impl(repo, frozen, feature)
             else:
+                self._author_started = True
                 if hasattr(self.builder, 'run_build'):
-                    self.correction = self._correction_input(build, frozen)
+                    self.correction = (self._correction_input(build, frozen)
+                                       or self._resume_correction(build, frozen, repo))
                     # A correction round carries its own feedback; an owner launch keeps the hint
                     # from the last failed check of this exact spec.
                     previous = (None if self.correction is not None
@@ -761,7 +1032,14 @@ class DispatchWorker:
                  "telemetry": self._telemetry_evidence(
                      build, feature, frozen, base_sha, {}, {"status": "builder_error"}, None)}
             if hasattr(self.builder, 'run_build') and stop_code in RETRYABLE_AUTHOR_STOPS:
-                # The next attempt, on another model, starts from what this one left.
+                execution = execution if isinstance(execution, dict) else {}
+                # A CLI stop while the agent was still working is not a crash: same model,
+                # same workspace. A stop with no work, or a real provider error, still
+                # starts the next attempt on another model.
+                if same_model_resume(stop_code, execution, self.store.work_event_count(build['build_id'])):
+                    resumed = self._resume_same_model(build, stop_code, execution)
+                    if resumed is not None:
+                        return resumed
                 return self._fail_or_correct(build, feature, receipt, self._crash_candidate(repo, frozen),
                     'crash', crash={'failure': stop_code, 'error_class': _token(execution.get('error_class'))})
             result = self.store.complete_attempt(
@@ -789,6 +1067,33 @@ class DispatchWorker:
             if result.get('status') == 'unchanged':
                 continue
             return {'build_id': build['build_id'], 'result': result}
+        return None
+
+    def _keeps_resume_clone(self, build):
+        """A same-model resume keeps the clone the interrupted author already wrote."""
+        continued = self._receipt(build).get('continued')
+        repo = self.work_root / build['build_id'] / 'repo'
+        return (isinstance(continued, dict) and repo.is_dir() and not repo.is_symlink()
+                and (repo / '.git').is_dir())
+
+    def _continue_held_review(self):
+        """Rerun the votes once for one held reviewer failure. A refusal is not fetched again."""
+        refused = getattr(self, '_review_retry_refused', None)
+        if refused is None:
+            refused = self._review_retry_refused = set()
+        for build in self.store.board():
+            if build.get('status') != HELD or build.get('hold_reason') != 'owner_review_required':
+                continue
+            build_id = build.get('build_id')
+            if not isinstance(build_id, str) or build_id in refused:
+                continue
+            if not review_retry_eligible(self._receipt(build)):
+                continue
+            try:
+                return self.reassess_review_context(build_id, retry_failed_review=True)
+            except CircuitError:
+                refused.add(build_id)
+                return None
         return None
 
     def _reviewed_candidate(self, build, receipt):
@@ -842,6 +1147,57 @@ class DispatchWorker:
                 models.append(model)
             current = previous['build_id']
         return models
+
+    def _resume_same_model(self, build, stop_code, execution):
+        """Queue this same build again. None means the caller should use the crash path."""
+        continued = {
+            'failure': stop_code,
+            'trigger': resume_trigger(stop_code),
+            'error_class': _token(execution.get('error_class')),
+            'cli_steps': execution.get('cli_steps') if type(execution.get('cli_steps')) is int else None,
+            'model': self.author_model if isinstance(self.author_model, str) else None,
+        }
+        result = self.store.resume_interrupted(build['attempt_id'], build['attempt_generation'], continued)
+        if result.get('status') == 'queued':
+            self._reap_ghosts()
+            return {'build_id': build['build_id'], 'result': result}
+        if result.get('status') == 'remote':
+            # Publication was already in flight. Do not start another model over an open effect.
+            self.store.hold_dispatched(build['build_id'], 'reconciliation_needed')
+            return {'build_id': build['build_id'],
+                    'result': {'status': 'held', 'reason': 'reconciliation_needed'}}
+        return None
+
+    def _resume_correction(self, build, frozen, repo):
+        """The prompt for a same-model resume: where it stopped, and the files already on disk."""
+        continued = self._receipt(build).get('continued')
+        if not isinstance(continued, dict):
+            return None
+        link = self.store.correction_of(build['build_id'])
+        attempt, number = (link['attempt'], link['round']) if link else (1, 0)
+        try:
+            files = scoped_texts(repo, frozen.write_scopes)
+        except Exception:  # noqa: BLE001 - an unreadable clone carries the note without bytes
+            files = {}
+        interruption = {'failure': _token(continued.get('failure')) or 'CLI_FAILED'}
+        error_class = _token(continued.get('error_class'))
+        if error_class:
+            interruption['error_class'] = error_class
+        if type(continued.get('cli_steps')) is int:
+            interruption['cli_steps'] = continued['cli_steps']
+        trigger = continued.get('trigger')
+        model = continued.get('model') if isinstance(continued.get('model'), str) else None
+        return {
+            'resume': True,
+            'attempt': attempt,
+            'round': number,
+            'trigger': trigger if trigger in ('cli_interrupted', 'network', 'lease_expired') else 'cli_interrupted',
+            'feedback': [],
+            'files': files or None,
+            'model': model or (self.author_model if isinstance(self.author_model, str) else None),
+            'exclude_models': [],
+            'interruption': interruption,
+        }
 
     def _crash_candidate(self, repo, frozen):
         """The validated scoped files a crashed author left in the host clone, or {}."""

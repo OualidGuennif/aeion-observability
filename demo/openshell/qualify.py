@@ -11,6 +11,8 @@ import time
 import sys
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'app'))
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from security_window import publish_evidence
 from grpc_fork import disable_grpc_fork_handlers
 disable_grpc_fork_handlers()  # before the OpenShell client imports gRPC
 from sandbox import BUNDLE_FILES, COLLECT_SCRIPT, MAX_SYNC_BYTES, SANDBOX_OUT, materialize
@@ -32,7 +34,8 @@ def main():
     assert os.environ.get('OPENSHELL_TELEMETRY_ENABLED')=='false'
     client=SandboxClient(args.endpoint,tls=TlsConfig(ca_path=tls/'ca.crt',cert_path=tls/'client/tls.crt',key_path=tls/'client/tls.key'),timeout=120)
     folder=root/'qualification';folder.mkdir(mode=0o700,exist_ok=True)
-    out=folder/'security.json';out.unlink(missing_ok=True)
+    out=folder/'security.json'
+    # The previous proof stays in place until publish_evidence replaces it.
     assert client.health().version=='0.1.7' and args.uid>0
     name='ae-qualification';ref=None
     # A run-shaped folder inside the work volume: only `run/` is mounted; `outside/` must stay invisible.
@@ -103,7 +106,7 @@ print(json.dumps(checks))'''
         client.close()
         shutil.rmtree(probe_root,ignore_errors=True)
     # Publish readiness only after the probe workload has been confirmed deleted.
-    tmp=out.with_suffix('.tmp');tmp.write_text(json.dumps(evidence,indent=2));tmp.chmod(0o600);tmp.replace(out)
+    publish_evidence(out, evidence)
     print(json.dumps(evidence))
 
 

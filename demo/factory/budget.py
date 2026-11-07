@@ -1,11 +1,12 @@
 """Daily USD budget ledger for the two repositories that may spend.
 
 The demo has two independent purses, each capped per local day by ``demo/budget.conf``
-(at most $15.00):
+(at most $150.00):
 ``aeion-observability`` for the cockpit's own runs and ``aeion-autonomous-forum`` for the
 factory workers that build the product. A reservation is journaled before a paid action and
 settled with the actual cost after it; an open reservation counts against the day so two
-workers cannot both spend the last dollar. A missing or unreadable ledger fails closed.
+workers cannot both spend the last dollar. The summary names settled spend and reserved
+capacity separately. Admission still counts both. A missing or unreadable ledger fails closed.
 
 Only amounts, dates, scopes and opaque reservation ids are stored: no prompt, source,
 credential or provider response.
@@ -27,10 +28,10 @@ SCOPES = ("aeion-observability", "aeion-autonomous-forum")
 BUDGET_ZONE = "Europe/Paris"
 _LEDGER_VERSION = 1
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "budget.conf"
-# Owner-authorized maxima (2026-11-05). budget.conf or AEION_<KEY> may lower them, never raise them.
-CEILINGS = {"DAILY_LIMIT_USD": Decimal("15.00"), "AUTHOR_MAX_USD": Decimal("5.00"),
+# Owner-authorized maxima (2026-11-07). budget.conf or AEION_<KEY> may lower them, never raise them.
+CEILINGS = {"DAILY_LIMIT_USD": Decimal("150.00"), "AUTHOR_MAX_USD": Decimal("50.00"),
             "REVIEW_MAX_USD": Decimal("1.00")}
-DEFAULTS = {"DAILY_LIMIT_USD": "15.00", "AUTHOR_MAX_USD": "2.00", "REVIEW_MAX_USD": "1.00"}
+DEFAULTS = {"DAILY_LIMIT_USD": "150.00", "AUTHOR_MAX_USD": "50.00", "REVIEW_MAX_USD": "1.00"}
 # One author agent execution's wall-clock window, in whole minutes (owner-authorized 2026-11-05).
 TIME_LIMITS = {"AUTHOR_TIMEOUT_MINUTES": (5, 180)}
 TIME_DEFAULTS = {"AUTHOR_TIMEOUT_MINUTES": "30"}
@@ -199,18 +200,24 @@ class DailyBudget:
     def _locked(self):
         return _FileLock(self.lock_path)
 
-    def _spent(self, entries, scope, day):
-        settled = {e["reservation"] for e in entries
-                   if e["kind"] == "settle" and e["scope"] == scope and e["day"] == day}
-        total = Decimal("0")
+    def _totals(self, entries, scope, day):
+        """Settled spend and still-open reservations for one purse and one day."""
+        settled_ids = {e["reservation"] for e in entries
+                       if e["kind"] == "settle" and e["scope"] == scope and e["day"] == day}
+        settled = reserved = Decimal("0")
         for entry in entries:
             if entry["scope"] != scope or entry["day"] != day:
                 continue
             if entry["kind"] == "settle":
-                total += entry["usd"]
-            elif entry["reservation"] not in settled:
-                total += entry["usd"]
-        return total
+                settled += entry["usd"]
+            elif entry["reservation"] not in settled_ids:
+                reserved += entry["usd"]
+        return settled, reserved
+
+    def _spent(self, entries, scope, day):
+        """What admission must refuse against: settled spend plus open reservations."""
+        settled, reserved = self._totals(entries, scope, day)
+        return settled + reserved
 
     # ------------------------------------------------------------------ public
     def spent(self, scope, day=None):
@@ -270,15 +277,19 @@ class DailyBudget:
         day = day or self._today()
         with self._locked():
             entries = self._read()
-            return {
-                scope: {
+            report = {}
+            for scope, limit in self.limits.items():
+                settled, reserved = self._totals(entries, scope, day)
+                spent = settled + reserved
+                report[scope] = {
                     "day": day,
                     "limit_usd": _fmt(limit),
-                    "spent_usd": _fmt(self._spent(entries, scope, day)),
-                    "remaining_usd": _fmt(limit - self._spent(entries, scope, day)),
+                    "spent_usd": _fmt(spent),
+                    "settled_usd": _fmt(settled),
+                    "reserved_usd": _fmt(reserved),
+                    "remaining_usd": _fmt(limit - spent),
                 }
-                for scope, limit in self.limits.items()
-            }
+            return report
 
     def _check_scope(self, scope):
         if scope not in self.limits:

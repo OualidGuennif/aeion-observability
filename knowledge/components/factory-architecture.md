@@ -63,7 +63,12 @@ workspace, and grades the product in separate application/verifier processes. Tw
 reviewer model families must differ from each other and from author/preparer families. Separate
 publisher/release subprocesses open the product PR, verify exact-head CI and confirm main.
 A required check that finished without success does not merge: it queues a bounded correction
-with the check names and the agents' notes. An unreadable or pending check stays held.
+with the check names, one fixed repair sentence for a known check, and the agents' notes.
+An unreadable or pending check stays held.
+A CLI stop while the author was still working resumes that same build and model; the execution
+contract states the evidence, the three-resume cap, and which stops still start another model.
+A security proof inside its last hour is refreshed before a sandbox opens; a failed refresh
+holds that same build and does not start another attempt.
 Only integration of the current contract unlocks dependent MDs; a generated patch or old-contract
 success does not. The product has its own GitHub repository and credentials. Observer mirrors
 are not product workspaces. Fixed PostgreSQL migration/restore oracles, a separate unit-test

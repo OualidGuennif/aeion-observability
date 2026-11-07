@@ -61,6 +61,36 @@ class CircuitTelemetryTests(unittest.TestCase):
                 self.assertEqual((result['status'],result['reason']),('held','reviewer_failed'))
                 self.assertNotIn('unavailable_reviewers',result)
 
+    def test_a_transport_error_retries_the_same_reviewer_until_it_answers(self):
+        calls = []
+        state = {'n': 0, 'execution': {}}
+        def complete(model, _prompt):
+            calls.append(model)
+            state['n'] += 1
+            if state['n'] < 3:
+                state['execution'] = {'failure': 'TRANSPORT_ERROR', 'usage': {'complete': False, 'output_tokens': 0}}
+                raise ValueError('TRANSPORT_ERROR')
+            state['execution'] = {'failure': None, 'usage': {'complete': True, 'output_tokens': 4}}
+            return {'verdict': 'approve', 'reason': 'fixture'}
+        result = two_vote_review('glm-5.3-flash', '001', FILES, Router(Telemetry()), complete,
+                                 execution_for_vote=lambda: state['execution'])
+        self.assertEqual(result['status'], 'approved')
+        self.assertEqual(calls[0], calls[1])
+        self.assertEqual(calls[0], calls[2])
+
+    def test_three_transport_errors_then_hold_the_vote(self):
+        calls = []
+        state = {}
+        def complete(model, _prompt):
+            calls.append(model)
+            state['execution'] = {'failure': 'TRANSPORT_ERROR', 'usage': {'complete': False, 'output_tokens': 0}}
+            raise ValueError('TRANSPORT_ERROR')
+        result = two_vote_review('glm-5.3-flash', '001', FILES, Router(Telemetry()), complete,
+                                 execution_for_vote=lambda: state['execution'])
+        self.assertEqual((result['status'], result['reason']), ('held', 'reviewer_failed'))
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(len(set(calls)), 1)
+
     def test_a_pinned_first_reviewer_that_is_busy_is_still_substituted(self):
         result,calls=self.busy_circuit({'deepseek-4.1-flash'},first_reviewer='deepseek-4.1-flash')
         self.assertEqual(calls[0],'deepseek-4.1-flash')

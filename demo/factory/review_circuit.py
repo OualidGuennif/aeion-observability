@@ -121,6 +121,8 @@ def _normalise(answer):
 # 2026-11-05: DeepSeek answered HTTP 429 twice and held a build whose gate had passed.
 UNAVAILABLE_FAILURES = frozenset({'PROVIDER_RATE_LIMITED', 'PROVIDER_UNAVAILABLE'})
 MAX_SUBSTITUTIONS = 1
+# A dropped connection is not a bad reviewer. Retry that same model before holding the vote.
+MAX_TRANSPORT_RETRIES = 3
 
 
 def _unavailable(execution):
@@ -166,10 +168,16 @@ def two_vote_review(author_model, feature_id, files, router, complete, telemetry
         used_families.append(family(preparer_model))
     unavailable = []
     index = 1
+    retry_model = None
+    transport_attempts = {}
     while index <= 2:
         try:
             excluded=[*used_models,*(entry['model'] for entry in unavailable)]
-            if index==1 and first_reviewer is not None and not unavailable:
+            if retry_model is not None:
+                from .models import MODELS
+                excluded=[*used_models,*(model for model in MODELS if model != retry_model)]
+                retry_model = None
+            elif index==1 and first_reviewer is not None and not unavailable:
                 from .models import MODELS
                 excluded=[*used_models,*(model for model in MODELS if model!=first_reviewer)]
             model = router.select("review", exclude_models=excluded, exclude_families=used_families)
@@ -196,6 +204,12 @@ def two_vote_review(author_model, feature_id, files, router, complete, telemetry
                               if isinstance(execution,dict) and isinstance(execution.get('failure'),str)
                               and re.fullmatch('[A-Z][A-Z0-9_]{1,63}',execution['failure']) else 'malformed_or_failed'),
                           **({'execution':execution} if isinstance(execution,dict) else {})}
+            if (isinstance(execution, dict) and execution.get('failure') == 'TRANSPORT_ERROR'
+                    and transport_attempts.get(model, 0) + 1 < MAX_TRANSPORT_RETRIES):
+                # The same reviewer, not a substitute: the connection dropped before a verdict.
+                transport_attempts[model] = transport_attempts.get(model, 0) + 1
+                retry_model = model
+                continue
             if _unavailable(execution) and len(unavailable) < MAX_SUBSTITUTIONS:
                 # No verdict was produced, so none is discarded; the slot is kept for the next one.
                 unavailable.append(failed)

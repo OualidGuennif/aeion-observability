@@ -3,6 +3,13 @@ type: Component
 title: "Flue factory execution"
 description: "Deterministic supervision of untrusted Flue/Pi workers, isolated tools and protected publication."
 status: draft
+verified:
+  - at: 2026-11-07
+    what: "unittest correction rounds, connectivity, review circuit, artifact and recovery: a working CLI_FAILED resumes the same model; a quiet stop still crashes"
+  - at: 2026-11-07
+    what: "unittest budget, TLS, workspace and review retry: ceilings stay 150/50/1; summary splits settled and reserved; an unforwarded claim settles at zero; an incomplete forward stays reserved; one failed review retries once"
+  - at: 2026-11-07
+    what: "unittest CI correction: a comma in a required check name is kept; a known check adds one fixed repair sentence; a placeholder name is replaced once and that same correction is queued"
 sources:
   - resource: ../../demo/factory/review_context.py
     title: "One-time operator repair of the old review envelope"
@@ -26,6 +33,8 @@ sources:
     title: "PostgreSQL and React CI inputs"
   - resource: ../../demo/factory/dispatch.py
     title: "Factory supervisor, routing and publication"
+  - resource: ../../demo/factory/connectivity.py
+    title: "Same-model resume after a working CLI stop"
   - resource: ../../demo/factory/retention.py
     title: "Workspace and failed-branch retention"
   - resource: ../../demo/flue/src/context.ts
@@ -50,6 +59,8 @@ sources:
     title: "Bootstrap"
   - resource: ../../demo/factory/github.py
     title: "Github"
+  - resource: ../../demo/factory/budget.py
+    title: "Daily purses, settled spend and open reservations"
   - resource: ../../demo/factory/inference_config.py
     title: "Inference config"
   - resource: ../../demo/factory/postgres.py
@@ -206,7 +217,10 @@ as at most twelve printable lines with secret-like text redacted, labelled as un
 the crash code and error class. A required CI check that completed without success (`ci_failed`,
 at most eight check names and conclusions, never a log or annotation) is the same kind of
 refusal: the attempt becomes `failed` and the next correction is admitted in that same
-transaction, starting from the published bytes when their digest still matches. The open pull
+transaction, starting from the published bytes when their digest still matches. A comma in a
+check name is kept. A known check adds one fixed supervisor repair sentence, still without the
+log. A correction that returned the same bytes after every stored check name was the placeholder
+`check` is queued once more after those names are replaced (`repair_blind_ci`). The open pull
 request is not merged and is not updated. Pending, unreadable and every other publication hold
 stay held. When no correction remains, the attempt stays held for the owner
 (`test_factory_publication_state`, `test_factory_github_atomic`). A correction that returns refused bytes unchanged is held
@@ -227,8 +241,9 @@ only when its pull request was closed without a merge (`test_factory_retention`)
 the product runtime and that it must not change ports, routes, Docker or configuration defaults
 the brief does not ask for: build 80463a43 (2026-11-06) passed every check but was rejected for
 removing `/__release` and moving the default port.
-Explicit operator bounds remain. `demo/budget.conf` sets the daily purse (at most $15), one
-author execution (at most $5, reserved and relay-enforced) and one review vote (at most $1);
+Explicit operator bounds remain. `demo/budget.conf` sets the daily purse (at most $150, owner
+decision 2026-11-07), one author execution (at most $50, reserved and relay-enforced) and one
+review vote (at most $1);
 an invalid file holds builds as `budget_config_invalid` and admits no spending. A soft stop can retain a proposed candidate
 only after validated export, confirmed sandbox removal, complete known usage within the frozen
 reservation and a current authorization check. Its stopped-role failure remains visible. No check
@@ -252,9 +267,14 @@ A reviewer must deliver its verdict through the typed `submit_review` tool. If a
 without it, the reviewer's Flue 2.3 `useAgentFinish` hook appends one result-required signal,
 guarded by `usePersistentState` so it fires at most once; a second miss still fails closed with
 `REVIEW_RESULT_MISSING`. The failed vote keeps its trusted execution metadata and failure code.
-After a v2 hold caused only by such failures (no rejection), one explicit operator flag
-`--retry-failed-review` reruns the external gate and both votes once on the same unchanged
-artifact; the archived votes are never reused and an earlier unknown reservation stays counted.
+After a v2 hold caused only by such failures (no rejection), the controller reruns the
+external gate and both votes once on the same unchanged artifact, without an operator and
+without rerunning the author. `review_context --retry-failed-review` remains that same repair.
+The archived votes are never reused. A second failure stays held. A same-build retry replaces
+only that build's prepared folder and repo, and keeps a same-model resume clone. GitHub TLS
+uses the system CA bundle when certifi is missing, and verification stays on. A reservation
+for a claim that never forwarded settles at zero. A reservation whose usage was forwarded and
+is still incomplete stays counted. Admission still counts both. The summary reports them apart.
 The host relay tolerates up to 300s of upstream silence (connect or between bytes), because a
 reasoning reviewer can think for minutes before its first byte; role deadlines still bound the
 session. A stall is reported as `PROVIDER_TIMEOUT`, other socket failures as `TRANSPORT_ERROR`.
@@ -379,6 +399,30 @@ qualification, usage, checks, voters, privileges or expected base yields a visib
 uncertain external action is reconciled before retry. A definite required-CI failure queues a
 bounded correction; it is not a merge and not an unbounded retry. Uncertain cost never auto-retries.
 
+A CLI stop (`CLI_FAILED`, `CLI_PROTOCOL_ERROR`, `HARNESS_COMPACTION`) after the session was
+already working — at least three tool steps, three forwarded requests, or three tool or model
+progress events — queues the same build again for the same model, at most three times, and
+leaves the workspace in place. Paths that passed the path checks are kept for that resume even
+when another path leaves the diff unaccepted; they are not published. A stop with no such
+evidence, and `CLI_STARTUP_FAILED`, still starts the next attempt on another model from the
+validated files. A provider error does too. A network stop resumes the same model even with
+fewer steps. Before a paid call the live controller connects to the provider host twice; if
+either connect fails the build holds as `network_unavailable` and no model is called, then
+resumes when both succeed. An expired lease with that working evidence and no publication job
+is queued the same way. Publishing, waiting for CI, or merging stays `reconciliation_needed`.
+A reviewer `TRANSPORT_ERROR` retries that same model up to three times before `reviewer_failed`
+(test_factory_correction_rounds, test_factory_connectivity, test_factory_review_circuit).
+While no build lease is active, an OpenShell sandbox pair older than 30 minutes is removed.
+A younger pair stays, so a qualification sandbox is not deleted while its owner is still
+stopping it. A dispatched build keeps its sandbox (test_openshell_reap, test_factory_connectivity).
+The controller loads that reaper by file path. The installed package owns the name openshell
+and does not contain this repository's reaper.
+Before a paid sandbox opens, a security proof with less than one hour left is refreshed by
+the same host probe. The previous file is replaced only after that probe publishes the new
+one. A failed probe holds the build as `sandbox_qualification_stale` and queues the same
+build again when the proof is fresh, without another author attempt. A proof that has not
+expired still allows the open (test_openshell_security_window, test_factory_correction_rounds).
+
 ## Invariants
 
 1. Live authoring invokes Flue/Pi with tier-3 bridge tools; no direct-model or host-tool fallback.
@@ -444,6 +488,16 @@ bounded correction; it is not a merge and not an unbounded retry. Uncertain cost
 18. Gradle build files, wrappers, settings, properties and version catalogs receive the same
     dependency-policy hold in the deterministic review and publisher. A model approval never
     authorizes a build-policy transition (test_factory_review, test_factory_publish).
+19. A CLI stop while the agent was still working resumes the same build and the same model,
+    at most three times, and does not admit another attempt. Fewer than three steps, a startup
+    failure, or a provider error still starts the next attempt. An expired lease without that
+    evidence, or one that reached publication, stays reconciliation_needed
+    (test_factory_correction_rounds, test_factory_connectivity, test_factory_recovery).
+20. A paid sandbox opens only when the OpenShell security proof has an hour or more left,
+    or the host probe has just published a replacement. The previous proof is not removed
+    first. A failed probe on an already expired or missing proof holds
+    `sandbox_qualification_stale` and does not spend an author attempt
+    (test_openshell_security_window, test_factory_correction_rounds).
 
 ## Determinism
 

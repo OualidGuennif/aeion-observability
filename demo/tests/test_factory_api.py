@@ -103,7 +103,7 @@ class ApiTests(unittest.TestCase):
     def test_the_worker_spends_from_the_forum_purse(self):
         self.assertIs(self.app.worker.budget, self.app.budget)
         self.assertEqual(self.app.worker.budget_scope, "aeion-autonomous-forum")
-        self.app.budget.admit("aeion-autonomous-forum", "15.00", note="exhaust")
+        self.app.budget.admit("aeion-autonomous-forum", "150.00", note="exhaust")
         self.app.worker.config["cost_reservation_usd"] = "0.01"
         body, headers = self.login()
         session = self.app.authenticate(headers["Set-Cookie"])
