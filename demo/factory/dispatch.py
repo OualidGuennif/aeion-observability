@@ -67,7 +67,6 @@ def _token(value):
 
 
 def replace_own_directory(work_root, build_id, name):
-    """Remove only this build's prepared or repo directory. Anything else is refused."""
     if (name not in ('prepared', 'repo') or not isinstance(build_id, str)
             or not re.fullmatch(r'[a-f0-9]{32}', build_id)):
         raise ValueError('workspace_refused')
@@ -83,7 +82,6 @@ def replace_own_directory(work_root, build_id, name):
 
 
 def review_retry_eligible(receipt):
-    """One automatic vote retry: a passed gate, a failed reviewer, and no earlier retry."""
     if not isinstance(receipt, dict):
         return False
     circuit = receipt.get('circuit') if isinstance(receipt.get('circuit'), dict) else {}
@@ -492,10 +490,6 @@ class DispatchWorker:
         )
 
     def _settle(self, reservation, build=None):
-        """Close a reservation with measured cost, or with zero when this claim never forwarded.
-
-        A forward whose usage is still incomplete stays open. Unknown cost is not turned into zero.
-        """
         if reservation is None or self.budget is None:
             return
         usage = self.last_usage
@@ -512,7 +506,6 @@ class DispatchWorker:
                 return
 
     def _author_never_forwarded(self, build):
-        """True only when this claim did not send the author to a provider."""
         execution = getattr(self.builder, "last_execution", None) if self.builder is not None else None
         if getattr(self, "_author_started", False):
             if not isinstance(execution, dict) or execution.get("build_id") != build.get("build_id"):
@@ -525,7 +518,6 @@ class DispatchWorker:
         return True
 
     def _review_never_forwarded(self):
-        """True when this vote's role recorded no provider forward. A bare callable stays unknown."""
         reviewer = self.review_complete
         if reviewer is None or not hasattr(reviewer, "last_execution"):
             return False
@@ -623,25 +615,32 @@ class DispatchWorker:
         if not self._security_ready(build):
             return {'build_id': build['build_id'],
                     'result': {'status': 'held', 'reason': 'sandbox_qualification_stale'}}
+        if self.paid and self._network_checked and not self._network_ok:
+            self.store.hold_dispatched(build['build_id'], 'network_unavailable')
+            return {'build_id': build['build_id'],
+                    'result': {'status': 'held', 'reason': 'network_unavailable'}}
         prepared_target = None
         if self.preparer is not None:
-            if not self._keeps_resume_clone(build):
-                try:
-                    replace_own_directory(self.work_root, build['build_id'], 'prepared')
-                except (ValueError, OSError):
-                    self.store.hold_dispatched(build['build_id'], 'preparation_unavailable', receipt={
-                        'build_id': build['build_id'], 'attempt_id': build['attempt_id'],
-                        'reason': 'preparation_workspace_refused'})
-                    return {'build_id': build['build_id'],
-                            'result': {'status': 'held', 'reason': 'preparation_unavailable'}}
             self._progress(build,'preparing')
             self.preparer.role.progress = lambda phase, detail=None: self._progress(build,phase,detail)
             started=time.monotonic()
             try:
-                prepared_target,self.preparation_evidence=self.preparer.prepare(
-                    build=build,catalog=self.catalog,spec_dir=self.spec_dir,
-                    destination=self.work_root / build['build_id'] / 'prepared',budget=self.budget,
-                    router=self.router,authorized=lambda:self._attempt_authorized(build))
+                loaded = None
+                if self._keeps_resume_clone(build):
+                    try:
+                        loaded = self.preparer.resume_prepared(self.work_root / build['build_id'] / 'prepared')
+                    except PreparationError:
+                        loaded = None
+                if loaded is None:
+                    try:
+                        replace_own_directory(self.work_root, build['build_id'], 'prepared')
+                    except (ValueError, OSError):
+                        raise PreparationError('preparation_workspace_refused') from None
+                    loaded = self.preparer.prepare(
+                        build=build,catalog=self.catalog,spec_dir=self.spec_dir,
+                        destination=self.work_root / build['build_id'] / 'prepared',budget=self.budget,
+                        router=self.router,authorized=lambda:self._attempt_authorized(build))
+                prepared_target,self.preparation_evidence=loaded
                 if not self.store.record_preparation(build['attempt_id'],build['attempt_generation'],self.preparation_evidence):
                     return {'build_id':build['build_id'],'result':{'status':'stale_attempt'}}
             except (PreparationError,TargetError,BudgetError) as error:
@@ -957,8 +956,6 @@ class DispatchWorker:
                 repo, base_sha = self._make_repo(build["build_id"])
             else:
                 repo = self.work_root / build["build_id"] / "repo"
-                # A same-model resume keeps the clone the interrupted author already wrote.
-                # Cloning again raises destination_exists and throws that work away.
                 if self._keeps_resume_clone(build):
                     base_sha = target.base_sha
                 else:
@@ -1007,10 +1004,10 @@ class DispatchWorker:
             else:
                 self._author_started = True
                 if hasattr(self.builder, 'run_build'):
-                    self.correction = (self._correction_input(build, frozen)
-                                       or self._resume_correction(build, frozen, repo))
-                    # A correction round carries its own feedback; an owner launch keeps the hint
-                    # from the last failed check of this exact spec.
+                    self.correction = (self._resume_correction(build, frozen, repo)
+                                       or self._correction_input(build, frozen))
+                    # A same-model resume keeps the interrupted workspace. A correction round
+                    # otherwise carries its own feedback. An owner launch keeps the last check hint.
                     previous = (None if self.correction is not None
                                 else self.store.previous_check_failure(feature['id'], frozen.spec_digest))
                     self.builder.run_build(repo=repo, frozen=frozen, feature=feature,
@@ -1070,14 +1067,12 @@ class DispatchWorker:
         return None
 
     def _keeps_resume_clone(self, build):
-        """A same-model resume keeps the clone the interrupted author already wrote."""
         continued = self._receipt(build).get('continued')
         repo = self.work_root / build['build_id'] / 'repo'
         return (isinstance(continued, dict) and repo.is_dir() and not repo.is_symlink()
                 and (repo / '.git').is_dir())
 
     def _continue_held_review(self):
-        """Rerun the votes once for one held reviewer failure. A refusal is not fetched again."""
         refused = getattr(self, '_review_retry_refused', None)
         if refused is None:
             refused = self._review_retry_refused = set()

@@ -6,9 +6,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import hashlib
 from factory.agent_files import BuilderError
 from factory.dispatch import DispatchWorker, correction_feedback, next_step
 from factory.flue_builder import FlueBuilder, attempt_text, correction_text
+from factory.preparation import PreparationError
 from factory.models import RoutingError
 from factory.publish import FakeForge
 from factory.store import (FAILED, HELD, MAX_ATTEMPTS, MAX_CORRECTION_ROUNDS, QUEUED, SIMULATED_COMPLETE,
@@ -61,6 +63,46 @@ class Reviews:
             self.rejections -= 1
             return {"verdict": "reject", "reason": "moves the default port 8081→8080; not requested"}
         return {"verdict": "approve", "reason": "in scope"}
+
+
+class Down:
+    def reachable(self):
+        return False
+
+    def reap(self, _path):
+        return []
+
+
+class RecordingPreparer:
+    timeout_seconds = 0
+    last_model = None
+
+    def __init__(self, target, evidence, resume_error=None):
+        self.target, self.evidence, self.resume_error = target, evidence, resume_error
+        self.role = type('Role', (), {'paid': False, 'last_execution': None, 'last_usage': None})()
+        self.calls = []
+
+    def resume_prepared(self, _destination):
+        self.calls.append('resume')
+        if self.resume_error is not None:
+            raise self.resume_error
+        return self.target, self.evidence
+
+    def prepare(self, **_kwargs):
+        self.calls.append('prepare')
+        raise PreparationError('preparation_workspace_refused')
+
+
+def preparation_evidence(row, base_sha):
+    paths = ["demo/forum-app/src/main/java/local/aeion/forum/",
+             "demo/forum-app/src/test/java/local/aeion/forum/"]
+    identity = {"feature_id": row["feature_id"], "catalog_digest": row["catalog_digest"],
+                "spec_digest": "c" * 64, "architecture_digest": "d" * 64,
+                "base_sha": base_sha, "write_paths": paths}
+    task = hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return {**identity, "task_digest": task, "acceptance_digest": "e" * 64,
+            "preparer_model": "glm-5.3-flash", "negative_control": "failed_contract_assertion",
+            "synthetic": True}
 
 
 class CorrectionRoundTests(unittest.TestCase):
@@ -260,6 +302,80 @@ class CorrectionRoundTests(unittest.TestCase):
         worker.run_once()
         self.assertEqual(len(author.calls), 1)
         self.assertNotEqual(self.builds()[0]['hold_reason'], 'network_unavailable')
+
+    def test_a_down_provider_holds_before_preparation_spends(self):
+        self.store.admit(["013"], "c24", self.catalog)
+        author = Author()
+        author.paid = True
+        author.last_usage = {'complete': True, 'cost_usd': '0', 'basis': 'fixture'}
+        preparer = RecordingPreparer(self.target, {})
+        worker = self.worker(author, Reviews(rejections=0))
+        worker.preparer = preparer
+        worker.connectivity = Down()
+        worker.run_once()
+        self.assertEqual(preparer.calls, [])
+        self.assertEqual(author.calls, [])
+        self.assertEqual(self.builds()[0]['status'], HELD)
+        self.assertEqual(self.builds()[0]['hold_reason'], 'network_unavailable')
+
+    def test_a_same_model_resume_reuses_preparation_and_does_not_call_prepare(self):
+        self.store.admit(["013"], "c25", self.catalog)
+        author = Author(crash={1: ValueError("CLI_FAILED")}, execution={
+            'cli_steps': 44, 'forwarded_count': 45, 'finish_reason': 'toolUse',
+            'error_class': 'IllegalStateException'})
+        reviews = Reviews(rejections=0)
+        self.worker(author, reviews).run_once()
+        evidence = preparation_evidence(self.builds()[0], self.sha)
+        preparer = RecordingPreparer(self.target, evidence)
+        worker = self.worker(author, reviews)
+        worker.preparer = preparer
+        worker.run_once()
+        self.assertEqual(preparer.calls, ['resume'])
+        self.assertTrue(author.calls[1]['resume'])
+        self.assertEqual(author.calls[1]['model'], 'deepseek-4.1-flash')
+        self.assertEqual(self.builds()[0]['status'], SIMULATED_COMPLETE)
+
+    def test_a_refused_prepared_contract_is_prepared_again(self):
+        self.store.admit(["013"], "c26", self.catalog)
+        author = Author(crash={1: ValueError("CLI_FAILED")}, execution={
+            'cli_steps': 44, 'forwarded_count': 45, 'error_class': 'IllegalStateException'})
+        reviews = Reviews(rejections=0)
+        self.worker(author, reviews).run_once()
+        preparer = RecordingPreparer(self.target, {}, resume_error=PreparationError(
+            'preparation_workspace_refused'))
+        worker = self.worker(author, reviews)
+        worker.preparer = preparer
+        result = worker.run_once()
+        self.assertEqual(preparer.calls, ['resume', 'prepare'])
+        self.assertEqual(result['result']['reason'], 'preparation_unavailable')
+        self.assertEqual(len(author.calls), 1)
+
+    def test_a_resumed_correction_round_pins_the_interrupted_model(self):
+        self.store.admit(["013"], "c27", self.catalog)
+        author = Author(crash={1: ValueError("CLI_FAILED"), 2: ValueError("CLI_FAILED")})
+        original = author.run_build
+
+        def run_build(*, repo, build, correction=None, **kwargs):
+            number = len(author.calls) + 1
+            author.execution = ({'cli_steps': 44, 'forwarded_count': 45,
+                                 'error_class': 'IllegalStateException'} if number == 2 else
+                                {'cli_steps': 2, 'forwarded_count': 2,
+                                 'error_class': 'IllegalStateException'})
+            original(repo=repo, build=build, correction=correction, **kwargs)
+
+        author.run_build = run_build
+        reviews = Reviews(rejections=0)
+        self.worker(author, reviews).run_once()
+        self.assertEqual(self.store.correction_of(self.builds()[1]['build_id'])['attempt'], 2)
+        self.worker(author, reviews).run_once()
+        self.assertEqual(json.loads(self.builds()[1]['receipt'])['continued']['trigger'],
+                         'cli_interrupted')
+        self.worker(author, reviews).run_once()
+        resumed = author.calls[2]
+        self.assertTrue(resumed['resume'])
+        self.assertEqual(resumed['model'], 'deepseek-4.1-flash')
+        self.assertEqual((resumed['attempt'], resumed['round']), (2, 0))
+        self.assertEqual(self.builds()[1]['status'], SIMULATED_COMPLETE)
 
     def test_a_stale_sandbox_proof_holds_the_same_build_and_starts_no_author(self):
         self.store.admit(["013"], "c21", self.catalog)

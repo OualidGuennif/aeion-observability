@@ -7,7 +7,7 @@ verified:
   - at: 2026-11-07
     what: "unittest correction rounds, connectivity, review circuit, artifact and recovery: a working CLI_FAILED resumes the same model; a quiet stop still crashes"
   - at: 2026-11-07
-    what: "unittest budget, TLS, workspace and review retry: ceilings stay 150/50/1; summary splits settled and reserved; an unforwarded claim settles at zero; an incomplete forward stays reserved; one failed review retries once"
+    what: "unittest budget, TLS, workspace, resume and review retry: ceilings stay 150/50/1; summary splits settled and reserved; an unforwarded claim settles at zero; a resume reuses the prepared contract; a down provider holds before prepare; one failed review retries once"
   - at: 2026-11-07
     what: "unittest CI correction: a comma in a required check name is kept; a known check adds one fixed repair sentence; a placeholder name is replaced once and that same correction is queued"
 sources:
@@ -271,7 +271,10 @@ After a v2 hold caused only by such failures (no rejection), the controller reru
 external gate and both votes once on the same unchanged artifact, without an operator and
 without rerunning the author. `review_context --retry-failed-review` remains that same repair.
 The archived votes are never reused. A second failure stays held. A same-build retry replaces
-only that build's prepared folder and repo, and keeps a same-model resume clone. GitHub TLS
+only that build's prepared folder and repo, and keeps a same-model resume clone. That resume
+reuses the prepared contract already on disk and does not call the preparer again. A missing,
+linked or altered contract is prepared again. Features 002 and 014 are prepared again, because
+their dependency seeds are not in that contract. GitHub TLS
 uses the system CA bundle when certifi is missing, and verification stays on. A reservation
 for a claim that never forwarded settles at zero. A reservation whose usage was forwarded and
 is still incomplete stays counted. Admission still counts both. The summary reports them apart.
@@ -406,9 +409,9 @@ leaves the workspace in place. Paths that passed the path checks are kept for th
 when another path leaves the diff unaccepted; they are not published. A stop with no such
 evidence, and `CLI_STARTUP_FAILED`, still starts the next attempt on another model from the
 validated files. A provider error does too. A network stop resumes the same model even with
-fewer steps. Before a paid call the live controller connects to the provider host twice; if
-either connect fails the build holds as `network_unavailable` and no model is called, then
-resumes when both succeed. An expired lease with that working evidence and no publication job
+fewer steps. Before preparation or a paid call the live controller connects to the provider
+host twice; if either connect fails the build holds as `network_unavailable` before preparation
+spends, and no model is called, then resumes when both succeed. An expired lease with that working evidence and no publication job
 is queued the same way. Publishing, waiting for CI, or merging stays `reconciliation_needed`.
 A reviewer `TRANSPORT_ERROR` retries that same model up to three times before `reviewer_failed`
 (test_factory_correction_rounds, test_factory_connectivity, test_factory_review_circuit).
@@ -469,8 +472,10 @@ expired still allows the open (test_openshell_security_window, test_factory_corr
 
 14. Generated acceptance is frozen and fully reviewed with the MD and artifact. Its preparer
     cannot build or cast either approval. A baseline initialization/compiler failure cannot
-    substitute for an actual JUnit assertion failure (test_factory_preparation,
-    test_factory_review_circuit, test_factory_vote_integrity).
+    substitute for an actual JUnit assertion failure. A same-model resume reuses an unaltered
+    prepared contract and does not call the preparer again. A down provider holds before that
+    call (test_factory_preparation, test_factory_review_circuit, test_factory_vote_integrity,
+    test_factory_correction_rounds).
 15. Protected contract install/read/cleanup refuses candidate-controlled symlinks and confines
     all parent paths. Frozen contract drift fails before execution; cleanup never follows a
     replaced parent into host files. Candidate JUnit extensions, service providers, platform

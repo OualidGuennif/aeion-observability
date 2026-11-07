@@ -1,3 +1,9 @@
+## Resume reuses the prepared contract — 2026-11-07
+
+- A same-model resume with a preparer reuses the prepared contract and does not call prepare. A refused contract is prepared again. A resumed correction round pins the interrupted model. A down provider holds network_unavailable before preparation. A linked or altered prepared folder is refused. Features 002 and 014 are prepared again.
+- The three new dispatch tests failed when those branches were inverted, then passed after they were restored. `python3 -m unittest` of github atomic, budget, target dispatch, correction rounds, publication state, review reassessment, preparation and connectivity: 124 OK. knowledge-check PASS. `doc-links --diff origin/develop --worktree` PASS (152). repo-health PASS. dispatch.py is 1494 lines. store.py is 1478 lines. factory-flue.md is 522 lines.
+- Feature 001 stays held. It was not relaunched. Product pull requests 7 and 8 were not merged. The publish token still cannot read branch protection. VERSION stays 1.9.0.
+
 ## Review retry, workspace replace, system CA and settled spend — 2026-11-07
 
 - A passed gate with a reviewer failure and no earlier retry is eligible once. A refused retry is not fetched again. A same-build retry removes only that build's repo and prepared folder, refuses a symlink, and leaves another build's repo in place. A claim that never starts the author settles its reservation at zero. An author that forwarded without complete usage keeps the reservation. The summary reports settled and reserved apart from the admission total. GitHub TLS uses `/private/etc/ssl/cert.pem` when certifi cannot be imported. The cockpit shows settled spend, not the remaining purse, as the burned amount.
