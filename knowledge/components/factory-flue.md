@@ -272,7 +272,9 @@ external gate and both votes once on the same unchanged artifact, without an ope
 without rerunning the author. `review_context --retry-failed-review` remains that same repair.
 The archived votes are never reused. A second failure stays held. A same-build retry replaces
 only that build's prepared folder and repo, and keeps a same-model resume clone. That resume
-reuses the prepared contract already on disk and does not call the preparer again. A missing,
+reuses the prepared contract already on disk and does not call the preparer again. A resumed
+correction still carries the failed check name and the reviewer lines from the build it
+continues. When those resumes run out, the next attempt keeps that CI result. A missing,
 linked or altered contract is prepared again. Features 002 and 014 are prepared again, because
 their dependency seeds are not in that contract. GitHub TLS
 uses the system CA bundle when certifi is missing, and verification stays on. A reservation

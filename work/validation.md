@@ -1,3 +1,8 @@
+## A resumed correction keeps the failed check — 2026-11-07
+
+- A correction round that resumes after a network stop still carries the failed check name, the fixed repair sentence, and the reviewer line. After three resumes the next attempt still carries that check name. The two tests failed before the prompt and the crash receipt kept those lines, then passed.
+- `python3 -m unittest` of correction rounds, preparation, and publication state: 61 OK. dispatch.py is 1494 lines.
+
 ## Resume reuses the prepared contract — 2026-11-07
 
 - A same-model resume with a preparer reuses the prepared contract and does not call prepare. A refused contract is prepared again. A resumed correction round pins the interrupted model. A down provider holds network_unavailable before preparation. A linked or altered prepared folder is refused. Features 002 and 014 are prepared again.

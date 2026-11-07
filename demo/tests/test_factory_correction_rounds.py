@@ -377,6 +377,70 @@ class CorrectionRoundTests(unittest.TestCase):
         self.assertEqual((resumed['attempt'], resumed['round']), (2, 0))
         self.assertEqual(self.builds()[1]['status'], SIMULATED_COMPLETE)
 
+    def _fail_ci(self, build):
+        import sqlite3
+        receipt = json.loads(build['receipt'])
+        receipt['publisher'] = {'status': 'held', 'reason': 'ci_failed', 'failed_checks': [
+            {'name': 'Knowledge, links and repository health', 'conclusion': 'failure'}]}
+        receipt['circuit'] = {'votes': [{'verdict': 'approve', 'reason': 'port stays 8081'}]}
+        with sqlite3.connect(self.store.path) as conn:
+            conn.execute('UPDATE builds SET receipt=? WHERE build_id=?',
+                         (json.dumps(receipt), build['build_id']))
+
+    def test_a_resumed_correction_keeps_the_failed_check_and_reviewer_lines(self):
+        self.store.admit(["013"], "c28", self.catalog)
+        author = Author(crash={1: ValueError("CLI_FAILED"), 2: ValueError("TRANSPORT_ERROR")})
+        original = author.run_build
+
+        def run_build(*, repo, build, correction=None, **kwargs):
+            number = len(author.calls) + 1
+            author.execution = ({'cli_steps': 2, 'forwarded_count': 2} if number == 1 else
+                                {'cli_steps': 0, 'forwarded_count': 0})
+            original(repo=repo, build=build, correction=correction, **kwargs)
+
+        author.run_build = run_build
+        reviews = Reviews(rejections=0)
+        self.worker(author, reviews).run_once()
+        self._fail_ci(self.builds()[0])
+        self.worker(author, reviews).run_once()
+        self.assertEqual(json.loads(self.builds()[1]['receipt'])['continued']['trigger'], 'network')
+        self.worker(author, reviews).run_once()
+        resumed = author.calls[2]
+        self.assertTrue(resumed['resume'])
+        self.assertEqual(resumed['model'], 'deepseek-4.1-flash')
+        text = correction_text(resumed)
+        self.assertIn('CONTINUE THE SAME ATTEMPT', text)
+        self.assertIn('Knowledge, links and repository health', text)
+        self.assertIn('Repair this check only', text)
+        self.assertIn('port stays 8081', text)
+
+    def test_an_exhausted_resume_of_a_ci_correction_keeps_the_failed_check(self):
+        self.store.admit(["013"], "c29", self.catalog)
+        author = Author(crash={n: ValueError("TRANSPORT_ERROR" if n > 1 else "CLI_FAILED")
+                               for n in range(1, 6)})
+        original = author.run_build
+
+        def run_build(*, repo, build, correction=None, **kwargs):
+            number = len(author.calls) + 1
+            author.execution = ({'cli_steps': 2, 'forwarded_count': 2} if number == 1 else
+                                {'cli_steps': 0, 'forwarded_count': 0})
+            original(repo=repo, build=build, correction=correction, **kwargs)
+
+        author.run_build = run_build
+        reviews = Reviews(rejections=0)
+        self.worker(author, reviews).run_once()
+        self._fail_ci(self.builds()[0])
+        for _ in range(4):
+            self.worker(author, reviews).run_once()
+        self.assertEqual(self.builds()[1]['status'], FAILED)
+        self.assertEqual(self.store.correction_of(self.builds()[2]['build_id'])['attempt'], 3)
+        self.worker(author, reviews).run_once()
+        repair = author.calls[5]
+        self.assertNotIn('resume', repair)
+        text = correction_text(repair)
+        self.assertIn('Knowledge, links and repository health', text)
+        self.assertIn('Repair this check only', text)
+
     def test_a_stale_sandbox_proof_holds_the_same_build_and_starts_no_author(self):
         self.store.admit(["013"], "c21", self.catalog)
         author = Author()

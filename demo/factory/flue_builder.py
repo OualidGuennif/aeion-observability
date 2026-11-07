@@ -78,6 +78,7 @@ def correction_text(correction):
         lines.append('The workspace already contains your files. Read them and continue the brief. '
                      'Do not start over.' if correction.get('files') else
                      'Continue this same attempt. Do not start the brief over.')
+        lines += ['- ' + line for line in correction.get('feedback') or []]
         return '\n'.join(lines)
     crash = correction.get('crash') if isinstance(correction.get('crash'), dict) else None
     if crash:
@@ -89,6 +90,7 @@ def correction_text(correction):
         lines.append('Its validated files are already in your workspace: read them, keep what is right, '
                      'finish the task, and make run_protected_checks pass.' if correction.get('files') else
                      'It left no validated files: your workspace starts from the base.')
+        lines += ['- ' + line for line in correction.get('feedback') or []]
         return '\n'.join(lines)
     header = ('CORRECTION ROUND ' + str(correction['round']) if correction['round'] > 0
               else 'NEW ATTEMPT ' + str(correction.get('attempt')) + ', ON ANOTHER MODEL')

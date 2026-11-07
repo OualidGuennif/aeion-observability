@@ -1006,8 +1006,6 @@ class DispatchWorker:
                 if hasattr(self.builder, 'run_build'):
                     self.correction = (self._resume_correction(build, frozen, repo)
                                        or self._correction_input(build, frozen))
-                    # A same-model resume keeps the interrupted workspace. A correction round
-                    # otherwise carries its own feedback. An owner launch keeps the last check hint.
                     previous = (None if self.correction is not None
                                 else self.store.previous_check_failure(feature['id'], frozen.spec_digest))
                     self.builder.run_build(repo=repo, frozen=frozen, feature=feature,
@@ -1030,9 +1028,6 @@ class DispatchWorker:
                      build, feature, frozen, base_sha, {}, {"status": "builder_error"}, None)}
             if hasattr(self.builder, 'run_build') and stop_code in RETRYABLE_AUTHOR_STOPS:
                 execution = execution if isinstance(execution, dict) else {}
-                # A CLI stop while the agent was still working is not a crash: same model,
-                # same workspace. A stop with no work, or a real provider error, still
-                # starts the next attempt on another model.
                 if same_model_resume(stop_code, execution, self.store.work_event_count(build['build_id'])):
                     resumed = self._resume_same_model(build, stop_code, execution)
                     if resumed is not None:
@@ -1187,7 +1182,7 @@ class DispatchWorker:
             'attempt': attempt,
             'round': number,
             'trigger': trigger if trigger in ('cli_interrupted', 'network', 'lease_expired') else 'cli_interrupted',
-            'feedback': [],
+            'feedback': correction_feedback(self._receipt(self.store.build(link['previous_build_id']))) if link else [],
             'files': files or None,
             'model': model or (self.author_model if isinstance(self.author_model, str) else None),
             'exclude_models': [],
@@ -1258,6 +1253,11 @@ class DispatchWorker:
         """
         link = self.store.correction_of(build['build_id'])
         attempt, current = (link['attempt'], link['round']) if link else (1, 0)
+        if link is not None and 'publisher' not in receipt:
+            inherited = self._receipt(self.store.build(link['previous_build_id'])).get('publisher')
+            if isinstance(inherited, dict) and inherited.get('reason') == 'ci_failed':
+                receipt = {**receipt, 'publisher': {'status': inherited.get('status'), 'reason': 'ci_failed',
+                                                    'failed_checks': inherited.get('failed_checks')}}
         step = next_step(attempt, current, crash=trigger == 'crash')
         receipt = {**receipt, 'correction': {'attempt': attempt, 'round': current, 'trigger': trigger,
                    'candidate_files': sorted(files), 'candidate_digest': content_digest(files) if files else None,

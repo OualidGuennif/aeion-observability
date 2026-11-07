@@ -5,8 +5,9 @@
 - A reviewer that returns no verdict is retried once by the controller, on the same author
   artifact, without a new author. A second failure stays on hold. A same-build retry replaces
   only that build's prepared folder and repo, and keeps a same-model resume clone. That resume
-  reuses the prepared contract already on disk. A provider that does not answer holds the build
-  before preparation spends. GitHub TLS
+  reuses the prepared contract already on disk, and still carries the failed check name and
+  reviewer lines. A provider that does not answer holds the build before preparation spends.
+  GitHub TLS
   uses the system CA bundle when certifi is missing. The cockpit shows settled spend apart from
   reserved capacity. A claim that never forwarded settles at zero. An incomplete forwarded
   usage stays reserved.
