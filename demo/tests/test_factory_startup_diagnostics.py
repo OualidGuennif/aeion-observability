@@ -19,5 +19,8 @@ class StartupDiagnosticsTests(unittest.TestCase):
             'stderr':'private-canary','prompt':'private-canary'})
         self.assertEqual(result,{'status':'failed','reason':'missing_secret_accepted','artifact_digest':'a'*64})
         self.assertNotIn('reason',check_evidence({'status':'failed','reason':'private value with spaces'}))
+        kept=check_evidence({'status':'failed','reason':'product_unit_tests_failed',
+            'failed_tests':['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED','bad\nname']})
+        self.assertEqual(kept['failed_tests'],['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED'])
 
 if __name__=='__main__':unittest.main()

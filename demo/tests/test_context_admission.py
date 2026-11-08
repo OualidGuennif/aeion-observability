@@ -102,6 +102,59 @@ class ContextAdmissionTests(unittest.TestCase):
         self.assertEqual(box.last_error_code,'PROVIDER_CONTEXT_VIOLATION')
         self.assertEqual(len(self.calls),1)
 
+    def post_messages(self, box, count):
+        payload={'model':'qwen3.8-flash','stream':True,'max_tokens':16,
+                 'messages':[{'role':'user','content':'x'} for _ in range(count)]}
+        request=urllib.request.Request(box.url+'/messages',data=json.dumps(payload).encode(),
+            headers={'x-api-key':box.token,'Content-Type':'application/json'})
+        try:
+            with urllib.request.urlopen(request,timeout=4) as response:
+                response.read();status=response.status
+        except urllib.error.HTTPError as error:
+            with error:error.read();status=error.code
+        with box.active:pass
+        return status
+
+    def test_a_follow_up_past_the_message_cap_hands_over(self):
+        box=self.relay()
+        self.assertEqual(self.send(box),200)
+        self.assertEqual(self.post_messages(box,257),409)
+        self.assertEqual(box.last_error_code,'AEION_HANDOVER')
+        self.assertEqual(len(self.calls),1)
+        self.assertEqual(self.checkpoints,[(4000,True)])
+
+    def test_the_first_request_past_the_message_cap_stays_unknown(self):
+        box=self.relay()
+        self.assertEqual(self.post_messages(box,257),409)
+        self.assertEqual(box.last_error_code,'CONTEXT_UNKNOWN')
+        self.assertEqual(self.calls,[])
+        self.assertEqual(self.checkpoints,[])
+
+    def test_an_unexpected_follow_up_exception_is_relay_fault(self):
+        box=self.relay()
+        self.assertEqual(self.send(box),200)
+        class Boom:
+            def count(self, _payload):
+                raise RuntimeError('synthetic')
+        box.counter=Boom()
+        status=self.send(box,1)
+        self.assertEqual(status,409)
+        self.assertEqual(box.last_error_code,'RELAY_FAULT')
+        self.assertEqual(len(self.calls),1)
+        self.assertTrue(self.checkpoints)
+
+    def test_a_first_request_unexpected_exception_stays_unknown(self):
+        box=self.relay()
+        class Boom:
+            def count(self, _payload):
+                raise RuntimeError('synthetic')
+        box.counter=Boom()
+        status=self.send(box)
+        self.assertEqual(status,409)
+        self.assertEqual(box.last_error_code,'CONTEXT_UNKNOWN')
+        self.assertEqual(self.calls,[])
+        self.assertEqual(self.checkpoints,[])
+
 
 class ProviderContextTests(unittest.TestCase):
     def test_anthropic_input_includes_cache_and_output_updates_preserve_it(self):

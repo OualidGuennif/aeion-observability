@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { finishReminder, MAX_FINISH_REMINDERS } from '../src/tools/factory-checks.ts';
+import { finishReminder, MAX_FINISH_REMINDERS, unavailableCheck } from '../src/tools/factory-checks.ts';
 
 test('a passed check lets the author stop', () => {
   assert.equal(finishReminder({ status: 'passed' }), null);
@@ -16,6 +16,14 @@ test('a failed check names its failing tests and forbids stopping', () => {
   assert.match(text, /product_unit_tests_failed/);
   assert.match(text, /livenessAnswersWithoutADatabase/);
   assert.match(text, /Do not stop/);
+});
+
+test('a refused protected check returns its reason token', () => {
+  assert.deepEqual(unavailableCheck(false, { ok: false, error: 'SANDBOX_EXEC_FAILED' }),
+    { status: 'failed', reason: 'SANDBOX_EXEC_FAILED' });
+  assert.deepEqual(unavailableCheck(true, { ok: false, error: 'secret log line' }),
+    { status: 'failed', reason: 'check_unavailable' });
+  assert.equal(unavailableCheck(true, { ok: true, result: { status: 'passed' } }), null);
 });
 
 test('reminder data stays bounded and typed', () => {

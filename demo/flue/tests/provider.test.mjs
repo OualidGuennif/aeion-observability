@@ -61,12 +61,13 @@ test('every authorized model maps the agents\' max level to its native maximum',
   }
 });
 
-test('GPT-6 Luna and Mistral Large 4 send OpenAI reasoning_effort at their native maximum', () => {
+test('GPT-6 Luna sends OpenAI reasoning_effort at max and MiniMax sends none', () => {
   const meta = JSON.parse(env.AEION_MODEL_JSON);
-  for (const [id, top] of [['gpt-6-luna', 'max'], ['mistral-large-4', 'high']]) {
-    const model = modelFromEnv({ ...env, AEION_MODEL_JSON: JSON.stringify({ ...meta, id }) });
-    assert.equal(model.thinkingLevelMap.max, top, id);
-    assert.equal(model.compat.thinkingFormat, 'openai', id);
-    assert.equal(model.compat.supportsReasoningEffort, true, id);
-  }
+  const luna = modelFromEnv({ ...env, AEION_MODEL_JSON: JSON.stringify({ ...meta, id: 'gpt-6-luna' }) });
+  assert.equal(luna.thinkingLevelMap.max, 'max');
+  assert.equal(luna.compat.thinkingFormat, 'openai');
+  assert.equal(luna.compat.supportsReasoningEffort, true);
+  const mini = modelFromEnv({ ...env, AEION_MODEL_JSON: JSON.stringify({ ...meta, id: 'minimax-m3.1-flash' }) });
+  assert.deepEqual(mini.thinkingLevelMap, {});
+  assert.equal(mini.compat.supportsReasoningEffort, false);
 });

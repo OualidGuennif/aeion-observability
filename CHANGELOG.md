@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Three identical protected-check failures stop the next model admission as
+  `repeated_check_failure` and the next author receives the failing test names.
+  A Gradle failure with no test line keeps one task name or one exception class.
+  An unexpected relay exception after a forwarded request is `RELAY_FAULT` and
+  continues that attempt. A protected check that is still running is not shown
+  as a stalled agent. The cockpit shows how many hours remain on the 24-hour
+  admission proof and does not renew it.
+- `minimax-m3.1-flash` replaces `mistral-large-4`. Its budget multiple is 4, the
+  highest multiple measured for Go, used as an upper bound until this model is
+  measured. No reasoning effort is sent until one is measured.
+- A follow-up request that no longer fits the admission window starts a fresh session.
+  More than 256 messages, or a body over 2000000 bytes after a forwarded request, is
+  `AEION_HANDOVER`. A first request past either cap stays `CONTEXT_UNKNOWN`.
+- A correction names the candidate paths that differ from the pinned base, and any code file
+  whose Spec document is missing from that change. The sandbox still has no git history.
+  A protected check that cannot run returns its reason token instead of an empty failure.
+- `python3 -m factory.live_status` reads the running factory and prints status names only.
+  `--feedback` adds the supervisor CI lines. `--protection` prints the release token's
+  branch-protection HTTP status. Reviewer prose stays out of the report.
 - A reviewer that returns no verdict is retried once by the controller, on the same author
   artifact, without a new author. A second failure stays on hold. A same-build retry replaces
   only that build's prepared folder and repo, and keeps a same-model resume clone. That resume

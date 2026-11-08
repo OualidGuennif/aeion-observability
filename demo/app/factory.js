@@ -215,9 +215,10 @@ function renderOverview() {
   const e = state.execution;
   const mode = ({ live: "Live", offline: "Offline qualification", simulator: "Simulation only" })[e.mode] || "Unavailable";
   $("execution-mode").textContent = `${mode}${e.hold_reason ? " · Paused" : ""}`;
-  $("execution-notice").innerHTML = e.mode === "live" && !(e.hold_reason || e.live_hold_reason)
+  const expiry = admissionLine(e);
+  $("execution-notice").innerHTML = (e.mode === "live" && !(e.hold_reason || e.live_hold_reason)
     ? "Real model calls, isolated build, protected checks, two independent reviews, then a PR to main. One build at a time."
-    : executionNotice(e, ready);
+    : executionNotice(e, ready)) + (expiry ? " " + esc(expiry) : "");
   const step = nextStep(e, state.catalog, splitBuilds(state.builds).current);
   $("next-title").textContent = step.title; $("next-detail").textContent = step.detail;
   $("next-step").classList.toggle("attention", /on hold|paused|Nothing real/.test(step.title));
@@ -377,24 +378,32 @@ function agentClock(build, receipt, windowSeconds) {
   const last = Math.max(started, Number(receipt.last_tool_ns) || 0, Number(receipt.progress?.time_ns) || 0);
   const failures = Number.isInteger(receipt.draft_failures) ? receipt.draft_failures : 0;
   const window = Number.isInteger(windowSeconds) && windowSeconds > 0 ? windowSeconds : 0;
-  return `<p class="agent-clock" data-start="${started / 1e6}" data-last="${last / 1e6}" data-window="${window}" data-failures="${failures}"></p>`;
+  const checking = receipt.progress?.phase === "protected_check.started" ? 1 : 0;
+  return `<p class="agent-clock" data-start="${started / 1e6}" data-last="${last / 1e6}" data-window="${window}" data-failures="${failures}" data-checking="${checking}"></p>`;
 }
-function clockText(startMs, lastMs, windowSeconds, failures, nowMs) {
+function clockText(startMs, lastMs, windowSeconds, failures, nowMs, checking) {
   const minutes = (ms) => Math.max(0, Math.floor(ms / 60000));
   const elapsed = minutes(nowMs - startMs);
   const silent = Math.max(0, (nowMs - lastMs) / 1000);
   const parts = [windowSeconds ? `Agent time ${elapsed} of ${Math.round(windowSeconds / 60)} min` : `Agent time ${elapsed} min`,
     `last activity ${silent < 60 ? "under a minute" : minutes(silent * 1000) + " min"} ago`];
   if (failures) parts.push(`draft self-test failed ${failures}×`);
-  const stalled = silent >= STALL_SECONDS;
-  const note = stalled ? ` · No agent activity for ${minutes(silent * 1000)} min: a long command or a stalled agent. The time window and author budget still stop it.`
+  const stalled = !checking && silent >= STALL_SECONDS;
+  const note = checking ? " · Protected check running."
+    : stalled ? ` · No agent activity for ${minutes(silent * 1000)} min: a long command or a stalled agent. The time window and author budget still stop it.`
     : failures >= 3 ? " · The same draft keeps failing its self-test." : "";
-  return { text: parts.join(" · ") + note, attention: stalled || failures >= 3 };
+  return { text: parts.join(" · ") + note, attention: stalled || (!checking && failures >= 3) };
+}
+function admissionLine(execution) {
+  const expires = Number(execution && execution.admission_expires_ns);
+  if (!Number.isFinite(expires) || expires <= 0) return "";
+  const hours = Math.max(0, Math.round((expires / 1e6 - Date.now()) / 3600000));
+  return `Admission expires in ${hours} h.`;
 }
 function tickClocks(nowMs = Date.now()) {
   if (typeof document === "undefined" || !document.querySelectorAll) return;
   for (const el of document.querySelectorAll(".agent-clock")) {
-    const c = clockText(Number(el.dataset.start), Number(el.dataset.last), Number(el.dataset.window), Number(el.dataset.failures), nowMs);
+    const c = clockText(Number(el.dataset.start), Number(el.dataset.last), Number(el.dataset.window), Number(el.dataset.failures), nowMs, el.dataset.checking === "1");
     el.textContent = c.text; el.classList.toggle("attention", c.attention);
   }
 }

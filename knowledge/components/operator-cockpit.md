@@ -3,11 +3,18 @@ type: Component
 title: "Local feature cockpit"
 description: "One administrator workspace for truthful feature availability, build activity and private traces."
 status: draft
+verified:
+  - at: 2026-11-07
+    what: "unittest live status: the report prints phase names and supervisor CI lines, and leaves reviewer prose out"
+  - at: 2026-11-08
+    what: "node cockpit client: a running protected check is not a stall; admission hours remaining are shown"
 sources:
   - resource: ../../demo/app/factory.html
     title: "Cockpit markup"
   - resource: ../../demo/app/factory.js
     title: "Cockpit client"
+  - resource: ../../demo/factory/live_status.py
+    title: "Read-only live status names"
   - resource: ../../demo/app/factory.css
     title: "Cockpit layout"
   - resource: ../../demo/app/server.py
@@ -101,6 +108,7 @@ that has never started (test_factory_contract_identity).
 The root and /factory serve the same cockpit; /lab serves the existing advanced lab. Catalog entries add availability (state, selectable, reason, missing dependencies). Board responses add the two purse summaries, or an unavailable budget state. A repeated completed feature is refused as feature_already_completed:<id>; an active duplicate is feature_in_progress:<id>. The API returns HTTP 409 for those admission conflicts. Idempotent replay retains the existing response.
 A network hold says no new author was started and that the same request resumes when the provider answers again (test_cockpit_client). A stale OpenShell security proof says the same: wait, the factory resumes that request when the proof is fresh. A reviewer that returns no verdict says the controller reruns the votes once without rerunning the author, and that a second failure stays on hold. The budget block shows settled spend as the burned amount, then reserved capacity and what remains of the purse. Admission still counts open reservations. The copy names the owner ceilings of $150 per day, $50 per author execution and $1 per review vote.
 While no build lease is active, the live controller removes an OpenShell sandbox pair only after it is 30 minutes old. A younger pair stays, including one still used by qualification. A dispatched build keeps its sandbox (test_openshell_reap, test_factory_connectivity). The reaper is loaded by file path, because the installed OpenShell package owns that import name.
+`python3 -m factory.live_status` from `demo/` reads the listener and the factory database without opening the store. It prints status names, progress phases and, with `--feedback`, only the supervisor CI lines. Reviewer prose, receipts and credentials stay out. `--protection` prints the release token's branch-protection HTTP status and the required check names. A progress phase outside preparing, building, checking and reviewing is shown in the cockpit stage column as Build once a preparation exists; the stage sentence still names the step, for example Agent working (test_factory_live_status). While `protected_check.started` is the current phase, ten minutes of silence is not a stall: the clock says the protected check is running (test_cockpit_client). The catalog execution payload carries `admission_expires_ns`, and the notice says how many hours remain. Nothing renews that proof from the page. A failed draft check keeps at most eight pattern-checked test names on the progress receipt, so the Failed tests row can show them.
 
 ## Invariants
 
@@ -157,7 +165,7 @@ Availability is derived deterministically from supervisor-owned records and the 
 
 ## Acceptance checks
 
-Run demo/tests/test_cockpit_admission.py, the existing demo suite, knowledge-check and doc-links. Verify the actual rendered interface using a temporary fixture backend with a fixture administrator token: completed/active/unsupported rows cannot be selected; ready selection enables the launch control; filtering, trace details and narrow layout remain usable. Do not spend on a model merely to validate presentation.
+Run demo/tests/test_cockpit_admission.py, demo/tests/test_factory_live_status.py, the existing demo suite, knowledge-check and doc-links. Verify the actual rendered interface using a temporary fixture backend with a fixture administrator token: completed/active/unsupported rows cannot be selected; ready selection enables the launch control; filtering, trace details and narrow layout remain usable. Do not spend on a model merely to validate presentation.
 
 ## Out of scope
 

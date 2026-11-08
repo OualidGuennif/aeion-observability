@@ -64,7 +64,9 @@ reviewer model families must differ from each other and from author/preparer fam
 publisher/release subprocesses open the product PR, verify exact-head CI and confirm main.
 A required check that finished without success does not merge: it queues a bounded correction
 with the check names, one fixed repair sentence for a known check, and the agents' notes.
-An unreadable or pending check stays held.
+An unreadable or pending check stays held. Three identical protected-check failures stop the
+author as `repeated_check_failure` and the next attempt receives those test names. The catalog
+shows the admission expiry and does not renew it.
 A CLI stop while the author was still working resumes that same build and model; the execution
 contract states the evidence, the three-resume cap, and which stops still start another model.
 A security proof inside its last hour is refreshed before a sandbox opens; a failed refresh

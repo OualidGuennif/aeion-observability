@@ -103,6 +103,23 @@ class WorkLimitTests(unittest.TestCase):
         self.assertEqual(factory_work_limit(run,1,now=100),'STEP_LIMIT')
         self.assertEqual(factory_work_limit(run,0,now=200),'AGENT_DEADLINE')
 
+    def test_three_identical_check_failures_stop_the_next_admission(self):
+        from factory.flue_builder import note_check_failure
+        import inspect
+        run={}
+        failed={'status':'failed','reason':'product_unit_tests_failed',
+                'failed_tests':['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED']}
+        note_check_failure(run,failed)
+        note_check_failure(run,failed)
+        self.assertIsNone(factory_work_limit({**run,'step_cap':12,'forwarded_count':0},0,now=1))
+        note_check_failure(run,failed)
+        self.assertEqual(factory_work_limit({**run,'step_cap':12,'forwarded_count':0,'factory_deadline':10**9},0,now=1),
+                         'repeated_check_failure')
+        source = inspect.getsource(FlueBuilder.run_build)
+        self.assertNotIn('as often as you need', source)
+        self.assertNotIn('You may not stop', source)
+        self.assertIn('three identical failures', source)
+
     def test_frozen_deadline_and_context_are_used_before_a_sandbox_can_start(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)

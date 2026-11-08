@@ -32,17 +32,18 @@ MODELS = {
     "glm-5.3-flash": {"family": "zhipu", "wire": "glm-5.3-flash",
                       "roles": {"review", "author"},
                       "authorization": OWNER_AUTHORIZATION, "profile": "glm"},
-    # Added by the owner on 2026-11-06. Mistral Large 4 is billed to the pay-as-you-go balance.
+    # Added by the owner on 2026-11-06.
     "gpt-6-luna": {"family": "openai", "wire": "gpt-6-luna",
                    "roles": {"review", "author"}, "retention_days": 30,
                    "authorization": "2026-11-06"},
-    "mistral-large-4": {"family": "mistral", "wire": "mistral-large-4",
-                        "roles": {"review", "author"}, "billing": "pay-as-you-go",
-                        "authorization": "2026-11-06"},
+    # Owner request 2026-11-08: MiniMax M3.1 Flash replaces Mistral Large 4.
+    "minimax-m3.1-flash": {"family": "minimax", "wire": "minimax-m3.1-flash",
+                           "roles": {"review", "author"},
+                           "authorization": "2026-11-08"},
 }
 # New models follow the measured ones in the cold-start order until telemetry ranks them.
 DEFAULT_REVIEW_ORDER = ("glm-5.3-flash", "qwen-3.8-flash", "deepseek-4.1-flash", "claude-haiku-5.5",
-                        "gpt-6-luna", "mistral-large-4")
+                        "gpt-6-luna", "minimax-m3.1-flash")
 MAX_RECORDS = 500
 
 

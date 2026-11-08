@@ -30,7 +30,7 @@ class RegistryTests(unittest.TestCase):
         remaining = eligible(exclude_models=["glm-5.3-flash"])
         self.assertNotIn("glm-5.3-flash", remaining)
         self.assertEqual(len(remaining), 5)
-        self.assertEqual(eligible(exclude_families=["anthropic", "openai", "mistral"]),
+        self.assertEqual(eligible(exclude_families=["anthropic", "openai", "minimax"]),
                          ["deepseek-4.1-flash", "glm-5.3-flash", "qwen-3.8-flash"])
 
     def test_router_prefers_efficiency_then_is_deterministic(self):
@@ -48,7 +48,7 @@ class RegistryTests(unittest.TestCase):
     def test_no_eligible_model_raises(self):
         with self.assertRaisesRegex(RoutingError, "no_eligible_model"):
             Router().select("review", exclude_families=["zhipu", "qwen", "deepseek", "anthropic",
-                                                        "openai", "mistral"])
+                                                        "openai", "minimax"])
 
     def test_new_models_follow_the_measured_ones_in_the_cold_start_order(self):
         self.assertEqual(Router().select("author", require_role="author"), "glm-5.3-flash")

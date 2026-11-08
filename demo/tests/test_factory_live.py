@@ -33,7 +33,7 @@ class ModelPolicyTests(unittest.TestCase):
 
     def test_the_six_owner_authorized_workers_are_present(self):
         self.assertEqual(set(MODELS), {"glm-5.3-flash", "qwen-3.8-flash", "deepseek-4.1-flash",
-                                       "claude-haiku-5.5", "gpt-6-luna", "mistral-large-4"})
+                                       "claude-haiku-5.5", "gpt-6-luna", "minimax-m3.1-flash"})
 
 
     def test_an_unknown_model_has_no_wire_id(self):

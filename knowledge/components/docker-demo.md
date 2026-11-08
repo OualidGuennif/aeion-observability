@@ -3,6 +3,9 @@ type: Component
 title: "Local agent observability and memory showcase"
 description: "Flue + Pi agents in three execution tiers (in-memory triage, folder-confined local assistant, autonomous coding in OpenShell), a host-native cockpit with a counting relay, Markdown handover and four observation/memory tools."
 status: draft
+verified:
+  - at: 2026-11-07
+    what: "unittest live status: the report prints phase names and supervisor CI lines, and leaves reviewer prose out"
 sources:
   - id: framework
     resource: observability.md
@@ -51,7 +54,10 @@ bounded Hindsight recall. Both pages share light/dark tokens. Current-contract c
 results for rewritten MDs remain visible without certifying the new contract. A dependency wait
 names the missing IDs and clears only after their current contracts reach product main; it
 does not impose a strictly numeric sequence. Active work exposes Prepare/Build/Check/Review/
-PR-CI/Main stages, protected evidence and a full Langfuse build-session link.
+PR-CI/Main stages, protected evidence and a full Langfuse build-session link. A model step
+counts as the Build stage in that column once a preparation exists; the sentence under it
+names the step. `python3 -m factory.live_status` from `demo/` prints those phase names
+without receipts or reviewer prose.
 
 Execution is explicit: `simulator`, a pinned deterministic `offline` fixture, or `live` with
 automatic acceptance preparation and a Flue/Pi tier3 builder. Native admission qualifies tools
@@ -62,8 +68,8 @@ qualification pause. A named role loader consumes the provider credential; absen
 `target_feature_mismatch`. The [factory execution contract](factory-flue.md) owns the current
 external product checker, frozen dependency policy, review independence and publication gates.
 The owner authorized four workers on 2026-11-02 (`glm-5.3-flash`, `qwen-3.8-flash`,
-`deepseek-4.1-flash`, `claude-haiku-5.5`) and added `gpt-6-luna` and `mistral-large-4` on 2026-11-06
-(Mistral is billed to the pay-as-you-go balance); internal display ids map to canonical wire ids and the
+`deepseek-4.1-flash`, `claude-haiku-5.5`) and added `gpt-6-luna` on 2026-11-06. On 2026-11-08
+`minimax-m3.1-flash` replaced `mistral-large-4`. Internal display ids map to canonical wire ids and the
 authoring choice is the shared router's deterministic result. A completed paid attempt is
 `live_complete` with `simulated: false`, never `simulated_complete`.
 

@@ -126,6 +126,9 @@ def factory_work_limit(run, current_forwards, now=None):
             return 'WORK_LIMIT_INVALID'
         if (time.monotonic() if now is None else now) >= deadline:
             return 'AGENT_DEADLINE'
+    stop = run.get('repeated_check_stop')
+    if isinstance(stop, str) and re.fullmatch(r'[a-z][a-z0-9_]{1,63}', stop):
+        return stop
     if previous + current_forwards >= cap:
         return 'STEP_LIMIT'
     return None

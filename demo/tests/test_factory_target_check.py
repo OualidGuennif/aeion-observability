@@ -102,6 +102,12 @@ class TargetCheckTests(unittest.TestCase):
         self.assertEqual(detail["failed_tests"], ["ContractTest > cspIsEnforced() FAILED"])
         self.assertNotIn("candidate.Stack", str(detail))
 
+    def test_a_gradle_failure_without_a_test_line_keeps_one_identifier(self):
+        from factory.checks import _failed_tests
+        self.assertEqual(_failed_tests("Execution failed for task ':test'.\nsecret log"), [":test"])
+        self.assertEqual(_failed_tests("java.lang.AssertionError: secret value\n"), ["AssertionError"])
+        self.assertNotIn("secret", str(_failed_tests("java.lang.AssertionError: secret value\n")))
+
     def test_compilation_failure_exposes_identifiers_without_source_or_values(self):
         def runner(command, **kwargs):
             output = ('/workspace/src/Filter.java:82: error: cannot find symbol\n'

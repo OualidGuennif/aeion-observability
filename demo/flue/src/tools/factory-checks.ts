@@ -34,6 +34,15 @@ export function lastCheckResult() {
   return lastCheck;
 }
 
+/** A failed bridge call still returns a check result. The reason is a token, never a log. */
+export function unavailableCheck(ok: boolean, body: unknown): CheckResult | null {
+  const value = body && typeof body === 'object' ? body as { ok?: unknown; error?: unknown; result?: unknown } : {};
+  if (ok && value.ok === true) return null;
+  const code = typeof value.error === 'string' && /^[A-Za-z0-9_]{1,64}$/.test(value.error)
+    ? value.error : 'check_unavailable';
+  return { status: 'failed', reason: code };
+}
+
 export function factoryChecks() {
   const config = bridgeFromEnv();
   return defineTool({
@@ -47,9 +56,9 @@ export function factoryChecks() {
         body: '{}',
       });
       const result = await response.json();
-      if (!response.ok || result.ok !== true) throw new Error('Protected check unavailable');
-      lastCheck = result.result && typeof result.result === 'object' ? result.result : { status: 'failed' };
-      return JSON.stringify(result.result);
+      const refused = unavailableCheck(response.ok, result);
+      lastCheck = refused || (result.result && typeof result.result === 'object' ? result.result : { status: 'failed' });
+      return JSON.stringify(lastCheck);
     },
   });
 }

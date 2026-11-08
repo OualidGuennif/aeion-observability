@@ -144,11 +144,22 @@ class ContextRelay:
                     if relay.closed:
                         return self.deny(403, "GATE_CLOSED")
                     length = int(self.headers.get("Content-Length", "0"))
+                    # A grown author transcript crosses the read cap before the token gate.
+                    # That is a fresh session, not unknown accounting. A first request stays unknown.
+                    if length > 2000000 and relay.forwarded_count:
+                        relay.refuse_grown_session()
+                        return self.deny(409, "AEION_HANDOVER")
                     if not 0 < length <= 2000000:
                         raise ValueError("CONTEXT_UNKNOWN")
                     body = self.rfile.read(length)
                     payload = loads(body)
                     if payload.get("model") != relay.model or payload.get("stream") is not True:
+                        raise ValueError("CONTEXT_UNKNOWN")
+                    messages = payload.get("messages")
+                    if isinstance(messages, list) and len(messages) > 256:
+                        if relay.forwarded_count:
+                            relay.refuse_grown_session()
+                            return self.deny(409, "AEION_HANDOVER")
                         raise ValueError("CONTEXT_UNKNOWN")
                     if payload.get("n", 1) != 1 or any(k in payload for k in ("previous_response_id", "conversation", "session_id")):
                         raise ValueError("CONTEXT_UNKNOWN")
@@ -352,9 +363,13 @@ class ContextRelay:
                     relay.event("provider.failed", **{"aeion.failure.code": relay.last_error_code})
                 except Exception:
                     relay.closed = True
-                    relay.last_error_code = 'CONTEXT_UNKNOWN'
-                    relay.event("context.refused", **{"aeion.failure.code": "CONTEXT_UNKNOWN"})
-                    self.deny(409, "CONTEXT_UNKNOWN")
+                    if relay.forwarded_count:
+                        relay.refuse_grown_session('RELAY_FAULT')
+                        self.deny(409, 'RELAY_FAULT')
+                    else:
+                        relay.last_error_code = 'CONTEXT_UNKNOWN'
+                        relay.event("context.refused", **{"aeion.failure.code": "CONTEXT_UNKNOWN"})
+                        self.deny(409, "CONTEXT_UNKNOWN")
                 finally:
                     relay.active.release()
 
@@ -366,6 +381,20 @@ class ContextRelay:
 
     def start(self):
         self.thread.start()
+
+    def refuse_grown_session(self, code="AEION_HANDOVER"):
+        """The next turn no longer fits this session. Hand the accounted work to a fresh one."""
+        previous = self.reported_usage[-1] if self.reported_usage else {}
+        counted = previous.get("input_tokens")
+        if type(counted) is not int or counted < 0:
+            counted = 0
+        self.closed = True
+        self.last_error_code = code
+        try:
+            self.checkpoint(counted, True)
+        except Exception:
+            pass
+        self.event("context.refused", **{"aeion.failure.code": code})
 
     def claim_forward(self, counted):
         # Shutdown and the liability counter share one ordering point. Once closed, local

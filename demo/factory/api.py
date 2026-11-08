@@ -24,6 +24,7 @@ from .freeze import AUTHOR_TIMEOUT_SECONDS
 from .gateway import Gateway, SessionError
 from .releases import ReleaseError, ReleaseService
 from .retention import Retention
+from .flue_qualification import expires_ns as admission_expires_ns
 
 COOKIE = "aeion_factory"
 MAX_BODY = 65536
@@ -208,6 +209,7 @@ class FactoryApp:
                     (None if self.execution.get("builder") is not None and not blocker
                      else (blocker or "live_builder_unqualified"))
                     if self.execution_mode == "live" else "live_builder_unqualified"),
+                "admission_expires_ns": admission_expires_ns(),
             },
         }, {}
 
