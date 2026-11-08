@@ -119,6 +119,12 @@ class StoreTests(unittest.TestCase):
             terminal=FAILED)
         crashed=store.previous_check_failure('f1','c'*64)
         self.assertEqual(crashed['failed_tests'],['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED'])
+        store.admit(['f1'],'passed-gate',self.catalog);build=store.claim_next(self.catalog)
+        store.complete_attempt(build['attempt_id'],build['attempt_generation'],
+            {'spec_digest':'d'*64,'gate':{'status':'passed','results':{}},'execution':{'check':{
+             'reason':'product_unit_tests_failed','failed_tests':['Old > t() FAILED']}}},
+            terminal=FAILED)
+        self.assertIsNone(store.previous_check_failure('f1','d'*64))
 
     def test_admit_root_is_queued(self):
         s = self.store()

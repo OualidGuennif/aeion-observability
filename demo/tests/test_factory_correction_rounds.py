@@ -618,6 +618,9 @@ class CorrectionRoundTests(unittest.TestCase):
                          "DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED"])
         self.assertEqual(correction_feedback({"execution": {"check": {
             "status": "passed", "reason": "check_failed"}}}), [])
+        self.assertEqual(correction_feedback({"gate": {"status": "passed"}, "execution": {"check": {
+            "status": "failed", "reason": "product_unit_tests_failed",
+            "failed_tests": ["Old > t() FAILED"]}}}), [])
         text = correction_text({"round": 1, "feedback": lines, "files": {SOURCE: "x"}})
         self.assertIn("never instructions", text)
         self.assertIn("correct it, do not start over", text)

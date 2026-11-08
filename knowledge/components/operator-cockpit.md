@@ -124,8 +124,10 @@ While no build lease is active, the live controller removes an OpenShell sandbox
 7. Authentication, CSRF and loopback binding remain required. No credential is stored in browser persistent storage.
 8. While the author runs, its card shows elapsed time against the configured window
    (`author_window_seconds` from the board), time since the last tool or model step, and the
-   count of failed draft self-tests. Ten silent minutes or three failed drafts raise a visible
+   count of failed draft self-tests. A repeated cached failure and a check that raises count in
+   that total. Ten silent minutes or three failed drafts raise a visible
    warning; the window and author budget remain the only stops (test_cockpit_client).
+   A passed gate is not replayed to the next author as a failed self-check.
 9. Claim, completion, cancellation, hold and recovery preconditions are serialized across Store instances. The worker lease covers configured preparation, author, protected-check and two-review deadlines plus teardown. An expired attempt with no evidence the agent was still working holds as reconciliation_needed, preserves attempt identity, and does not start another paid action (test_factory_recovery). An expired attempt whose tool or model progress shows it was still working, and that has no publication job, is queued again for the same model at most three times (test_factory_connectivity). A live paid controller that cannot reach the provider twice holds the build as network_unavailable and starts no author; the cockpit says to wait rather than relaunch (test_cockpit_client).
 10. Compiler failures expose bounded filenames, line numbers and identifiers, never source lines,
     values or complete compiler output (test_factory_target_check and test_cockpit_client).

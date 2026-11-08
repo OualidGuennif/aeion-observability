@@ -346,6 +346,8 @@ class FlueBuilder:
                     if digest in cache:
                         runtime.last_check = cache[digest]
                         note_check_failure(run, cache[digest])
+                        if progress:
+                            progress('protected_check.finished', cache[digest])
                         return cache[digest]
                     if progress:
                         progress('protected_check.started', {'artifact_digest': digest})
@@ -374,6 +376,8 @@ class FlueBuilder:
                               'returncode': None, 'compiler_errors': [], 'failed_tests': []}
                     runtime.last_check = failed
                     note_check_failure(run, failed)
+                    if progress:
+                        progress('protected_check.finished', failed)
                     return failed
 
         runtime.snapshot, runtime.protected_check = snapshot, check

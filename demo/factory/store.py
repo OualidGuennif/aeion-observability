@@ -1384,6 +1384,8 @@ class Store:
             if receipt.get('spec_digest') != spec_digest:
                 continue
             gate = receipt.get('gate') if isinstance(receipt.get('gate'), dict) else {}
+            if gate.get('status') == 'passed':
+                continue
             for result in (gate.get('results') or {}).values():
                 detail = result.get('detail') if isinstance(result, dict) else None
                 if not isinstance(detail, dict) or not isinstance(detail.get('reason'), str):

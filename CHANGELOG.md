@@ -11,6 +11,8 @@
   continue. A grown follow-up after an incomplete usage row is `USAGE_UNKNOWN`
   and does not start another paid session. A repeated cached failure is the check
   the next author sees, and a passing check is not described as a failure.
+  A passed gate is not replayed as that self-check. Repeated and raised checks
+  count toward the cockpit's failed-draft warning.
   A protected check that is still running is not shown
   as a stalled agent. The cockpit shows how many hours remain on the 24-hour
   admission proof and does not renew it.

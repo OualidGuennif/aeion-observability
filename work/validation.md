@@ -9,6 +9,7 @@
 - Independent review of b055f63 was NOT OK: a truncated upstream chunk became RELAY_FAULT after the claim and before its usage row, so a later finish was USAGE_UNKNOWN. The two new context-admission tests failed on that code with RELAY_FAULT. A truncated chunk is now TRANSPORT_ERROR, the claim stays open, and the session does not continue.
 - Independent review of cd48926 was NOT OK: a 257-message follow-up after a usage row with no cost returned AEION_HANDOVER before the usage gate. That test failed with AEION_HANDOVER. The same follow-up is now USAGE_UNKNOWN, with no checkpoint and no second provider call.
 - Independent review of 69191a6 was NOT OK on two points. A cached failure did not replace the published check, so the source assertion for `runtime.last_check = cache[digest]` failed. A passed check with reason `check_failed` was told to the next author as a failure. The cache hit now publishes that check, and correction text requires status failed.
+- Independent review of 343f594 was NOT OK. A passed gate still replayed a stale self-check, and only one `protected_check.finished` call existed, so the three-failure cockpit count stayed at 1. Those three tests failed before the fix. A passed gate is now skipped, and cached and raised failures emit the finished event.
 
 ## A grown session hands over — 2026-11-08
 

@@ -233,7 +233,7 @@ def correction_feedback(receipt):
             tests = [_plain(t, 160) for t in (detail.get('failed_tests') or [])[:8]]
             if any(tests):
                 lines.append('Failing tests: ' + '; '.join(t for t in tests if t))
-    elif isinstance((receipt.get('execution') or {}).get('check'), dict) and (receipt.get('execution') or {}).get('check', {}).get('status') == 'failed':
+    elif (receipt.get('gate') or {}).get('status') != 'passed' and isinstance((receipt.get('execution') or {}).get('check'), dict) and (receipt.get('execution') or {}).get('check', {}).get('status') == 'failed':
         check = receipt['execution']['check']
         named = '; '.join(t for t in (_plain(x, 160) for x in (check.get('failed_tests') or [])[:8]) if t)
         if _plain(check.get('reason'), 96) or named:
