@@ -10,6 +10,7 @@
 - Independent review of cd48926 was NOT OK: a 257-message follow-up after a usage row with no cost returned AEION_HANDOVER before the usage gate. That test failed with AEION_HANDOVER. The same follow-up is now USAGE_UNKNOWN, with no checkpoint and no second provider call.
 - Independent review of 69191a6 was NOT OK on two points. A cached failure did not replace the published check, so the source assertion for `runtime.last_check = cache[digest]` failed. A passed check with reason `check_failed` was told to the next author as a failure. The cache hit now publishes that check, and correction text requires status failed.
 - Independent review of 343f594 was NOT OK. A passed gate still replayed a stale self-check, and only one `protected_check.finished` call existed, so the three-failure cockpit count stayed at 1. Those three tests failed before the fix. A passed gate is now skipped, and cached and raised failures emit the finished event.
+- Independent review of 89c29cf was NOT OK: skipping a newer passed gate still returned an older failure of the same spec. That test failed with the older test name. The newest passed gate now returns no failure.
 
 ## A grown session hands over — 2026-11-08
 

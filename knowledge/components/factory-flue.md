@@ -348,7 +348,8 @@ their cached result. The same failure reason three times stops the next model ad
 progress receipt copies them, and the next author receives them (`note_check_failure`,
 `check_evidence`, `correction_feedback`). A repeated cached failure is the check that
 finish publishes, and that repeat is counted as a finished check. A check whose status is not
-failed, and a self-check behind a passed gate, are not described as a failure. A Gradle failure with no `Class > method FAILED` line
+failed, and a self-check behind a passed gate, are not described as a failure. The newest
+passed gate also hides an older failure of that same spec. A Gradle failure with no `Class > method FAILED` line
 keeps one task name or one exception class. The brief forbids Gradle or Maven in the sandbox shell
 and names `run_protected_checks` as the runner. An unexpected relay exception continues as
 `RELAY_FAULT` only when every claimed forward already has a usage row. A truncated upstream chunk

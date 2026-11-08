@@ -125,6 +125,11 @@ class StoreTests(unittest.TestCase):
              'reason':'product_unit_tests_failed','failed_tests':['Old > t() FAILED']}}},
             terminal=FAILED)
         self.assertIsNone(store.previous_check_failure('f1','d'*64))
+        fail('older-e','e'*64,{'reason':'product_unit_tests_failed','failed_tests':['Old > t() FAILED']})
+        store.admit(['f1'],'newer-passed',self.catalog);build=store.claim_next(self.catalog)
+        store.complete_attempt(build['attempt_id'],build['attempt_generation'],
+            {'spec_digest':'e'*64,'gate':{'status':'passed','results':{}}},terminal=FAILED)
+        self.assertIsNone(store.previous_check_failure('f1','e'*64))
 
     def test_admit_root_is_queued(self):
         s = self.store()
