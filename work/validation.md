@@ -8,6 +8,7 @@
 - Controller PID 74366 was replaced by PID 89596 after an identity check. Admission exited 0, status qualified, activated true, product delivery not claimed, ready() true. The native claude-security plugin was not run.
 - Independent review of b055f63 was NOT OK: a truncated upstream chunk became RELAY_FAULT after the claim and before its usage row, so a later finish was USAGE_UNKNOWN. The two new context-admission tests failed on that code with RELAY_FAULT. A truncated chunk is now TRANSPORT_ERROR, the claim stays open, and the session does not continue.
 - Independent review of cd48926 was NOT OK: a 257-message follow-up after a usage row with no cost returned AEION_HANDOVER before the usage gate. That test failed with AEION_HANDOVER. The same follow-up is now USAGE_UNKNOWN, with no checkpoint and no second provider call.
+- Independent review of 69191a6 was NOT OK on two points. A cached failure did not replace the published check, so the source assertion for `runtime.last_check = cache[digest]` failed. A passed check with reason `check_failed` was told to the next author as a failure. The cache hit now publishes that check, and correction text requires status failed.
 
 ## A grown session hands over — 2026-11-08
 

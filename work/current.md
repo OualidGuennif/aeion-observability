@@ -7,7 +7,7 @@ No final operational Go or actual product feature merge is claimed.
 
 - Owner decision: stop the open author loop, keep the failing test names, apply the five cockpit and relay fixes, replace mistral-large-4 with minimax-m3.1-flash, then ship through develop.
 - State: feature 001 build 0e02148b89f3 is cancelled. No build is dispatched, queued, gated, pr_open or approved. The author prompt no longer tells the model to check forever. Three identical failures stop the next admission as repeated_check_failure. VERSION stays 1.9.0. Controller PID 89596 listened in live mode before this relay edit. Admission of that earlier tree exited 0. Editing relay.py changes the protocol hash, so the cockpit stays paused until the shipped tree is admitted again. The agent relaunches 001 only after main is merged and that admission is ready.
-- Next: commit the usage-gap fix, then an independent Review OK for that exact SHA, then the release pull request (who: a reviewer other than the author). Reviews of b055f63 and cd48926 were NOT OK and are not receipts for this fix.
+- Next: commit the cached-check and passing-check fixes, then an independent Review OK for that exact SHA, then the release pull request (who: a reviewer other than the author). Reviews of b055f63, cd48926 and 69191a6 were NOT OK and are not receipts for this fix.
 - Blocker: this author does not write the review receipt. A develop push without it is refused.
 - Evidence: [validation](validation.md).
 

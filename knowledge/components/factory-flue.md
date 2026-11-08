@@ -9,7 +9,7 @@ verified:
   - at: 2026-11-07
     what: "unittest budget, TLS, workspace, resume and review retry: ceilings stay 150/50/1; summary splits settled and reserved; an unforwarded claim settles at zero; a resume reuses the prepared contract; a down provider holds before prepare; one failed review retries once"
   - at: 2026-11-08
-    what: "unittest: a truncated chunk is TRANSPORT_ERROR; incomplete usage refuses a grown follow-up as USAGE_UNKNOWN"
+    what: "unittest: a cached repeated failure is the published check; a passed check is not told as a failure"
 sources:
   - resource: ../../demo/factory/review_context.py
     title: "One-time operator repair of the old review envelope"
@@ -346,7 +346,8 @@ The author window and the cost cap bound protected checks, and identical snapsho
 their cached result. The same failure reason three times stops the next model admission with
 `repeated_check_failure`. The check evidence keeps at most eight pattern-checked test names, the
 progress receipt copies them, and the next author receives them (`note_check_failure`,
-`check_evidence`, `correction_feedback`). A Gradle failure with no `Class > method FAILED` line
+`check_evidence`, `correction_feedback`). A repeated cached failure is the check that
+finish publishes. A check whose status is not failed is not described as a failure. A Gradle failure with no `Class > method FAILED` line
 keeps one task name or one exception class. The brief forbids Gradle or Maven in the sandbox shell
 and names `run_protected_checks` as the runner. An unexpected relay exception continues as
 `RELAY_FAULT` only when every claimed forward already has a usage row. A truncated upstream chunk

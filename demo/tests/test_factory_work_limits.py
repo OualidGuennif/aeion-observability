@@ -119,6 +119,7 @@ class WorkLimitTests(unittest.TestCase):
         self.assertNotIn('as often as you need', source)
         self.assertNotIn('You may not stop', source)
         self.assertIn('three identical failures', source)
+        self.assertIn('runtime.last_check = cache[digest]', source)
 
     def test_frozen_deadline_and_context_are_used_before_a_sandbox_can_start(self):
         with tempfile.TemporaryDirectory() as folder:

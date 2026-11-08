@@ -9,7 +9,9 @@
   claimed forward already has a usage row. A truncated upstream chunk is
   `TRANSPORT_ERROR`: the unbilled claim stays open and the session does not
   continue. A grown follow-up after an incomplete usage row is `USAGE_UNKNOWN`
-  and does not start another paid session. A protected check that is still running is not shown
+  and does not start another paid session. A repeated cached failure is the check
+  the next author sees, and a passing check is not described as a failure.
+  A protected check that is still running is not shown
   as a stalled agent. The cockpit shows how many hours remain on the 24-hour
   admission proof and does not renew it.
 - `minimax-m3.1-flash` replaces `mistral-large-4`. Its budget multiple is 4, the

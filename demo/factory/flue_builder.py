@@ -344,6 +344,7 @@ class FlueBuilder:
                     changed = snapshot()
                     digest = content_digest(changed)
                     if digest in cache:
+                        runtime.last_check = cache[digest]
                         note_check_failure(run, cache[digest])
                         return cache[digest]
                     if progress:
@@ -359,7 +360,7 @@ class FlueBuilder:
                         passed, detail = target_check(bounded, work_root=folder, sandbox=checker)(None, {'repo': str(check_repo)})
                     result = {'status': 'passed' if passed else 'failed', 'artifact_digest': digest,
                               'reason':detail.get('reason') if isinstance(detail.get('reason'),str)
-                                and re.fullmatch('[a-z][a-z0-9_]{1,95}',detail['reason']) else 'check_failed',
+                                and re.fullmatch('[a-z][a-z0-9_]{1,95}',detail['reason']) else ('check_failed' if not passed else 'passed'),
                               'returncode': detail.get('returncode'), 'compiler_errors': detail.get('compiler_errors', []),
                               'failed_tests': detail.get('failed_tests', [])}
                     cache[digest] = runtime.last_check = result
