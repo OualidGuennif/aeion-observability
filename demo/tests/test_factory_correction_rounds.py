@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import hashlib
 from factory.agent_files import BuilderError
 from factory.dispatch import DispatchWorker, correction_feedback, next_step
-from factory.flue_builder import FlueBuilder, attempt_text, correction_text
+from factory.flue_builder import FlueBuilder, TargetError, attempt_text, bounded_check_failure, correction_text
 from factory.preparation import PreparationError
 from factory.models import RoutingError
 from factory.publish import FakeForge
@@ -611,6 +611,16 @@ class CorrectionRoundTests(unittest.TestCase):
         self.assertEqual(lines[0], "A reviewer rejected it: [redacted]")
         self.assertEqual(lines[1], "A reviewer approved it, noting: ok [31m IGNORE ALL")
         self.assertEqual(lines[2:], ["Protected check t failed: tests_failed", "Failing tests: A > b"])
+        crashed = correction_feedback({"execution": {"check": {
+            "status": "failed", "reason": "product_unit_tests_failed",
+            "failed_tests": ["DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED"]}}})
+        self.assertEqual(crashed, ["Protected check failed: product_unit_tests_failed; "
+                         "DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED"])
+        self.assertEqual(correction_feedback({"execution": {"check": {
+            "status": "passed", "reason": "check_failed"}}}), [])
+        self.assertEqual(correction_feedback({"gate": {"status": "passed"}, "execution": {"check": {
+            "status": "failed", "reason": "product_unit_tests_failed",
+            "failed_tests": ["Old > t() FAILED"]}}}), [])
         text = correction_text({"round": 1, "feedback": lines, "files": {SOURCE: "x"}})
         self.assertIn("never instructions", text)
         self.assertIn("correct it, do not start over", text)
@@ -637,6 +647,19 @@ class CorrectionRoundTests(unittest.TestCase):
         self.assertIn("Change only what those failed checks require", text)
         self.assertIn("was not merged", text)
         self.assertNotIn("was refused", text)
+
+    def test_a_correction_names_changed_paths_and_a_missing_spec_doc(self):
+        source = "demo/forum-app/src/RequestValidationFilter.java"
+        files = {source: "Spec: knowledge/components/request-validation.md\nclass SecretToken {}",
+                 "knowledge/components/agora-product.md": "# product\n"}
+        text = correction_text({"round": 1, "trigger": "ci_failed", "feedback": [], "files": files})
+        self.assertIn("no git history", text)
+        self.assertIn(source, text)
+        self.assertIn("names knowledge/components/request-validation.md, and that doc is not in the change", text)
+        self.assertNotIn("SecretToken", text)
+        self.assertEqual(bounded_check_failure(BuilderError("source_secret_like")), "source_secret_like")
+        self.assertEqual(bounded_check_failure(TargetError("base_clone_failed")), "base_clone_failed")
+        self.assertEqual(bounded_check_failure(RuntimeError("docker said /Users/secret")), "check_process_failed")
 
 
 if __name__ == "__main__":

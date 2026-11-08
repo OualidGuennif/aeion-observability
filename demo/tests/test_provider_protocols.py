@@ -165,13 +165,16 @@ class ProtocolTests(unittest.TestCase):
             self.assertEqual(self.send(admitted,'/messages',{'reasoning_effort':required})[0],200)
         self.assertEqual(len(self.forwarded),2)
 
-    def test_new_profiles_map_max_to_each_native_maximum_and_mistral_to_pay_as_you_go(self):
+    def test_minimax_reserves_the_highest_measured_go_multiple_and_sends_no_effort(self):
         from profiles import PROFILES, available, model_metadata
-        self.assertEqual((PROFILES['luna']['efforts']['max'],PROFILES['mistral']['efforts']['max']),('max','high'))
-        self.assertEqual(PROFILES['mistral']['upstream'],'https://opencode.ai/inference/openai/v1/chat/completions')
-        self.assertNotIn('upstream',PROFILES['luna'])
-        self.assertEqual(model_metadata('luna')['api'],'openai-completions')
-        self.assertTrue(available('luna') and available('mistral'))
+        self.assertEqual(PROFILES['luna']['efforts']['max'],'max')
+        self.assertEqual(PROFILES['minimax']['model'],'opencode-go/minimax-m3.1-flash')
+        self.assertEqual(PROFILES['minimax']['budget_multiplier'],'4')
+        self.assertNotIn('efforts',PROFILES['minimax'])
+        self.assertNotIn('upstream',PROFILES['minimax'])
+        self.assertEqual(model_metadata('minimax')['api'],'openai-completions')
+        self.assertTrue(available('luna') and available('minimax'))
+        self.assertNotIn('mistral',PROFILES)
 
 
 if __name__ == '__main__':

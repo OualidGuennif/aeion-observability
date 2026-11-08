@@ -56,6 +56,16 @@ def protocol_hash(root=ROOT):
     return digest.hexdigest()
 
 
+def expires_ns(root=ROOT):
+    """The admission proof expiry, or None when that proof cannot be read."""
+    try:
+        proof = json.loads((Path(root) / 'demo/.local/data/factory-flue-qualification.json').read_text())
+        value = proof.get('expires_ns') if isinstance(proof, dict) else None
+        return value if type(value) is int else None
+    except (OSError, ValueError, TypeError):
+        return None
+
+
 def ready(root=ROOT, now_ns=None):
     """An exact protocol match and fresh real-path evidence are required before admission."""
     try:

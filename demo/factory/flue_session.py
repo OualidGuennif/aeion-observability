@@ -19,11 +19,12 @@ from profiles import PROFILES, PROFILE_VERSION
 SESSION_TIMEOUT_SECONDS = 900
 MODEL_PROFILE = {'glm-5.3-flash': 'glm', 'deepseek-4.1-flash': 'deepseek',
                  'qwen-3.8-flash': 'qwen', 'claude-haiku-5.5': 'haiku',
-                 'gpt-6-luna': 'luna', 'mistral-large-4': 'mistral'}
+                 'gpt-6-luna': 'luna', 'minimax-m3.1-flash': 'minimax'}
+TEST_NAME = re.compile(r'[A-Za-z0-9_.$<>()\[\] ,:#-]{1,160}')
 
 
 def check_evidence(check):
-    """Keep fixed checker status/cause across later agent events and interrupted roles."""
+    """Keep fixed checker status, cause and bounded test names across later events."""
     result = {'status':check.get('status') if check.get('status') in {'passed','failed','held'} else 'not_run'}
     reason=check.get('reason')
     if isinstance(reason,str) and re.fullmatch('[a-z][a-z0-9_]{1,95}',reason):
@@ -31,6 +32,10 @@ def check_evidence(check):
     digest=check.get('artifact_digest')
     if isinstance(digest,str) and re.fullmatch('[a-f0-9]{64}',digest):
         result['artifact_digest']=digest
+    tests=[item for item in (check.get('failed_tests') or [])
+           if isinstance(item,str) and TEST_NAME.fullmatch(item)][:8]
+    if tests:
+        result['failed_tests']=tests
     return result
 
 
@@ -114,7 +119,7 @@ class FactorySession(Runner):
         run.update(ended_ns=time.time_ns(), status='failed' if error else 'passed')
         if error:
             code = str(error)
-            run['failure'] = code if re.fullmatch(r'[A-Z][A-Z0-9_]{1,63}', code) else type(error).__name__
+            run['failure'] = code if re.fullmatch(r'[A-Za-z][A-Za-z0-9_]{1,63}', code) else type(error).__name__
         self.event(run, 'task.failed' if error else 'task.passed',
                    **({'aeion.failure.code':run['failure']} if error else {}))
         measured = usage(run)

@@ -85,6 +85,14 @@ def _failed_tests(output, limit=20):
             found.append(line[:240])
         if len(found) >= limit:
             break
+    if found:
+        return found
+    task = re.search(r"Execution failed for task '(:[A-Za-z0-9:_-]{1,80})'", output or "")
+    if task:
+        return [task.group(1)[:240]]
+    exception = re.search(r'\b([A-Za-z_][A-Za-z0-9_]{0,80}(?:Exception|Error))\b', output or "")
+    if exception:
+        return [exception.group(1)[:240]]
     return found
 
 

@@ -303,6 +303,13 @@ test('agent clock shows elapsed time, silence and a stall warning without privat
   assert.equal(looping.attention, true);
   assert.match(looping.text, /Agent time 0 min · last activity under a minute ago/);
   assert.match(looping.text, /keeps failing/);
+  const checking = run(`clockText(${start}, ${start}, 10800, 3, ${start + 15 * 60000}, true)`);
+  assert.equal(checking.attention, false);
+  assert.match(checking.text, /Protected check running/);
+  assert.doesNotMatch(checking.text, /stalled agent/);
+  const expiry = run(`admissionLine({admission_expires_ns: ${Date.now() * 1e6 + 5 * 3600 * 1e9}})`);
+  assert.match(expiry, /^Admission expires in \d+ h\.$/);
+  assert.equal(run('admissionLine({})'), '');
 });
 
 test('agent clock appears only while the author runs', () => {

@@ -118,8 +118,8 @@ deterministic offline builder (real base, real write scopes, real protected chec
 Flue/Pi tier3 builder. The provider credential is consumed by its named role loader and its absence
 holds the build as `provider_unconfigured` instead of simulating. The owner authorized the four
 workers (`glm-5.3-flash`, `qwen-3.8-flash`, `deepseek-4.1-flash`, `claude-haiku-5.5`) on 2026-11-02
-and added `gpt-6-luna` and `mistral-large-4` (pay-as-you-go balance, not Go) on 2026-11-06;
-display ids are translated to canonical wire ids before every request.
+and added `gpt-6-luna` on 2026-11-06. On 2026-11-08 `minimax-m3.1-flash` replaced
+`mistral-large-4`. Display ids are translated to canonical wire ids before every request.
 
 Legacy pinned Java candidate checks run in a disposable Docker container: no network, no Docker socket, no
 host home and no controller mount, only the candidate tree and read-only toolchain caches, with a
@@ -400,6 +400,29 @@ no persisted conversation store and no prompt text in events; the marker require
 development and never writes the qualification marker. The admission test refuses a >300k
 proposal without contacting an upstream, including concurrent requests while the MD callback is
 held. Neither fixture spends model quota. Do not spend 250k tokens just to animate a showcase.
+
+## Live status
+
+Read the running factory without opening its store and without printing a receipt, a prompt or a
+credential. From `demo/`:
+
+```sh
+python3 -m factory.live_status --feature 001
+python3 -m factory.live_status --feature 001 --feedback
+python3 -m factory.live_status --protection
+```
+
+The first command prints whether something is listening on `127.0.0.1:8088`, whether that process
+is the cockpit server in live mode, the latest rows for the feature, and the recent progress
+phase names. `--feedback` adds the correction round and only the supervisor lines that name the
+failed CI check. Other feedback lines are counted and not printed. `--protection` loads the
+release credential inside that process and prints the HTTP status plus the required check names.
+
+A cockpit stage column that says Build during a model step is the stage summary. Any progress
+phase other than preparing, building, checking or reviewing counts as Build once a preparation
+exists. The sentence under the stages still names the step, such as Agent working or Independent
+review. `demo/tests/test_factory_live_status.py` checks that reviewer prose cannot appear in the
+report.
 
 ## Stop and preserve
 

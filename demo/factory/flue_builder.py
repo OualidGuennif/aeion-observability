@@ -14,6 +14,7 @@ from decimal import Decimal, InvalidOperation
 
 from .checks import target_check
 from .isolation import DockerCheckRunner
+from .target import TargetError
 from .agent_files import BuilderError, parse_files
 from .preparation import _read as read_preparation_text, PreparationError
 from .models import author_model, eligibility, family
@@ -61,6 +62,60 @@ def attempt_text(correction):
             'from the validated files. After attempt ' + str(MAX_ATTEMPTS) + ' the owner decides.')
 
 
+def baseline_note(files):
+    """The candidate's changed paths, and any Spec doc missing from that change.
+
+    The sandbox is a file copy with no git history. Paths only: never file text.
+    """
+    if not isinstance(files, dict):
+        return []
+    path_ok = re.compile(r'[A-Za-z0-9_./+-]{1,160}')
+    names = sorted(name for name in files
+                   if isinstance(name, str) and path_ok.fullmatch(name) and '..' not in name.split('/'))[:12]
+    if not names:
+        return []
+    lines = ['The sandbox has no git history. The candidate differs from the pinned base only in: '
+             + ', '.join(names) + '.']
+    spec = re.compile(r'Spec:\s*(knowledge/[\w./-]+\.md)')
+    gaps = []
+    for name in names:
+        text = files.get(name)
+        if not isinstance(text, str):
+            continue
+        found = spec.search(text[:4000])
+        if found and found.group(1) not in files and len(gaps) < 8:
+            gaps.append(name + ' names ' + found.group(1) + ', and that doc is not in the change')
+    if gaps:
+        lines.append('Knowledge link missing: ' + '; '.join(gaps) + '.')
+    return lines
+
+
+def bounded_check_failure(exc):
+    """A token the author can read. Exception text that is not a token stays hidden."""
+    text = str(exc)
+    if isinstance(exc, (BuilderError, TargetError)) and re.fullmatch(r'[A-Za-z0-9_]{1,64}', text):
+        return text
+    return 'check_process_failed'
+
+
+def note_check_failure(run, result):
+    """Three identical protected-check failures end the next model admission."""
+    if run.get('repeated_check_stop'):
+        return
+    reason = result.get('reason') if isinstance(result, dict) else None
+    if not isinstance(result, dict) or result.get('status') != 'failed' or not isinstance(reason, str):
+        run['same_check_count'] = 0
+        run['same_check_reason'] = None
+        return
+    if reason == run.get('same_check_reason'):
+        run['same_check_count'] = int(run.get('same_check_count') or 0) + 1
+    else:
+        run['same_check_reason'] = reason
+        run['same_check_count'] = 1
+    if run['same_check_count'] >= 3:
+        run['repeated_check_stop'] = 'repeated_check_failure'
+
+
 def correction_text(correction):
     """A supervisor continuation: what stopped the previous build, as bounded data."""
     if not isinstance(correction, dict) or type(correction.get('round')) is not int:
@@ -78,6 +133,7 @@ def correction_text(correction):
         lines.append('The workspace already contains your files. Read them and continue the brief. '
                      'Do not start over.' if correction.get('files') else
                      'Continue this same attempt. Do not start the brief over.')
+        lines += baseline_note(correction.get('files'))
         lines += ['- ' + line for line in correction.get('feedback') or []]
         return '\n'.join(lines)
     crash = correction.get('crash') if isinstance(correction.get('crash'), dict) else None
@@ -90,6 +146,7 @@ def correction_text(correction):
         lines.append('Its validated files are already in your workspace: read them, keep what is right, '
                      'finish the task, and make run_protected_checks pass.' if correction.get('files') else
                      'It left no validated files: your workspace starts from the base.')
+        lines += baseline_note(correction.get('files'))
         lines += ['- ' + line for line in correction.get('feedback') or []]
         return '\n'.join(lines)
     header = ('CORRECTION ROUND ' + str(correction['round']) if correction['round'] > 0
@@ -106,6 +163,7 @@ def correction_text(correction):
         lines.append('Your workspace starts from that candidate: correct it, do not start over.')
     else:
         lines.append('Your workspace starts from the base; the previous candidate is not available.')
+    lines += baseline_note(correction.get('files'))
     lines += ['- ' + line for line in correction.get('feedback') or []]
     lines.append('Judge each point against BRIEF.md: fix the ones that are true, revert every change '
                  'BRIEF.md does not require, and keep run_protected_checks passing before you stop.')
@@ -231,8 +289,8 @@ class FlueBuilder:
                   # bounded by the author window alone, so the fixed runner is the build tool.
                   'Do not start Gradle, Maven or other builds in the shell: the sandbox has no network and '
                   'such commands block until the 300-second command limit. run_protected_checks is the '
-                  'build and test runner; call it as often as you need. You may not stop while its last '
-                  'result has failed.\n'
+                  'build and test runner. The supervisor stops this session after three identical failures '
+                  'and the next session receives those test names. Fix those tests only.\n'
                   'Read ' + acceptance_name + ' for the frozen acceptance/API contract. This file is read-only.\n'
                   'Write scopes: ' + json.dumps(frozen.write_scopes))
         if callable(getattr(self.check_sandbox, 'instructions', None)):
@@ -280,32 +338,47 @@ class FlueBuilder:
 
         def check():
             with check_lock:
-                if time.monotonic() >= deadline:
-                    raise BuilderError('agent_deadline')
-                changed = snapshot()
-                digest = content_digest(changed)
-                if digest in cache:
-                    return cache[digest]
-                if progress:
-                    progress('protected_check.started', {'artifact_digest': digest})
-                # A check must not contaminate the candidate with build outputs or evaluator
-                # files. The agent sees bounded diagnostics from an independent snapshot.
-                with tempfile.TemporaryDirectory(prefix='protected-check-', dir=repo.parent) as folder:
-                    check_repo = Path(folder) / 'repo'
-                    target.materialize(check_repo)
-                    materialize({name: base64.b64encode(text.encode()).decode() for name, text in changed.items()}, check_repo)
-                    bounded = replace(target, protected_check=replace(target.protected_check,
-                        timeout_seconds=min(target.protected_check.timeout_seconds, max(1, int(deadline - time.monotonic())))))
-                    passed, detail = target_check(bounded, work_root=folder, sandbox=checker)(None, {'repo': str(check_repo)})
-                result = {'status': 'passed' if passed else 'failed', 'artifact_digest': digest,
-                          'reason':detail.get('reason') if isinstance(detail.get('reason'),str)
-                            and re.fullmatch('[a-z][a-z0-9_]{1,95}',detail['reason']) else 'check_failed',
-                          'returncode': detail.get('returncode'), 'compiler_errors': detail.get('compiler_errors', []),
-                          'failed_tests': detail.get('failed_tests', [])}
-                cache[digest] = runtime.last_check = result
-                if progress:
-                    progress('protected_check.finished', result)
-                return result
+                try:
+                    if time.monotonic() >= deadline:
+                        raise BuilderError('agent_deadline')
+                    changed = snapshot()
+                    digest = content_digest(changed)
+                    if digest in cache:
+                        runtime.last_check = cache[digest]
+                        note_check_failure(run, cache[digest])
+                        if progress:
+                            progress('protected_check.finished', cache[digest])
+                        return cache[digest]
+                    if progress:
+                        progress('protected_check.started', {'artifact_digest': digest})
+                    # A check must not contaminate the candidate with build outputs or evaluator
+                    # files. The agent sees bounded diagnostics from an independent snapshot.
+                    with tempfile.TemporaryDirectory(prefix='protected-check-', dir=repo.parent) as folder:
+                        check_repo = Path(folder) / 'repo'
+                        target.materialize(check_repo)
+                        materialize({name: base64.b64encode(text.encode()).decode() for name, text in changed.items()}, check_repo)
+                        bounded = replace(target, protected_check=replace(target.protected_check,
+                            timeout_seconds=min(target.protected_check.timeout_seconds, max(1, int(deadline - time.monotonic())))))
+                        passed, detail = target_check(bounded, work_root=folder, sandbox=checker)(None, {'repo': str(check_repo)})
+                    result = {'status': 'passed' if passed else 'failed', 'artifact_digest': digest,
+                              'reason':detail.get('reason') if isinstance(detail.get('reason'),str)
+                                and re.fullmatch('[a-z][a-z0-9_]{1,95}',detail['reason']) else ('check_failed' if not passed else 'passed'),
+                              'returncode': detail.get('returncode'), 'compiler_errors': detail.get('compiler_errors', []),
+                              'failed_tests': detail.get('failed_tests', [])}
+                    cache[digest] = runtime.last_check = result
+                    note_check_failure(run, result)
+                    if progress:
+                        progress('protected_check.finished', result)
+                    return result
+                except Exception as exc:
+                    # A raised check used to reach the author as "Protected check unavailable".
+                    failed = {'status': 'failed', 'reason': bounded_check_failure(exc), 'artifact_digest': None,
+                              'returncode': None, 'compiler_errors': [], 'failed_tests': []}
+                    runtime.last_check = failed
+                    note_check_failure(run, failed)
+                    if progress:
+                        progress('protected_check.finished', failed)
+                    return failed
 
         runtime.snapshot, runtime.protected_check = snapshot, check
         handover = None

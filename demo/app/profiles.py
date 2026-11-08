@@ -1,14 +1,14 @@
 """Paid Go profiles with pinned request counting; no free/Contributor fallback.
 
 Prices are USD per 1M tokens from the OpenCode Go page (checked 2026-10-27). DeepSeek uses its
-peak rate so the harness estimate stays an upper bound; estimates are never invoices. Mistral
-Large 4 is not in Go: it runs on OpenCode pay-as-you-go, billed to the Console balance, at its
-list price before the temporary 50% discount (OpenCode models page, checked 2026-11-06).
+peak rate so the harness estimate stays an upper bound; estimates are never invoices. MiniMax
+M3.1 Flash keeps the pinned Go rates already recorded here (0.15/0.60/0.015, context 1000000).
 
 `budget_multiplier` is what one list-price dollar costs the factory budget. Go reports a plan
 `allowance` draw beside `list_cost`, at a fixed multiple per model; the budget counts the larger.
 Measured 2026-11-06 (work/validation.md): GLM 1.33, DeepSeek 1.2, Qwen 2.67, Haiku 4, Luna 4,
-rounded up. Mistral Large 4 is charged to the balance at its list cost: 1.
+rounded up. MiniMax has no measured multiple yet: 4 is the highest measured Go multiple, an
+upper bound until this model is measured, not a measured MiniMax rate.
 """
 import datetime
 
@@ -18,7 +18,6 @@ PROFILES={
  'deepseek':{'model':'opencode-go/deepseek-v4.1-flash','name':'DeepSeek V4.1 Flash','tokenizer':'deepseek','input':0.30,'output':1.20,'cache_read':0.006,'context':1000000,'budget_multiplier':'1.2'},
  'glm-full':{'model':'opencode-go/glm-5.3','name':'GLM 5.3','tokenizer':'glm-full','input':1.40,'output':4.40,'cache_read':0.26,'context':1000000},
  'glm52':{'model':'opencode-go/glm-5.2','name':'GLM 5.2','tokenizer':'glm52','input':1.40,'output':4.40,'cache_read':0.26,'context':1000000},
- 'minimax':{'model':'opencode-go/minimax-m3.1-flash','name':'MiniMax M3.1 Flash','tokenizer':'minimax','input':0.15,'output':0.60,'cache_read':0.015,'context':1000000},
 }
 
 # Runtime profiles follow the owner's four-model allowlist. Older entries remain readable
@@ -33,14 +32,15 @@ PROFILES.update({
            'api':'anthropic-messages','thinking':'max','counting':'provider-usage-v1',
            'budget_multiplier':'4'},
  # Owner request 2026-11-06. Measured that day: GPT-6 Luna validates reasoning_effort and accepts
- # "max" on Go chat completions; Mistral Large 4 rejects "max" and "xhigh", its maximum is "high".
+ # "max" on Go chat completions.
  'luna': {'model':'opencode-go/gpt-6-luna','name':'GPT-6 Luna','tokenizer':None,
           'input':0.20,'output':0.75,'cache_read':0.02,'cache_write':0.25,'context':1050000,
           'counting':'provider-usage-v1','efforts':{'max':'max','low':'low'},'budget_multiplier':'4'},
- 'mistral': {'model':'opencode-go/mistral-large-4','name':'Mistral Large 4','tokenizer':None,
-             'input':1.36,'output':4.18,'cache_read':0.14,'context':524288,
-             'counting':'provider-usage-v1','efforts':{'max':'high','low':'low'},'budget_multiplier':'1',
-             'upstream':'https://opencode.ai/inference/openai/v1/chat/completions'},
+ # Owner request 2026-11-08: replace Mistral Large 4. No effort map until one is measured,
+ # so the relay does not send reasoning_effort. budget_multiplier 4 is the unmeasured upper bound.
+ 'minimax': {'model':'opencode-go/minimax-m3.1-flash','name':'MiniMax M3.1 Flash','tokenizer':'minimax',
+             'input':0.15,'output':0.60,'cache_read':0.015,'context':1000000,
+             'counting':'provider-usage-v1','budget_multiplier':'4'},
 })
 
 
@@ -48,7 +48,7 @@ PROFILES.update({
 # eligibility authority: this module must not keep a second expiry for them.
 SHARED_MODELS = {'glm': 'glm-5.3-flash', 'deepseek': 'deepseek-4.1-flash',
                  'qwen': 'qwen-3.8-flash', 'haiku': 'claude-haiku-5.5',
-                 'luna': 'gpt-6-luna', 'mistral': 'mistral-large-4'}
+                 'luna': 'gpt-6-luna', 'minimax': 'minimax-m3.1-flash'}
 
 
 def available(key):

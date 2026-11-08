@@ -43,6 +43,18 @@ class MemoryTests(unittest.TestCase):
         self.assertEqual(runtime.memory.saved[1]['build_id'],'a'*32)
         self.assertEqual(runtime.memory.saved[1]['factory_role'],'author')
 
+    def test_a_lowercase_stop_keeps_its_token_and_the_failed_test_names(self):
+        run=new_run('glm-5.3-flash','a'*32,'author','0.50',synthetic=True)
+        run.update(trace_id='b'*32,root_span_id='c'*16)
+        runtime=FactorySession(run,telemetry=Telemetry())
+        runtime.memory=Memory()
+        runtime.last_check={'status':'failed','reason':'product_unit_tests_failed',
+            'failed_tests':['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED','nope\n']}
+        result=runtime.finish(run,error=ValueError('handover_limit'))
+        self.assertEqual(result['failure'],'handover_limit')
+        self.assertEqual(result['check']['failed_tests'],
+                         ['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED'])
+
     def test_backend_outage_is_visible_without_rewriting_the_role_result(self):
         run,runtime,result=self.finish(unavailable=True)
         self.assertEqual(run['status'],'passed')

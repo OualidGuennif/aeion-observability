@@ -1,14 +1,14 @@
 # Current work
 
-Updated 2026-11-07. Current facts only; historical evidence is in HANDOVER.md and validation.md.
+Updated 2026-11-08. Current facts only; historical evidence is in HANDOVER.md and validation.md.
 No final operational Go or actual product feature merge is claimed.
 
-## CI correction repair — ACTIVE
+## Author loop stop and MiniMax — ACTIVE
 
-- Owner decision: implement the automatic one-shot review retry, the same-build workspace replace, GitHub TLS via the system CA bundle, and a settled-versus-reserved budget display, then push develop, open a pull request, and merge to main.
-- State: build fc6f2d0d26ce is held owner_review_required. The gate passed. qwen-3.8-flash approved. deepseek-4.1-flash ended AGENT_TIMEOUT, so the circuit reason is reviewer_failed. Nothing was published. The author settled about 0.09 USD. The forum purse settled 3.19 USD on 2026-11-07. Open reservations still inflate spent. Local commit 9ef963a has the review retry, the workspace replace, the system CA bundle, and the settled-versus-reserved display. An independent review wrote Review NOT OK for that SHA. The follow-up reuses a valid prepared contract on resume, holds before prepare when the provider is down, and prefers the resume prompt. An independent review of 4135a4b wrote Review NOT OK: a resumed correction dropped the failed check name. That line is kept on the resume and on the attempt that follows an exhausted resume. The fix is local and not reviewed yet. Controller PID 97378 still runs the previous protocol. origin/main and origin/develop are 935744d.
-- Next: obtain a new independent Review OK, push develop, merge the release pull request to main, restart the controller, and rerun admission (who: agent). The owner does not relaunch feature 001 until that restart is ready.
-- Blocker: the publish token still cannot read branch protection. A protocol edit pauses the cockpit until admission and a restart.
+- Owner decision: stop the open author loop, keep the failing test names, apply the five cockpit and relay fixes, replace mistral-large-4 with minimax-m3.1-flash, then ship through develop.
+- State: feature 001 build 0e02148b89f3 is cancelled. No build is dispatched, queued, gated, pr_open or approved. The author prompt no longer tells the model to check forever. Three identical failures stop the next admission as repeated_check_failure. VERSION stays 1.9.0. Controller PID 89596 listened in live mode before this relay edit. Admission of that earlier tree exited 0. Editing relay.py changes the protocol hash, so the cockpit stays paused until the shipped tree is admitted again. The agent relaunches 001 only after main is merged and that admission is ready.
+- Next: an independent develop review of the commit after d6aea62. That review was NOT OK because an oversized local follow-up still handed over an incomplete usage row. Then push, a new release review of pull request 35, and a merge only after Review OK, green checks, and a matching head. After main, admit the shipped tree, restart the controller, and relaunch feature 001 (who: a reviewer other than the author, then the agent).
+- Blocker: this author does not write the review receipt. The NOT OK receipt for d6aea62 does not cover the later commit. The develop receipt for 4f5f4fd and the NOT OK release review of pull request 35 do not cover the fix.
 - Evidence: [validation](validation.md).
 
 ## Secure factory delivery — ACTIVE

@@ -45,7 +45,7 @@ RETRYABLE_AUTHOR_STOPS = frozenset({
     'PROVIDER_ERROR', 'PROVIDER_UNAVAILABLE', 'PROVIDER_RATE_LIMITED', 'PROVIDER_TIMEOUT',
     'PROVIDER_REJECTED', 'MODEL_DISABLED', 'TRANSPORT_ERROR', 'BUDGET_STOP', 'STEP_LIMIT',
     'OUTPUT_LIMIT', 'AGENT_TIMEOUT', 'AGENT_DEADLINE', 'HANDOVER_NOT_READY', 'NO_PATCH',
-    'agent_deadline', 'handover_limit', 'no_eligible_model', 'model_ineligible'})
+    'agent_deadline', 'handover_limit', 'no_eligible_model', 'model_ineligible', 'repeated_check_failure', 'RELAY_FAULT'})
 TOKEN = re.compile(r'[A-Za-z][A-Za-z0-9_]{1,63}')
 
 
@@ -233,6 +233,11 @@ def correction_feedback(receipt):
             tests = [_plain(t, 160) for t in (detail.get('failed_tests') or [])[:8]]
             if any(tests):
                 lines.append('Failing tests: ' + '; '.join(t for t in tests if t))
+    elif (receipt.get('gate') or {}).get('status') != 'passed' and isinstance((receipt.get('execution') or {}).get('check'), dict) and (receipt.get('execution') or {}).get('check', {}).get('status') == 'failed':
+        check = receipt['execution']['check']
+        named = '; '.join(t for t in (_plain(x, 160) for x in (check.get('failed_tests') or [])[:8]) if t)
+        if _plain(check.get('reason'), 96) or named:
+            lines.append('Protected check failed: ' + (_plain(check.get('reason'), 96) or 'check_failed') + (('; ' + named) if named else ''))
     feedback = receipt.get('feedback') if isinstance(receipt.get('feedback'), dict) else {}
     author = _plain(feedback.get('author'), 200)
     if author:
@@ -1024,6 +1029,7 @@ class DispatchWorker:
                  "reason": "builder_error", "detail": type(exc).__name__,
                  "error": execution.get('failure')
                     or (str(exc) if isinstance(exc, BuilderError) else type(exc).__name__),
+                 "execution": execution if isinstance(execution, dict) else {},
                  "telemetry": self._telemetry_evidence(
                      build, feature, frozen, base_sha, {}, {"status": "builder_error"}, None)}
             if hasattr(self.builder, 'run_build') and stop_code in RETRYABLE_AUTHOR_STOPS:

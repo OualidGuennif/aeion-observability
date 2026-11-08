@@ -16,11 +16,20 @@ from relay import ContextRelay
 class ContextAdmissionTests(unittest.TestCase):
     def setUp(self):
         self.calls=[];self.usage={'input_tokens':4000,'output_tokens':10,'cost':0.001}
+        self.truncate_at=None
         owner=self
         class Upstream(BaseHTTPRequestHandler):
             def log_message(self,*_):pass
             def do_POST(self):
                 owner.calls.append(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
+                if owner.truncate_at==len(owner.calls):
+                    self.close_connection=True
+                    self.send_response(200)
+                    self.send_header('Content-Type','text/event-stream')
+                    self.send_header('Transfer-Encoding','chunked')
+                    self.end_headers()
+                    self.wfile.write(b'20\r\nshort')
+                    return
                 events=[{'type':'message_start','message':{'usage':owner.usage}},
                         {'type':'message_stop'}]
                 raw=''.join('data: '+json.dumps(event)+'\n\n' for event in events).encode()
@@ -51,6 +60,65 @@ class ContextAdmissionTests(unittest.TestCase):
         # Inspect completed accounting, not the stop-event/HTTP-handler timing race.
         with box.active:pass
         return status
+
+    def send_truncated(self, box, index=0):
+        """Read a response that may die mid-chunk. Return the status, or None when the body dies."""
+        payload={'model':'qwen3.8-flash','stream':True,'max_tokens':4096,
+                 'messages':[{'role':'user','content':'x'*170000+str(index)}]}
+        request=urllib.request.Request(box.url+'/messages',data=json.dumps(payload).encode(),
+            headers={'x-api-key':box.token,'Content-Type':'application/json'})
+        status=None
+        try:
+            with urllib.request.urlopen(request,timeout=4) as response:
+                try:
+                    response.read()
+                except Exception:
+                    pass
+                status=response.status
+        except urllib.error.HTTPError as error:
+            with error:
+                error.read()
+            status=error.code
+        with box.active:pass
+        return status
+
+    def test_a_truncated_first_chunk_is_transport_and_does_not_continue(self):
+        self.truncate_at=1
+        box=self.relay()
+        self.send_truncated(box)
+        self.assertEqual(box.last_error_code,'TRANSPORT_ERROR')
+        self.assertEqual(box.forwarded_count,1)
+        self.assertEqual(box.reported_usage,[])
+        self.assertEqual(self.checkpoints,[])
+
+    def test_incomplete_usage_does_not_hand_over_a_grown_follow_up(self):
+        del self.usage['cost']
+        box=self.relay()
+        self.assertEqual(self.send(box),200)
+        self.assertEqual(self.post_messages(box,257),409)
+        self.assertEqual(box.last_error_code,'USAGE_UNKNOWN')
+        self.assertEqual(len(self.calls),1)
+        self.assertEqual(self.checkpoints,[])
+
+    def test_an_oversized_local_follow_up_after_incomplete_usage_does_not_hand_over(self):
+        del self.usage['cost']
+        box=self.relay(counter=type('Local',(),{'count':lambda self,_:2000})())
+        self.assertEqual(self.send(box),200)
+        box.counter=type('Huge',(),{'count':lambda self,_:300001})()
+        self.assertEqual(self.send(box,1),409)
+        self.assertEqual(box.last_error_code,'USAGE_UNKNOWN')
+        self.assertEqual(self.checkpoints,[])
+        self.assertEqual(len(self.calls),1)
+
+    def test_a_truncated_later_chunk_does_not_hand_over_the_gap(self):
+        box=self.relay()
+        self.assertEqual(self.send(box),200)
+        self.truncate_at=2
+        self.send_truncated(box,1)
+        self.assertEqual(box.last_error_code,'TRANSPORT_ERROR')
+        self.assertEqual(box.forwarded_count,2)
+        self.assertEqual(len(box.reported_usage),1)
+        self.assertEqual(self.checkpoints,[])
 
     def test_complete_170kb_packet_launches_without_treating_cost_bound_as_context(self):
         box=self.relay()
@@ -101,6 +169,59 @@ class ContextAdmissionTests(unittest.TestCase):
         self.assertEqual(self.send(box,1),409)
         self.assertEqual(box.last_error_code,'PROVIDER_CONTEXT_VIOLATION')
         self.assertEqual(len(self.calls),1)
+
+    def post_messages(self, box, count):
+        payload={'model':'qwen3.8-flash','stream':True,'max_tokens':16,
+                 'messages':[{'role':'user','content':'x'} for _ in range(count)]}
+        request=urllib.request.Request(box.url+'/messages',data=json.dumps(payload).encode(),
+            headers={'x-api-key':box.token,'Content-Type':'application/json'})
+        try:
+            with urllib.request.urlopen(request,timeout=4) as response:
+                response.read();status=response.status
+        except urllib.error.HTTPError as error:
+            with error:error.read();status=error.code
+        with box.active:pass
+        return status
+
+    def test_a_follow_up_past_the_message_cap_hands_over(self):
+        box=self.relay()
+        self.assertEqual(self.send(box),200)
+        self.assertEqual(self.post_messages(box,257),409)
+        self.assertEqual(box.last_error_code,'AEION_HANDOVER')
+        self.assertEqual(len(self.calls),1)
+        self.assertEqual(self.checkpoints,[(4000,True)])
+
+    def test_the_first_request_past_the_message_cap_stays_unknown(self):
+        box=self.relay()
+        self.assertEqual(self.post_messages(box,257),409)
+        self.assertEqual(box.last_error_code,'CONTEXT_UNKNOWN')
+        self.assertEqual(self.calls,[])
+        self.assertEqual(self.checkpoints,[])
+
+    def test_an_unexpected_follow_up_exception_is_relay_fault(self):
+        box=self.relay()
+        self.assertEqual(self.send(box),200)
+        class Boom:
+            def count(self, _payload):
+                raise RuntimeError('synthetic')
+        box.counter=Boom()
+        status=self.send(box,1)
+        self.assertEqual(status,409)
+        self.assertEqual(box.last_error_code,'RELAY_FAULT')
+        self.assertEqual(len(self.calls),1)
+        self.assertTrue(self.checkpoints)
+
+    def test_a_first_request_unexpected_exception_stays_unknown(self):
+        box=self.relay()
+        class Boom:
+            def count(self, _payload):
+                raise RuntimeError('synthetic')
+        box.counter=Boom()
+        status=self.send(box)
+        self.assertEqual(status,409)
+        self.assertEqual(box.last_error_code,'CONTEXT_UNKNOWN')
+        self.assertEqual(self.calls,[])
+        self.assertEqual(self.checkpoints,[])
 
 
 class ProviderContextTests(unittest.TestCase):

@@ -1,3 +1,40 @@
+## The author loop stops after three identical checks — 2026-11-08
+
+- Independent review of d6aea62 was NOT OK: a local follow-up whose previous usage row was incomplete still checkpointed as AEION_HANDOVER when the local count no longer fit. That test failed with AEION_HANDOVER. The same follow-up is now USAGE_UNKNOWN, with no checkpoint.
+- Pull request 35 CI failed on the builder-error receipt (`KeyError: forwarded_count`), on two settlement sends (`[200, 409, 403]` instead of `[200, 200, 409]`), and an identical finished failure left `draft_failures` at 1. Those three tests failed before the fix. The receipt now keeps the execution diagnostics and the check. An identical finished failure increments the draft count without a second progress event. An incomplete usage row blocks a grown handover only; an ordinary follow-up keeps the reservation. `cd demo && python3 -m unittest` of the dispatch diagnostic, the store repeat, settlement and context admission: 28 OK. The full `discover -s tests` was 851 tests with one local failure in `test_factory_execution`: `cost_reservation_usd` was `50` rather than `50.00` when the process carries an author-ceiling override. That assertion is outside this diff. dispatch.py is 1500 newlines. store.py is 1498. The native claude-security plugin was not run. knowledge-check passed. doc-links against origin/develop passed, 153 links.
+- Feature 001 build 0e02148b89f3 was cancelled. A read-only count showed no dispatched, queued, gated, pr_open or approved build.
+- The missing complete round was the open author stage. A failed protected check did not stop the model, and the test names were dropped before the next decision. Preparation's startup refusal stays the expected negative control.
+- Three identical reasons now set repeated_check_failure on the next admission. Check evidence and progress keep at most eight pattern-checked names. A Gradle task or exception class is kept when no test line exists. An unexpected follow-up exception is RELAY_FAULT. A running protected check is not a stall. The cockpit shows admission hours and does not renew the proof.
+- minimax-m3.1-flash replaces mistral-large-4. Prices stay the pinned Go rates 0.15/0.60/0.015 and context 1000000. budget_multiplier 4 is the highest measured Go multiple, an upper bound, not a measured MiniMax rate. No effort map is sent.
+- Checks this session: the touched demo unit modules passed (143), and the cockpit client, provider and factory-checks node tests passed (41). knowledge-check passed. doc-links against origin/develop passed, 153 links. VERSION stays 1.9.0. Feature 001 was not relaunched.
+- Controller PID 74366 was replaced by PID 89596 after an identity check. Admission exited 0, status qualified, activated true, product delivery not claimed, ready() true. The native claude-security plugin was not run.
+- Independent review of b055f63 was NOT OK: a truncated upstream chunk became RELAY_FAULT after the claim and before its usage row, so a later finish was USAGE_UNKNOWN. The two new context-admission tests failed on that code with RELAY_FAULT. A truncated chunk is now TRANSPORT_ERROR, the claim stays open, and the session does not continue.
+- Independent review of cd48926 was NOT OK: a 257-message follow-up after a usage row with no cost returned AEION_HANDOVER before the usage gate. That test failed with AEION_HANDOVER. The same follow-up is now USAGE_UNKNOWN, with no checkpoint and no second provider call.
+- Independent review of 69191a6 was NOT OK on two points. A cached failure did not replace the published check, so the source assertion for `runtime.last_check = cache[digest]` failed. A passed check with reason `check_failed` was told to the next author as a failure. The cache hit now publishes that check, and correction text requires status failed.
+- Independent review of 343f594 was NOT OK. A passed gate still replayed a stale self-check, and only one `protected_check.finished` call existed, so the three-failure cockpit count stayed at 1. Those three tests failed before the fix. A passed gate is now skipped, and cached and raised failures emit the finished event.
+- Independent review of 89c29cf was NOT OK: skipping a newer passed gate still returned an older failure of the same spec. That test failed with the older test name. The newest passed gate now returns no failure.
+
+## A grown session hands over — 2026-11-08
+
+- Build 9d7d4952c034 used three sessions and stopped on handover_limit after saving 16 candidate files. Build 48374a71be8c ran one session, 100 forwarded requests, usage complete, 21 protected checks failed as product_unit_tests_failed, retained 15 files, then stopped on CONTEXT_UNKNOWN. No further attempt was admitted. A follow-up with more than 256 messages now closes as AEION_HANDOVER. `cd demo && python3 -m unittest tests.test_context_admission` : 10 OK. PID 62409 was replaced by PID 74366. Admission exited 0, status qualified, activated true, product delivery not claimed, ready() true. Feature 001 was not relaunched.
+
+## Controller reloaded onto the path note — 2026-11-08
+
+- PID 29673 was stopped after an identity check, with no build in dispatched, queued, gated, pr_open or approved. PID 62409 started in live mode and listens on 127.0.0.1:8088. Admission exited 0, status qualified, activated true, product delivery not claimed, ready() true. Feature 001 was not relaunched.
+
+## A correction names the changed paths — 2026-11-08
+
+- The knowledge correction listed no file, and a protected check that raised became "Protected check unavailable". `baseline_note` now names the candidate paths and a Spec doc missing from that change, without file text. `bounded_check_failure` keeps a reason token. `cd demo && python3 -m unittest tests.test_factory_correction_rounds` : 32 OK. `node --test demo/flue/tests/factory-checks.test.mjs` : 5 pass.
+
+## Live status report — 2026-11-07
+
+- `cd demo && python3 -m unittest tests.test_factory_live_status`: 5 OK. The report prints phase names and the supervisor CI lines. A reviewer sentence in the fixture stays out of the output.
+
+## Main carries the resilience fixes — 2026-11-07
+
+- Pull request 34 merged as a853f1a18cc4326c735eb2da28a56e0708aacfb6. develop and main match that SHA. The reviewed head a03300e has an independent Review OK. Architecture refresh run 42407731597 and CI run 42407731559 succeeded. VERSION stays 1.9.0. No tag was published.
+- Controller PID 97378 stopped after an identity check. PID 29673 started in live mode. Admission exited 0 and ready() is true. The restart script exited 1 on a case-sensitive ready comparison after printing ready=True. A later read showed PID 29673 alive, mode live, listening on 127.0.0.1:8088, ready() true, and the protocol files older than the process. Build fc6f2d0d26ce was dispatched with the review retry claimed and the lease active. While the old process was stopped, one abandoned 50 USD reservation and one cancelled 5 USD reservation settled at 0. The forum purse then read settled 3.19 USD, reserved 6.00 USD, spent 9.19 USD. The incomplete forward and the review reservation stayed open. Feature 001 was not relaunched by hand. Product pull requests 7 and 8 were not merged. The publish token still cannot read branch protection.
+
 ## A resumed correction keeps the failed check — 2026-11-07
 
 - A correction round that resumes after a network stop still carries the failed check name, the fixed repair sentence, and the reviewer line. After three resumes the next attempt still carries that check name. The two tests failed before the prompt and the crash receipt kept those lines, then passed.

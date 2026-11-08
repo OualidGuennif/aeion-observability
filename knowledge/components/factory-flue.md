@@ -8,8 +8,8 @@ verified:
     what: "unittest correction rounds, connectivity, review circuit, artifact and recovery: a working CLI_FAILED resumes the same model; a quiet stop still crashes"
   - at: 2026-11-07
     what: "unittest budget, TLS, workspace, resume and review retry: ceilings stay 150/50/1; summary splits settled and reserved; an unforwarded claim settles at zero; a resume reuses the prepared contract; a down provider holds before prepare; one failed review retries once"
-  - at: 2026-11-07
-    what: "unittest CI correction: a comma in a required check name is kept; a known check adds one fixed repair sentence; a placeholder name is replaced once and that same correction is queued"
+  - at: 2026-11-08
+    what: "unittest: incomplete usage does not hand over an oversized local follow-up; a builder-error receipt keeps diagnostics; an identical failed draft counts"
 sources:
   - resource: ../../demo/factory/review_context.py
     title: "One-time operator repair of the old review envelope"
@@ -209,7 +209,10 @@ admits, in the same transaction as its link `{previous_build_id, attempt, round}
 or after the second round the next attempt. A retryable author stop (`RETRYABLE_AUTHOR_STOPS`:
 CLI or provider failure, per-build budget, step, output or time limit, no patch, no eligible model)
 starts the next attempt directly; scope, secret, revocation, sandbox, unknown cost or context
-accounting, funds and credential stops end the launch (`test_factory_correction_rounds`). The next
+accounting, funds and credential stops end the launch (`test_factory_correction_rounds`). A follow-up
+whose message list exceeds 256, or whose body exceeds 2000000 bytes after a forwarded request,
+closes that session as `AEION_HANDOVER` and the same attempt continues in a fresh session. A first
+request past either cap stays `CONTEXT_UNKNOWN` (`test_context_admission`). The next
 author starts from the previous candidate only when its bytes still match the digest the failed
 receipt recorded and the base is unchanged: a refused candidate, or after a crash the scoped files
 the crashed author left, revalidated by `validate_artifact`. It receives the votes and check results
@@ -274,7 +277,9 @@ The archived votes are never reused. A second failure stays held. A same-build r
 only that build's prepared folder and repo, and keeps a same-model resume clone. That resume
 reuses the prepared contract already on disk and does not call the preparer again. A resumed
 correction still carries the failed check name and the reviewer lines from the build it
-continues. When those resumes run out, the next attempt keeps that CI result. A missing,
+continues. It also names the candidate paths that differ from the pinned base, and any code
+file whose Spec doc is absent from that change. The sandbox has no git history. A protected
+check that cannot run returns its reason token. When those resumes run out, the next attempt keeps that CI result. A missing,
 linked or altered contract is prepared again. Features 002 and 014 are prepared again, because
 their dependency seeds are not in that contract. GitHub TLS
 uses the system CA bundle when certifi is missing, and verification stays on. A reservation
@@ -331,20 +336,29 @@ Haiku and Qwen adaptive thinking with `output_config.effort: max`. The relay ref
 DeepSeek, Haiku or Qwen request that does not carry that exact effort; only a bounded review
 recovery may ask for `low`. Measured 2026-11-06 on the paid Go endpoint: all four accepted their
 maximum, and GLM's reasoning grew from 6 to 43 tokens between `low` and `max` on the same prompt.
-The owner added two workers the same day. GPT-6 Luna (Go, family `openai`) validates
-`reasoning_effort` and accepts `max`. Mistral Large 4 (family `mistral`) rejects `max` and `xhigh`,
-so its maximum is `high`. It is not in Go: it runs on OpenCode pay-as-you-go, billed to the Console
-balance at its list price (1.36/4.18 USD per 1M input/output tokens). Both send `reasoning_effort`
-alone, and the relay refuses one with another value or a `thinking` object. They follow the four
-measured models in the cold-start order.
-The author also gets three protections, measured on build cca2f099 (GLM stopped 37 minutes after
-its third and last allowed protected check had failed; about six shell commands hit the 300 s
-command cap). Protected checks are no longer counted: the author window and the cost cap bound
-them, and identical snapshots still reuse their cached result. A factory author that tries to stop
-while its last check is missing or failed receives the failing tests and is told to continue, up
-to three times (`MAX_FINISH_REMINDERS`); after that the unchanged final gate decides. The brief
-forbids Gradle, Maven or other builds in the sandbox shell, which has no network, and names
-`run_protected_checks` as the build and test runner (factory-checks.test.mjs, provider.test.mjs). Synthetic protocol qualification does not
+The owner added GPT-6 Luna the same day (Go, family `openai`). It validates `reasoning_effort`
+and accepts `max`. On 2026-11-08 MiniMax M3.1 Flash (family `minimax`, wire `minimax-m3.1-flash`)
+replaced Mistral Large 4. Its pinned Go rates are 0.15/0.60/0.015 USD per 1M tokens and a context
+of 1000000. It has no measured effort map, so the provider sends no `reasoning_effort`. Its budget
+multiple is 4, the highest multiple measured for Go on 2026-11-06, used as an upper bound until
+this model is measured. It follows the earlier models in the cold-start order.
+The author window and the cost cap bound protected checks, and identical snapshots still reuse
+their cached result. The same failure reason three times stops the next model admission with
+`repeated_check_failure`. The check evidence keeps at most eight pattern-checked test names, the
+progress receipt copies them, and the next author receives them (`note_check_failure`,
+`check_evidence`, `correction_feedback`). A repeated cached failure is the check that
+finish publishes, and that repeat is counted as a finished check. A check whose status is not
+failed, and a self-check behind a passed gate, are not described as a failure. The newest
+passed gate also hides an older failure of that same spec. A builder-error receipt keeps that execution, including the forwarded count, the process exit and the failure, together with the protected-check evidence. A Gradle failure with no `Class > method FAILED` line
+keeps one task name or one exception class. The brief forbids Gradle or Maven in the sandbox shell
+and names `run_protected_checks` as the runner. An unexpected relay exception continues as
+`RELAY_FAULT` only when every claimed forward already has a usage row. A truncated upstream chunk
+is `TRANSPORT_ERROR`: the claim stays open, so the missing usage cannot settle at zero, and the
+session does not continue. A follow-up whose previous usage row is missing or incomplete
+is `USAGE_UNKNOWN` and does not checkpoint when the body is over 2000000 bytes, the message count is over 256, or the local count no longer fits. An ordinary follow-up that still fits keeps the reservation until the budget stops it. A provider-counted profile still refuses the next paid request when that row is incomplete. A first request with no claim stays
+`CONTEXT_UNKNOWN`.
+The catalog shows the admission proof expiry in hours and does not renew it. A protected check
+that is still running is not shown as a stalled agent. Synthetic protocol qualification does not
 establish provider acceptance, current billing/privacy evidence or model-quality ranking.
 
 DeepSeek's native `thinking`/`reasoning_effort` protocol is explicitly mapped by the pinned

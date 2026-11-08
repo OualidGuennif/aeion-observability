@@ -82,12 +82,25 @@ class StoreTests(unittest.TestCase):
         store.record_progress(a,g,'process.started',{})
         store.record_progress(a,g,'tool.finished',{})
         for _ in range(2):
-            store.record_progress(a,g,'protected_check.finished',{'status':'failed','reason':'product_unit_tests_failed'})
+            store.record_progress(a,g,'protected_check.finished',{'status':'failed','reason':'product_unit_tests_failed',
+                'failed_tests':['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED','bad\nname']})
             store.record_progress(a,g,'model.step.started',{})
         receipt=json.loads(store.board()[0]['receipt'])
         self.assertGreater(receipt['author_started_ns'],0)
         self.assertGreaterEqual(receipt['last_tool_ns'],receipt['author_started_ns'])
         self.assertEqual(receipt['draft_failures'],2)
+        self.assertEqual(receipt['draft_check']['failed_tests'],
+                         ['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED'])
+
+    def test_an_identical_finished_failure_counts_without_a_second_progress_event(self):
+        store=self.store();store.admit(['f1'],'repeat-fail',self.catalog);build=store.claim_next(self.catalog)
+        a,g=build['attempt_id'],build['attempt_generation']
+        detail={'status':'failed','reason':'product_unit_tests_failed','failed_tests':['A > t() FAILED']}
+        self.assertTrue(store.record_progress(a,g,'protected_check.finished',detail))
+        self.assertFalse(store.record_progress(a,g,'protected_check.finished',detail))
+        receipt=json.loads(store.board()[0]['receipt'])
+        self.assertEqual(receipt['draft_failures'],2)
+        self.assertEqual(sum(e['event']=='progress' for e in store.events(build['build_id'])),1)
 
     def test_previous_check_failure_is_bounded_and_limited_to_the_same_spec(self):
         from factory.store import FAILED
@@ -109,6 +122,24 @@ class StoreTests(unittest.TestCase):
             'compiler_errors':['src/main/java/App.java:12']})
         self.assertNotIn('private-canary',str(previous))
         self.assertIsNone(store.previous_check_failure('f2','a'*64))
+        store.admit(['f1'],'crash-names',self.catalog);build=store.claim_next(self.catalog)
+        store.complete_attempt(build['attempt_id'],build['attempt_generation'],
+            {'spec_digest':'c'*64,'execution':{'check':{'reason':'product_unit_tests_failed',
+             'failed_tests':['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED']}}},
+            terminal=FAILED)
+        crashed=store.previous_check_failure('f1','c'*64)
+        self.assertEqual(crashed['failed_tests'],['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED'])
+        store.admit(['f1'],'passed-gate',self.catalog);build=store.claim_next(self.catalog)
+        store.complete_attempt(build['attempt_id'],build['attempt_generation'],
+            {'spec_digest':'d'*64,'gate':{'status':'passed','results':{}},'execution':{'check':{
+             'reason':'product_unit_tests_failed','failed_tests':['Old > t() FAILED']}}},
+            terminal=FAILED)
+        self.assertIsNone(store.previous_check_failure('f1','d'*64))
+        fail('older-e','e'*64,{'reason':'product_unit_tests_failed','failed_tests':['Old > t() FAILED']})
+        store.admit(['f1'],'newer-passed',self.catalog);build=store.claim_next(self.catalog)
+        store.complete_attempt(build['attempt_id'],build['attempt_generation'],
+            {'spec_digest':'e'*64,'gate':{'status':'passed','results':{}}},terminal=FAILED)
+        self.assertIsNone(store.previous_check_failure('f1','e'*64))
 
     def test_admit_root_is_queued(self):
         s = self.store()

@@ -976,6 +976,12 @@ class Store:
         for key in ('step', 'failed_count'):
             if type(detail.get(key)) is int and 0 <= detail[key] <= 1000:
                 clean[key] = detail[key]
+        names = detail.get('failed_tests')
+        if isinstance(names, list):
+            kept = [item for item in names if isinstance(item, str)
+                    and re.fullmatch(r'[A-Za-z0-9_.$<>()\[\] ,:#-]{1,160}', item)][:8]
+            if kept:
+                clean['failed_tests'] = kept
         with self._lock:
             conn = self._connect()
             try:
@@ -988,6 +994,10 @@ class Store:
                     receipt = json.loads(row['receipt']) if row['receipt'] else {}
                     previous = receipt.get('progress', {})
                     if previous.get('phase') == phase and previous.get('detail') == clean:
+                        if phase=='protected_check.finished' and clean.get('status')=='failed':
+                            receipt['draft_failures']=min(1000,int(receipt.get('draft_failures',0))+1)
+                            conn.execute('UPDATE builds SET receipt=?, updated_ns=? WHERE build_id=?',
+                                         (json.dumps(receipt), self._now(), row['build_id']))
                         return False
                     now = self._now()
                     progress = {'phase': phase, 'detail': clean, 'time_ns': now}
@@ -1375,9 +1385,12 @@ class Store:
                 receipt = json.loads(row['receipt']) if row['receipt'] else {}
             except ValueError:
                 continue
-            if receipt.get('spec_digest') != spec_digest or not isinstance(receipt.get('gate'), dict):
+            if receipt.get('spec_digest') != spec_digest:
                 continue
-            for result in (receipt['gate'].get('results') or {}).values():
+            gate = receipt.get('gate') if isinstance(receipt.get('gate'), dict) else {}
+            if gate.get('status') == 'passed':
+                return None
+            for result in (gate.get('results') or {}).values():
                 detail = result.get('detail') if isinstance(result, dict) else None
                 if not isinstance(detail, dict) or not isinstance(detail.get('reason'), str):
                     continue
@@ -1390,6 +1403,13 @@ class Store:
                           and re.fullmatch(r'[A-Za-z0-9_./-]{1,160}', e['file']) and type(e.get('line')) is int][:8]
                 if tests or errors:
                     return {'reason': detail['reason'], 'failed_tests': tests, 'compiler_errors': errors}
+            execution = receipt.get('execution') if isinstance(receipt.get('execution'), dict) else {}
+            check = execution.get('check') if isinstance(execution.get('check'), dict) else None
+            if isinstance(check, dict) and re.fullmatch('[a-z][a-z0-9_]{1,95}', str(check.get('reason') or '')):
+                kept = [t for t in check.get('failed_tests') or []
+                        if isinstance(t, str) and re.fullmatch(r'[A-Za-z0-9_.$<>()\[\] ,:#-]{1,160}', t)][:8]
+                if kept:
+                    return {'reason': check['reason'], 'failed_tests': kept, 'compiler_errors': []}
         return None
 
     def board(self):
