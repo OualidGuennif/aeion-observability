@@ -64,7 +64,9 @@ class DispatchWorkerTests(unittest.TestCase):
             last_execution=None
             def __call__(self,repo,frozen,feature,brief):
                 self.last_execution={'build_id':frozen.build_id,'failure':'CLI_STARTUP_FAILED',
-                    'process_exit_code':1,'forwarded_count':0,'trace_id':'a'*32}
+                    'process_exit_code':1,'forwarded_count':0,'trace_id':'a'*32,
+                    'check':{'status':'failed','reason':'product_unit_tests_failed',
+                             'failed_tests':['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED']}}
                 raise ValueError('CLI_STARTUP_FAILED')
         self.worker.builder=FailingBuilder()
         self.store.admit(['001'],'startup-failure',self.cat)
@@ -74,6 +76,8 @@ class DispatchWorkerTests(unittest.TestCase):
         self.assertEqual(receipt['error'],'CLI_STARTUP_FAILED')
         self.assertEqual(receipt['execution']['forwarded_count'],0)
         self.assertEqual(receipt['execution']['process_exit_code'],1)
+        self.assertEqual(receipt['execution']['failure'],'CLI_STARTUP_FAILED')
+        self.assertEqual(receipt['execution']['check']['status'],'failed')
         self.assertEqual(len(receipt['frozen_digest']),64)
         self.assertEqual(len(receipt['base_sha']),40)
 

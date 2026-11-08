@@ -9,7 +9,7 @@ verified:
   - at: 2026-11-07
     what: "unittest budget, TLS, workspace, resume and review retry: ceilings stay 150/50/1; summary splits settled and reserved; an unforwarded claim settles at zero; a resume reuses the prepared contract; a down provider holds before prepare; one failed review retries once"
   - at: 2026-11-08
-    what: "unittest: a passed gate does not reuse a stale self-check; cached and raised failures count as finished"
+    what: "unittest: a builder-error receipt keeps diagnostics and the check; an identical failed draft counts; incomplete usage blocks a grown handover only"
 sources:
   - resource: ../../demo/factory/review_context.py
     title: "One-time operator repair of the old review envelope"
@@ -349,13 +349,13 @@ progress receipt copies them, and the next author receives them (`note_check_fai
 `check_evidence`, `correction_feedback`). A repeated cached failure is the check that
 finish publishes, and that repeat is counted as a finished check. A check whose status is not
 failed, and a self-check behind a passed gate, are not described as a failure. The newest
-passed gate also hides an older failure of that same spec. A Gradle failure with no `Class > method FAILED` line
+passed gate also hides an older failure of that same spec. A builder-error receipt keeps that execution, including the forwarded count, the process exit and the failure, together with the protected-check evidence. A Gradle failure with no `Class > method FAILED` line
 keeps one task name or one exception class. The brief forbids Gradle or Maven in the sandbox shell
 and names `run_protected_checks` as the runner. An unexpected relay exception continues as
 `RELAY_FAULT` only when every claimed forward already has a usage row. A truncated upstream chunk
 is `TRANSPORT_ERROR`: the claim stays open, so the missing usage cannot settle at zero, and the
 session does not continue. A grown follow-up whose previous usage row is missing or incomplete
-is `USAGE_UNKNOWN` and does not start another session. A first request with no claim stays
+is `USAGE_UNKNOWN` and does not start another session. An ordinary follow-up keeps the reservation and can still be forwarded until the budget stops it. A provider-counted profile still refuses the next paid request when that row is incomplete. A first request with no claim stays
 `CONTEXT_UNKNOWN`.
 The catalog shows the admission proof expiry in hours and does not renew it. A protected check
 that is still running is not shown as a stalled agent. Synthetic protocol qualification does not

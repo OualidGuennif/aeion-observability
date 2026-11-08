@@ -66,7 +66,7 @@ A required check that finished without success does not merge: it queues a bound
 with the check names, one fixed repair sentence for a known check, and the agents' notes.
 An unreadable or pending check stays held. Three identical protected-check failures stop the
 author as `repeated_check_failure` and the next attempt receives those test names. A passed
-gate is not described with the author's earlier self-check, including an older attempt. The catalog
+gate is not described with the author's earlier self-check, including an older attempt. A builder-error receipt keeps the execution diagnostics and the protected-check evidence. The catalog
 shows the admission expiry and does not renew it.
 A CLI stop while the author was still working resumes that same build and model; the execution
 contract states the evidence, the three-resume cap, and which stops still start another model.

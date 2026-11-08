@@ -994,6 +994,10 @@ class Store:
                     receipt = json.loads(row['receipt']) if row['receipt'] else {}
                     previous = receipt.get('progress', {})
                     if previous.get('phase') == phase and previous.get('detail') == clean:
+                        if phase=='protected_check.finished' and clean.get('status')=='failed':
+                            receipt['draft_failures']=min(1000,int(receipt.get('draft_failures',0))+1)
+                            conn.execute('UPDATE builds SET receipt=?, updated_ns=? WHERE build_id=?',
+                                         (json.dumps(receipt), self._now(), row['build_id']))
                         return False
                     now = self._now()
                     progress = {'phase': phase, 'detail': clean, 'time_ns': now}

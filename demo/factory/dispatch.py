@@ -1029,7 +1029,7 @@ class DispatchWorker:
                  "reason": "builder_error", "detail": type(exc).__name__,
                  "error": execution.get('failure')
                     or (str(exc) if isinstance(exc, BuilderError) else type(exc).__name__),
-                 "execution": {"check": execution.get("check")} if isinstance(execution.get("check"), dict) else {},
+                 "execution": execution if isinstance(execution, dict) else {},
                  "telemetry": self._telemetry_evidence(
                      build, feature, frozen, base_sha, {}, {"status": "builder_error"}, None)}
             if hasattr(self.builder, 'run_build') and stop_code in RETRYABLE_AUTHOR_STOPS:

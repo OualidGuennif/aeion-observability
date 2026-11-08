@@ -92,6 +92,16 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(receipt['draft_check']['failed_tests'],
                          ['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED'])
 
+    def test_an_identical_finished_failure_counts_without_a_second_progress_event(self):
+        store=self.store();store.admit(['f1'],'repeat-fail',self.catalog);build=store.claim_next(self.catalog)
+        a,g=build['attempt_id'],build['attempt_generation']
+        detail={'status':'failed','reason':'product_unit_tests_failed','failed_tests':['A > t() FAILED']}
+        self.assertTrue(store.record_progress(a,g,'protected_check.finished',detail))
+        self.assertFalse(store.record_progress(a,g,'protected_check.finished',detail))
+        receipt=json.loads(store.board()[0]['receipt'])
+        self.assertEqual(receipt['draft_failures'],2)
+        self.assertEqual(sum(e['event']=='progress' for e in store.events(build['build_id'])),1)
+
     def test_previous_check_failure_is_bounded_and_limited_to_the_same_spec(self):
         from factory.store import FAILED
         store=self.store()

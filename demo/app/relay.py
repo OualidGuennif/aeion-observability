@@ -144,14 +144,15 @@ class ContextRelay:
                 try:
                     if relay.closed:
                         return self.deny(403, "GATE_CLOSED")
-                    if relay.usage_gap():
-                        relay.closed = True
-                        relay.last_error_code = 'USAGE_UNKNOWN'
-                        return self.deny(409, 'USAGE_UNKNOWN')
                     length = int(self.headers.get("Content-Length", "0"))
                     # A grown author transcript crosses the read cap before the token gate.
                     # That is a fresh session, not unknown accounting. A first request stays unknown.
+                    # An incomplete prior row is not handed on. An ordinary follow-up still proceeds.
                     if length > 2000000 and relay.forwarded_count:
+                        if relay.usage_gap():
+                            relay.closed = True
+                            relay.last_error_code = 'USAGE_UNKNOWN'
+                            return self.deny(409, 'USAGE_UNKNOWN')
                         relay.refuse_grown_session()
                         return self.deny(409, "AEION_HANDOVER")
                     if not 0 < length <= 2000000:
@@ -163,6 +164,10 @@ class ContextRelay:
                     messages = payload.get("messages")
                     if isinstance(messages, list) and len(messages) > 256:
                         if relay.forwarded_count:
+                            if relay.usage_gap():
+                                relay.closed = True
+                                relay.last_error_code = 'USAGE_UNKNOWN'
+                                return self.deny(409, 'USAGE_UNKNOWN')
                             relay.refuse_grown_session()
                             return self.deny(409, "AEION_HANDOVER")
                         raise ValueError("CONTEXT_UNKNOWN")
