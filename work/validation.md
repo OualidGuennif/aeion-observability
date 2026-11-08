@@ -6,6 +6,7 @@
 - minimax-m3.1-flash replaces mistral-large-4. Prices stay the pinned Go rates 0.15/0.60/0.015 and context 1000000. budget_multiplier 4 is the highest measured Go multiple, an upper bound, not a measured MiniMax rate. No effort map is sent.
 - Checks this session: the touched demo unit modules passed (143), and the cockpit client, provider and factory-checks node tests passed (41). knowledge-check passed. doc-links against origin/develop passed, 153 links. VERSION stays 1.9.0. Feature 001 was not relaunched.
 - Controller PID 74366 was replaced by PID 89596 after an identity check. Admission exited 0, status qualified, activated true, product delivery not claimed, ready() true. The native claude-security plugin was not run.
+- Independent review of b055f63 was NOT OK: a truncated upstream chunk became RELAY_FAULT after the claim and before its usage row, so a later finish was USAGE_UNKNOWN. The two new context-admission tests failed on that code with RELAY_FAULT. A truncated chunk is now TRANSPORT_ERROR, the claim stays open, and the session does not continue.
 
 ## A grown session hands over — 2026-11-08
 

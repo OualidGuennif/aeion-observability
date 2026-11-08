@@ -1,6 +1,7 @@
 """Credential-owning local inference boundary. The agent never receives the Go key."""
 import hashlib
 import hmac
+import http.client
 import json
 import secrets
 import ssl
@@ -361,11 +362,24 @@ class ContextRelay:
                     timed_out = isinstance(error, TimeoutError) or isinstance(getattr(error, 'reason', None), TimeoutError)
                     relay.last_error_code = 'PROVIDER_TIMEOUT' if timed_out else 'TRANSPORT_ERROR'
                     relay.event("provider.failed", **{"aeion.failure.code": relay.last_error_code})
+                except http.client.HTTPException:
+                    # A chunk that ends early is IncompleteRead, not an OSError. The claim stays
+                    # open so the missing usage cannot settle at zero, and the session does not
+                    # continue into a later USAGE_UNKNOWN.
+                    relay.closed = True
+                    relay.last_error_code = 'TRANSPORT_ERROR'
+                    relay.event("provider.failed", **{"aeion.failure.code": "TRANSPORT_ERROR"})
                 except Exception:
                     relay.closed = True
-                    if relay.forwarded_count:
+                    # Continue only when every claim already has a usage row. An in-flight claim
+                    # has no row yet; handing it over leaves the finish non-retryable.
+                    if relay.reported_usage and len(relay.reported_usage) == relay.forwarded_count:
                         relay.refuse_grown_session('RELAY_FAULT')
                         self.deny(409, 'RELAY_FAULT')
+                    elif relay.forwarded_count:
+                        relay.last_error_code = 'RELAY_FAULT' if relay.reported_usage else 'CONTEXT_UNKNOWN'
+                        relay.event("context.refused", **{"aeion.failure.code": relay.last_error_code})
+                        self.deny(409, relay.last_error_code)
                     else:
                         relay.last_error_code = 'CONTEXT_UNKNOWN'
                         relay.event("context.refused", **{"aeion.failure.code": "CONTEXT_UNKNOWN"})

@@ -5,8 +5,10 @@
 - Three identical protected-check failures stop the next model admission as
   `repeated_check_failure` and the next author receives the failing test names.
   A Gradle failure with no test line keeps one task name or one exception class.
-  An unexpected relay exception after a forwarded request is `RELAY_FAULT` and
-  continues that attempt. A protected check that is still running is not shown
+  An unexpected relay exception continues as `RELAY_FAULT` only when every
+  claimed forward already has a usage row. A truncated upstream chunk is
+  `TRANSPORT_ERROR`: the unbilled claim stays open and the session does not
+  continue. A protected check that is still running is not shown
   as a stalled agent. The cockpit shows how many hours remain on the 24-hour
   admission proof and does not renew it.
 - `minimax-m3.1-flash` replaces `mistral-large-4`. Its budget multiple is 4, the

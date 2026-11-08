@@ -9,7 +9,7 @@ verified:
   - at: 2026-11-07
     what: "unittest budget, TLS, workspace, resume and review retry: ceilings stay 150/50/1; summary splits settled and reserved; an unforwarded claim settles at zero; a resume reuses the prepared contract; a down provider holds before prepare; one failed review retries once"
   - at: 2026-11-08
-    what: "unittest work limits: three identical check failures stop as repeated_check_failure and keep the test names; a follow-up fault is RELAY_FAULT"
+    what: "unittest: three identical checks stop as repeated_check_failure; a truncated chunk is TRANSPORT_ERROR and does not continue"
 sources:
   - resource: ../../demo/factory/review_context.py
     title: "One-time operator repair of the old review envelope"
@@ -348,8 +348,10 @@ their cached result. The same failure reason three times stops the next model ad
 progress receipt copies them, and the next author receives them (`note_check_failure`,
 `check_evidence`, `correction_feedback`). A Gradle failure with no `Class > method FAILED` line
 keeps one task name or one exception class. The brief forbids Gradle or Maven in the sandbox shell
-and names `run_protected_checks` as the runner. An unexpected relay exception after a forwarded
-request is `RELAY_FAULT` and continues the attempt; a first request stays `CONTEXT_UNKNOWN`.
+and names `run_protected_checks` as the runner. An unexpected relay exception continues as
+`RELAY_FAULT` only when every claimed forward already has a usage row. A truncated upstream chunk
+is `TRANSPORT_ERROR`: the claim stays open, so the missing usage cannot settle at zero, and the
+session does not continue. A first request with no claim stays `CONTEXT_UNKNOWN`.
 The catalog shows the admission proof expiry in hours and does not renew it. A protected check
 that is still running is not shown as a stalled agent. Synthetic protocol qualification does not
 establish provider acceptance, current billing/privacy evidence or model-quality ranking.
