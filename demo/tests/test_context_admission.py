@@ -91,6 +91,15 @@ class ContextAdmissionTests(unittest.TestCase):
         self.assertEqual(box.reported_usage,[])
         self.assertEqual(self.checkpoints,[])
 
+    def test_incomplete_usage_does_not_hand_over_a_grown_follow_up(self):
+        del self.usage['cost']
+        box=self.relay()
+        self.assertEqual(self.send(box),200)
+        self.assertEqual(self.post_messages(box,257),409)
+        self.assertEqual(box.last_error_code,'USAGE_UNKNOWN')
+        self.assertEqual(len(self.calls),1)
+        self.assertEqual(self.checkpoints,[])
+
     def test_a_truncated_later_chunk_does_not_hand_over_the_gap(self):
         box=self.relay()
         self.assertEqual(self.send(box),200)

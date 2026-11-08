@@ -144,6 +144,10 @@ class ContextRelay:
                 try:
                     if relay.closed:
                         return self.deny(403, "GATE_CLOSED")
+                    if relay.usage_gap():
+                        relay.closed = True
+                        relay.last_error_code = 'USAGE_UNKNOWN'
+                        return self.deny(409, 'USAGE_UNKNOWN')
                     length = int(self.headers.get("Content-Length", "0"))
                     # A grown author transcript crosses the read cap before the token gate.
                     # That is a fresh session, not unknown accounting. A first request stays unknown.
@@ -212,13 +216,11 @@ class ContextRelay:
                     if relay.context_basis == 'provider_usage':
                         context_count = None
                         if relay.forwarded_count:
-                            previous = relay.reported_usage[-1] if len(relay.reported_usage) == relay.forwarded_count else {}
-                            if (previous.get('complete') is not True
-                                    or any(type(previous.get(k)) is not int or previous[k] < 0
-                                           for k in ('input_tokens','output_tokens'))):
+                            if relay.usage_gap():
                                 relay.closed = True
                                 relay.last_error_code = 'USAGE_UNKNOWN'
                                 return self.deny(409, 'USAGE_UNKNOWN')
+                            previous = relay.reported_usage[-1]
                             context_count = previous['input_tokens']
                             # The byte bound overcounts a long conversation about eight times.
                             # When this request only appends messages to the previous one, the
@@ -409,6 +411,15 @@ class ContextRelay:
         except Exception:
             pass
         self.event("context.refused", **{"aeion.failure.code": code})
+
+    def usage_gap(self):
+        """A claimed forward whose usage row is missing or incomplete. Do not hand that session on."""
+        if not self.forwarded_count:
+            return False
+        previous = self.reported_usage[-1] if len(self.reported_usage) == self.forwarded_count else {}
+        return (previous.get('complete') is not True
+                or any(type(previous.get(key)) is not int or previous[key] < 0
+                       for key in ('input_tokens', 'output_tokens')))
 
     def claim_forward(self, counted):
         # Shutdown and the liability counter share one ordering point. Once closed, local
