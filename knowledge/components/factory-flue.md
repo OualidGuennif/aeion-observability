@@ -9,7 +9,7 @@ verified:
   - at: 2026-11-07
     what: "unittest budget, TLS, workspace, resume and review retry: ceilings stay 150/50/1; summary splits settled and reserved; an unforwarded claim settles at zero; a resume reuses the prepared contract; a down provider holds before prepare; one failed review retries once"
   - at: 2026-11-08
-    what: "unittest: a builder-error receipt keeps diagnostics and the check; an identical failed draft counts; incomplete usage blocks a grown handover only"
+    what: "unittest: incomplete usage does not hand over an oversized local follow-up; a builder-error receipt keeps diagnostics; an identical failed draft counts"
 sources:
   - resource: ../../demo/factory/review_context.py
     title: "One-time operator repair of the old review envelope"
@@ -354,8 +354,8 @@ keeps one task name or one exception class. The brief forbids Gradle or Maven in
 and names `run_protected_checks` as the runner. An unexpected relay exception continues as
 `RELAY_FAULT` only when every claimed forward already has a usage row. A truncated upstream chunk
 is `TRANSPORT_ERROR`: the claim stays open, so the missing usage cannot settle at zero, and the
-session does not continue. A grown follow-up whose previous usage row is missing or incomplete
-is `USAGE_UNKNOWN` and does not start another session. An ordinary follow-up keeps the reservation and can still be forwarded until the budget stops it. A provider-counted profile still refuses the next paid request when that row is incomplete. A first request with no claim stays
+session does not continue. A follow-up whose previous usage row is missing or incomplete
+is `USAGE_UNKNOWN` and does not checkpoint when the body is over 2000000 bytes, the message count is over 256, or the local count no longer fits. An ordinary follow-up that still fits keeps the reservation until the budget stops it. A provider-counted profile still refuses the next paid request when that row is incomplete. A first request with no claim stays
 `CONTEXT_UNKNOWN`.
 The catalog shows the admission proof expiry in hours and does not renew it. A protected check
 that is still running is not shown as a stalled agent. Synthetic protocol qualification does not

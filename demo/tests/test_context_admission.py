@@ -100,6 +100,16 @@ class ContextAdmissionTests(unittest.TestCase):
         self.assertEqual(len(self.calls),1)
         self.assertEqual(self.checkpoints,[])
 
+    def test_an_oversized_local_follow_up_after_incomplete_usage_does_not_hand_over(self):
+        del self.usage['cost']
+        box=self.relay(counter=type('Local',(),{'count':lambda self,_:2000})())
+        self.assertEqual(self.send(box),200)
+        box.counter=type('Huge',(),{'count':lambda self,_:300001})()
+        self.assertEqual(self.send(box,1),409)
+        self.assertEqual(box.last_error_code,'USAGE_UNKNOWN')
+        self.assertEqual(self.checkpoints,[])
+        self.assertEqual(len(self.calls),1)
+
     def test_a_truncated_later_chunk_does_not_hand_over_the_gap(self):
         box=self.relay()
         self.assertEqual(self.send(box),200)

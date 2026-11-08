@@ -17,7 +17,8 @@
   failure still raises that count, without a second progress event. A
   builder-error receipt keeps the forwarded count, the process exit and the
   check. An ordinary follow-up after an incomplete usage row keeps its
-  reservation; only a grown handover of that row is `USAGE_UNKNOWN`.
+  reservation. A handover of that row, including a local count that no
+  longer fits, is `USAGE_UNKNOWN` and does not checkpoint.
   A protected check that is still running is not shown
   as a stalled agent. The cockpit shows how many hours remain on the 24-hour
   admission proof and does not renew it.

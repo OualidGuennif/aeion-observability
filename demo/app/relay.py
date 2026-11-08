@@ -241,6 +241,10 @@ class ContextRelay:
                                 return self.deny(409, relay.last_error_code)
                     if context_count is not None and (not admit(context_count, maximum)
                             or context_count >= min(relay.limit, 250000)):
+                        if relay.usage_gap():
+                            relay.closed = True
+                            relay.last_error_code = 'USAGE_UNKNOWN'
+                            return self.deny(409, 'USAGE_UNKNOWN')
                         relay.closed = True
                         relay.last_error_code = 'AEION_HANDOVER'
                         relay.checkpoint(context_count, True)
