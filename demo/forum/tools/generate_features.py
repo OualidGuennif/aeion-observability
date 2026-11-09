@@ -305,6 +305,67 @@ def index():
     return "\n".join(lines)
 
 
+def template_doc():
+    return TEMPLATE.format(
+        architecture=ARCHITECTURE,
+        architecture_digest=architecture_digest(),
+        sequence="<1..N topological sequence>",
+        id=0,
+        title="<Short imperative feature title>",
+        area="<foundation | forum | moderation | agents | corpus | ops>",
+        size="<S | M | L>",
+        parallel="false",
+        phase="<P0 | P1 | P2 | P3 | P4 | P5>",
+        tier=3,
+        write_paths=json.dumps([
+            "demo/forum-app/",
+            "demo/forum-web/",
+            "demo/forum-docs/",
+            "knowledge/components/agora-product.md",
+            "knowledge/components/factory-architecture.md",
+        ]),
+        source="specs_<a..f>.py",
+        constraints=(
+            "\n\n**Authoring checklist (canonical source: `demo/forum/tools/specs_a.py`..`specs_f.py`):**\n"
+            "- Define `id`, `title`, `area`, `size`, `phase`, `tier: 3`, `parallel: False`, `deps`, and `write_paths`.\n"
+            "- Include `knowledge/components/agora-product.md` and `knowledge/components/factory-architecture.md` in `write_paths`.\n"
+            "- Keep `delivery` to 2..4 concrete steps (<= 220 chars each) and run `python3 demo/forum/tools/generate_features.py`."
+        ),
+        deps="[<prerequisite feature IDs, e.g. 001, 002>]",
+        goal=(
+            "<State in 1..2 sentences the user, operator, or platform capability this feature delivers "
+            "and why it is needed now.>"
+        ),
+        delivery="\n".join([
+            "1. <Implement the focused backend resource, migration, or React view inside the declared write scopes.>",
+            "2. <Wire request validation, deterministic error codes, and persistence or UI state transitions.>",
+            "3. <Add JUnit/Quarkus or React production build tests covering positive and refusal paths, and update the product docs.>",
+        ]),
+        scope=bullets([
+            "<Primary deliverable inside `demo/forum-app/`, `demo/forum-web/`, or `demo/forum-docs/`.>",
+            "<Data contract, schema migration, or UI component boundary with explicit field and status rules.>",
+            "<Telemetry, audit, or operational health surface required to observe the feature safely.>",
+        ]),
+        security=(
+            "<State the fail-closed security, privacy, and authority invariant (unauthenticated/unauthorized "
+            "refusal, untrusted input handling, and absence of raw secrets or prompts in logs/telemetry).>"
+        ),
+        accept=checks([
+            "<Positive check: valid input produces the expected HTTP status, persisted row, or rendered UI state.>",
+            "<Refusal check: missing auth, invalid payload, or unavailable dependency fails closed with an explicit code.>",
+            "<Regression check: protected unit/integration suite and product knowledge docs stay in sync.>",
+        ]),
+        test=(
+            "<Describe the reproducible end-to-end JUnit/Quarkus or browser verification scenario, "
+            "including setup, action, expected response, and refusal assertion.>"
+        ),
+        out=bullets([
+            "<Adjacent capability deferred to a later feature ID so this slice remains bounded.>",
+            "<Forbidden shortcut (e.g. bypassing migrations, weakening checks, or touching undeclared paths).>",
+        ]),
+    )
+
+
 def write(path, text):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -326,6 +387,7 @@ def main(argv):
         return 1
     files = {f"{s['id']:03d}-{slug(s['title'])}.md": render(s) for s in SPECS}
     files["README.md"] = index()
+    files["TEMPLATE.md"] = template_doc()
     files["MANIFEST.json"] = json.dumps(manifest(), indent=2) + "\n"
     review = {name: review_snapshot(name) for name in ("PLAN.md", "ECOSYSTEM.md")}
     if "--check" in argv:
@@ -339,7 +401,7 @@ def main(argv):
             print(f"FAIL {len(changed)} stale, {len(stale)} orphan file(s): {', '.join(sorted(changed + stale))[:200]}",
                   file=sys.stderr)
             return 1
-        print(f"PASS {len(files) - 2} features, manifest, index and review snapshots up to date")
+        print(f"PASS {len(files) - 3} features, template, manifest, index and review snapshots up to date")
         return 0
     for name, text in files.items():
         write(OUT / name, text)
@@ -348,7 +410,7 @@ def main(argv):
     removed = sorted(p.name for p in OUT.glob("*.md") if p.name not in files)
     for name in removed:
         (OUT / name).unlink()
-    print(f"wrote {len(files) - 2} features, README.md and MANIFEST.json to {OUT}"
+    print(f"wrote {len(files) - 3} features, TEMPLATE.md, README.md and MANIFEST.json to {OUT}"
           + (f"; removed {len(removed)} orphan file(s): {', '.join(removed)}" if removed else ""))
     return 0
 

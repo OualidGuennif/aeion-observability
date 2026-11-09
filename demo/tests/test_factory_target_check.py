@@ -103,10 +103,26 @@ class TargetCheckTests(unittest.TestCase):
         self.assertNotIn("candidate.Stack", str(detail))
 
     def test_a_gradle_failure_without_a_test_line_keeps_one_identifier(self):
-        from factory.checks import _failed_tests
+        from factory.checks import _failed_tests, _junit_failures
         self.assertEqual(_failed_tests("Execution failed for task ':test'.\nsecret log"), [":test"])
         self.assertEqual(_failed_tests("java.lang.AssertionError: secret value\n"), ["AssertionError"])
         self.assertNotIn("secret", str(_failed_tests("java.lang.AssertionError: secret value\n")))
+        reports = self.root / "junit-reports"
+        reports.mkdir()
+        (reports / "TEST-local.aeion.forum.ForumHealthTest.xml").write_text(
+            '<testsuite name="local.aeion.forum.ForumHealthTest">'
+            '<testcase name="theSchemaLedgerRefusesWithoutADatabase()" classname="local.aeion.forum.ForumHealthTest">'
+            '<failure message="java.lang.AssertionError: 1 expectation failed.&#10;'
+            'Expected status code &lt;503&gt; but was &lt;200&gt;.&#10;secret_canary" type="java.lang.AssertionError">'
+            'at local.aeion.forum.ForumHealthTest.theSchemaLedgerRefusesWithoutADatabase(ForumHealthTest.java:37)\n'
+            'at candidate.PrivateFrame(PrivateFrame.java:9)'
+            '</failure></testcase></testsuite>')
+        enriched = _junit_failures(reports, ["ForumHealthTest > theSchemaLedgerRefusesWithoutADatabase() FAILED"])
+        self.assertEqual(enriched, [
+            "ForumHealthTest > theSchemaLedgerRefusesWithoutADatabase() FAILED "
+            "[AssertionError ForumHealthTest.java:37 Expected status code <503> but was <200>]"])
+        self.assertNotIn("secret_canary", str(enriched))
+        self.assertNotIn("PrivateFrame", str(enriched))
 
     def test_compilation_failure_exposes_identifiers_without_source_or_values(self):
         def runner(command, **kwargs):
