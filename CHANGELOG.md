@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Disables ClickHouse internal system log tables and memory profiler sampling
+  in `demo/clickhouse.xml` so background log merges do not starve Docker CPU
+  and disk I/O during factory checks and qualification.
 - Product unit-test checks enrich `failed_tests` from JUnit XML reports with bounded
   exception class, candidate `file:line` and structured status/value comparison
   tokens (`_junit_failures`), and Feature 001 build instructions note that Quarkus
