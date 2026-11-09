@@ -137,6 +137,11 @@ class CatalogTests(unittest.TestCase):
             sections = [line[3:] for line in catalog.render(spec).splitlines()
                         if line.startswith("## ")]
             self.assertEqual(sections, expected, spec["id"])
+        template_sections = [line[3:] for line in catalog.template_doc().splitlines()
+                             if line.startswith("## ")]
+        self.assertEqual(template_sections, expected)
+        self.assertIn("knowledge/components/agora-product.md", catalog.template_doc())
+        self.assertIn("knowledge/components/factory-architecture.md", catalog.template_doc())
 
     def test_manifest_carries_dispatch_metadata(self):
         manifest = catalog.manifest()

@@ -5,7 +5,7 @@ description: "Complete source-backed specification of Æion Factory's authority,
 status: stable
 generated:
   by: aeion-factory/1.6.2
-  at: 2026-10-29
+  at: 2026-11-09
 sources:
   - id: instructions
     resource: ../../AGENTS.md
@@ -92,7 +92,7 @@ Langfuse receives bounded role, request, tool and failure metadata via the priva
 collector. The local ledger and verified artifacts retain authority independently of dashboard
 availability. Hindsight/claude-mem recall is advisory. Model routing compares persisted measured
 outcomes within matching contract, runtime, treatment and execution-bound cohorts, with explicit cold-start
-priors. A candidate that edits a code file whose Spec document is outside the feature's write scopes is refused before publication and instructed to revert that file. The maintained architecture view names these boundaries and source anchors; the workflow
+priors. A candidate that edits a code file whose Spec document is outside the feature's write scopes is refused before publication and instructed to revert that file; protected unit-test failures carry bounded JUnit XML diagnostics, track full failure signatures across a five-check streak after baseline reproduction, advance through correction rounds on `repeated_check_failure`, and seed the cleanest validated candidate on a relaunch of the same base and spec. The maintained architecture view names these boundaries and source anchors; the workflow
 and lifecycle views additionally retain the foundation's reviewed delivery and context controls.
 
 Claude Code retains its native hooks. Codex, OpenCode, Pi, dsh (DeepSeek Harness), Devin, Droid

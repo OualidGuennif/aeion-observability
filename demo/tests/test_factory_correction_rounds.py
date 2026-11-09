@@ -183,6 +183,19 @@ class CorrectionRoundTests(unittest.TestCase):
         self.assertIn("NEW ATTEMPT AFTER A CRASH", correction_text(correction))
         self.assertEqual(self.builds()[1]["status"], SIMULATED_COMPLETE)
 
+    def test_repeated_check_failure_uses_correction_rounds_on_the_same_model(self):
+        self.store.admit(["013"], "c7-repeat", self.catalog)
+        author = Author(crash={1: ValueError("repeated_check_failure")})
+        reviews = Reviews(rejections=0)
+        self.worker(author, reviews).run_once()
+        first, second = self.builds()
+        self.assertEqual(self.store.correction_of(second["build_id"]),
+                         {"previous_build_id": first["build_id"], "attempt": 1, "round": 1})
+        self.worker(author, reviews).run_once()
+        self.assertEqual((author.calls[1]["attempt"], author.calls[1]["round"]), (1, 1))
+        self.assertIn("CORRECTION ROUND 1", correction_text(author.calls[1]))
+        self.assertEqual(self.builds()[1]["status"], SIMULATED_COMPLETE)
+
     def test_a_cli_failure_while_the_agent_was_still_working_resumes_the_same_model(self):
         self.store.admit(["013"], "c14", self.catalog)
         author = Author(crash={1: ValueError("CLI_FAILED")}, execution={

@@ -96,6 +96,55 @@ def _failed_tests(output, limit=20):
     return found
 
 
+_SAFE_CMP = re.compile(
+    r"(?:Expected status code <[0-9]{3}> but was <[0-9]{3}>|"
+    r"[Ee]xpected:? <(?:true|false|null|-?[0-9]{1,9}|ok|serving|unreleased|database_[a-z_]{1,32}|session_[a-z_]{1,32})>"
+    r" but was:? <(?:true|false|null|-?[0-9]{1,9}|ok|serving|unreleased|database_[a-z_]{1,32}|session_[a-z_]{1,32})>)")
+_SAFE_LINE = re.compile(r"[A-Za-z0-9_.$<>()\[\] ,:#-]{1,160}")
+
+
+def _junit_failures(report_dir, fallback=None, limit=20):
+    """Enrich failed test names with bounded JUnit XML exception/line/comparison tokens."""
+    found, seen_prefixes = [], set()
+    directory = Path(report_dir) if report_dir else None
+    if directory and directory.is_dir() and not directory.is_symlink():
+        for xml_path in sorted(directory.glob("TEST-*.xml")):
+            if xml_path.is_symlink():
+                continue
+            try:
+                root = ET.fromstring(_contract_bytes(xml_path).decode("utf-8", errors="replace"))
+            except (OSError, ET.ParseError):
+                continue
+            for case in root.findall(".//testcase"):
+                node = case.find("failure") if case.find("failure") is not None else case.find("error")
+                if node is None:
+                    continue
+                cls = (case.attrib.get("classname") or "").rsplit(".", 1)[-1]
+                method = case.attrib.get("name") or ""
+                if not (re.fullmatch(r"[A-Za-z0-9_.$]{1,60}", cls)
+                        and re.fullmatch(r"[A-Za-z0-9_.$()\[\] -]{1,80}", method)):
+                    continue
+                base = f"{cls} > {method} FAILED"
+                seen_prefixes.add(f"{cls} > {method}")
+                raw_type = (node.attrib.get("type") or "").rsplit(".", 1)[-1]
+                exc = raw_type if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_$]{0,48}", raw_type) else None
+                body = (node.attrib.get("message") or "") + "\n" + (node.text or "")
+                loc = re.search(r"local\.aeion\.forum\.[A-Za-z0-9_.$]+\(([A-Za-z0-9_$]{1,48}\.java:[0-9]{1,5})\)", body)
+                cmp_match = _SAFE_CMP.search(body)
+                parts = [p for p in (exc, loc.group(1) if loc else None, cmp_match.group(0) if cmp_match else None) if p]
+                candidate = f"{base} [{' '.join(parts)}]"[:160] if parts else base[:160]
+                line = candidate if _SAFE_LINE.fullmatch(candidate) else base[:160]
+                if line not in found:
+                    found.append(line)
+                if len(found) >= limit:
+                    return found
+    for item in fallback or []:
+        prefix = item.split(" FAILED")[0].split(" > initializationError")[0]
+        if prefix not in seen_prefixes and item not in found and len(found) < limit:
+            found.append(item)
+    return found
+
+
 def _compiler_errors(output, limit=20):
     """Keep Java file/line/identifier only; source lines and diagnostic prose stay private."""
     errors, current = [], None

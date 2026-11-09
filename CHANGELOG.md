@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Product unit-test checks enrich `failed_tests` from JUnit XML reports with bounded
+  exception class, candidate `file:line` and structured status/value comparison
+  tokens (`_junit_failures`), and Feature 001 build instructions note that Quarkus
+  test-resource system properties (ordinal 400) override `QuarkusTestProfile`
+  config overrides (ordinal 275). `note_check_failure` compares the full failure
+  signature (`reason`, `failed_tests`, `compiler_errors`), skips the initial
+  baseline reproduction on an untouched inherited candidate digest, and stops at
+  five consecutive identical signatures; `repeated_check_failure` advances through
+  the attempt's correction rounds before switching models, a fresh launch on the
+  same base and spec seeds the cleanest validated candidate left by an earlier
+  launch (`prior_candidate`), and `generate_features.py` emits
+  `demo/forum/features/TEMPLATE.md` alongside the 100 validated feature specs.
 - `scoped_changes` refuses a changed code file whose current or base `Spec:` or
   `Docs-Checked:` header names a `knowledge/` document outside the feature's
   `write_scopes` (`knowledge_doc_outside_scope`), and `baseline_note` and

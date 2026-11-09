@@ -3,11 +3,11 @@
 Updated 2026-11-09. Current facts only; historical evidence is in HANDOVER.md and validation.md.
 No final operational Go or actual product feature merge is claimed.
 
-## Out-of-scope Spec doc guard and review fixes — ACTIVE
+## Builder check diagnostics, signature streak and round continuation — ACTIVE
 
-- Owner decision: stop the Feature 001 rule-L3 failure loop by refusing and reverting code edits whose Spec document is outside write scopes, apply the observability review fixes (F1–F4, G1), and ship through develop to main.
-- State: `flue_builder.py` and `dispatch.py` refuse and revert out-of-scope Spec edits (`knowledge_doc_outside_scope`), `Telemetry.emit` uses a non-blocking log queue, `flue-factory-routing-v6` binds the treatment digest, lab autonomy requires explicit zero intervention, and two-decimal budget formatting is enforced. Feature 001 build 39db9530e56d stays held (`owner_review_required`) until the new code is merged and the live controller is reloaded. VERSION stays 1.9.0.
-- Next: merge the reviewed develop PR to main, resync develop, and reload/requalify the live controller before any new Feature 001 launch (who: agent, then owner launch).
+- Owner decision: make live builders see structured JUnit failure diagnostics, stop only on repeated identical failure signatures after baseline reproduction, use correction rounds on `repeated_check_failure`, and seed the cleanest validated candidate on a relaunch of the same base and spec.
+- State: `_junit_failures` enriches `failed_tests` from JUnit XML, `note_check_failure` tracks `(reason, failed_tests, compiler_errors)` with a 5-check streak after skipping untouched baseline reproduction, `next_step` advances through correction rounds on `repeated_check_failure`, `prior_candidate` seeds the cleanest validated candidate on same-base/same-spec relaunch, Feature 001 instructions explain Quarkus config ordinals, and `demo/forum/features/TEMPLATE.md` provides the canonical 8-section feature contract template alongside the 100 validated specs. VERSION stays 1.9.0.
+- Next: merge the reviewed develop PR to main, resync develop, and requalify/reload the live controller before the next Feature 001 launch (who: agent, then owner launch).
 - Blocker: product pull requests 7 through 11 stay open and unmerged; features 002, 003 and 013 stay `catalog_changed` until 001 integrates on main.
 - Evidence: [validation](validation.md); [execution contract](../knowledge/components/factory-flue.md).
 

@@ -15,7 +15,7 @@ import tempfile
 import time
 import uuid
 
-from .checks import _compiler_errors, _failed_tests
+from .checks import _compiler_errors, _failed_tests, _junit_failures
 from .isolation import DockerCheckRunner, IsolationError
 from .postgres import DisposablePostgres, DATABASE, APP_USERNAME, MIGRATION_USERNAME
 from .preparation import PreparationError, REPOSITORY, _digest
@@ -125,7 +125,13 @@ class ProductCheckRunner(DockerCheckRunner):
                 'AGORA_TEXT_MAX_CODEPOINTS (1..4000, default4000), and AGORA_RENDERED_MAX_BYTES '
                 '(1..32768, default32768). Invalid integers/ranges refuse startup. Unknown keys '
                 'are ignored, never logged. The supervisor independently restarts the packaged app '
-                'with missing/short secrets and invalid bounds, and checks that logs do not disclose values. ')
+                'with missing/short secrets and invalid bounds, and checks that logs do not disclose values. '
+                'In Quarkus unit tests, QuarkusTestResourceLifecycleManager.start() sets system properties '
+                '(ordinal 400) globally across @QuarkusTest classes, overriding QuarkusTestProfile '
+                'getConfigOverrides() (ordinal 275): do not set AGORA_DATABASE_ENABLED in '
+                'QuarkusTestDatabase.start(); use %test.agora.database.enabled=true in application.properties '
+                'and override both agora.database.enabled=false and %test.agora.database.enabled=false in '
+                'a database-less QuarkusTestProfile. ')
         original=_git(['-C',str(target.base_source),'show',target.base_sha+':'+APP+'build.gradle'])
         postgres=target.feature_id=='002' or 'quarkus-jdbc-postgresql' in original.stdout
         web=('The React package/lock are frozen by the supervisor. Tests use Vitest in Node; '
@@ -284,8 +290,10 @@ class ProductCheckRunner(DockerCheckRunner):
                 else:tested=super().__call__(unit_command,cwd=unit_snapshot,timeout=remaining)
                 if tested.returncode:
                     output=(tested.stdout or '')+'\n'+(tested.stderr or '')
+                    reports=unit_snapshot/'demo/forum-app/build/test-results/test'
                     return False, {'reason':'product_unit_tests_failed','returncode':tested.returncode,
-                        'compiler_errors':_compiler_errors(output),'failed_tests':_failed_tests(output)}
+                        'compiler_errors':_compiler_errors(output),
+                        'failed_tests':_junit_failures(reports,_failed_tests(output))}
                 if has_web:
                     prepare_web(unit_snapshot/'demo/forum-web')
                     tested=web_runner(['node','/opt/aeion-checker/node_modules/vitest/vitest.mjs','run',

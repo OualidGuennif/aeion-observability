@@ -9,7 +9,7 @@ verified:
   - at: 2026-11-08
     what: "unittest: incomplete usage does not hand over an oversized local follow-up; a builder-error receipt keeps diagnostics; an identical failed draft counts"
   - at: 2026-11-09
-    what: "unittest product boundary, correction rounds, execution, routing and telemetry: an out-of-scope Spec doc is refused and says revert; two-decimal budget strings; non-blocking OTLP log queue; routing v6 binds treatment digest"
+    what: "unittest product boundary, correction rounds, work limits, target check, execution, routing and telemetry: out-of-scope Spec doc refused; JUnit XML diagnostics; signature-based repeated-check stop with round continuation and prior candidate seed; routing v6"
 sources:
   - resource: ../../demo/factory/review_context.py
     title: "One-time operator repair of the old review envelope"
@@ -344,10 +344,17 @@ of 1000000. It has no measured effort map, so the provider sends no `reasoning_e
 multiple is 4, the highest multiple measured for Go on 2026-11-06, used as an upper bound until
 this model is measured. It follows the earlier models in the cold-start order.
 The author window and the cost cap bound protected checks, and identical snapshots still reuse
-their cached result. The same failure reason three times stops the next model admission with
-`repeated_check_failure`. The check evidence keeps at most eight pattern-checked test names, the
-progress receipt copies them, and the next author receives them (`note_check_failure`,
-`check_evidence`, `correction_feedback`). A repeated cached failure is the check that
+their cached result. Five consecutive checks with the same failure signature (`reason`,
+`failed_tests`, `compiler_errors`) stop the next model admission with `repeated_check_failure`
+after skipping the initial reproduction check on an untouched inherited baseline; that stop
+advances through the attempt's correction rounds before switching models, and a fresh launch on
+the same base and spec seeds the cleanest validated candidate left by an earlier launch. Product
+unit-test checks enrich `failed_tests` from JUnit XML with bounded exception class, candidate
+`file:line` and structured comparison tokens, and feature 001 instructions note that Quarkus
+test-resource properties (ordinal 400) override test profiles (ordinal 275). The check evidence
+keeps at most eight pattern-checked test names, the progress receipt copies them, and the next
+author receives them (`note_check_failure`, `_junit_failures`, `check_evidence`,
+`correction_feedback`). A repeated cached failure is the check that
 finish publishes, and that repeat is counted as a finished check. A check whose status is not
 failed, and a self-check behind a passed gate, are not described as a failure. The newest
 passed gate also hides an older failure of that same spec. A builder-error receipt keeps that execution, including the forwarded count, the process exit and the failure, together with the protected-check evidence. A Gradle failure with no `Class > method FAILED` line

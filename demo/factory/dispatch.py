@@ -1262,7 +1262,8 @@ class DispatchWorker:
             if isinstance(inherited, dict) and inherited.get('reason') == 'ci_failed':
                 receipt = {**receipt, 'publisher': {'status': inherited.get('status'), 'reason': 'ci_failed',
                                                     'failed_checks': inherited.get('failed_checks')}}
-        step = next_step(attempt, current, crash=trigger == 'crash')
+        step = next_step(attempt, current,
+                         crash=trigger == 'crash' and (crash or {}).get('failure') != 'repeated_check_failure')
         receipt = {**receipt, 'correction': {'attempt': attempt, 'round': current, 'trigger': trigger,
                    'candidate_files': sorted(files), 'candidate_digest': content_digest(files) if files else None,
                    **({'crash': crash} if crash else {}), **({'exhausted': True} if step is None else {})}}

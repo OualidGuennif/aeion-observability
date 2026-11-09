@@ -106,13 +106,22 @@ class WorkLimitTests(unittest.TestCase):
     def test_three_identical_check_failures_stop_the_next_admission(self):
         from factory.flue_builder import note_check_failure
         import inspect
-        run={}
-        failed={'status':'failed','reason':'product_unit_tests_failed',
+        run={'seeded_check_digest':'d'*64}
+        failed={'status':'failed','reason':'product_unit_tests_failed','artifact_digest':'d'*64,
                 'failed_tests':['DatabaseLessBootTest > livenessAnswersWithoutADatabase() FAILED']}
+        # The first baseline reproduction on the seeded digest does not count as a strike.
         note_check_failure(run,failed)
-        note_check_failure(run,failed)
+        self.assertEqual(run.get('same_check_count',0),0)
+        edited={**failed,'artifact_digest':'e'*64}
+        for _ in range(2):
+            note_check_failure(run,edited)
+        # Progress (a different failing test signature) resets the streak to 1.
+        note_check_failure(run,{**edited,'failed_tests':['OtherTest > other() FAILED']})
+        self.assertEqual(run['same_check_count'],1)
+        for _ in range(3):
+            note_check_failure(run,{**edited,'failed_tests':['OtherTest > other() FAILED']})
         self.assertIsNone(factory_work_limit({**run,'step_cap':12,'forwarded_count':0},0,now=1))
-        note_check_failure(run,failed)
+        note_check_failure(run,{**edited,'failed_tests':['OtherTest > other() FAILED']})
         self.assertEqual(factory_work_limit({**run,'step_cap':12,'forwarded_count':0,'factory_deadline':10**9},0,now=1),
                          'repeated_check_failure')
         source = inspect.getsource(FlueBuilder.run_build)
@@ -148,6 +157,28 @@ class WorkLimitTests(unittest.TestCase):
             runtime.live.assert_not_called()
             self.assertEqual(seen[0]['limit'],100000)
             self.assertEqual(seen[0]['step_cap'],2)
+
+    def test_prior_candidate_selects_cleanest_validated_candidate_for_same_base_and_spec(self):
+        import json, sqlite3
+        from factory.flue_builder import prior_candidate
+        from factory.review import content_digest
+        with tempfile.TemporaryDirectory() as folder:
+            state=Path(folder);work=state/'work';work.mkdir()
+            conn=sqlite3.connect(state/'factory.db')
+            conn.execute('CREATE TABLE builds (build_id TEXT, feature_id TEXT, status TEXT, receipt TEXT, updated_ns INTEGER)')
+            path='demo/forum-app/src/A.java'
+            for idx,(bid,content,failed) in enumerate((
+                    ('1'*32,'class A { int v=1; }\n',['ForumHealthTest > t() FAILED']),
+                    ('2'*32,'class A { int v=2; }\n',['ForumHealthTest > t() > initializationError FAILED']))):
+                repo=work/bid/'repo';(repo/path).parent.mkdir(parents=True);(repo/path).write_text(content)
+                receipt={'base_sha':'b'*40,'spec_digest':'s'*64,
+                         'correction':{'candidate_files':[path],'candidate_digest':content_digest({path:content})},
+                         'execution':{'check':{'failed_tests':failed}}}
+                conn.execute('INSERT INTO builds VALUES (?,?,?,?,?)',(bid,'001','failed',json.dumps(receipt),idx+1))
+            conn.commit();conn.close()
+            current=work/('3'*32)/'repo';current.mkdir(parents=True)
+            frozen=SimpleNamespace(base_sha='b'*40,spec_digest='s'*64,write_scopes=['demo/forum-app/src/'])
+            self.assertEqual(prior_candidate(current,frozen,'001'),{path:'class A { int v=1; }\n'})
 
 
 if __name__=='__main__':unittest.main()
