@@ -83,7 +83,8 @@ Markdown spec ─► preparation ─► author agent (Flue + Pi, tools only insi
    ─► product main
 ```
 
-Every step is traced, budgeted (15 USD a day per repository) and kept as a receipt. The author
+Every step is traced, budgeted (up to 150 USD a day per repository, 50 USD per author execution
+and 1 USD per review vote in `demo/budget.conf`) and kept as a receipt. The author
 has no network, reviewers never share the author's model family, and an uncertain step stops the
 build instead of guessing.
 

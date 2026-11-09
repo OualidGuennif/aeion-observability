@@ -134,8 +134,10 @@ class ResolveTests(unittest.TestCase):
 
     def test_live_resolves_a_paid_builder_isolated_checker_and_reservation(self):
         self.profile()
+        clean = {k: v for k, v in os.environ.items() if not k.startswith("AEION_") or not k.endswith("_USD")}
         with mock.patch("factory.execution.provider_available", return_value=True), \
-                mock.patch("factory.execution.flue_factory_ready", return_value=True):
+                mock.patch("factory.execution.flue_factory_ready", return_value=True), \
+                mock.patch.dict("os.environ", clean, clear=True):
             execution = resolve(self.root, "live")
         self.assertEqual(execution["mode"], "live")
         self.assertNotIn("hold_reason", execution)
@@ -145,6 +147,10 @@ class ResolveTests(unittest.TestCase):
         self.assertEqual(execution["review_complete"].cost_limit, "1.00")
         self.assertIs(execution['builder'].check_sandbox,execution['check_sandbox'])
         self.assertIs(execution['preparer'].checker,execution['check_sandbox'])
+        with mock.patch("factory.execution.provider_available", return_value=True), \
+                mock.patch("factory.execution.flue_factory_ready", return_value=True), \
+                mock.patch.dict("os.environ", {**clean, "AEION_AUTHOR_MAX_USD": "50"}, clear=True):
+            self.assertEqual(resolve(self.root, "live")["cost_reservation_usd"], "50.00")
 
     def test_live_bounds_follow_the_budget_file_and_an_invalid_file_holds(self):
         self.profile()

@@ -42,14 +42,14 @@ function render() {
   $('task-title').textContent=taskInfo($('scenario').value)?.name??'Cart totals';
   const runs = cachedRuns.filter(selected), rows = cachedRows.filter(selected), latest = runs[0];
   $('runs').replaceChildren(); $('kpi-cards').replaceChildren(); $('model-rows').replaceChildren();
-  const completed = runs.filter(r=>r.ended_ns), successes = completed.filter(r=>r.status==='passed' && !r.human_interventions);
+  const completed = runs.filter(r=>r.ended_ns), successes = completed.filter(r=>r.status==='passed' && Number.isInteger(r.human_interventions) && r.human_interventions===0);
   const costs = runs.reduce((s,r)=>s+Number(r.native_cost_usd),0);
   const costResolved=runs.length>0&&runs.every(r=>r.synthetic||r.usage_complete===true)&&runs.every(r=>r.ended_ns);
   const times = completed.map(r=>(r.ended_ns-r.started_ns)/1e6).sort((a,b)=>a-b);
   const median = times.length ? (times[Math.floor((times.length-1)/2)] + times[Math.ceil((times.length-1)/2)])/2 : null;
   const usages = runs.flatMap(r=>r.events.filter(e=>e.name==='gen_ai.request'));
   const cards = [
-    ['Verified autonomy', completed.length ? Math.round(successes.length/completed.length*100)+'%' : '—', `${successes.length} / ${completed.length} completed tasks · fixture only`],
+    ['No reported help', completed.length ? Math.round(successes.length/completed.length*100)+'%' : '—', `${successes.length} / ${completed.length} passed with no reported intervention · fixture only`],
     ['Model cost / success*', successes.length&&costResolved ? money(costs/successes.length) : '—', evidence==='synthetic'?'Synthetic replay · no model calls':costResolved?'All attempts included · CLI estimate':'Usage coverage incomplete · no cost ranking'],
     ['Median elapsed time', seconds(median), `${completed.length} completed tasks · end to end`],
     ['Input + output tokens', pretty(usages.reduce((s,e)=>s+e['gen_ai.usage.input_tokens']+e['gen_ai.usage.output_tokens'],0)), `${runs.reduce((s,r)=>s+r.events.filter(e=>e.name==='agent.handover').length,0)} deterministic handover(s)`]

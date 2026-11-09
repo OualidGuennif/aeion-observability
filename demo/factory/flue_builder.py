@@ -29,6 +29,13 @@ SOURCE_PREFIX = 'demo/forum-app/'
 SOURCE_PREFIXES = (SOURCE_PREFIX, 'demo/forum-docs/', 'demo/forum-web/', 'knowledge/components/')
 SOURCE_SUFFIXES = {'.java', '.properties', '.gradle', '.sql', '.txt', '.md', '.json', '.yaml', '.yml',
                    '.ts', '.tsx', '.js', '.jsx', '.mjs', '.css', '.html', '.svg'}
+SPEC_DOC = re.compile(r'(?:Spec|Docs-Checked):\s*(knowledge/[\w./-]+\.md)')
+
+
+def outside_scope(path, scopes):
+    """True when write scopes are given and path is outside every scope."""
+    return (isinstance(scopes, (list, tuple)) and bool(scopes)
+            and not any(isinstance(scope, str) and path.startswith(scope) for scope in scopes))
 
 
 def previous_failure_text(previous):
@@ -62,8 +69,8 @@ def attempt_text(correction):
             'from the validated files. After attempt ' + str(MAX_ATTEMPTS) + ' the owner decides.')
 
 
-def baseline_note(files):
-    """The candidate's changed paths, and any Spec doc missing from that change.
+def baseline_note(files, scopes=None):
+    """The candidate's changed paths, and any Spec doc missing or outside write scopes.
 
     The sandbox is a file copy with no git history. Paths only: never file text.
     """
@@ -76,15 +83,23 @@ def baseline_note(files):
         return []
     lines = ['The sandbox has no git history. The candidate differs from the pinned base only in: '
              + ', '.join(names) + '.']
-    spec = re.compile(r'Spec:\s*(knowledge/[\w./-]+\.md)')
-    gaps = []
+    outside, gaps = [], []
     for name in names:
         text = files.get(name)
         if not isinstance(text, str):
             continue
-        found = spec.search(text[:4000])
-        if found and found.group(1) not in files and len(gaps) < 8:
-            gaps.append(name + ' names ' + found.group(1) + ', and that doc is not in the change')
+        seen = []
+        for match in SPEC_DOC.finditer(text[:4000]):
+            if match.group(1) not in seen:
+                seen.append(match.group(1))
+        for doc in seen:
+            if outside_scope(doc, scopes):
+                if len(outside) < 8:
+                    outside.append(name + ' names ' + doc + ', which is outside the write scopes: revert ' + name)
+            elif doc not in files and len(gaps) < 8:
+                gaps.append(name + ' names ' + doc + ', and that doc is not in the change')
+    if outside:
+        lines.append('Knowledge doc outside write scopes (revert that code file): ' + '; '.join(outside) + '.')
     if gaps:
         lines.append('Knowledge link missing: ' + '; '.join(gaps) + '.')
     return lines
@@ -116,10 +131,11 @@ def note_check_failure(run, result):
         run['repeated_check_stop'] = 'repeated_check_failure'
 
 
-def correction_text(correction):
+def correction_text(correction, scopes=None):
     """A supervisor continuation: what stopped the previous build, as bounded data."""
     if not isinstance(correction, dict) or type(correction.get('round')) is not int:
         return ''
+    scopes = scopes if scopes is not None else (correction.get('scopes') or correction.get('write_scopes'))
     if correction.get('resume'):
         info = correction.get('interruption') if isinstance(correction.get('interruption'), dict) else {}
         failure = info.get('failure') if isinstance(info.get('failure'), str) else 'the CLI'
@@ -133,7 +149,7 @@ def correction_text(correction):
         lines.append('The workspace already contains your files. Read them and continue the brief. '
                      'Do not start over.' if correction.get('files') else
                      'Continue this same attempt. Do not start the brief over.')
-        lines += baseline_note(correction.get('files'))
+        lines += baseline_note(correction.get('files'), scopes)
         lines += ['- ' + line for line in correction.get('feedback') or []]
         return '\n'.join(lines)
     crash = correction.get('crash') if isinstance(correction.get('crash'), dict) else None
@@ -146,7 +162,7 @@ def correction_text(correction):
         lines.append('Its validated files are already in your workspace: read them, keep what is right, '
                      'finish the task, and make run_protected_checks pass.' if correction.get('files') else
                      'It left no validated files: your workspace starts from the base.')
-        lines += baseline_note(correction.get('files'))
+        lines += baseline_note(correction.get('files'), scopes)
         lines += ['- ' + line for line in correction.get('feedback') or []]
         return '\n'.join(lines)
     header = ('CORRECTION ROUND ' + str(correction['round']) if correction['round'] > 0
@@ -163,7 +179,7 @@ def correction_text(correction):
         lines.append('Your workspace starts from that candidate: correct it, do not start over.')
     else:
         lines.append('Your workspace starts from the base; the previous candidate is not available.')
-    lines += baseline_note(correction.get('files'))
+    lines += baseline_note(correction.get('files'), scopes)
     lines += ['- ' + line for line in correction.get('feedback') or []]
     lines.append('Judge each point against BRIEF.md: fix the ones that are true, revert every change '
                  'BRIEF.md does not require, and keep run_protected_checks passing before you stop.')
@@ -216,6 +232,19 @@ def scoped_changes(collected, seeded, scopes, repo, protected=()):
     if not files:
         return {}
     accepted = parse_files({'files': files}, scopes, repo=repo)
+    blocked = []
+    for name, text in sorted(accepted.items()):
+        base_text = seeded.get(name, b'')[:4000].decode('utf-8', errors='replace')
+        for sample in (text[:4000], base_text):
+            for match in SPEC_DOC.finditer(sample):
+                doc = match.group(1)
+                entry = name + ' -> ' + doc
+                if outside_scope(doc, scopes) and entry not in blocked:
+                    blocked.append(entry)
+    if blocked:
+        err = BuilderError('knowledge_doc_outside_scope')
+        err.blocked_files = blocked[:8]
+        raise err
     # Existing ignore rules can hide files too: an exported .env could influence a build
     # while disappearing from git diff and the review packet. Check before any host write.
     ignored = subprocess.run(['git', '-C', str(repo), 'check-ignore', '-z', '--stdin'],
@@ -292,10 +321,14 @@ class FlueBuilder:
                   'build and test runner. The supervisor stops this session after three identical failures '
                   'and the next session receives those test names. Fix those tests only.\n'
                   'Read ' + acceptance_name + ' for the frozen acceptance/API contract. This file is read-only.\n'
+                  'Do not edit a code file whose Spec header names a knowledge/ document outside Write scopes '
+                  '(rule L3 requires that document to change in the same pull request); if an earlier round '
+                  'edited such a file, revert that code file to its base version.\n'
                   'Write scopes: ' + json.dumps(frozen.write_scopes))
         if callable(getattr(self.check_sandbox, 'instructions', None)):
             prompt += '\nFROZEN BUILD PROTOCOL:\n' + self.check_sandbox.instructions(target)
-        for hint in (attempt_text(correction), correction_text(correction), previous_failure_text(previous_failure)):
+        for hint in (attempt_text(correction), correction_text(correction, frozen.write_scopes),
+                     previous_failure_text(previous_failure)):
             if hint and len((prompt + hint).encode()) <= 16000:
                 prompt += hint
         if len(prompt.encode()) > 16000:
@@ -373,7 +406,8 @@ class FlueBuilder:
                 except Exception as exc:
                     # A raised check used to reach the author as "Protected check unavailable".
                     failed = {'status': 'failed', 'reason': bounded_check_failure(exc), 'artifact_digest': None,
-                              'returncode': None, 'compiler_errors': [], 'failed_tests': []}
+                              'returncode': None, 'compiler_errors': list(getattr(exc, 'blocked_files', [])),
+                              'failed_tests': []}
                     runtime.last_check = failed
                     note_check_failure(run, failed)
                     if progress:

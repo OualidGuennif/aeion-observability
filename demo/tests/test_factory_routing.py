@@ -58,6 +58,11 @@ class RoutingTests(unittest.TestCase):
         self.assertNotEqual(before,after)
         self.telemetry(cohort=before).record('glm-5.3-flash','author','failed',1000,'0.03')
         self.assertEqual(self.telemetry(cohort=after).records,[])
+        prior_treatment=cohort_for(feature,'prepared_product',treatment='relay-v1')
+        next_treatment=cohort_for(feature,'prepared_product',treatment='relay-v2')
+        self.assertNotEqual(prior_treatment,next_treatment)
+        self.telemetry(cohort=prior_treatment).record('glm-5.3-flash','author','passed',1000,'0.02')
+        self.assertEqual(self.telemetry(cohort=next_treatment).records,[])
 
     def test_unknown_cost_is_not_free_or_an_eligible_cost_measurement(self):
         self.telemetry().record('glm-5.3-flash', 'author', 'failed', 1000, None)

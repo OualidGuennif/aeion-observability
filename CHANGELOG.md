@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- `scoped_changes` refuses a changed code file whose current or base `Spec:` or
+  `Docs-Checked:` header names a `knowledge/` document outside the feature's
+  `write_scopes` (`knowledge_doc_outside_scope`), and `baseline_note` and
+  `CI_REPAIRS` instruct the author to revert that code file instead of asking it
+  to update an out-of-scope document.
+- `Telemetry.emit` enqueues OTLP log protobuf exports on a bounded background
+  worker queue instead of calling `urlopen` synchronously on the native
+  accounting thread.
+- `flue-factory-routing-v6` binds a SHA-256 digest of the relay, provider-usage,
+  profile, builder and review modules into the routing cohort so outcomes from
+  different execution treatments are not pooled.
+- `resolve_execution` formats live author and review dollar caps with two
+  decimal places (`50.00`, `1.00`), and the lab autonomy KPI requires an
+  explicit integer `human_interventions == 0` with complete maturity (`autonomy_basis:
+  passed_checks_no_reported_intervention`). `README.md` and `/lab` align their
+  displayed spending, context and telemetry bounds with the enforced runtime.
 - Three identical protected-check failures stop the next model admission as
   `repeated_check_failure` and the next author receives the failing test names.
   A Gradle failure with no test line keeps one task name or one exception class.

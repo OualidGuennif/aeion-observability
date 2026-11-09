@@ -91,8 +91,8 @@ one further operator retry flag with fresh gates and votes; a second failure sta
 Langfuse receives bounded role, request, tool and failure metadata via the privacy-filtering
 collector. The local ledger and verified artifacts retain authority independently of dashboard
 availability. Hindsight/claude-mem recall is advisory. Model routing compares persisted measured
-outcomes within matching contract, runtime and execution-bound cohorts, with explicit cold-start
-priors. The maintained architecture view names these boundaries and source anchors; the workflow
+outcomes within matching contract, runtime, treatment and execution-bound cohorts, with explicit cold-start
+priors. A candidate that edits a code file whose Spec document is outside the feature's write scopes is refused before publication and instructed to revert that file. The maintained architecture view names these boundaries and source anchors; the workflow
 and lifecycle views additionally retain the foundation's reviewed delivery and context controls.
 
 Claude Code retains its native hooks. Codex, OpenCode, Pi, dsh (DeepSeek Harness), Devin, Droid
