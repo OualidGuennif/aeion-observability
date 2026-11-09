@@ -8,7 +8,7 @@ scopes and a real protected check, but model bytes are fixed and the attempt is 
 """
 from pathlib import Path
 
-from .budget import BudgetError, author_timeout_seconds, settings as budget_settings
+from .budget import BudgetError, _fmt, author_timeout_seconds, settings as budget_settings
 from .isolation import DockerCheckRunner
 from .inference_config import available as provider_available
 from .target import TargetError, load_target
@@ -144,7 +144,7 @@ def resolve(repo_root, mode):
         synchronize=SourceSynchronizer(repo_root), product=True)
     from .flue_builder import FlueBuilder
     from .flue_review import FlueReview
-    reviews=FlueReview(cost_limit=str(bounds['REVIEW_MAX_USD']),max_output_tokens=65536)
+    reviews=FlueReview(cost_limit=_fmt(bounds['REVIEW_MAX_USD']),max_output_tokens=65536)
     reviews.timeout_seconds=900
     builder = FlueBuilder(repo_root, {}, check_sandbox=checker)
     builder.timeout_seconds = author_seconds
@@ -160,7 +160,7 @@ def resolve(repo_root, mode):
             "telemetry": FactoryTelemetry(readback=True),
             # One author execution reserves its whole cap before spending (demo/budget.conf);
             # the frozen value binds that build, and the relay stops the session at it.
-            "cost_reservation_usd": str(bounds['AUTHOR_MAX_USD'])}
+            "cost_reservation_usd": _fmt(bounds['AUTHOR_MAX_USD'])}
     if not flue_factory_ready(repo_root):
         execution['hold_reason'] = 'flue_factory_unqualified'
     return execution

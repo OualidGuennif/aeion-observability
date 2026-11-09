@@ -8,6 +8,8 @@ verified:
     what: "unittest live status: the report prints phase names and supervisor CI lines, and leaves reviewer prose out"
   - at: 2026-11-08
     what: "node cockpit client: a running protected check is not a stall; admission hours remaining are shown"
+  - at: 2026-11-09
+    what: "unittest kpis and selection: lab autonomy requires explicit zero human intervention and complete maturity; lab copy matches 150/50/1 ceilings and context policy"
 sources:
   - resource: ../../demo/app/factory.html
     title: "Cockpit markup"
@@ -35,7 +37,7 @@ sources:
 
 ## Intent
 
-Make the default local page useful for selecting admitted product work and observing its actual outcome. Completed features cannot be selected or submitted again. The page opens with the owner's next step, then three status blocks (factory mode, today's budget, environments), then the catalog and build activity. The model lab at `/lab` is a showcase and playground for engineers (idea, architecture, stack, circuit, synthetic tasks, memory room), labelled as not needed to build features. Both pages take every colour from `demo/app/theme.css` (light and dark sets) and offer an Auto/Light/Dark toggle (`demo/app/theme.js`, remembered per browser). The lab's memory room recalls Hindsight with a bounded question (`/api/memory?q=`, at most 160 printable characters) and reads back only checkpoints this observer wrote (`/api/memory/checkpoint/<id>`, metadata fields only); these helpers live in `demo/app/server.py` because `demo/app/memory.py` is protocol-hashed.
+Make the default local page useful for selecting admitted product work and observing its actual outcome. Completed features cannot be selected or submitted again. The page opens with the owner's next step, then three status blocks (factory mode, today's budget, environments), then the catalog and build activity. The model lab at `/lab` is a showcase and playground for engineers (idea, architecture, stack, circuit, synthetic tasks, memory room), labelled as not needed to build features; its summary cards match the enforced $150/day, $50/author and $1/review ceilings and context policy, and its autonomy KPI counts only passed-check runs with explicit zero human intervention (`autonomy_basis: passed_checks_no_reported_intervention`). Both pages take every colour from `demo/app/theme.css` (light and dark sets) and offer an Auto/Light/Dark toggle (`demo/app/theme.js`, remembered per browser). The lab's memory room recalls Hindsight with a bounded question (`/api/memory?q=`, at most 160 printable characters) and reads back only checkpoints this observer wrote (`/api/memory/checkpoint/<id>`, metadata fields only); these helpers live in `demo/app/server.py` because `demo/app/memory.py` is protocol-hashed.
 
 ## Data sources
 

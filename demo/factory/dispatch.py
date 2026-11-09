@@ -104,9 +104,9 @@ HOLD_REASON_MAP = {
 # Fixed repair notes for required checks this factory knows. They are our text, never a CI log.
 CI_REPAIRS = {
     "Knowledge, links and repository health":
-        "Repair this check only: a changed code file needs its owning knowledge document updated "
-        "in the same change (rule L3), or a Docs-Checked note when no fact changed. "
-        "Do not redesign the feature.",
+        "Repair this check only: if a changed code file names a Spec knowledge document outside "
+        "the write scopes, revert that code file; if that document is in the write scopes, "
+        "update it in the same change (rule L3). Do not redesign the feature.",
     "Product artifacts":
         "Repair this check only: fix the failing product build or test. Do not change ports, "
         "routes, or defaults the brief does not name.",
@@ -1184,15 +1184,12 @@ class DispatchWorker:
         trigger = continued.get('trigger')
         model = continued.get('model') if isinstance(continued.get('model'), str) else None
         return {
-            'resume': True,
-            'attempt': attempt,
-            'round': number,
+            'resume': True, 'attempt': attempt, 'round': number, 'scopes': list(frozen.write_scopes),
             'trigger': trigger if trigger in ('cli_interrupted', 'network', 'lease_expired') else 'cli_interrupted',
             'feedback': correction_feedback(self._receipt(self.store.build(link['previous_build_id']))) if link else [],
             'files': files or None,
             'model': model or (self.author_model if isinstance(self.author_model, str) else None),
-            'exclude_models': [],
-            'interruption': interruption,
+            'exclude_models': [], 'interruption': interruption,
         }
 
     def _crash_candidate(self, repo, frozen):
@@ -1227,6 +1224,7 @@ class DispatchWorker:
         crash = (marker.get('crash') if follows and marker.get('trigger') == 'crash'
                  and isinstance(marker.get('crash'), dict) else None)
         empty = {'attempt': link['attempt'], 'round': link['round'], 'feedback': [], 'files': None,
+                 'scopes': list(frozen.write_scopes),
                  'candidate_digest': None, 'trigger': marker.get('trigger') if follows else None,
                  'crash': ({'failure': _token(crash.get('failure')), 'error_class': _token(crash.get('error_class'))}
                            if crash else None),

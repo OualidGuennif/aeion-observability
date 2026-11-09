@@ -135,4 +135,25 @@ class ProductBoundaryTests(unittest.TestCase):
             with self.assertRaisesRegex(BuilderError,'ignored_path'):
                 scoped_changes(exported,seeded,['demo/forum-docs/'],repo)
 
+    def test_scoped_changes_refuses_a_changed_file_whose_spec_doc_is_outside_write_scopes(self):
+        from factory.flue_builder import scoped_changes
+        with tempfile.TemporaryDirectory() as folder:
+            repo = Path(folder)
+            subprocess.run(['git', 'init', '-q', str(repo)], check=True, capture_output=True)
+            filter_path = 'demo/forum-app/RequestValidationFilter.java'
+            seeded = {filter_path: b'// Spec: knowledge/components/request-validation.md\nclass R {}\n'}
+            scopes = ['demo/forum-app/', 'knowledge/components/agora-product.md']
+            for candidate in (b'// Spec: knowledge/components/request-validation.md\nclass R { int x; }\n',
+                              b'// Spec: knowledge/components/agora-product.md\nclass R { int x; }\n'):
+                exported = {'workspace/' + filter_path: base64.b64encode(candidate).decode()}
+                with self.assertRaisesRegex(BuilderError, 'knowledge_doc_outside_scope') as ctx:
+                    scoped_changes(exported, seeded, scopes, repo)
+                self.assertEqual(ctx.exception.blocked_files,
+                                 [filter_path + ' -> knowledge/components/request-validation.md'])
+            reverted = {'workspace/' + filter_path: base64.b64encode(seeded[filter_path]).decode(),
+                        'workspace/demo/forum-app/ForumSettings.java':
+                        base64.b64encode(b'// Spec: knowledge/components/agora-product.md\nclass S {}\n').decode()}
+            self.assertEqual(list(scoped_changes(reverted, seeded, scopes, repo)),
+                             ['demo/forum-app/ForumSettings.java'])
+
 if __name__ == '__main__': unittest.main()

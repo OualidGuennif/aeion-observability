@@ -27,6 +27,18 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(rows[0]["completed"], 3)
         self.assertEqual(rows[0]["cost_per_autonomous_success_usd"], "0.05")
         self.assertEqual(rows[0]["input_tokens"], 15000)
+        self.assertEqual(rows[0]["autonomy_basis"], "passed_checks_no_reported_intervention")
+
+    def test_missing_intervention_or_incomplete_maturity_is_not_counted_as_autonomous(self):
+        missing = run()
+        del missing["human_interventions"]
+        unknown_cov = {**run(), "intervention_coverage": "unknown"}
+        immature = {**run(), "maturity_complete": False}
+        for sample in (missing, unknown_cov, immature):
+            with self.subTest(sample=sample):
+                row = summarize([sample])[0]
+                self.assertEqual(row["autonomous"], 0)
+                self.assertIsNone(row["cost_per_autonomous_success_usd"])
 
     def test_no_success_is_undefined(self):
         self.assertIsNone(summarize([run(status="failed")])[0]["cost_per_autonomous_success_usd"])

@@ -5,20 +5,37 @@ Spec: knowledge/components/factory-flue.md
 from decimal import Decimal, InvalidOperation
 import hashlib
 import json
+from pathlib import Path
 
 from .models import Telemetry, known
 from app.profiles import PROFILE_VERSION
 
-METHOD = 'flue-factory-routing-v5'
-# v3 had colliding startup probes; v4 reviews omitted the frozen-base diff. Preserve their rows,
-# but do not rank the corrected protocol with those incomparable outcomes.
+ROOT = Path(__file__).resolve().parents[2]
+METHOD = 'flue-factory-routing-v6'
+# v3 had colliding startup probes; v4 reviews omitted the frozen-base diff; v5 did not bind
+# the relay/review treatment fingerprint. Preserve older rows, but do not pool treatments.
+TREATMENT_FILES = (
+    'demo/app/relay.py', 'demo/app/provider_usage.py', 'demo/app/profiles.py',
+    'demo/factory/flue_builder.py', 'demo/factory/flue_review.py', 'demo/factory/review_circuit.py',
+)
 
 
-def cohort_for(feature, check_profile, runtime='flue-openshell', execution_bounds=None):
-    """Only maintainer-controlled task metadata defines a comparable cohort."""
+def treatment_digest(root=ROOT):
+    digest = hashlib.sha256()
+    for name in TREATMENT_FILES:
+        digest.update(name.encode() + b'\0' + (Path(root) / name).read_bytes() + b'\0')
+    return digest.hexdigest()
+
+
+TREATMENT_DIGEST = treatment_digest()
+
+
+def cohort_for(feature, check_profile, runtime='flue-openshell', execution_bounds=None, treatment=None):
+    """Only maintainer-controlled task metadata and treatment identity define a comparable cohort."""
     fields = {'method': METHOD, 'area': feature['area'], 'size': feature['size'],
               'architecture': feature.get('architecture_digest', 'legacy'),
-              'check': check_profile, 'runtime': runtime, 'profile_version':PROFILE_VERSION}
+              'check': check_profile, 'runtime': runtime, 'profile_version': PROFILE_VERSION,
+              'treatment': TREATMENT_DIGEST if treatment is None else str(treatment)}
     if execution_bounds is not None:fields['execution_bounds']=execution_bounds
     return hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()
 

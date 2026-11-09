@@ -36,6 +36,11 @@ class SelectionTests(unittest.TestCase):
         stopped=dict(cohort('glm')[0],id='glm-stopped',status='interrupted');del stopped['ended_ns']
         self.assertEqual(recommend(cohort('glm')+[stopped],'pricing-js-v1')['basis'],'provisional_default')
         self.assertEqual(recommend(cohort('glm')[:1],'pricing-js-v1')['basis'],'provisional_default')
+        missing=cohort('glm')
+        del missing[0]['human_interventions']
+        self.assertEqual(recommend(missing,'pricing-js-v1')['basis'],'provisional_default')
+        unverified=[{**r,'intervention_coverage':'unknown','maturity_complete':False} for r in cohort('glm')]
+        self.assertEqual(recommend(unverified,'pricing-js-v1')['basis'],'provisional_default')
 
     def test_synthetic_legacy_and_other_runtime_cannot_influence_routing(self):
         for field,value in [('synthetic',True),('profile_version','old'),('runtime','docker')]:

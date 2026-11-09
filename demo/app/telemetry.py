@@ -1,5 +1,7 @@
 """Explicit metadata spans only. No automatic instrumentation or exception capture."""
 import json
+import queue
+import threading
 import time
 import urllib.request
 
@@ -24,6 +26,24 @@ class Telemetry:
             timeout=5,
         ),max_queue_size=1024,max_export_batch_size=64,schedule_delay_millis=200))
         self.tracer = self.provider.get_tracer("aeion.demo", "1")
+        self._log_queue = queue.Queue(maxsize=1024)
+        self._log_worker = threading.Thread(target=self._export_logs, daemon=True)
+        self._log_worker.start()
+
+    def _export_logs(self):
+        while True:
+            item = self._log_queue.get()
+            try:
+                if item is None:
+                    return
+                endpoint, payload = item
+                req = urllib.request.Request(endpoint, data=payload, headers={"Content-Type": "application/x-protobuf"})
+                with urllib.request.urlopen(req, timeout=1) as response:
+                    response.read(1024)
+            except OSError:
+                pass  # Durable local audit remains authoritative; export is best effort.
+            finally:
+                self._log_queue.task_done()
 
     def emit(self, run, name, **attributes):
         parent = SpanContext(int(run["trace_id"], 16), int(run["root_span_id"], 16), False, TraceFlags(1))
@@ -69,12 +89,9 @@ class Telemetry:
                 field.double_value = value
             else:
                 field.string_value = str(value)
-        endpoint = OTEL_LOGS
         try:
-            req = urllib.request.Request(endpoint, data=request.SerializeToString(), headers={"Content-Type": "application/x-protobuf"})
-            with urllib.request.urlopen(req, timeout=1) as response:
-                response.read(1024)
-        except OSError:
+            self._log_queue.put_nowait((OTEL_LOGS, request.SerializeToString()))
+        except queue.Full:
             pass  # Durable local audit remains authoritative; export is best effort.
 
     def begin(self, run):

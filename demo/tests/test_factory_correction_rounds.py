@@ -661,6 +661,26 @@ class CorrectionRoundTests(unittest.TestCase):
         self.assertEqual(bounded_check_failure(TargetError("base_clone_failed")), "base_clone_failed")
         self.assertEqual(bounded_check_failure(RuntimeError("docker said /Users/secret")), "check_process_failed")
 
+    def test_a_spec_doc_outside_the_write_scope_says_revert_that_file(self):
+        source = "demo/forum-app/src/RequestValidationFilter.java"
+        files = {source: "// Spec: knowledge/components/agora-product.md\n"
+                         "// Docs-Checked: knowledge/components/request-validation.md\nclass SecretToken {}",
+                 "knowledge/components/agora-product.md": "# product\n"}
+        scopes = ["demo/forum-app/", "knowledge/components/agora-product.md"]
+        text = correction_text({"round": 1, "trigger": "ci_failed", "feedback": [],
+                                "files": files, "scopes": scopes})
+        self.assertIn("outside the write scopes: revert " + source, text)
+        self.assertNotIn("that doc is not in the change", text)
+        self.assertNotIn("SecretToken", text)
+        in_scope = correction_text(
+            {"round": 1, "trigger": "ci_failed", "feedback": [], "files": {source: "Spec: knowledge/components/agora-product.md\n"}},
+            scopes=scopes)
+        self.assertIn("names knowledge/components/agora-product.md, and that doc is not in the change", in_scope)
+        self.assertNotIn("outside the write scopes", in_scope)
+        lines = correction_feedback({"publisher": {"status": "held", "reason": "ci_failed", "failed_checks": [
+            {"name": "Knowledge, links and repository health", "conclusion": "failure"}]}})
+        self.assertTrue(any("revert that code file" in line and "Docs-Checked" not in line for line in lines))
+
 
 if __name__ == "__main__":
     unittest.main()

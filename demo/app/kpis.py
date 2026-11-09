@@ -4,6 +4,15 @@ from decimal import Decimal
 from statistics import median
 
 
+def _unassisted_pass(run):
+    """Passed checks with explicit zero reported intervention and no missing coverage/maturity."""
+    return (run["status"] == "passed"
+            and type(run.get("human_interventions")) is int
+            and run["human_interventions"] == 0
+            and run.get("intervention_coverage") not in {"unknown", "missing", "unavailable"}
+            and run.get("maturity_complete") is not False)
+
+
 def summarize(runs):
     groups = defaultdict(list)
     for run in runs:
@@ -15,7 +24,7 @@ def summarize(runs):
         completed = [r for r in cohort if r.get("ended_ns")]
         # A controller restart never resolves these; their usage stays unknown, not pending.
         interrupted = [r for r in cohort if not r.get("ended_ns") and r["status"] == "interrupted"]
-        autonomous = [r for r in completed if r["status"] == "passed" and r.get("human_interventions", 0) == 0]
+        autonomous = [r for r in completed if _unassisted_pass(r)]
         durations = [(r["ended_ns"] - r["started_ns"]) / 1000000 for r in completed]
         usages = [e for r in cohort for e in r["events"] if e["name"] == "gen_ai.request"]
         cost = sum((Decimal(r["native_cost_usd"]) for r in cohort), Decimal(0))
@@ -33,6 +42,7 @@ def summarize(runs):
             "cost_per_autonomous_success_usd": str(cost / len(autonomous)) if autonomous and complete_cost else None,
             "usage_complete": complete_cost,
             "accounting_basis": "synthetic" if synthetic else "cli_estimate_not_invoice",
+            "autonomy_basis": "passed_checks_no_reported_intervention",
             "evidence": "demo_fixture_only",
         })
     return rows

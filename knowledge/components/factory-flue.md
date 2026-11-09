@@ -5,11 +5,11 @@ description: "Deterministic supervision of untrusted Flue/Pi workers, isolated t
 status: draft
 verified:
   - at: 2026-11-07
-    what: "unittest correction rounds, connectivity, review circuit, artifact and recovery: a working CLI_FAILED resumes the same model; a quiet stop still crashes"
-  - at: 2026-11-07
     what: "unittest budget, TLS, workspace, resume and review retry: ceilings stay 150/50/1; summary splits settled and reserved; an unforwarded claim settles at zero; a resume reuses the prepared contract; a down provider holds before prepare; one failed review retries once"
   - at: 2026-11-08
     what: "unittest: incomplete usage does not hand over an oversized local follow-up; a builder-error receipt keeps diagnostics; an identical failed draft counts"
+  - at: 2026-11-09
+    what: "unittest product boundary, correction rounds, execution, routing and telemetry: an out-of-scope Spec doc is refused and says revert; two-decimal budget strings; non-blocking OTLP log queue; routing v6 binds treatment digest"
 sources:
   - resource: ../../demo/factory/review_context.py
     title: "One-time operator repair of the old review envelope"
@@ -251,8 +251,7 @@ an invalid file holds builds as `budget_config_invalid` and admits no spending. 
 only after validated export, confirmed sandbox removal, complete known usage within the frozen
 reservation and a current authorization check. Its stopped-role failure remains visible. No check
 or vote is inferred: the final external gate and both independent reviews still run; unknown usage,
-revocation and export/removal failures refuse recovery. A slow trace exporter uses a bounded SDK
-batch queue so it cannot block native accounting; role shutdown flushes it. The private journal
+revocation and export/removal failures refuse recovery. A slow trace or OTLP log exporter uses a bounded queue so it cannot block native accounting; role shutdown flushes trace batches and log export stays best effort. The private journal
 remains authoritative when telemetry delivery fails.
 
 Review envelope v2 includes a unified diff from the frozen Git base and the complete changed
@@ -277,8 +276,10 @@ The archived votes are never reused. A second failure stays held. A same-build r
 only that build's prepared folder and repo, and keeps a same-model resume clone. That resume
 reuses the prepared contract already on disk and does not call the preparer again. A resumed
 correction still carries the failed check name and the reviewer lines from the build it
-continues. It also names the candidate paths that differ from the pinned base, and any code
-file whose Spec doc is absent from that change. The sandbox has no git history. A protected
+continues. It also names the candidate paths that differ from the pinned base, tells the author to revert any
+changed code file whose current or base Spec/Docs-Checked header names a knowledge document outside
+the write scopes (and refuses that candidate as `knowledge_doc_outside_scope`), and names any
+in-scope Spec doc absent from that change. The sandbox has no git history. A protected
 check that cannot run returns its reason token. When those resumes run out, the next attempt keeps that CI result. A missing,
 linked or altered contract is prepared again. Features 002 and 014 are prepared again, because
 their dependency seeds are not in that contract. GitHub TLS
@@ -465,7 +466,9 @@ expired still allows the open (test_openshell_security_window, test_factory_corr
 8. Real data/history/budget liabilities survive restart. Synthetic qualification never marks
    a real feature implemented and never supplies model-quality ranking evidence.
 9. Routing records are immutable and idempotent per attempt/role/model in the existing SQLite
-   store. Only matching trusted area/size/architecture/check/runtime-method cohorts participate.
+   store. Only matching trusted area/size/architecture/check/runtime-method/treatment cohorts
+   participate (`flue-factory-routing-v6` hashes the relay, usage, profile, builder and review
+   modules).
    Unknown costs remain unknown; ranking by observed cost requires complete measurements and
    at least three outcomes for at least two eligible models. Cold-start selection is explicitly
    labeled prior-based; a valid reject and a valid approve both measure protocol reliability,

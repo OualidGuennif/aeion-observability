@@ -32,5 +32,5 @@ def recommend(runs,task_id,objective='balanced',runtime='flue-openshell'):
     eligible.sort(key=lambda r:(r['selection_score'],r['model']))
     best=eligible[0]
     return {'profile':best['profile'],'model':best['model'],'task_id':task_id,'objective':objective,'runtime':runtime,
-            'basis':'best_observed_for_task','reason':'100% recorded autonomy and complete usage; cost and time normalized to the best observed values (equal weights for balanced).',
+            'basis':'best_observed_for_task','reason':'Passed checks with no reported intervention and complete usage; cost and time normalized to the best observed values (equal weights for balanced).',
             'candidates':eligible,'profile_version':PROFILE_VERSION}
