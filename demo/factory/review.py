@@ -41,6 +41,19 @@ DEPENDENCY_FILES = (
     "gradle.properties", "gradle-wrapper.properties", "libs.versions.toml", "gradle.lockfile",
     "gradlew", "gradlew.bat",
 )
+SOURCE_EXTENSIONS = frozenset({
+    ".py", ".ts", ".tsx", ".js", ".mjs", ".java", ".go", ".rs", ".kt", ".swift", ".rb", ".php", ".cs", ".sh",
+})
+COMMENT_PATTERN = re.compile(r"^\s*(//|#|\*|/\*|--)")
+MAX_COMMENT_BLOCK = 20
+
+
+def longest_comment_block(text):
+    best = run = 0
+    for line in text.splitlines():
+        run = run + 1 if COMMENT_PATTERN.match(line) else 0
+        best = max(best, run)
+    return best
 
 
 class ReviewError(ValueError):
@@ -86,6 +99,9 @@ def review(frozen, artifact_verdict, files, max_files=MAX_FILES, max_total_bytes
         approved_dependencies=getattr(frozen,'dependency_changes',None) or {}
         if name in DEPENDENCY_FILES and approved_dependencies.get(path)!=hashlib.sha256(text.encode()).hexdigest():
             findings.append(_finding("dependency_manifest", path))
+        ext = "." + path.rsplit(".", 1)[-1].lower() if "." in path else ""
+        if (ext in SOURCE_EXTENSIONS or text.startswith("#!")) and longest_comment_block(text) > MAX_COMMENT_BLOCK:
+            findings.append(_finding("comment_block_too_long", f"{path}: comment block over 20 lines (repo-health)", "refused"))
     if total > max_total_bytes:
         findings.append(_finding("diff_too_large", f"{total}>{max_total_bytes}"))
     return _verdict(findings, files)

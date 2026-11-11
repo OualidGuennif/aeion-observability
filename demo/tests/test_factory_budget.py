@@ -75,6 +75,18 @@ class BudgetTests(unittest.TestCase):
         record = json.loads((self.root / "ledger.jsonl").read_text().splitlines()[0])
         self.assertEqual(record["usd"], "0.00")
 
+    def test_open_reservations_lists_unsettled_and_clears_on_settle(self):
+        b = budget(self.root)
+        r1 = b.admit("aeion-autonomous-forum", "10.00", note="build-1:feat")
+        r2 = b.admit("aeion-autonomous-forum", "1.00", note="review:glm")
+        open_items = b.open_reservations("aeion-autonomous-forum")
+        self.assertEqual(len(open_items), 2)
+        self.assertEqual({item["reservation"].id for item in open_items}, {r1.id, r2.id})
+        b.settle(r1, "0.15")
+        remaining = b.open_reservations("aeion-autonomous-forum")
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(remaining[0]["reservation"].id, r2.id)
+
     def test_an_unknown_scope_is_refused(self):
         with self.assertRaisesRegex(BudgetError, "budget_unknown_scope"):
             budget(self.root).admit("someone-else", "0.01")

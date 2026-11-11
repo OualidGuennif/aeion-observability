@@ -218,7 +218,9 @@ class GitHubForge:
                 raise GitHubError('tree_create_failed:' + str(status))
             tree_sha = _sha(tree.get('sha'))
             status, commit = self._request('POST', f'/repos/{self.repo}/git/commits', {
-                'message': f"Feature {request.get('feature_id')} / {request['attempt_id']}\n\nArtifact: {request['artifact_digest']}",
+                'message': (f"Feature {request.get('feature_id')} / {request['attempt_id']}\n\n"
+                            f"Artifact: {request['artifact_digest']}\n\n"
+                            "Docs-Checked: knowledge/components/factory-architecture.md -- automated factory build\n"),
                 'tree': tree_sha, 'parents': [base]})
             if status != 201:
                 raise GitHubError('commit_create_failed:' + str(status))

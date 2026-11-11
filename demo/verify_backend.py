@@ -51,7 +51,7 @@ def main():
     recall = get("http://127.0.0.1:8088/api/memory" + ("?synthetic=true" if run["synthetic"] else ""))
     if recall.get("status") != "ok" or not recall.get("results"):
         raise SystemExit("Hindsight recall has no evidence")
-    if ("memory.checkpoint" in required and not run.get("claude_mem_id")) or run.get("memory", {}).get("status") != "retained":
+    if ("memory.checkpoint" in required and not (run.get("checkpoint_id") or run.get("claude_mem_id"))) or run.get("memory", {}).get("status") != "retained":
         raise SystemExit("Memory persistence not acknowledged")
     bank = "aeion-demo-synthetic" if run["synthetic"] else "aeion-demo-real"
     document = get("http://127.0.0.1:8889/v1/default/banks/" + bank + "/documents/run-" + run["id"])
@@ -70,6 +70,7 @@ def main():
         raise SystemExit("Langfuse score values differ from the canonical outcome")
     result = {"run_id": run["id"], "trace_id": run["trace_id"], "observations": len(data),
               "generations": len(generations), "content_fields_empty": True,
+              "checkpoint_id": run.get("checkpoint_id") or run.get("claude_mem_id"),
               "claude_mem_checkpoint": run.get("claude_mem_id"), "hindsight_recall_results": len(recall["results"]),
               "native_cost_estimate_usd": run["native_cost_usd"], "scores": "read_back_matching",
               "hindsight_document": "read_back_matching"}

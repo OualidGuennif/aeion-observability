@@ -3,6 +3,7 @@ import hashlib
 from pathlib import Path
 import sys
 import unittest
+import unittest.mock
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from factory.github import GitHubForge,GitHubError,branch_name
 from factory.review import content_digest

@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from factory.models import Router, Telemetry
-from factory.review_circuit import two_vote_review
+from factory.review_circuit import two_vote_review, MAX_PROMPT_CHARS
 
 
 FILES = {"demo/forum/product/x.py": "print('ok')\n"}
@@ -131,7 +131,7 @@ class CircuitTelemetryTests(unittest.TestCase):
                 with self.assertRaises(CircuitError):baseline_diff(folder,base,files)
         seen=[]
         result=two_vote_review('glm-5.3-flash','001',FILES,Router(Telemetry()),
-            lambda *args:seen.append(args),baseline='x'*240001,base_sha='a'*40)
+            lambda *args:seen.append(args),baseline='x'*(MAX_PROMPT_CHARS+1),base_sha='a'*40)
         self.assertEqual(result['reason'],'review_input_too_large')
         self.assertEqual(seen,[])
 
@@ -143,7 +143,7 @@ class CircuitTelemetryTests(unittest.TestCase):
         self.assertEqual(len(seen),2)
         self.assertTrue(all('x'*30000 in prompt for prompt in seen))
         seen.clear()
-        result=two_vote_review('glm-5.3-flash','002',{'src/Migration.java':'€'*80000},Router(Telemetry()),
+        result=two_vote_review('glm-5.3-flash','002',{'src/Migration.java':'€'*(MAX_PROMPT_CHARS//3+1)},Router(Telemetry()),
             lambda model,prompt:seen.append(prompt) or {'verdict':'approve'})
         self.assertEqual(result['reason'],'review_input_too_large')
         self.assertEqual(seen,[])
@@ -179,7 +179,7 @@ class CircuitTelemetryTests(unittest.TestCase):
     def test_oversized_specification_holds_before_any_vote(self):
         def forbidden(*_):raise AssertionError('truncated review reached transport')
         result=two_vote_review('glm-5.3-flash','021',FILES,Router(Telemetry()),forbidden,
-                               specification='x'*240001)
+                               specification='x'*(MAX_PROMPT_CHARS+1))
         self.assertEqual(result['reason'],'review_input_too_large')
 
     def test_two_approvals_are_recorded_as_successes(self):

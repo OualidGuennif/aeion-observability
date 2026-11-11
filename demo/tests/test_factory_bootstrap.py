@@ -17,7 +17,7 @@ from factory.store import Store
 from factory.manifest import Catalog
 from factory.github import GitHubForge,GitHubError
 from factory.review import content_digest
-from factory.flue_review import FlueReview
+from factory.flue_review import FlueReview, MAX_COMPLETE_REVIEW_BYTES
 
 
 class BootstrapTests(unittest.TestCase):
@@ -198,7 +198,7 @@ class BootstrapTests(unittest.TestCase):
 
     def test_large_complete_review_is_supervisor_bounded_and_never_silently_truncated(self):
         with self.assertRaisesRegex(ValueError,'REVIEW_BOUNDS_INVALID'):
-            FlueReview(max_prompt_bytes=240001)
+            FlueReview(max_prompt_bytes=MAX_COMPLETE_REVIEW_BYTES + 1)
         with self.assertRaisesRegex(ValueError,'REVIEW_BOUNDS_INVALID'):
             FlueReview(cost_limit='1.01')
         with self.assertRaisesRegex(ValueError,'REVIEW_BOUNDS_INVALID'):

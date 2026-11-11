@@ -10,6 +10,8 @@ from types import SimpleNamespace
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
+import settings  # noqa: F401
 from factory.api import FactoryApp
 from factory.budget import DailyBudget
 from factory.execution import offline_builder, resolve

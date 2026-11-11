@@ -847,16 +847,18 @@ class Store:
                     receipt=json.loads(row['receipt']);circuit=receipt.get('circuit') or {}
                     execution=receipt.get('execution') or {};votes=circuit.get('votes') or []
                     context=receipt.get('review_context') or {}
-                    eligible_circuit=(circuit.get('reason')=='reviewer_failed' and circuit.get('review_input_version')==2
-                        and not context.get('retry_failed_review') and any(v.get('verdict')=='error' for v in votes)
-                        and all(v.get('verdict') in ('approve','error') for v in votes)) if retry_failed_review else (
-                        not context and circuit.get('reason')=='reviewer_rejected' and circuit.get('review_input_version',1)==1
-                        and any(v.get('verdict')=='reject' for v in votes))
+                    eligible_circuit = (circuit.get('reason') in ('reviewer_failed', 'review_input_too_large')
+                        and circuit.get('review_input_version') == 2 and not context.get('retry_failed_review')
+                        and ((circuit.get('reason') == 'review_input_too_large' and not votes)
+                             or (any(v.get('verdict') == 'error' for v in votes) and all(v.get('verdict') in ('approve', 'error') for v in votes)))
+                    ) if retry_failed_review else (
+                        not context and circuit.get('reason') == 'reviewer_rejected' and circuit.get('review_input_version', 1) == 1
+                        and any(v.get('verdict') == 'reject' for v in votes))
                     if (receipt.get('simulated') is not False or not eligible_circuit
                             or not known(receipt.get('author_model'))
                             or (receipt.get('gate') or {}).get('status')!='passed'
                             or (receipt.get('review') or {}).get('status')!='approved'
-                            or circuit.get('status')!='held' or not votes
+                            or circuit.get('status')!='held' or (not votes and circuit.get('reason') != 'review_input_too_large')
                             or not measured(execution) or execution.get('role')!='author'
                             or execution.get('build_id')!=build_id
                             or execution.get('failure') and not (

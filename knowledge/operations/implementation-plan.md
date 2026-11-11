@@ -20,7 +20,7 @@ The research and offline paired-cohort/fixture guards remain available without s
 An explicitly requested [local pilot](../../demo/README.md) now implements an Agora forum
 (`demo/forum-app/`, Quarkus/Java), a host-native Python supervisor/cockpit and feature factory,
 Flue + Pi coding agents whose tools run in
-OpenShell, OpenTelemetry, Langfuse, Hindsight and claude-mem. Its [separate specification](../components/docker-demo.md) defines the limited
+OpenShell, OpenTelemetry, Langfuse and Hindsight. Its [separate specification](../components/docker-demo.md) defines the limited
 measurement boundary and context/handover controls. Local evidence is recorded in
 [validation](../../work/validation.md); it does not establish all scenarios below.
 Factory, CROA and OPS sibling files are unchanged.

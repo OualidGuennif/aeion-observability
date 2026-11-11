@@ -352,6 +352,26 @@ Security qualification expires in 24 hours. A separate harness qualification
 relay/bridge/runner/harness sources plus `package-lock.json`; live execution is blocked without
 it. Rerun bootstrap and harness qualification after changes/expiry. Cleanup failure writes
 `demo/.local/data/sandbox.blocked`; verify owned sandbox deletion and requalify before clearing it.
+
+### Automatic renewal of OpenShell security proof
+
+When the cockpit server runs in live mode (`AEION_FACTORY_EXECUTION=live`), `ensure_openshell_security()`
+automatically invokes `demo/openshell/qualify.py` when less than 1 hour remains on the 24-hour lease,
+atomically replacing `demo/.local/openshell/qualification/security.json` without downtime.
+
+To maintain qualification continuously 24/7 even when the cockpit server is shut down, schedule an
+optional background crontab entry (e.g. every 6 hours):
+
+```bash
+crontab -e
+```
+
+```cron
+0 */6 * * * cd /path/to/aeion-observability && demo/.local/venv/bin/python -c 'import sys; from pathlib import Path; sys.path.insert(0, "demo/app"); import settings; from sandbox import connection; connection()' >/dev/null 2>&1
+```
+
+*Note: The wrapper checks `needs_refresh()`. If more than 1 hour remains, it exits immediately without
+running a probe. If the proof is inside the 1-hour margin or expired, it reruns `qualify.py` to reset the 24-hour window.*
 A killed qualification or a gateway restart can leave an OpenShell supervisor/sandbox pair running
 with nothing tracking it. `demo/openshell/reap.py --older-than 3600` is a dry run of the cleanup;
 add `--execute` to remove only containers carrying both OpenShell labels after that safety window,

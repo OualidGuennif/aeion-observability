@@ -4,12 +4,12 @@ title: "Local feature cockpit"
 description: "One administrator workspace for truthful feature availability, build activity and private traces."
 status: draft
 verified:
-  - at: 2026-11-07
-    what: "unittest live status: the report prints phase names and supervisor CI lines, and leaves reviewer prose out"
   - at: 2026-11-08
     what: "node cockpit client: a running protected check is not a stall; admission hours remaining are shown"
   - at: 2026-11-09
     what: "unittest kpis and selection: lab autonomy requires explicit zero human intervention and complete maturity; lab copy matches 150/50/1 ceilings and context policy"
+  - at: 2026-11-11
+    what: "unittest factory dispatch and store: correction rounds reuse frozen contracts, and live context provider is integrated"
 sources:
   - resource: ../../demo/app/factory.html
     title: "Cockpit markup"
@@ -83,7 +83,8 @@ The transition baseline explains an absent registered migration operator or brow
 A stopped author proposal can continue only with validated files, confirmed removal, complete
 bounded cost and current authorization; the independent acceptance and two reviews still decide.
 A failed build that queued an automatic continuation says so ("correction round N of 2" with the
-same model, or "attempt N of 3 on another model" after the second round or a crash), and the next
+same model, or "attempt N of 3 on another model" after the second round or a crash), reusing the
+verified frozen contract files deterministically without LLM re-preparation latency or cost, and the next
 build of the same feature appears in the queue without an owner launch. A required CI failure
 uses that same sentence and names the failing checks; only the exhausted case stays on hold and
 asks the owner to cancel. Build evidence says the rounds are finished only in that exhausted
