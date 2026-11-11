@@ -87,9 +87,8 @@ def review_retry_eligible(receipt):
     circuit = receipt.get('circuit') if isinstance(receipt.get('circuit'), dict) else {}
     context = receipt.get('review_context') if isinstance(receipt.get('review_context'), dict) else {}
     gate = receipt.get('gate') if isinstance(receipt.get('gate'), dict) else {}
-    return (circuit.get('reason') == 'reviewer_failed'
-            and circuit.get('review_input_version') == 2
-            and context.get('retry_failed_review') is not True
+    return (circuit.get('reason') in ('reviewer_failed', 'review_input_too_large')
+            and circuit.get('review_input_version') == 2 and context.get('retry_failed_review') is not True
             and gate.get('status') == 'passed')
 
 
@@ -104,9 +103,8 @@ HOLD_REASON_MAP = {
 # Fixed repair notes for required checks this factory knows. They are our text, never a CI log.
 CI_REPAIRS = {
     "Knowledge, links and repository health":
-        "Repair this check only: if a changed code file names a Spec knowledge document outside "
-        "the write scopes, revert that code file; if that document is in the write scopes, "
-        "update it in the same change (rule L3). Do not redesign the feature.",
+        "Repair this check only: if a changed code file names a Spec document outside write scopes, "
+        "revert that code file; keep comment blocks under 20 lines (repo-health).",
     "Product artifacts":
         "Repair this check only: fix the failing product build or test. Do not change ports, "
         "routes, or defaults the brief does not name.",
@@ -316,15 +314,10 @@ class DispatchWorker:
         self.review_complete = review_complete
         self.author_model = author_model
         self.router = Router(Telemetry())
-        self.progress = None
-        self.publication = None
+        self.progress = self.publication = self.preparation_evidence = None
         self.preparer = preparer
-        self.preparation_evidence = None
-        self.author_routing = None
-        self.author_ms = None
-        self.started_build_ns = None
-        self.review_context = None
-        self.reused_execution = None
+        self.author_routing = self.author_ms = self.started_build_ns = None
+        self.review_context = self.reused_execution = None
         # A real forge is only reachable once two independent models have approved the diff.
         self.defer_to = defer_to
         # No agent holds a GitHub key: when a gateway is configured, every attempt gets its own
@@ -333,16 +326,15 @@ class DispatchWorker:
         self.agent_id = agent_id
         self.require_circuit = (self.paid or bool(defer_to) or isinstance(self.forge, GitHubForge)
                                 if require_circuit is None else bool(require_circuit))
+        self._reconcile_orphan_reservations()
 
     def _make_repo(self, build_id):
         repo = self.work_root / build_id / "repo"
         (repo / "demo/forum/product").mkdir(parents=True, exist_ok=True)
         (repo / "demo/forum/product/.keep").write_text("")
-        subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
-        subprocess.run(["git", "-C", str(repo), "config", "user.email", "builder@fake.local"], check=True)
-        subprocess.run(["git", "-C", str(repo), "config", "user.name", "fake-builder"], check=True)
-        subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
-        subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "base"], check=True)
+        for cmd in (["init", "-q"], ["config", "user.email", "builder@fake.local"],
+                    ["config", "user.name", "fake-builder"], ["add", "-A"], ["commit", "-q", "-m", "base"]):
+            subprocess.run(["git", "-C", str(repo), *cmd], check=True)
         base_sha = subprocess.run(
             ["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
         ).stdout.strip()
@@ -351,16 +343,10 @@ class DispatchWorker:
     def _write_simulated_impl(self, repo, frozen, feature):
         """Write the fake builder's output inside its first declared write scope."""
         scope = frozen.write_scopes[0]
-        if scope.endswith("/"):
-            target = repo / scope / f"{feature['id']}-impl.md"
-        else:
-            target = repo / scope
+        target = repo / scope / f"{feature['id']}-impl.md" if scope.endswith("/") else repo / scope
         target.parent.mkdir(parents=True, exist_ok=True)
-        # A heading that names the feature: the product contract checks it again, independently.
-        target.write_text(
-            f"# Feature {feature['id']} — {feature['title']}\n\n"
-            f"Simulated implementation for the S3 gate; not product code.\n"
-        )
+        target.write_text(f"# Feature {feature['id']} — {feature['title']}\n\n"
+                          f"Simulated implementation for the S3 gate; not product code.\n")
 
     @staticmethod
     def _content_bound(files, verdict):
@@ -482,13 +468,37 @@ class DispatchWorker:
             raise BudgetError("invalid_estimate")
         return estimate
 
+    def _reconcile_orphan_reservations(self):
+        """Auto-heal open reservations from terminated/orphaned builds or dead sessions."""
+        if self.budget is None or not hasattr(self.budget, "open_reservations"):
+            return
+        try:
+            for item in self.budget.open_reservations(self.budget_scope):
+                res, note = item["reservation"], item.get("note", "")
+                parts = note.split(":")
+                settle_it = False
+                if len(parts) >= 2 and parts[0] != "review":
+                    if self.store is not None:
+                        row = self.store.build(parts[0])
+                        if row is None or row.get("status") in {FAILED, HELD, "pr_open", "merged", "cancelled"}:
+                            settle_it = True
+                elif parts[0] == "review" and (time.time_ns() - item.get("ts_ns", 0)) > 900_000_000_000:
+                    settle_it = True
+                if settle_it:
+                    try:
+                        self.budget.settle(res, Decimal("0"))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
     def _reserve(self, build):
         """Journal the attempt's spending cap before any model or tool can spend."""
         if self.budget is None:
             if self.allow_unbudgeted:
                 return None
-            # No purse means no paid work; a fake-only caller must opt in explicitly.
             raise BudgetError("budget_unavailable")
+        self._reconcile_orphan_reservations()
         return self.budget.admit(
             self.budget_scope, self._budget_estimate(),
             note=f"{build['build_id']}:{build['feature_id']}",
@@ -498,15 +508,14 @@ class DispatchWorker:
         if reservation is None or self.budget is None:
             return
         usage = self.last_usage
-        if isinstance(usage, dict) and usage.get("complete") is True and usage.get("cost_usd") is not None:
+        cost = None
+        if isinstance(usage, dict):
+            cost = usage.get("cost_usd") if usage.get("cost_usd") is not None else usage.get("estimated_cost_usd")
+        if cost is None and build is not None and self._author_never_forwarded(build):
+            cost = "0"
+        if cost is not None:
             try:
-                self.budget.settle(reservation, Decimal(str(usage["cost_usd"])))
-            except (BudgetError, InvalidOperation, ValueError):
-                return
-            return
-        if build is not None and self._author_never_forwarded(build):
-            try:
-                self.budget.settle(reservation, Decimal("0"))
+                self.budget.settle(reservation, Decimal(str(cost)))
             except (BudgetError, InvalidOperation, ValueError):
                 return
 
@@ -777,17 +786,17 @@ class DispatchWorker:
             return answer
         finally:
             usage = getattr(self.review_complete, "last_usage", None)
-            if reservation is not None and isinstance(usage, dict) and usage.get("complete") is True and usage.get("cost_usd") is not None:
-                try:
-                    self.budget.settle(reservation, Decimal(str(usage["cost_usd"])))
-                except (BudgetError, InvalidOperation, ValueError):
-                    # Unknown or unreadable cost keeps the reservation counted.
-                    pass
-            elif reservation is not None and self._review_never_forwarded():
-                try:
-                    self.budget.settle(reservation, Decimal("0"))
-                except (BudgetError, InvalidOperation, ValueError):
-                    pass
+            if reservation is not None:
+                cost = None
+                if isinstance(usage, dict) and usage.get("complete") is True:
+                    cost = usage.get("cost_usd") if usage.get("cost_usd") is not None else usage.get("estimated_cost_usd")
+                if cost is None and self._review_never_forwarded():
+                    cost = "0"
+                if cost is not None:
+                    try:
+                        self.budget.settle(reservation, Decimal(str(cost)))
+                    except (BudgetError, InvalidOperation, ValueError):
+                        pass
 
     def _zero_transport_proven(self):
         """Only a build with no paid builder and no model review can prove zero spend."""
@@ -842,7 +851,8 @@ class DispatchWorker:
         previous_votes=(prior.get('circuit') or {}).get('votes') or []
         rejecting=next((v.get('model') for v in previous_votes
             if v.get('verdict')==('error' if retry_failed_review else 'reject')),None)
-        if rejecting is None:raise CircuitError('review_context_not_eligible')
+        if rejecting is None and (prior.get('circuit') or {}).get('reason') != 'review_input_too_large':
+            raise CircuitError('review_context_not_eligible')
         lease_ns=(target.protected_check.timeout_seconds
             +(2+MAX_SUBSTITUTIONS)*getattr(self.review_complete,'timeout_seconds',900)+60)*10**9
         build=self.store.claim_review_context(build_id,self.catalog,
@@ -1402,29 +1412,20 @@ class DispatchWorker:
                     "circuit": circuit}}
 
         request = {
-            "attempt_id": build["attempt_id"],
-            "build_id": build["build_id"],
-            "attempt_generation": build['attempt_generation'],
-            "frozen_digest": frozen.digest(),
-            "contract_digest": frozen.contract_digest,
-            "spec_digest": frozen.spec_digest,
+            "attempt_id": build["attempt_id"], "build_id": build["build_id"],
+            "attempt_generation": build['attempt_generation'], "frozen_digest": frozen.digest(),
+            "contract_digest": frozen.contract_digest, "spec_digest": frozen.spec_digest,
             "acceptance_digest": frozen.acceptance_digest,
             "preparation_digest": (self.preparation_evidence or {}).get('task_digest'),
-            "feature_id": feature["id"],
-            "title": f"{feature['id']} {feature['title']}",
-            "issuer": self.trusted_issuer,
-            "target_repo": target_repo,
-            "base": frozen.base_sha,
-            "head": base_sha,
-            "artifact_digest": verdict["digest"],
-            "reviewed_diff": verdict["allowed"],
-            "files": files,
-            "review_status": review_verdict["status"],
+            "feature_id": feature["id"], "title": f"{feature['id']} {feature['title']}",
+            "issuer": self.trusted_issuer, "target_repo": target_repo,
+            "base": frozen.base_sha, "head": base_sha,
+            "artifact_digest": verdict["digest"], "reviewed_diff": verdict["allowed"],
+            "files": files, "review_status": review_verdict["status"],
             "circuit_status": (circuit or {}).get("status"),
             "review_digest": review_verdict["digest"],
             "review_content_digest": review_verdict["content_digest"],
-            "write_scopes": frozen.write_scopes,
-            "cancelled": False,
+            "write_scopes": frozen.write_scopes, "cancelled": False,
         }
         if self.publication is not None:
             receipt = {**self._identity(build,feature,frozen,base_sha,verdict),

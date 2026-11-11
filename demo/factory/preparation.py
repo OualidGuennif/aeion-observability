@@ -12,11 +12,12 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import stat
 import tempfile
 
 from .checks import target_check
-from .models import eligibility, family
+from .models import RoutingError, eligibility, family
 from .review import SECRET_PATTERNS
 from .target import ProtectedCheck, Target, _git, SHA_RE, PUBLIC_JAVA
 from .source import SourceSyncError
@@ -117,7 +118,7 @@ def freeze_task(catalog, feature_id, spec_dir, architecture, base_sha, *, produc
 
 class FluePreparation:
     paid = True
-    timeout_seconds = 900
+    timeout_seconds = 1200
 
     def __init__(self):
         self.authorization_check = None
@@ -131,7 +132,7 @@ class FluePreparation:
             raise PreparationError('preparation_not_admitted')
         run = new_run(model, build_id, 'prepare', '0.50', synthetic=not self.paid)
         run['agent_timeout_seconds'] = self.timeout_seconds
-        run['max_output_tokens'] = 32768
+        run['max_output_tokens'] = 65536
         runtime = FactorySession(run, self.progress)
         runtime.authorization_check = self.authorization_check
         span, error = runtime.telemetry.begin(run), None
@@ -284,6 +285,23 @@ class TaskPreparer:
             raise PreparationError('product_base_not_integrated')
         folder = Path(destination)
         folder.mkdir(mode=0o700, parents=True, exist_ok=False)
+        key = str(build.get('idempotency_key') or '')
+        if key.startswith('factory-correction:'):
+            prev_id = key.split(':', 1)[1]
+            prev_dir = folder.parent.parent / prev_id / 'prepared'
+            if (prev_dir / 'task.json').is_file() and (prev_dir / 'acceptance.mjs').is_file():
+                try:
+                    for fname in ('task.json', 'BRIEF.md', 'acceptance.mjs', 'proposed-acceptance.json'):
+                        src_f = prev_dir / fname
+                        if src_f.is_file():
+                            shutil.copy2(src_f, folder / fname)
+                            (folder / fname).chmod(0o600)
+                    loaded = self.resume_prepared(folder)
+                    self.role.last_usage = {'complete': True, 'cost_usd': '0', 'basis': 'proven_no_transport'}
+                    return loaded
+                except (PreparationError, OSError):
+                    for f in folder.iterdir():
+                        f.unlink()
         classname = 'FactoryAcceptance' + task.feature_id + 'Test'
         prompt = ('Prepare the protected JUnit/Quarkus black-box acceptance contract.\n'
             'Required package: local.aeion.forum; required class: ' + classname + '.\n'
@@ -305,22 +323,57 @@ class TaskPreparer:
             result={'status':'ready','contract':static_contract,'reason':'Registered deterministic foundation checks'}
             self.role.last_usage={'complete':True,'cost_usd':'0','basis':'proven_no_transport'}
         else:
-            planned_author = router.select('author', require_role='author')
-            model = router.select('prepare', exclude_families=[family(planned_author)])
-            self.last_model = model
             if budget is None:
                 raise PreparationError('preparation_budget_unavailable')
-            reservation = budget.admit('aeion-autonomous-forum', '0.50', note='prepare:' + build['attempt_id'])
-            self.role.authorization_check = authorized
-            try:
-                result = self.role(model, prompt, build['build_id'])
-            finally:
-                usage = self.role.last_usage or {}
-                if usage.get('complete') is True and usage.get('cost_usd') is not None:
-                    try:
-                        budget.settle(reservation, Decimal(str(usage['cost_usd'])))
-                    except (BudgetError, InvalidOperation, ValueError):
-                        pass  # Unknown cost retains its reservation and never becomes free.
+            planned_author = router.select('author', require_role='author')
+            excluded_families = [family(planned_author)]
+            excluded_models = []
+            max_attempts = 3
+            result = None
+            last_error = None
+            for attempt in range(max_attempts):
+                try:
+                    model = router.select('prepare', exclude_families=excluded_families, exclude_models=excluded_models)
+                except RoutingError:
+                    if last_error:
+                        raise last_error
+                    raise PreparationError('no_eligible_preparer_model') from None
+                self.last_model = model
+                reservation = budget.admit('aeion-autonomous-forum', '0.50', note=f'prepare:{build["attempt_id"]}:{attempt}')
+                self.role.authorization_check = authorized
+                try:
+                    result = self.role(model, prompt, build['build_id'])
+                    if not isinstance(result, dict) or result.get('status') != 'ready':
+                        raise PreparationError('preparation_model_declined')
+                    break
+                except PreparationError as err:
+                    last_error = err
+                    usage = self.role.last_usage or {}
+                    if getattr(router, 'telemetry', None) is not None and usage.get('complete') is True:
+                        try:
+                            router.telemetry.record(model, 'prepare', 'error', cost_usd=usage.get('cost_usd'))
+                        except Exception:
+                            pass
+                    RETRYABLE = ('preparation_output_limit', 'preparation_cli_failed',
+                                 'preparation_incomplete', 'preparation_agent_timeout',
+                                 'preparation_provider_rate_limited', 'preparation_provider_unavailable',
+                                 'preparation_usage_unknown', 'preparation_model_declined')
+                    if any(code in str(err) for code in RETRYABLE) and attempt + 1 < max_attempts:
+                        excluded_models.append(model)
+                        excluded_families.append(family(model))
+                        continue
+                    raise
+                finally:
+                    usage = self.role.last_usage or {}
+                    if usage.get('complete') is True and usage.get('cost_usd') is not None:
+                        try:
+                            budget.settle(reservation, Decimal(str(usage['cost_usd'])))
+                        except (BudgetError, InvalidOperation, ValueError):
+                            pass  # Unknown cost retains its reservation and never becomes free.
+            if result is None:
+                if last_error:
+                    raise last_error
+                raise PreparationError('preparation_failed')
         if (not isinstance(self.role.last_usage,dict) or self.role.last_usage.get('complete') is not True
                 or self.role.last_usage.get('cost_usd') is None):
             raise PreparationError('preparation_usage_unknown')

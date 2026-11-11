@@ -337,7 +337,7 @@ function receiptSummary(raw) {
     ["Candidate recovery", r.execution?.candidate_recovered === true && "Agent bound reached; candidate sent to independent checks"],
     ["Preparer", r.preparation?.preparation_kind === "registered_static_acceptance" ? "Registered contract · no model request" : r.preparation?.preparer_model && esc(r.preparation.preparer_model)],
     ["Acceptance baseline", r.preparation?.negative_control === "registered_foundation_startup_rejection" ? "Untouched baseline refused the registered startup contract" : r.preparation?.negative_control === "registered_transition_source_missing" ? "Untouched baseline lacks the registered migration operator or browser source" : r.preparation?.negative_control === "failed_contract_assertion" && "Independent contract failed on the untouched baseline"],
-    ["Working memory", r.execution?.memory?.claude_mem?.status && esc(r.execution.memory.claude_mem.status)],
+    ["Working memory", (r.execution?.memory?.checkpoint?.status || r.execution?.memory?.claude_mem?.status) && esc(r.execution?.memory?.checkpoint?.status || r.execution?.memory?.claude_mem?.status)],
     ["Hindsight", r.execution?.memory?.hindsight?.status && esc(r.execution.memory.hindsight.status)],
     [draft ? "Agent self-test (draft)" : "Check", r.gate?.status ? esc(String(r.gate.status)) : check.status ? esc(String(check.status)) + (draft && check.status !== "passed" ? " · the agent is still fixing its draft; not the final verdict" : "") : check.returncode === 0 ? "passed" : null],
     ["Failure", check.failure_kind && esc(String(check.failure_kind))],

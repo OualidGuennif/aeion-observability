@@ -18,7 +18,8 @@ from .target import TargetError
 from .agent_files import BuilderError, parse_files
 from .preparation import _read as read_preparation_text, PreparationError
 from .models import author_model, eligibility, family
-from .review import content_digest, SECRET_PATTERNS
+from .review import (content_digest, SECRET_PATTERNS, longest_comment_block,
+                     SOURCE_EXTENSIONS, MAX_COMMENT_BLOCK)
 from .flue_session import FactorySession, new_run, usage
 from .freeze import AUTHOR_TIMEOUT_SECONDS
 from .store import MAX_ATTEMPTS, MAX_CORRECTION_ROUNDS
@@ -402,13 +403,28 @@ class FlueBuilder:
                   'Do not edit a code file whose Spec header names a knowledge/ document outside Write scopes '
                   '(rule L3 requires that document to change in the same pull request); if an earlier round '
                   'edited such a file, revert that code file to its base version.\n'
+                  'Keep comment blocks under 20 lines in all source files (repo-health: the history goes in the commit message).\n'
+                  # Measured 2026-11-10 (build d47014cb / ced0e3b8): a check failure named sqlite_import_failed
+                  # misled previous models into rewriting product code when the defect was in SqliteImportTest.java
+                  # (buildFixture wrote only replacementRows.get(0) leaving 9 rows instead of 10, and a 1-column SELECT
+                  # was accessed with rs.getString(2)). Inspect test fixtures for loop bounds, counts and 1-based JDBC indices.
+                  'When a protected check or test fails (e.g. check reason like sqlite_import_failed), '
+                  'do not assume product code is at fault. Inspect both product code and test fixtures in Write scopes: '
+                  'verify test fixtures for off-by-one errors, missing loop insertions in setup/fixtures, and 1-based JDBC column indices. '
+                  'Fix fixture defects when the fixture does not match the test requirements.\n'
                   'Write scopes: ' + json.dumps(frozen.write_scopes))
         prior_files = (prior_candidate(repo, frozen, feature['id'])
                        if correction is None and isinstance(previous_failure, dict) else None)
         if callable(getattr(self.check_sandbox, 'instructions', None)):
             prompt += '\nFROZEN BUILD PROTOCOL:\n' + self.check_sandbox.instructions(target)
+        try:
+            from .live_context import get_live_context
+            live_hint = get_live_context(feature['id'], feature.get('title', ''), frozen.write_scopes)
+        except Exception:
+            live_hint = None
         for hint in (attempt_text(correction), correction_text(correction, frozen.write_scopes),
-                     previous_failure_text(previous_failure, prior_files, frozen.write_scopes)):
+                     previous_failure_text(previous_failure, prior_files, frozen.write_scopes),
+                     live_hint):
             if hint and len((prompt + hint).encode()) <= 16000:
                 prompt += hint
         if len(prompt.encode()) > 16000:
@@ -480,6 +496,19 @@ class FlueBuilder:
                         bounded = replace(target, protected_check=replace(target.protected_check,
                             timeout_seconds=min(target.protected_check.timeout_seconds, max(1, int(deadline - time.monotonic())))))
                         passed, detail = target_check(bounded, work_root=folder, sandbox=checker)(None, {'repo': str(check_repo)})
+                    if passed:
+                        long_comments = [
+                            name for name, text in changed.items()
+                            if ("." + name.rsplit(".", 1)[-1].lower() in SOURCE_EXTENSIONS or text.startswith("#!"))
+                            and longest_comment_block(text) > MAX_COMMENT_BLOCK
+                        ]
+                        if long_comments:
+                            passed = False
+                            detail = {
+                                'reason': 'repo_health_failed', 'returncode': 1,
+                                'compiler_errors': [f"{n}: a comment block over 20 lines; keep comment blocks under 20 lines (repo-health)" for n in long_comments],
+                                'failed_tests': [f"{n}: comment block over 20 lines (repo-health)" for n in long_comments]
+                            }
                     result = {'status': 'passed' if passed else 'failed', 'artifact_digest': digest,
                               'reason':detail.get('reason') if isinstance(detail.get('reason'),str)
                                 and re.fullmatch('[a-z][a-z0-9_]{1,95}',detail['reason']) else ('check_failed' if not passed else 'passed'),

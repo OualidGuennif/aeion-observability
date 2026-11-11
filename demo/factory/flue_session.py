@@ -136,10 +136,11 @@ class FactorySession(Runner):
             'cost_basis':measured['basis'],'check':run['check'],'artifact_digest':run.get('artifact_sha256')}
         memories = {}
         try:
-            self.memory.checkpoint(run,outcome)
-            memories['claude_mem']={'status':'confirmed' if run.get('claude_mem_id') is not None else 'disabled'}
+            self.memory.checkpoint(run, outcome)
+            c_status = 'confirmed' if (run.get('claude_mem_id') is not None or run.get('checkpoint_status') == 'confirmed') else 'disabled'
+            memories['claude_mem'] = {'status': c_status}
         except Exception:
-            memories['claude_mem']={'status':'unavailable'}
+            memories['claude_mem'] = {'status': 'unavailable'}
         try:
             result=self.memory.retain_factory(run)
             memories['hindsight']={k:result[k] for k in ('status','bank','document_id') if k in result}

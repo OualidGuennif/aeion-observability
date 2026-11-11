@@ -7,7 +7,7 @@ from .flue_session import FactorySession, new_run, usage
 from .models import eligibility
 from .review_circuit import MAX_PROMPT_CHARS
 
-MAX_COMPLETE_REVIEW_BYTES = 240000
+MAX_COMPLETE_REVIEW_BYTES = 600000
 
 
 class FlueReview:

@@ -60,7 +60,6 @@ SERVICES = {
     "otel": ("http://127.0.0.1:13133", "/"),
     "langfuse": (LANGFUSE_URL, "/api/public/health"),
     "hindsight": (os.environ.get("HINDSIGHT_URL", "http://127.0.0.1:8889"), "/health"),
-    "claude_mem": (os.environ.get("CLAUDE_MEM_URL", "http://127.0.0.1:37777"), "/health"),
 }
 # Linux sandboxes run as the host user so bind-mounted files stay owned by it; Docker
 # Desktop maps ownership itself, so macOS keeps the image's dedicated agent UID.

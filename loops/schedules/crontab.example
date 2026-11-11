@@ -6,3 +6,5 @@
 0 8 * * 5    cd /path/to/repo && loops/orchestrator.sh retro
 0 9 1 * *    cd /path/to/repo && loops/orchestrator.sh watch
 */30 9-19 * * 1-5 cd /path/to/repo && loops/orchestrator.sh middle
+# Optional OpenShell proof auto-refresh (runs every 6 hours; probes only if <1h left or expired):
+# 0 */6 * * * cd /path/to/repo && demo/.local/venv/bin/python -c 'import sys; from pathlib import Path; sys.path.insert(0, "demo/app"); import settings; from sandbox import connection; connection()' >/dev/null 2>&1

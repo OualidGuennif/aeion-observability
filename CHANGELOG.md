@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Expands factory model token headroom for reasoning effort `max` across preparer
+  (65536 tokens) and review circuits, integrates deterministic frozen contract reuse
+  for automatic correction rounds, and adds multi-factor empirical arbiter reranking
+  with live Hindsight memory context.
 - Disables ClickHouse internal system log tables and memory profiler sampling
   in `demo/clickhouse.xml` so background log merges do not starve Docker CPU
   and disk I/O during factory checks and qualification.

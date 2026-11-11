@@ -1,5 +1,6 @@
 import json
 import tempfile
+from decimal import Decimal
 from pathlib import Path
 import sys
 import unittest
@@ -80,6 +81,25 @@ class DispatchWorkerTests(unittest.TestCase):
         self.assertEqual(receipt['execution']['check']['status'],'failed')
         self.assertEqual(len(receipt['frozen_digest']),64)
         self.assertEqual(len(receipt['base_sha']),40)
+
+    def test_settle_releases_reservation_on_incomplete_usage(self):
+        from factory.budget import DailyBudget
+        b = DailyBudget(Path(self.tmp.name) / "ledger.jsonl")
+        self.worker.budget, self.worker.budget_scope = b, "aeion-autonomous-forum"
+        res = b.admit("aeion-autonomous-forum", "50.00", note="test-build:001")
+        self.assertEqual(b.remaining("aeion-autonomous-forum"), Decimal("100.00"))
+        self.worker.last_usage = {"complete": False, "cost_usd": None, "estimated_cost_usd": "0.15"}
+        self.worker._settle(res, {"build_id": "test-build"})
+        self.assertEqual(b.remaining("aeion-autonomous-forum"), Decimal("149.85"))
+
+    def test_orphan_reservations_are_reconciled(self):
+        from factory.budget import DailyBudget
+        b = DailyBudget(Path(self.tmp.name) / "ledger.jsonl")
+        self.worker.budget, self.worker.budget_scope = b, "aeion-autonomous-forum"
+        b.admit("aeion-autonomous-forum", "50.00", note="dead-build:001")
+        self.assertEqual(b.remaining("aeion-autonomous-forum"), Decimal("100.00"))
+        self.worker._reconcile_orphan_reservations()
+        self.assertEqual(b.remaining("aeion-autonomous-forum"), Decimal("150.00"))
 
 
 class DispatchSessionTests(unittest.TestCase):

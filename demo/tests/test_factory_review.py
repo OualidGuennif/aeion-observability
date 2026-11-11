@@ -115,6 +115,17 @@ class HeldTests(unittest.TestCase):
                          allowed=["demo/forum/product/x.js"])
         self.assertEqual(result["status"], "refused")
 
+    def test_comment_block_over_twenty_lines_is_refused(self):
+        long_comment = "\n".join(f"// comment line {i}" for i in range(21)) + "\nclass A {}\n"
+        result = verdict({"demo/forum/product/x.java": long_comment})
+        self.assertEqual(result["status"], "refused")
+        self.assertIn("comment_block_too_long", [f["code"] for f in result["findings"]])
+
+    def test_comment_block_twenty_lines_or_fewer_is_approved(self):
+        short_comment = "\n".join(f"// comment line {i}" for i in range(20)) + "\nclass A {}\n"
+        result = verdict({"demo/forum/product/x.java": short_comment})
+        self.assertEqual(result["status"], "approved")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -44,6 +44,7 @@ class SandboxBridge:
         self.check = check
         self.feedback = None
         self.token = secrets.token_urlsafe(32)
+        self._cache = {}
         bridge = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -99,16 +100,23 @@ class SandboxBridge:
         op, path = request.get("op"), absolute(request.get("path"))
         if op not in OPERATIONS:
             raise ValueError("unsupported operation")
+        if op in ("stat", "exists", "readdir"):
+            cached = self._cache.get((op, path))
+            if cached is not None:
+                return dict(cached)
         argv = ["python3", "-I", HELPER, op, path]
         argv += ["--recursive"] if request.get("recursive") is True else []
         argv += ["--force"] if request.get("force") is True else []
         stdin = None
         if op == "write":
+            self._cache.clear()
             if not isinstance(request.get("data"), str):
                 raise ValueError("write requires base64 data")
             stdin = base64.b64decode(request["data"], validate=True)
             if len(stdin) > MAX_FILE:
                 raise ValueError("content larger than 1 MiB")
+        elif op in ("mkdir", "rm"):
+            self._cache.clear()
         result = self.sandbox.exec(argv, stdin=stdin, timeout=15)
         output = result.stdout if isinstance(result.stdout, bytes) else str(result.stdout or "").encode()
         if result.exit_code != 0 or len(output) > MAX_BODY:
@@ -116,9 +124,12 @@ class SandboxBridge:
         value = json.loads(output)
         if not isinstance(value, dict) or not isinstance(value.get("ok"), bool):
             raise RuntimeError("FS_HELPER_PROTOCOL")
+        if op in ("stat", "exists", "readdir") and value.get("ok"):
+            self._cache[(op, path)] = value
         return value
 
     def exec(self, request):
+        self._cache.clear()
         command, cwd, env, timeout_ms = (request.get(k) for k in ("command", "cwd", "env", "timeoutMs"))
         if not isinstance(command, str) or not command or len(command) > 65536 or "\0" in command:
             raise ValueError("command must be a non-empty string")

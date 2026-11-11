@@ -4,12 +4,12 @@ title: "Flue factory execution"
 description: "Deterministic supervision of untrusted Flue/Pi workers, isolated tools and protected publication."
 status: draft
 verified:
-  - at: 2026-11-07
-    what: "unittest budget, TLS, workspace, resume and review retry: ceilings stay 150/50/1; summary splits settled and reserved; an unforwarded claim settles at zero; a resume reuses the prepared contract; a down provider holds before prepare; one failed review retries once"
   - at: 2026-11-08
     what: "unittest: incomplete usage does not hand over an oversized local follow-up; a builder-error receipt keeps diagnostics; an identical failed draft counts"
   - at: 2026-11-09
     what: "unittest product boundary, correction rounds, work limits, target check, execution, routing and telemetry: out-of-scope Spec doc refused; JUnit XML diagnostics; signature-based repeated-check stop with round continuation and prior candidate seed; routing v6"
+  - at: 2026-11-10
+    what: "unittest budget and dispatch: open_reservations lists unsettled entries, unconditional settlement clears reservations on incomplete usage, orphan reservations are reconciled at startup"
 sources:
   - resource: ../../demo/factory/review_context.py
     title: "One-time operator repair of the old review envelope"
@@ -90,7 +90,7 @@ hold authority. A successful cycle is a confirmed merge, not a generated file or
 ## Data sources
 
 Pinned product/target/contract and harness/image identities define the execution. Trusted
-supervisor receipts define comparable model outcomes. Langfuse, claude-mem and Hindsight store
+supervisor receipts define comparable model outcomes. Langfuse, local checkpoints and Hindsight store
 bounded metadata/checkpoints; recalled text is advisory and cannot edit policy or scores.
 
 ## Inputs

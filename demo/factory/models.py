@@ -122,7 +122,7 @@ class Telemetry:
 # rate (list price times the measured allowance multiple). A model whose single request already
 # costs more than half of its purpose's cap cannot finish within it: Claude Haiku 5.5 at 4x is
 # about 0.70 USD per 65536-token review request against a 1 USD vote. Such a model is not selected.
-PURPOSE_OUTPUT_TOKENS = {"author": 65536, "review": 65536, "prepare": 32768}
+PURPOSE_OUTPUT_TOKENS = {"author": 65536, "review": 65536, "prepare": 65536}
 PREPARE_CAP_USD = "0.50"
 
 
@@ -153,20 +153,29 @@ def fits_budget(model, purpose):
 class Router:
     """Choose the most efficient eligible model, never a family already used in this review."""
 
-    def __init__(self, telemetry=None, models=None):
+    def __init__(self, telemetry=None, models=None, arbiter=None):
         self.telemetry = telemetry or Telemetry()
         self.models = dict(models or MODELS)
+        if arbiter is None:
+            try:
+                from .arbiter import ModelArbiter
+                self.arbiter = ModelArbiter()
+            except ImportError:
+                self.arbiter = None
+        else:
+            self.arbiter = arbiter
 
     def score(self, model, purpose):
         stats = self.telemetry.stats(model, purpose)
         # Cold start is an explicit fixed preference, not an invented quality/price estimate.
         # Actual protocol/check failures can demote that preference before cost ranking has
         # enough complete comparable samples. Missing evidence supplies no measured score.
-        order = DEFAULT_REVIEW_ORDER.index(model)
+        order = DEFAULT_REVIEW_ORDER.index(model) if model in DEFAULT_REVIEW_ORDER else 99
         failure_rate = 1 - stats['success_rate'] if stats['success_rate'] is not None else 0
         return -order - 100 * failure_rate
 
-    def select(self, purpose="review", exclude_models=(), exclude_families=(), require_role=None):
+    def select(self, purpose="review", exclude_models=(), exclude_families=(), require_role=None,
+               task_context=None, hindsight_memories=None):
         blocked_models = set(exclude_models)
         blocked_families = set(exclude_families)
         candidates = []
@@ -196,6 +205,13 @@ class Router:
                 (1 + statistics[m]['avg_cost_usd'] / cost_min
                    + statistics[m]['avg_latency_ms'] / time_min), 9) for m in measured}
         selected = max(scores, key=lambda m: (scores[m], m))
+        if task_context is not None and getattr(self, 'arbiter', None) is not None:
+            arb_selected, arb_meta = self.arbiter.arbitrate(
+                candidates, purpose, statistics, task_context=task_context, hindsight_memories=hindsight_memories
+            )
+            selected = arb_selected
+            basis = arb_meta.get("basis", basis)
+            scores = arb_meta.get("scores", scores)
         self.last_decision = {'basis': basis, 'purpose': purpose, 'model': selected,
                              'cohort': getattr(self.telemetry, 'cohort', None), 'scores': scores,
                              'samples': {m: statistics[m]['n'] for m in scores}}

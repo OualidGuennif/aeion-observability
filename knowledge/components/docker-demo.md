@@ -6,6 +6,8 @@ status: draft
 verified:
   - at: 2026-11-07
     what: "unittest live status: the report prints phase names and supervisor CI lines, and leaves reviewer prose out"
+  - at: 2026-11-10
+    what: "unittest stack and memory: claude-mem decommissioned in favor of deterministic local verified checkpoints, Hindsight 1.2.0 upgraded with reranking and PR evaluation post-mortems"
 sources:
   - id: framework
     resource: observability.md
@@ -48,8 +50,8 @@ child on macOS before its exec (`demo/app/grpc_fork.py`, test_grpc_fork).
 
 The [operator cockpit](operator-cockpit.md) is the default page at `/` and `/factory`; the
 model lab at `/lab` is a showcase and playground: it explains each stack piece (OpenShell
-contains Flue + Pi, the relay counts model usage, OpenTelemetry feeds Langfuse, claude-mem and
-Hindsight keep continuity) and its memory room only reads this observer's own checkpoints and
+contains Flue + Pi, the relay counts model usage, OpenTelemetry feeds Langfuse, deterministic local checkpoints and
+Hindsight 1.2.0 keep continuity) and its memory room only reads this observer's own checkpoints and
 bounded Hindsight recall. Both pages share light/dark tokens. Current-contract completion locks selection. Historical
 results for rewritten MDs remain visible without certifying the new contract. A dependency wait
 names the missing IDs and clears only after their current contracts reach product main; it
@@ -124,9 +126,9 @@ HTTP traces. Primary integration references, checked 2026-10-27:
   and preserved historical observations. Reasoning-effort enums survive both privacy filters;
   prompts, outputs and hidden reasoning remain excluded.
 - [Hindsight configuration](https://hindsight.vectorize.io/developer/configuration) and the
-  running 1.1.0 OpenAPI schema for retain/recall; `chunks` mode uses no extraction LLM.
-- [claude-mem explicit saves](https://github.com/thedotmack/claude-mem/blob/93c82aac6ce14e1cbda02dff9aa4c16e0edfce57/src/services/memory/save-memory.ts),
-  including project-scoped fingerprint deduplication, observation readback and the `pi` platform source.
+  running 1.2.0 OpenAPI schema for retain/recall/documents with RRF reranking; `chunks` mode uses no extraction LLM.
+- Deterministic local verified checkpoints with SHA-256 fingerprint deduplication (replacing claude-mem),
+  including run-scoped observation readback and artifact integrity.
 
 The [tokenizer manifest](../../demo/tokenizers.json) records immutable upstream revisions and
 file fingerprints. No remote model code is executed and no coding-model weights are fetched.
@@ -148,7 +150,7 @@ key is copied privately, and only the supervisor holds it.
   `result.json` scored per event against answers that never reach the harness.
 - OTel traces to Langfuse, including native usage/cost estimates and quality/autonomy scores.
 - Fsynced local metadata audit plus bounded OTLP/Docker logs, joined by run/trace/event identity.
-- Read-back claude-mem working checkpoints and Hindsight session-analysis memories in separate
+- Read-back verified local checkpoints and Hindsight session-analysis memories in separate
   real/synthetic banks. Neither memory service receives a coding-provider credential. Hindsight also retains task-specific model-selection decisions and their run IDs as advisory snapshots.
 - Cockpit KPIs per tier and task: all-attempt cost estimates, input/output tokens, median task time, verified
   autonomous completion, unknown exposure, human assistance and comparable profile versions.

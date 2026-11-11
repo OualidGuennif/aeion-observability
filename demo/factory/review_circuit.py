@@ -17,7 +17,7 @@ from .review import content_digest, SECRET_PATTERNS, MAX_FILE_BYTES, MAX_TOTAL_B
 from .target import _git, SHA_RE
 
 # Legacy name retained; complete review admission measures UTF-8 bytes.
-MAX_PROMPT_CHARS = 240000
+MAX_PROMPT_CHARS = 600000
 SYSTEM = (
     "You are an independent code reviewer. The diff below was produced by another AI agent. "
     "Look for backdoors, credential exfiltration, destructive behaviour, hidden network calls, "
@@ -116,21 +116,26 @@ def _normalise(answer):
     return {"verdict": verdict, "reason": reason}
 
 
-# A reviewer whose provider answered "busy" after the relay's bounded retries produced no verdict
-# and no output; its vote goes once to the next eligible independent reviewer. Measured
-# 2026-11-05: DeepSeek answered HTTP 429 twice and held a build whose gate had passed.
-UNAVAILABLE_FAILURES = frozenset({'PROVIDER_RATE_LIMITED', 'PROVIDER_UNAVAILABLE'})
+# A reviewer whose provider answered "busy" or whose CLI/agent timed out or errored
+# without producing a typed verdict hands its vote once to the next eligible independent
+# reviewer. Measured 2026-11-05 (DeepSeek HTTP 429) and 2026-11-09 (DeepSeek CLI length/timeout).
+UNAVAILABLE_FAILURES = frozenset({'PROVIDER_RATE_LIMITED', 'PROVIDER_UNAVAILABLE', 'CLI_FAILED', 'AGENT_TIMEOUT', 'OUTPUT_LIMIT'})
 MAX_SUBSTITUTIONS = 1
 # A dropped connection is not a bad reviewer. Retry that same model before holding the vote.
 MAX_TRANSPORT_RETRIES = 3
 
 
 def _unavailable(execution):
-    """True only for a busy-provider failure that produced no output token."""
-    if not isinstance(execution, dict) or execution.get('failure') not in UNAVAILABLE_FAILURES:
+    """True for an infrastructure, provider, CLI or timeout failure where no verdict was produced."""
+    if not isinstance(execution, dict):
         return False
-    usage = execution.get('usage')
-    return isinstance(usage, dict) and usage.get('output_tokens') == 0
+    failure = execution.get('failure')
+    if failure not in UNAVAILABLE_FAILURES:
+        return False
+    if failure in {'PROVIDER_RATE_LIMITED', 'PROVIDER_UNAVAILABLE'}:
+        usage = execution.get('usage')
+        return isinstance(usage, dict) and usage.get('output_tokens') == 0
+    return True
 
 
 def two_vote_review(author_model, feature_id, files, router, complete, telemetry=None,

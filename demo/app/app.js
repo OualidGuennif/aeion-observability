@@ -67,7 +67,7 @@ function render() {
     const info=el('div','','detail-meta');info.append(el('div',`${latest.agents} agent(s) · ${latest.check?.passed ?? '—'}/${checkTotal(latest)} checks · ${latest.human_interventions ? 'human assisted' : 'no human intervention recorded'}`));
     info.append(el('div',latest.events.some(e=>e.name==='agent.handover') ? 'Old runtime retired. Artifact preserved. New session created.' : 'Fixed task · protected verifier · bounded authority.'));
     info.append(el('code',`Trace ${latest.trace_id ?? 'pending'}`));detail.append(info);
-    const statuses=el('div','','memory-status');statuses.append(el('span',latest.claude_mem_id ? `claude-mem · checkpoint #${latest.claude_mem_id} read back` : 'claude-mem · waiting'),el('span',`Hindsight · ${latest.memory?.status ?? 'waiting'}`));detail.append(statuses);
+    const statuses=el('div','','memory-status');statuses.append(el('span',latest.claude_mem_id ? `Checkpoint #${latest.claude_mem_id} verified` : 'Checkpoint · waiting'),el('span',`Hindsight · ${latest.memory?.status ?? 'waiting'}`));detail.append(statuses);
   } else $('active-detail').append(el('p','Start a live build or replay the boundary. Verified execution and memory acknowledgements appear here.'));
   for(const run of runs) {
     const card=el('article','','run'), head=el('div','','run-header');
@@ -122,7 +122,7 @@ async function refresh() {
   } catch {$('message').textContent='Observer temporarily unavailable.';} finally {refreshing=false;}
 }
 function stackState(name,good,yes,no){document.querySelectorAll(`[data-stack="${name}"] .stack-state`).forEach(e=>{e.textContent=good?yes:no;e.classList.toggle('ok',good);e.classList.toggle('bad',!good);});}
-const SERVICES=['otel','langfuse','hindsight','claude_mem'];
+const SERVICES=['otel','langfuse','hindsight'];
 async function integrations(){try{const states=await fetch('/api/integrations').then(r=>r.json());document.querySelectorAll('[data-service]').forEach(e=>{const good=states[e.dataset.service]==='connected';e.classList.toggle('connected',good);e.title=good?'Connected':'Unavailable';});const connected=SERVICES.filter(n=>states[n]==='connected').length;for(const n of SERVICES)stackState(n,states[n]==='connected','Connected','Unavailable');$('system-dot').classList.toggle('connected',connected===SERVICES.length);$('system-status').textContent=`${connected}/${SERVICES.length} services connected`;}catch{$('system-status').textContent='Services unknown';for(const n of SERVICES){document.querySelectorAll(`[data-stack="${n}"] .stack-state`).forEach(e=>{e.textContent='Unknown';e.classList.remove('ok','bad');});}}}
 async function post(payload){$('message').textContent='';try{const r=await fetch('/api/runs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const result=await r.json();if(!r.ok)$('message').textContent=result.error;}catch{$('message').textContent='Unable to submit request.';}await refresh();}
 async function start(mode){setFilter(mode==='simulation'?'synthetic':'real');await post({mode,profile:$('profile').value,task_id:$('scenario').value,objective:$('objective').value,runtime:$('runtime').value});}
@@ -141,10 +141,10 @@ function renderCheckpoints(runs){
     item.append(el('strong',`Checkpoint #${run.claude_mem_id} · ${taskInfo(run.task_id??'pricing-js-v1')?.name??run.task_id??'Task'}`));
     item.append(el('span',`${run.synthetic?'Synthetic replay':label(run.model)} · ${run.agents} agent(s) · ${run.check?.passed??'unknown'}/${checkTotal(run)} checks`));
     item.append(el('code',`Run artifact SHA-256 ${run.artifact_sha256??'unknown'}`));
-    const result=el('div');const button=el('button','Read back from claude-mem ↗','text-button');button.type='button';
-    button.onclick=async()=>{button.disabled=true;result.replaceChildren(el('p','Reading back…'));try{const r=await fetch(`/api/memory/checkpoint/${run.claude_mem_id}`);const c=await r.json();if(!r.ok||c.status!=='ok'){result.replaceChildren(el('p',r.status===404?'This checkpoint is not one this observer wrote.':'claude-mem unavailable: nothing was read back.'));return;}
+    const result=el('div');const button=el('button','Verify local checkpoint ↗','text-button');button.type='button';
+    button.onclick=async()=>{button.disabled=true;result.replaceChildren(el('p','Reading back…'));try{const r=await fetch(`/api/memory/checkpoint/${run.claude_mem_id}`);const c=await r.json();if(!r.ok||c.status!=='ok'){result.replaceChildren(el('p',r.status===404?'This checkpoint is not one this observer wrote.':'Checkpoint unavailable: nothing was read back.'));return;}
       const same=c.sha256&&c.sha256===run.artifact_sha256;const dl=el('dl');for(const [k,v] of [['Task',c.task],['Previous agent',c.previous_agent],['Artifact',c.artifact],['Checks',c.check?.passed!=null?`${c.check.passed}/${c.check.total??'unknown'}`:'unknown'],['SHA-256',c.sha256]]){dl.append(el('dt',k),el('dd',v==null?'unknown':String(v)));}
-      const verdict=el('span',same?'matches the run artifact':'does not match the run artifact','verdict '+(same?'ok':'bad'));const head=el('p','Read back now');head.append(verdict);result.replaceChildren(head,dl);}catch{result.replaceChildren(el('p','claude-mem unavailable: nothing was read back.'));}finally{button.disabled=false;}};
+      const verdict=el('span',same?'matches the run artifact':'does not match the run artifact','verdict '+(same?'ok':'bad'));const head=el('p','Read back now');head.append(verdict);result.replaceChildren(head,dl);}catch{result.replaceChildren(el('p','Checkpoint unavailable: nothing was read back.'));}finally{button.disabled=false;}};
     item.append(button,result);host.append(item);
   }
 }

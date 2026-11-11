@@ -146,7 +146,7 @@ services:
 
   hindsight:
     logging: *bounded-logging
-    image: ghcr.io/vectorize-io/hindsight:1.1.0@sha256:50311d02b4d5d2b7c5242bd336edf8735df8374eaad496a92f49c83b37d2aa06
+    image: ghcr.io/vectorize-io/hindsight:1.2.0@sha256:19d0c08f3df79acac29384826419a1ca158129e81ec527cdcbd8c97ff4ef76da
     ports: ["127.0.0.1:8889:8888", "127.0.0.1:9999:9999"]
     environment:
       OMP_NUM_THREADS: "1"
@@ -157,25 +157,12 @@ services:
       HINDSIGHT_API_LLM_TIMEOUT: "45"
       HINDSIGHT_API_RETAIN_EXTRACTION_MODE: chunks
       HINDSIGHT_API_RERANKER_PROVIDER: rrf
-      HINDSIGHT_API_ENABLE_RERANKING: "false"
+      HINDSIGHT_API_ENABLE_RERANKING: "true"
       HINDSIGHT_API_ENABLE_AUTO_CONSOLIDATION: "false"
     stop_grace_period: 40s
     volumes: ["hindsight:/home/hindsight/.pg0"]
     shm_size: 256m
     mem_limit: 2000m
-
-  claude-mem:
-    logging: *bounded-logging
-    build: ./claude-mem
-    volumes: ["claude-mem:/data"]
-    environment:
-      CLAUDE_MEM_WORKER_HOST: 0.0.0.0
-      CLAUDE_MEM_CHROMA_ENABLED: "false"
-      CLAUDE_MEM_TELEMETRY: "0"
-      DO_NOT_TRACK: "1"
-    # Loopback only, for the host-native controller's explicit save/read calls.
-    ports: ["127.0.0.1:37777:37777"]
-    mem_limit: 512m
 
 volumes:
   postgres:
@@ -184,5 +171,4 @@ volumes:
   minio:
   redis:
   hindsight:
-  claude-mem:
   otel-logs:

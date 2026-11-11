@@ -291,6 +291,24 @@ class DailyBudget:
                 }
             return report
 
+    def open_reservations(self, scope=None, day=None):
+        """Return unsettled reservations with metadata for reconciliation."""
+        day = day or self._today()
+        with self._locked():
+            entries = self._read()
+            settled_ids = {e["reservation"] for e in entries
+                           if e.get("kind") == "settle" and (scope is None or e.get("scope") == scope) and e.get("day") == day}
+            return [
+                {
+                    "reservation": Reservation(e["reservation"], e["scope"], e["day"], e["usd"]),
+                    "note": e.get("note", ""),
+                    "ts_ns": e.get("ts_ns", 0),
+                }
+                for e in entries
+                if (e.get("kind") == "reserve" and (scope is None or e.get("scope") == scope)
+                    and e.get("day") == day and e.get("reservation") not in settled_ids)
+            ]
+
     def _check_scope(self, scope):
         if scope not in self.limits:
             raise BudgetError("budget_unknown_scope")

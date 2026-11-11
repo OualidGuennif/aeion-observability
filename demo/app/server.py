@@ -146,16 +146,22 @@ def recall_memories(synthetic, question):
 
 
 def read_checkpoint(observation_id):
-    """Read one working checkpoint back from claude-mem; only its metadata fields leave."""
-    from memory import CLAUDE_MEM_URL, request
-    if not CLAUDE_MEM_URL:
-        return {"status": "disabled"}
-    stored = request(CLAUDE_MEM_URL, "/api/observation/" + str(int(observation_id)), timeout=3)
-    state = json.loads(stored["narrative"])
-    check = state.get("check") if isinstance(state.get("check"), dict) else {}
-    return {"status": "ok", "id": int(observation_id),
-            **{key: state.get(key) for key in ("task", "previous_agent", "artifact", "sha256")},
-            "check": {key: check.get(key) for key in ("passed", "total") if key in check}}
+    """Read one verified working checkpoint back from local report; only its metadata fields leave."""
+    target = int(observation_id)
+    for p in report_paths():
+        try:
+            data = json.loads(p.read_text())
+            if data.get("checkpoint_id") == target or data.get("claude_mem_id") == target:
+                check = data.get("check") if isinstance(data.get("check"), dict) else {}
+                return {"status": "ok", "id": target,
+                        "task": data.get("task_id", "pricing-js-v1"),
+                        "previous_agent": (data.get("agents") or [{}])[-1].get("name", "agent"),
+                        "artifact": data.get("artifact_sha256"),
+                        "sha256": data.get("checkpoint_sha256") or data.get("artifact_sha256"),
+                        "check": {key: check.get(key) for key in ("passed", "total") if key in check}}
+        except (OSError, ValueError, TypeError):
+            continue
+    return {"status": "unknown_checkpoint"}
 # One journal, two independent $150.00 purses: the cockpit and the forum workers never share money.
 BUDGET = DailyBudget(os.environ.get("AEION_BUDGET_LEDGER") or LOCAL / "budget/ledger.jsonl")
 runner = Runner(Telemetry(), save, memory=memory, audit=Audit(DATA), budget=BUDGET,
@@ -417,7 +423,7 @@ class Handler(BaseHTTPRequestHandler):
         elif re.fullmatch(r"/api/memory/checkpoint/[0-9]{1,12}", self.path):
             # Only checkpoints this observer wrote are read back, never other claude-mem data.
             wanted = int(self.path.rsplit("/", 1)[1])
-            known = {json.loads(p.read_text()).get("claude_mem_id") for p in report_paths()}
+            known = {json.loads(p.read_text()).get("claude_mem_id") for p in report_paths()} | {json.loads(p.read_text()).get("checkpoint_id") for p in report_paths()}
             if wanted not in known:
                 self.respond(404, {"status": "unknown_checkpoint"})
                 return
