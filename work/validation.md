@@ -5,6 +5,7 @@
   - Pinned exact release binary hashes in `demo/openshell/setup.py`: Darwin arm64 (`3c1f767d...` openshell, `6a4ccc70...` gateway), Linux x86_64 (`87f5c41d...`, `d2e5e7f8...`), Linux aarch64 (`9a2e8f52...`, `09de6844...`).
   - Pinned OCI image digests: sandbox `ghcr.io/nvidia/openshell/sandbox:0.1.8@sha256:f0fe7dbf18d833acb5da99c405231124718f23b524aa8e3c0108e6f37530033b`, supervisor `supervisor:0.1.8@sha256:deadeacfdba6d12ca27e538d0002696369d4de5a4fcad075ab503495503af9d1`.
   - `demo/app/sandbox.py` updated to support `0.1.8` with backward compatibility for active `0.1.7` gateway leases.
+  - `demo/openshell/qualify.py` updated to assert client health version in `('0.1.7', '0.1.8')` and publish active gateway version in security qualification evidence.
   - `demo/app/bridge.py` enhanced with in-memory read cache (`stat`, `exists`, `readdir`, `read`), invalidated on mutating verbs (`write`, `mkdir`, `rm`) and any `exec` command. `demo/tests/test_bridge.py` verified (4/4 PASS).
 - Pillar 2: Hindsight 1.2.1 SDK & Cognitive Synthesis
   - Pinned `hindsight-client==1.2.1` in `demo/requirements.txt`.

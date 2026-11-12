@@ -4,7 +4,7 @@ A local showcase connecting **OpenTelemetry, Langfuse, Hindsight and claude-mem*
 **Flue + Pi** agent sessions. The cockpit/supervisor is Python and runs **natively on the
 host**; the agent harness is **Flue 2.3.0 on Pi 1.4.0** in [three execution tiers](#three-execution-tiers):
 triage in an emulated in-memory shell, a guided local assistant with folder-confined file tools,
-and autonomous coding whose every tool call runs inside **NVIDIA OpenShell 0.1.7**. Generated
+and autonomous coding whose every tool call runs inside **NVIDIA OpenShell 0.1.8**. Generated
 code from both coding tiers is checked in OpenShell. The product under test is the **Agora
 forum** (Quarkus/Java); the old Deno/Hono playground is gone. The canonical product source is the
 separate `aeion-autonomous-forum` checkout at
