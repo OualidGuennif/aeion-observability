@@ -3,7 +3,18 @@
 Updated 2026-11-12. Current facts only; historical evidence is in HANDOVER.md and validation.md.
 No final operational Go or actual product feature merge is claimed.
 
-## Factory 3.0 Modernization Plan (All 4 Pillars) — COMPLETED
+## Feature 003 Root Cause Debug & Handover Resilience — RESOLVED
+
+- Owner decision: debug why Haiku failed in 3 sessions on Feature 003, preserve reasoning effort 'max', make system resilient against handover traps, and enable reliable relaunch of 003.
+- State:
+  - Root cause confirmed: in build `557785d03d5f`, Haiku's code changes had fully passed checks (`check.status: passed` at 18:09:37 in session 1). However, fresh handover sessions (2 and 3) initialized in-memory `lastCheck` as `null` because `runner.py` did not pass handover check state to Flue. `finishReminder(null)` forced the model to keep working with `"You have not run run_protected_checks"`. Combined with unguided post-check file edits under reasoning effort `max`, each session hit the 250k context token ceiling (`gate.closed`), exhausting 3 sessions. Furthermore, `flue_builder.py` did not snapshot into `retained` upon normal handover and did not include `handover_limit` in candidate recovery.
+  - Fix: `runner.py` passes `AEION_HANDOVER_CHECK` to Flue so resumed sessions preserve passed check state; `factory-checks.ts` initializes `lastCheck` from `AEION_HANDOVER_CHECK` and returns explicit completion instructions upon passing; `flue_builder.py` updates `retained` on each handover and recovers candidates on `handover_limit` (also reflected in `store.py`).
+  - Verification: 30/30 Flue tests pass, 9/9 work limit tests pass, 33/33 repo unit tests pass, repo-health passes.
+- Next: restart Feature 003 build on cockpit / factory daemon.
+- Blocker: none.
+- Evidence: [validation](validation.md); [execution contract](../knowledge/components/factory-flue.md).
+
+## Factory 3.0 Modernization Plan (All 4 Pillars) — MERGED TO MAIN
 
 - Owner decision: keep thinkingLevel 'max' everywhere across all roles, make system resilient against failure modes, implement OpenShell 0.1.8 qualification and bridge I/O caching, Flue 2.3.0 persistent state and passed-check finish steering, Hindsight 1.2.1 SDK integration with cognitive synthesis fallback, and Langfuse v5.2 enterprise prompt management and multi-dimensional evaluation scores.
 - State:

@@ -562,6 +562,10 @@ class FlueBuilder:
                     finally:
                         self.last_feedback = getattr(runtime, 'agent_feedback', None) or self.last_feedback
                     changed = snapshot()
+                    if changed:
+                        retained = changed
+                        run['retained_files_count'] = len(retained)
+                        run['retained_artifact_digest'] = content_digest(retained)
                     if outcome == 'complete':
                         if not changed:
                             raise BuilderError('NO_PATCH')
@@ -594,7 +598,7 @@ class FlueBuilder:
             measured=usage(run)
             try:authorized=callable(self.authorization_check) and self.authorization_check() is True
             except Exception:authorized=False
-            if (str(caught) in {'AGENT_TIMEOUT','AGENT_DEADLINE','STEP_LIMIT','OUTPUT_LIMIT'}
+            if (str(caught) in {'AGENT_TIMEOUT','AGENT_DEADLINE','STEP_LIMIT','OUTPUT_LIMIT','handover_limit'}
                     and retained and type(run.get('forwarded_count')) is int and run['forwarded_count']>0
                     and measured.get('complete') is True):
                 try:cost=Decimal(str(measured.get('cost_usd')));limit=Decimal(frozen.cost_reservation_usd)

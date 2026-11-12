@@ -539,6 +539,8 @@ class Runner:
             env.update(AEION_BRIDGE_URL=bridge.url, AEION_BRIDGE_TOKEN=bridge.token)
         if kind == 'factory-build':
             env['AEION_FACTORY_BUILD'] = '1'
+            if handover and isinstance(handover.get('check'), dict):
+                env['AEION_HANDOVER_CHECK'] = json.dumps(handover['check'])
         entry = ({'factory-review':'src/agents/reviewer.ts', 'factory-prepare':'src/agents/preparer.ts'}
                  .get(kind, AGENTS[runtime]))
         message = ('Review the complete attached frozen_review_packet and submit one verdict.'

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fixes handover check state loss across multi-session builds by propagating
+  `AEION_HANDOVER_CHECK` into the Flue subprocess, directing authors to stop
+  immediately upon passing protected checks, and admitting `handover_limit`
+  into candidate recovery in `flue_builder.py` and `store.py`.
+
 - Upgrades the factory runtime to Factory 3.0: pins OpenShell 0.1.8 with backward
   compatibility for 0.1.7 gateway leases, adds SandboxBridge in-memory caching
   with immediate mutating operation invalidation, integrates Hindsight 1.2.1
