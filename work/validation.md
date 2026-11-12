@@ -1,3 +1,21 @@
+## Contract Scope Bounding & Correction Deadlock Resolution — 2026-11-12
+
+- Incident & Root Cause Analysis:
+  - During Feature 003 attempts, the Preparer model generated a sprawling 30KB acceptance test (`acceptance.mjs`) testing unrelated endpoints with extreme requirements:
+    1. Sent >20KiB request bodies demanding 400/422 on thread creation (contradicting the inherited 16KiB HTTP transport cap, which refuses with 413).
+    2. Asserted settings list ordering and bound row-hiding.
+    3. Asserted global frozen clock across independent live HTTP requests.
+  - To make `acceptance.mjs` pass, author models were forced into 3 out-of-scope hacks: raising transport cap to 64K in `application.properties`, adding row-hiding in `SettingsResource.java`, and hacking `ForumClock.java` on local DB.
+  - Independent reviewers correctly voted reject: `"Out-of-scope: settings list hides at-bound rows, 16K cap raised to 64K, clock freezes on local DB; harness core sound."`
+  - In correction rounds, `preparation.py` blindly reused the flawed contract (`factory-correction:` copied `prev_dir / 'acceptance.mjs'`). When the author tested removing the hacks, acceptance failed; when it kept them, `dispatch.py` triggered `correction_unchanged` and halted the factory.
+- Robust Architectural Fixes:
+  - `demo/factory/product_checks.py`: `acceptance_prompt` strictly bounds acceptance assertions to deliverables in the frozen specification, explicitly warns about the 16KiB HTTP transport cap, and clarifies that test harness clock isolation is an internal JUnit/Quarkus fixture, not live HTTP traffic.
+  - `demo/factory/preparation.py`: `previous_feature_feedback` extracts structured reviewer rejection reasons from `circuit['votes']`; `prepare()` auto-detects prior `reviewer_rejected`, `correction_unchanged`, or contract-scope conflicts and sets `reprepare_needed = True` rather than blindly copying flawed contracts.
+  - `demo/factory/dispatch.py`: touches `reprepare_needed` on `correction_unchanged` so subsequent runs re-prepare fresh contracts; preserves $\le 1500$ lines.
+- Verification:
+  - `demo/tests/test_factory_preparation.py`: 16/16 tests PASS (scope bounds, transport limit, circuit rejection extraction).
+  - Protocol requalified and Cockpit daemon restarted.
+
 ## Sandbox Provisioning Resilience & Quarkus Lifecycle Hardening — 2026-11-12
 
 - Incident & Root Cause Analysis:

@@ -277,8 +277,35 @@ class PreparationTests(unittest.TestCase):
         prompt = acceptance_prompt(task, 'INTERFACES', feedback='Prior feedback line')
         self.assertIn('X-CSRF-Token', prompt)
         self.assertIn('422', prompt)
+        self.assertIn('STRICT FEATURE BOUNDS & NEGATIVE CONSTRAINTS', prompt)
+        self.assertIn('16KiB', prompt)
+        self.assertIn('JUnit/Quarkus fixture', prompt)
         self.assertIn('PREVIOUS ATTEMPT FINDINGS & VERIFIER CONFLICTS', prompt)
         self.assertIn('Prior feedback line', prompt)
+
+    def test_previous_feature_feedback_extracts_circuit_rejection_reasons(self):
+        from factory.preparation import previous_feature_feedback
+        db_dir = self.root / 'demo/.local/factory'
+        db_dir.mkdir(parents=True, exist_ok=True)
+        db_path = db_dir / 'factory.db'
+        import sqlite3
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("CREATE TABLE builds (feature_id TEXT, receipt TEXT, status TEXT, updated_ns INTEGER)")
+        receipt = {
+            "feedback": {"author": "Forced changes"},
+            "circuit": {"votes": [{"model": "deepseek-4.1-flash", "verdict": "reject", "reason": "Out-of-scope changes"}]}
+        }
+        conn.execute(
+            "INSERT INTO builds VALUES ('003', ?, 'failed', 200)",
+            (json.dumps(receipt),)
+        )
+        conn.commit()
+        conn.close()
+
+        fb = previous_feature_feedback(self.root, '003')
+        self.assertIsNotNone(fb)
+        self.assertIn("Author finding: Forced changes", fb)
+        self.assertIn("Reviewer rejection (deepseek-4.1-flash): Out-of-scope changes", fb)
 
 
 def _sha(text):

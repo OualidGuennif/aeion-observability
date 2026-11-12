@@ -1309,11 +1309,11 @@ class DispatchWorker:
             )
             return {"build_id": build["build_id"], "result": result}
 
-        if (self.correction is not None and self.correction.get('candidate_digest')
-                and self.correction.get('trigger') != 'crash'
-                and content_digest(files) == self.correction['candidate_digest']):
+        if (self.correction is not None and self.correction.get('candidate_digest') and self.correction.get('trigger') != 'crash' and content_digest(files) == self.correction['candidate_digest']):
             # No progress: the correction returned the refused candidate unchanged. Asking the
-            # same checks and reviewers again would only spend; the owner decides.
+            # same checks and reviewers again would only spend; mark reprepare_needed for next attempt.
+            try:(self.work_root / build['build_id'] / 'prepared' / 'reprepare_needed').touch(mode=0o600, exist_ok=True)
+            except OSError:pass
             self.store.hold_dispatched(build['build_id'], 'owner_review_required', receipt={
                 **self._identity(build, feature, frozen, base_sha, verdict), 'reason': 'correction_unchanged'})
             return {'build_id': build['build_id'], 'result': {'status': 'held', 'reason': 'correction_unchanged'}}
