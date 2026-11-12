@@ -8,6 +8,8 @@ verified:
     what: "unittest live status: the report prints phase names and supervisor CI lines, and leaves reviewer prose out"
   - at: 2026-11-10
     what: "unittest stack and memory: claude-mem decommissioned in favor of deterministic local verified checkpoints, Hindsight 1.2.0 upgraded with reranking and PR evaluation post-mortems"
+  - at: 2026-11-12
+    what: "factory modernization: OpenShell 0.1.8 qualification and bridge caching, Langfuse v5.2 enterprise prompt management and multi-dimensional scores, Hindsight 1.2.1 SDK reflection fallback"
 sources:
   - id: framework
     resource: observability.md
@@ -37,13 +39,13 @@ of upstream silence before reporting `PROVIDER_TIMEOUT`; other socket failures a
 the **Agora forum** (`demo/forum-app/`, Quarkus/Java). Nine observation services use Docker; a
 private native mTLS gateway owns OpenShell sandboxes through its Docker compute driver. This is an
 explicitly authorized local pilot, not a production OPS boundary or general model benchmark.
-OpenShell is pinned at v0.1.7 (binaries, SDK and the sandbox/supervisor images by digest; read
-2026-11-06 from the [v0.1.6](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.6) and
-[v0.1.7](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.7) upgrade notes). The gateway
+OpenShell is pinned at v0.1.8 with v0.1.7 compatibility (binaries, SDK and the sandbox/supervisor images by digest; read
+2026-11-06 from the [v0.1.6](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.6),
+[v0.1.7](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.7) and [v0.1.8](https://github.com/NVIDIA/OpenShell/releases/tag/v0.1.8) upgrade notes). The gateway
 must now authenticate callers; its client CA turns on mTLS user authentication by default, so
 no `allow_unauthenticated_users` opt-in is set. Sandbox and supervisor images move together
-(the v0.1.6 control connection changed direction). The OCSF 1.8.0, Podman CA, MicroVM user
-and shared-supervisor changes do not apply to this Docker-driver setup.
+(the v0.1.6 control connection changed direction). The supervisor loopback bridge caches read and stat operations
+in memory with invalidation on mutating operations to eliminate container process spawn overhead.
 The controller loads the OpenShell gRPC client, so it sets `GRPC_ENABLE_FORK_SUPPORT=false`
 before that import: otherwise every subprocess fork restarts gRPC threads that can abort the
 child on macOS before its exec (`demo/app/grpc_fork.py`, test_grpc_fork).
@@ -121,12 +123,11 @@ HTTP traces. Primary integration references, checked 2026-10-27:
   (operator labels; raw host paths refused) and [host-backed volumes](https://github.com/NVIDIA/OpenShell/blob/bdb956f2cd65a635f1294fccf1d138d263bf650f/crates/openshell-driver-docker/src/lib.rs)
   (`enable_bind_mounts`).
 - [Langfuse OTLP](https://langfuse.com/integrations/native/opentelemetry), observations v2, native
-  cost details and boolean scores. Current server pins are4.75.0; the prior4.49.0 schema
-  qualification stays historical. The upgrade verifies actual migrations, metadata-only ingestion
-  and preserved historical observations. Reasoning-effort enums survive both privacy filters;
-  prompts, outputs and hidden reasoning remain excluded.
+  cost details, centralized prompt management with local fallback, and multi-dimensional factory evaluation
+  scores (acceptance, review consensus, budget efficiency, and cache hit ratio). Server pins are 4.75.0, client SDK is v5.2.0.
+  Reasoning-effort enums survive both privacy filters; prompts, outputs and hidden reasoning remain excluded.
 - [Hindsight configuration](https://hindsight.vectorize.io/developer/configuration) and the
-  running 1.2.0 OpenAPI schema for retain/recall/documents with RRF reranking; `chunks` mode uses no extraction LLM.
+  1.2.1 SDK client for retain/recall/documents and cognitive reflection (`reflect()`) with automatic fallback to BM25 recall when the external LLM provider is set to none.
 - Deterministic local verified checkpoints with SHA-256 fingerprint deduplication (replacing claude-mem),
   including run-scoped observation readback and artifact integrity.
 

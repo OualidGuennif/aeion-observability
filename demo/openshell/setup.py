@@ -22,15 +22,15 @@ except ImportError:  # setup.py is also a script or loaded by file path
 
 ROOT=Path(__file__).resolve().parents[1]
 STATE=ROOT/'.local/openshell'
-VERSION='0.1.7'
+VERSION='0.1.8'
 ARTIFACTS={
- ('Darwin','arm64'):{'openshell':('aarch64-apple-darwin','c5899a2fe6b40c371e7d660bd8983cefb766d04658bd9193b12a80525b12c742'),'openshell-gateway':('aarch64-apple-darwin','fe47a385c16c10cde8905bf1bf627e4a9fbf4a81bcf44b388dec4d22618fbb48')},
- ('Linux','x86_64'):{'openshell':('x86_64-unknown-linux-musl','5c1adfcae797eac9b2e8b9280c66c1f75e4e84d9e31ce6938c5b994314ef6098'),'openshell-gateway':('x86_64-unknown-linux-gnu','e1714dcfd85c949e2f53260bcfbf04b203f6f5cbd3a61e61c11c38cbc91cb102')},
- ('Linux','aarch64'):{'openshell':('aarch64-unknown-linux-musl','696b523c263895b69eaa7c7e6afbb19b8af6c65cd79c7ffac7b685b6e3aa23da'),'openshell-gateway':('aarch64-unknown-linux-gnu','eb0ba91efebbcc61e4cfae5fb18934c5fe308ece1a09ba16c999d00c452109dc')},
+ ('Darwin','arm64'):{'openshell':('aarch64-apple-darwin','3c1f767d3afb55c308274da4a1b126542beecef5150b6c437727959b9bd01df8'),'openshell-gateway':('aarch64-apple-darwin','6a4ccc70a957ae30bfb0e8ef19d43cf03bba7b673309a6c4d95cd9831d65ec2e')},
+ ('Linux','x86_64'):{'openshell':('x86_64-unknown-linux-musl','87f5c41d396dcd36b4c30a7b5e6f41643a656cb31a82b0edbb00319c9a719c2d'),'openshell-gateway':('x86_64-unknown-linux-gnu','d2e5e7f80811b7cfbad0d48f0b561ea5e301401d311e4402bbfc419b3d08cbd3')},
+ ('Linux','aarch64'):{'openshell':('aarch64-unknown-linux-musl','9a2e8f522ccfb3fbd1ed1985a51191a60e083f3404903a56bd4813710a2c7080'),'openshell-gateway':('aarch64-unknown-linux-gnu','09de6844c014ed7fae7acfc91e9f1532ded1b3252a20261ad99e76ff8e26072f')},
 }
 # v0.1.6 changed the sandbox/supervisor control connection: both images move together.
-SANDBOX_IMAGE='ghcr.io/nvidia/openshell/sandbox:0.1.7@sha256:89819c03f291d9b909c3fc2962360e24af4516627422d18f3e681829f003f347'
-SUPERVISOR_IMAGE='ghcr.io/nvidia/openshell/supervisor:0.1.7@sha256:a07864bd0c546716039c2000a919f50ce8f7f1f67ba37dda350cf64d3a7cfb06'
+SANDBOX_IMAGE='ghcr.io/nvidia/openshell/sandbox:0.1.8@sha256:f0fe7dbf18d833acb5da99c405231124718f23b524aa8e3c0108e6f37530033b'
+SUPERVISOR_IMAGE='ghcr.io/nvidia/openshell/supervisor:0.1.8@sha256:deadeacfdba6d12ca27e538d0002696369d4de5a4fcad075ab503495503af9d1'
 
 
 def command(args,**kwargs):

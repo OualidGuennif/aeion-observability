@@ -48,19 +48,42 @@ def sanitize_text(text):
 
 
 def query_hindsight(bank="aeion-demo-real", query_str="failure postmortem repo-health architecture", budget="low", max_tokens=300):
-    """Query Hindsight recall endpoint with bounded budget."""
-    payload = {
-        "query": query_str,
-        "budget": budget,
-        "max_tokens": max_tokens,
-    }
-    req = urllib.request.Request(
-        f"{HINDSIGHT_URL}/v1/default/banks/{bank}/memories/recall",
-        data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(req, timeout=3) as resp:
-        return json.loads(resp.read().decode())
+    """Query Hindsight recall endpoint with fast, zero-event-loop HTTP client."""
+    try:
+        payload = {
+            "query": query_str,
+            "budget": budget,
+            "max_tokens": max_tokens,
+        }
+        req = urllib.request.Request(
+            f"{HINDSIGHT_URL}/v1/default/banks/{bank}/memories/recall",
+            data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            return json.loads(resp.read().decode())
+    except Exception:
+        return {"results": []}
+
+
+def reflect_cognitive_synthesis(bank="aeion-demo-real", query_str=""):
+    """Attempt cognitive synthesis via Hindsight reflect endpoint, failing closed on provider=none or error."""
+    try:
+        payload = {
+            "query": query_str,
+            "budget": "low",
+        }
+        req = urllib.request.Request(
+            f"{HINDSIGHT_URL}/v1/default/banks/{bank}/reflect",
+            data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read().decode())
+            text = data.get("text") or data.get("response") or ""
+            return sanitize_text(text)
+    except Exception:
+        return ""
 
 
 def query_hindsight_documents(bank="aeion-demo-real", tag="postmortem", limit=3):
@@ -96,6 +119,12 @@ def get_live_context(feature_id=None, task_title="", write_scopes=None, bank="ae
     try:
         # 1. Fetch relevant failure post-mortem documents
         docs = []
+        try:
+            reflection = reflect_cognitive_synthesis(bank=bank, query_str=f"Feature {feature_id or ''} failures architecture constraints")
+            if reflection:
+                docs.append(reflection)
+        except Exception:
+            pass
         try:
             docs.extend(query_hindsight_documents(bank=bank, tag="postmortem", limit=2))
         except Exception:

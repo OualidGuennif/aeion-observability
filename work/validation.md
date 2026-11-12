@@ -1,3 +1,30 @@
+## Factory 3.0 Modernization Plan Full Implementation (Pillars 1–4) — 2026-11-12
+
+- Pillar 1: OpenShell 0.1.8 & I/O Cache Optimization
+  - Pinned `openshell==0.1.8` in `demo/requirements.txt`.
+  - Pinned exact release binary hashes in `demo/openshell/setup.py`: Darwin arm64 (`3c1f767d...` openshell, `6a4ccc70...` gateway), Linux x86_64 (`87f5c41d...`, `d2e5e7f8...`), Linux aarch64 (`9a2e8f52...`, `09de6844...`).
+  - Pinned OCI image digests: sandbox `ghcr.io/nvidia/openshell/sandbox:0.1.8@sha256:f0fe7dbf18d833acb5da99c405231124718f23b524aa8e3c0108e6f37530033b`, supervisor `supervisor:0.1.8@sha256:deadeacfdba6d12ca27e538d0002696369d4de5a4fcad075ab503495503af9d1`.
+  - `demo/app/sandbox.py` updated to support `0.1.8` with backward compatibility for active `0.1.7` gateway leases.
+  - `demo/app/bridge.py` enhanced with in-memory read cache (`stat`, `exists`, `readdir`, `read`), invalidated on mutating verbs (`write`, `mkdir`, `rm`) and any `exec` command. `demo/tests/test_bridge.py` verified (4/4 PASS).
+- Pillar 2: Hindsight 1.2.1 SDK & Cognitive Synthesis
+  - Pinned `hindsight-client==1.2.1` in `demo/requirements.txt`.
+  - `demo/factory/live_context.py` implements `reflect_cognitive_synthesis` with graceful fail-closed fallback to recall when running with provider `none`.
+  - `demo/app/memory.py` analysis format aligns with exact canonical schema; `verify_backend.py --synthetic` and `verify_backend.py` (real) pass with 100% exact equality. `demo/tests/test_factory_live_context.py` verified (4/4 PASS).
+- Pillar 3: Flue 2.3.0 Persistent State & Reminders
+  - `demo/flue/src/agents/coder.ts` upgraded with `usePersistentState` to track work state (`phase`, `checksRun`, `lastCheckStatus`).
+  - Added passed-check guidance in `useAgentFinish`: upon passing `run_protected_checks`, instructs the model to call `submit_feedback` and stop, preventing max-thinking token inflation and handover session exhaustion.
+  - Flue test suite verified: 29/29 tests PASS in 550ms (`cd demo/flue && npm test`).
+- Pillar 4: Langfuse v5.2.0 Prompt Management & Multi-Dimensional Scores
+  - Pinned `langfuse==5.2.0`, `opentelemetry-sdk==1.45.2`, `opentelemetry-exporter-otlp-proto-http==1.45.2`.
+  - `demo/factory/prompts.py` centralizes prompts for author, reviewer, and preparer with deterministic local templates (`LOCAL_PROMPTS`) and remote Langfuse Prompt Management fallback (`demo/tests/test_factory_prompts.py` 6/6 PASS).
+  - `demo/app/scores.py` implements multi-dimensional factory evaluation metrics (`factory.check.acceptance`, `factory.review.consensus`, `factory.budget.efficiency`, `factory.cache.hit_ratio`) without perturbing the 2-score baseline required by synthetic verification (`demo/tests/test_scores.py` 4/4 PASS).
+- Verification & Integrity:
+  - `examples/compare_cohorts.py` and `examples/validate_fixtures.py`: PASS.
+  - `tests/`: 33/33 PASS.
+  - `knowledge-check`: PASS (0 problems).
+  - `doc-links`: PASS (153 links checked).
+  - `repo-health`: PASS (0 big files, 0 long comment blocks, `dispatch.py` and `store.py` $\le 1500$ lines).
+
 ## Modernization Plan Phase 1 & Max-Thinking Resilience Implementation — 2026-11-11
 
 - Max-Thinking Resilience & Output Limit Fix:

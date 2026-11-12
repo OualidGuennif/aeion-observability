@@ -57,6 +57,34 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(post(self.bridge, "/v1/fs", {"op": "rm", "path": str(self.folder / "missing"), "force": True})[1],
                          {"ok": True})
 
+    def test_fs_cache_and_invalidation(self):
+        test_file = self.folder / "cache_test.txt"
+        test_file.write_text("initial content", encoding="utf-8")
+        # First read invokes helper
+        status, val1 = post(self.bridge, "/v1/fs", {"op": "read", "path": str(test_file)})
+        self.assertEqual(status, 200)
+        self.assertEqual(val1["ok"], True)
+        calls_after_first = len(self.sandbox.calls)
+        self.assertGreater(calls_after_first, 0)
+
+        # Second read uses cache, sandbox calls do not increase
+        status, val2 = post(self.bridge, "/v1/fs", {"op": "read", "path": str(test_file)})
+        self.assertEqual(status, 200)
+        self.assertEqual(val2["ok"], True)
+        self.assertEqual(len(self.sandbox.calls), calls_after_first)
+
+        # Mutating write clears cache
+        b64 = base64.b64encode(b"updated content").decode()
+        status, w_res = post(self.bridge, "/v1/fs", {"op": "write", "path": str(test_file), "data": b64})
+        self.assertEqual(status, 200)
+        self.assertEqual(w_res["ok"], True)
+
+        # Subsequent read fetches fresh content and invokes helper again
+        status, val3 = post(self.bridge, "/v1/fs", {"op": "read", "path": str(test_file)})
+        self.assertEqual(status, 200)
+        self.assertEqual(base64.b64decode(val3["data"]).decode(), "updated content")
+        self.assertGreater(len(self.sandbox.calls), calls_after_first + 1)
+
     @unittest.skipUnless(NODE and (FLUE / "node_modules/@flue/runtime").is_dir(), "node and demo/flue dependencies required")
     def test_flue_adapter_round_trip(self):
         script = """
