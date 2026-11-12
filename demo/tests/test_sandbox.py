@@ -42,4 +42,93 @@ class QualificationTests(unittest.TestCase):
                         with self.assertRaisesRegex(ValueError,'SANDBOX_NOT_QUALIFIED'):sandbox.connection()
 
 
+class SandboxLifecycleTests(unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        try:
+            from openshell._proto import openshell_pb2, sandbox_pb2  # noqa: F401
+            from google.protobuf.json_format import ParseDict  # noqa: F401
+        except ImportError:
+            proto_pkg = types.ModuleType('openshell._proto')
+            pb_mock = types.SimpleNamespace(
+                SandboxSpec=lambda **kw: types.SimpleNamespace(template=types.SimpleNamespace(resources={})),
+                SandboxTemplate=lambda **kw: types.SimpleNamespace(),
+                SandboxPolicy=lambda **kw: types.SimpleNamespace(),
+                FilesystemPolicy=lambda **kw: types.SimpleNamespace(),
+                LandlockPolicy=lambda **kw: types.SimpleNamespace(),
+                ProcessPolicy=lambda **kw: types.SimpleNamespace(),
+            )
+            proto_pkg.openshell_pb2 = pb_mock
+            proto_pkg.sandbox_pb2 = pb_mock
+            sys.modules['openshell._proto'] = proto_pkg
+            sys.modules['openshell._proto.openshell_pb2'] = pb_mock
+            sys.modules['openshell._proto.sandbox_pb2'] = pb_mock
+            if 'google.protobuf.json_format' not in sys.modules:
+                json_format_mod = types.ModuleType('google.protobuf.json_format')
+                json_format_mod.ParseDict = lambda *a, **kw: None
+                sys.modules['google.protobuf.json_format'] = json_format_mod
+
+    def test_sandbox_naming_uniqueness(self):
+        fake_client = types.SimpleNamespace(
+            create=lambda **kw: types.SimpleNamespace(sandbox_id='sb-1'),
+            wait_ready=lambda *a, **kw: None,
+            get=lambda *a, **kw: None,
+            close=lambda: None
+        )
+        with patch.object(sandbox, 'connection', return_value=fake_client), \
+             patch.dict(os.environ, {'OPENSHELL_AGENT_IMAGE': 'sha256:fixture'}):
+            sb1 = sandbox.Sandbox({'id': 'run-alpha-1234', 'agents': 1}, Path('/work/r1'), role='coder', retries=1)
+            sb2 = sandbox.Sandbox({'id': 'run-beta-5678', 'agents': 1}, Path('/work/r1'), role='coder', retries=1)
+            # Distinct run IDs must yield distinct sandbox names
+            self.assertNotEqual(sb1.name, sb2.name)
+            # Both names must follow legal OpenShell identifier conventions
+            import re
+            self.assertTrue(re.match(r'^ae-[0-9a-f]{12}-\d+[a-z]$', sb1.name), f'Invalid name {sb1.name}')
+            self.assertTrue(len(sb1.name) <= 19)
+
+    def test_sandbox_init_retry_success(self):
+        call_count = [0]
+        def mock_create(**kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise RuntimeError("transient docker daemon error")
+            return types.SimpleNamespace(sandbox_id='sb-ok')
+
+        fake_client = types.SimpleNamespace(
+            create=mock_create,
+            wait_ready=lambda *a, **kw: None,
+            get=lambda *a, **kw: None,
+            delete=lambda *a, **kw: types.SimpleNamespace(sandbox_id='sb-del'),
+            wait_deleted=lambda *a, **kw: None,
+            close=lambda: None
+        )
+        with patch.object(sandbox, 'connection', return_value=fake_client), \
+             patch.object(time, 'sleep', return_value=None), \
+             patch.dict(os.environ, {'OPENSHELL_AGENT_IMAGE': 'sha256:fixture'}):
+            sb = sandbox.Sandbox({'id': 'run-retry', 'agents': 1}, Path('/work'), role='agent', retries=3)
+            self.assertIsNotNone(sb.ref)
+            self.assertEqual(call_count[0], 2)
+
+    def test_sandbox_init_failure_without_lingering_does_not_block(self):
+        fake_client = types.SimpleNamespace(
+            create=lambda **kw: (_ for _ in ()).throw(RuntimeError("creation failed")),
+            wait_ready=lambda *a, **kw: None,
+            get=lambda *a, **kw: None,  # No lingering sandbox
+            delete=lambda *a, **kw: None,
+            wait_deleted=lambda *a, **kw: None,
+            close=lambda: None
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            fake_data = Path(folder)
+            blocked_file = fake_data / 'sandbox.blocked'
+            with patch.object(sandbox, 'connection', return_value=fake_client), \
+                 patch.object(sandbox, 'DATA', fake_data), \
+                 patch.object(time, 'sleep', return_value=None), \
+                 patch.dict(os.environ, {'OPENSHELL_AGENT_IMAGE': 'sha256:fixture'}):
+                with self.assertRaisesRegex(ValueError, "SANDBOX_UNAVAILABLE"):
+                    sandbox.Sandbox({'id': 'run-fail', 'agents': 1}, Path('/work'), role='agent', retries=2)
+                # Since no lingering sandbox exists, sandbox.blocked must NOT be written
+                self.assertFalse(blocked_file.exists())
+
+
 if __name__=='__main__':unittest.main()

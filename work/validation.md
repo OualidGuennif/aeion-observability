@@ -1,3 +1,26 @@
+## Sandbox Provisioning Resilience & Quarkus Lifecycle Hardening — 2026-11-12
+
+- Incident & Root Cause Analysis:
+  - During Feature 003 Attempt 1 review circuit, reviewer `gpt-6-luna` rejected candidate: `inject(Object)` is not Quarkus's official `inject(TestInjector)` lifecycle hook, and setup failure could drop a pre-existing app role.
+  - When the factory immediately dispatched the Attempt 2 correction round, sandbox provisioning failed immediately with `SANDBOX_UNAVAILABLE`.
+  - Root cause 1: Docker supervisor on macOS failed to read `demo/.local/openshell/tls/ca.crt` (`Operation not permitted (os error 1)`) because generated certs and directories had restrictive `0600`/`0700` permissions and Darwin `com.apple.provenance` extended attributes across the virtualization boundary.
+  - Root cause 2: Sandbox names were deterministic (`ae-<roothash>-<agents><role>`) without run epoch/attempt disambiguation, causing container creation collisions against pending container teardowns in Docker Desktop.
+  - Root cause 3: Transient sandbox creation errors unconditionally wrote `sandbox.blocked` (requiring manual operator qualification), and `SANDBOX_UNAVAILABLE` was omitted from `RETRYABLE_AUTHOR_STOPS` in `demo/factory/dispatch.py`, causing immediate build termination instead of clean attempt transition.
+- Architectural Fixes Implemented:
+  - `demo/openshell/setup.py`: `normalize_tls_permissions` ensures directories are `0o755`, certificates (`.crt`) are `0o644`, and private keys (`.key`) stay `0o600`. Clears macOS quarantine/provenance extended attributes so Docker supervisor reads certificates without EPERM.
+  - `demo/app/sandbox.py`: Unique sandbox names incorporating `run_id` hash (`ae-<root_tag>-<run_tag>-<agents><role>`), preventing container name collisions across attempts/rounds. Added bounded retry loop (3 attempts with exponential backoff) and pre-cleanup of detaching containers. Guarded `sandbox.blocked` poisoning: only write if an active container actually lingers on the gateway after teardown.
+  - `demo/factory/dispatch.py`: Added `'SANDBOX_UNAVAILABLE'` to `RETRYABLE_AUTHOR_STOPS` while strictly preserving $\le 1500$ lines. Transient container provisioning errors now transition cleanly between attempts.
+  - `demo/factory/product_checks.py` & `demo/forum/features/003-test-harness-with-an-ephemeral-database.md`: Explicitly specified Quarkus SPI lifecycle contract (`@Override void inject(TestInjector testInjector)`) and role safety invariant (ephemeral instances track created roles and only drop roles created by that instance).
+- Verification:
+  - `demo/tests/test_sandbox.py`: 5/5 tests PASS (naming uniqueness, retry with backoff, guarded non-blocking on clean failure).
+  - `demo/tests/test_openshell_setup.py`: 4/4 tests PASS (TLS permission normalization, traversal permissions, missing dir handling).
+  - `python3 -m unittest discover -s tests -v`: 33/33 PASS.
+  - `python3 -m unittest discover -s demo/tests -v`: 103/103 PASS.
+  - `tools/repo-health/repo-health`: PASS (`dispatch.py` and `store.py` strictly $\le 1500$ lines).
+  - `tools/knowledge/knowledge-check`: PASS.
+  - `tools/knowledge/doc-links`: PASS.
+  - `(cd demo && .local/venv/bin/python -m factory.admission --activate)`: PASS (live OpenShell + Cockpit verified).
+
 ## Feature 003 Root Cause Debug & Handover Resilience — 2026-11-12
 
 - Root cause of build 557785d03d5f431fb41fa6cd3d770572:
@@ -16,6 +39,7 @@
   - `tests/`: 33/33 tests PASS.
   - `tools/knowledge/knowledge-check`: PASS (0 problems).
   - `tools/repo-health/repo-health`: PASS (0 big files, 0 long comment blocks, `dispatch.py` and `store.py` strictly $\le 1500$ lines).
+  - `(cd demo && .local/venv/bin/python -m factory.admission --activate)`: PASS (all 6 native capability suites passed; fresh proof activated with protocol hash `702a41b35dde4a30def449cb04d55c9bab0880e10726d973b14d3a6c5e1f5265`; `ready()` True; Cockpit live listener on port 8088 unpaused with `hold_reason: None`).
 
 ## Factory 3.0 Modernization Plan Full Implementation (Pillars 1–4) — 2026-11-12
 

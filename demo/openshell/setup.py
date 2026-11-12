@@ -37,6 +37,34 @@ def command(args,**kwargs):
     return subprocess.run(args,check=True,**kwargs)
 
 
+def normalize_tls_permissions(tls_dir):
+    """Ensure Docker supervisor can read certificates without EPERM while keeping keys private."""
+    if not tls_dir.exists():
+        return
+    for parent in (tls_dir.parent.parent, tls_dir.parent, tls_dir):
+        if parent.exists():
+            try:
+                parent.chmod(0o755)
+            except OSError:
+                pass
+    for path in tls_dir.rglob('*'):
+        if path.is_dir():
+            try:
+                path.chmod(0o755)
+            except OSError:
+                pass
+        elif path.is_file():
+            try:
+                if path.suffix == '.crt':
+                    path.chmod(0o644)
+                elif path.suffix == '.key':
+                    path.chmod(0o600)
+                if platform.system() == 'Darwin':
+                    subprocess.run(['xattr', '-c', str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except OSError:
+                pass
+
+
 def gateway_running(pid,gateway):
     # Linux truncates `comm` to 15 characters; compare the launched executable path instead.
     try:
@@ -89,6 +117,7 @@ def main():
     if not (STATE/'tls/ca.crt').exists():
         command([str(gateway),'generate-certs','--output-dir',str(STATE/'tls'),'--server-san','localhost',
             '--server-san','host.docker.internal','--server-san','host.openshell.internal','--server-san',bind],env=env,stdout=subprocess.DEVNULL)
+    normalize_tls_permissions(STATE/'tls')
     configuration=f'''[openshell]
 version = 2
 [openshell.gateway]

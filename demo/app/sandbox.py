@@ -167,11 +167,13 @@ def policy(root):
 
 
 class Sandbox:
-    def __init__(self, run, root, role='agent'):
+    def __init__(self, run, root, role='agent', retries=3):
         from openshell._proto import openshell_pb2 as pb
         from google.protobuf.json_format import ParseDict
         self.client = connection()
-        self.name = 'ae-' + hashlib.sha256(str(root).encode()).hexdigest()[:10] + '-' + str(run['agents']) + role[0]
+        run_id = str(run.get('id', 'default'))
+        combined_tag = hashlib.sha256(f"{root}:{run_id}".encode()).hexdigest()[:12]
+        self.name = f"ae-{combined_tag}-{run.get('agents', 0)}{role[0]}"
         self.ref = None
         self.closed = False
         spec = pb.SandboxSpec(template=pb.SandboxTemplate(image=os.environ['OPENSHELL_AGENT_IMAGE']),
@@ -179,16 +181,49 @@ class Sandbox:
         # No operator/host volume enters a workload. Public bytes travel over exec stdin and
         # bounded copy-out; Docker Desktop ownership cannot weaken this boundary.
         ParseDict({'limits': {'cpu': '1', 'memory': '1Gi'}}, spec.template.resources)
-        try:
-            self.ref = self.client.create(workspace='default', name=self.name, spec=spec,
-                labels={'aeion.run.id': run['id'], 'aeion.role': role})
-            self.client.wait_ready(self.name, workspace='default', timeout_seconds=120)
-        except Exception:
-            if self.ref is None:
-                # Create may commit before an RPC timeout. Never assume no workload exists.
+
+        last_exc = None
+        for attempt in range(max(1, retries)):
+            try:
+                # Pre-clean lingering containers with the same name if still detaching
+                try:
+                    existing = self.client.get(self.name, workspace='default')
+                    if existing:
+                        self.client.delete(self.name, workspace='default')
+                        self.client.wait_deleted(self.name, workspace='default', timeout_seconds=30)
+                except Exception:
+                    pass
+
+                self.ref = self.client.create(workspace='default', name=self.name, spec=spec,
+                    labels={'aeion.run.id': run_id, 'aeion.role': role})
+                self.client.wait_ready(self.name, workspace='default', timeout_seconds=120)
+                last_exc = None
+                break
+            except Exception as exc:
+                last_exc = exc
+                try:
+                    self.client.delete(self.name, workspace='default')
+                    self.client.wait_deleted(self.name, workspace='default', timeout_seconds=15)
+                except Exception:
+                    pass
+                self.ref = None
+                if attempt + 1 < retries:
+                    time.sleep(1.5 * (attempt + 1))
+
+        if last_exc is not None:
+            # Check whether a sandbox unexpectedly remains active on the gateway
+            lingering = False
+            try:
+                check = self.client.get(self.name, workspace='default')
+                if check and getattr(check, 'state', None) not in ('TERMINATING', 'TERMINATED', 'FAILED'):
+                    lingering = True
+            except Exception:
+                pass
+            if lingering:
+                # Unknown lingering workload requires operator requalification
                 (DATA / 'sandbox.blocked').write_text('Unknown create outcome requires operator requalification.\n')
             self.close()
-            raise ValueError("SANDBOX_UNAVAILABLE") from None
+            raise ValueError("SANDBOX_UNAVAILABLE") from last_exc
 
     def exec(self, command, *, env=None, workdir=None, timeout=15, stdin=None):
         if self.closed:

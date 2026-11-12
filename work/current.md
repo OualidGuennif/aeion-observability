@@ -3,6 +3,14 @@
 Updated 2026-11-12. Current facts only; historical evidence is in HANDOVER.md and validation.md.
 No final operational Go or actual product feature merge is claimed.
 
+## Sandbox Provisioning Resilience & Quarkus Lifecycle Hardening — COMPLETED
+
+- Owner decision: prevent recurrence of sandbox EPERM / container naming races, preserve reasoning effort 'max', specify Quarkus injection SPI, and ensure role teardown safety.
+- State: `demo/openshell/setup.py:normalize_tls_permissions` fixes supervisor EPERM (`ca.crt` 0644, dirs 0755, keys 0600); `demo/app/sandbox.py` introduces non-colliding attempt hashes (`ae-<root>-<run>-<agents><role>`), bounded retries with backoff, and guarded poisoning; `demo/factory/dispatch.py` treats `SANDBOX_UNAVAILABLE` as retryable ($\le 1500$ lines); `product_checks.py` and Feature 003 spec require `@Override inject(TestInjector)` and owned-role cleanup; tests pass (5/5 sandbox, 4/4 setup, 33/33 repo).
+- Next: Feature 003 build ready for relaunch on cockpit (who: agent).
+- Blocker: none.
+- Evidence: [validation](validation.md); [execution contract](../knowledge/components/factory-flue.md).
+
 ## Feature 003 Root Cause Debug & Handover Resilience — RESOLVED
 
 - Owner decision: debug why Haiku failed in 3 sessions on Feature 003, preserve reasoning effort 'max', make system resilient against handover traps, and enable reliable relaunch of 003.
