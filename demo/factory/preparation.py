@@ -83,6 +83,11 @@ def previous_feature_feedback(root, feature_id, limit=3):
                         for r in reviewers:
                             if isinstance(r, dict) and r.get('text'):
                                 feedbacks.append(f"- Reviewer ({r.get('model', 'reviewer')}): {r['text']}")
+                circuit = receipt.get('circuit')
+                if isinstance(circuit, dict) and isinstance(circuit.get('votes'), list):
+                    for v in circuit['votes']:
+                        if isinstance(v, dict) and v.get('verdict') == 'reject' and v.get('reason'):
+                            feedbacks.append(f"- Reviewer rejection ({v.get('model', 'reviewer')}): {v['reason']}")
             except (ValueError, TypeError):
                 continue
         conn.close()
@@ -327,6 +332,26 @@ class TaskPreparer:
             prev_id = key.split(':', 1)[1]
             prev_dir = folder.parent.parent / prev_id / 'prepared'
             reprepare_needed = (prev_dir / 'reprepare_needed').is_file()
+            if not reprepare_needed:
+                try:
+                    db_path = Path(self.root) / 'demo/.local/factory/factory.db'
+                    if db_path.is_file():
+                        import sqlite3
+                        with sqlite3.connect(str(db_path)) as conn:
+                            row = conn.execute("SELECT receipt, status FROM builds WHERE build_id = ?", (prev_id,)).fetchone()
+                            if row and row[0]:
+                                r = json.loads(row[0])
+                                reason = r.get('reason') or row[1]
+                                votes = (r.get('circuit') or {}).get('votes') or []
+                                has_reject = any(v.get('verdict') == 'reject' for v in votes)
+                                author_fb = str((r.get('feedback') or {}).get('author') or '')
+                                if (reason in ('reviewer_rejected', 'correction_unchanged')
+                                        or has_reject
+                                        or 'forced by the frozen acceptance' in author_fb
+                                        or 'out-of-scope' in author_fb.lower()):
+                                    reprepare_needed = True
+                except Exception:
+                    pass
             if not reprepare_needed and (prev_dir / 'task.json').is_file() and (prev_dir / 'acceptance.mjs').is_file():
                 try:
                     for fname in ('task.json', 'BRIEF.md', 'acceptance.mjs', 'proposed-acceptance.json'):

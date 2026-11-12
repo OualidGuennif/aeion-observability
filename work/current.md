@@ -3,11 +3,11 @@
 Updated 2026-11-12. Current facts only; historical evidence is in HANDOVER.md and validation.md.
 No final operational Go or actual product feature merge is claimed.
 
-## Preparer Feedback Loop & Sandbox Diff Inspection — COMPLETED
+## Contract Scope Bounding & Correction Deadlock Resolution — IN PROGRESS
 
-- Owner decision: prevent author/verifier ping-pong when frozen acceptances conflict with security guards, feed previous attempt findings into preparation prompt, provide BRIEF.md and pristine base diffs in OpenShell, and ignore supervisor checkpoints during collection.
-- State: `product_checks.py:acceptance_prompt` receives prior attempt findings and enforces committed CSRF/validation rules; `preparation.py:previous_feature_feedback` extracts structured findings from factory receipts; `flue_builder.py` seeds `BRIEF.md` and `.base/` references into OpenShell, while `scoped_changes` excludes `BRIEF.md`, `HANDOVER.md`, and `.base/`; unit tests pass (22/22).
-- Next: push to develop, open PR to main, merge, and launch clean Feature 003 build.
+- Owner decision: resolve author/reviewer deadlock on Feature 003 where hallucinated acceptance contracts forced out-of-scope edits (64K transport cap, row-hiding filter, HTTP clock freeze) rejected by reviewers, eliminate blind contract reuse in `factory-correction:`, and mark `reprepare_needed` on `correction_unchanged`.
+- State: `product_checks.py:acceptance_prompt` bounds tests strictly to frozen specification deliverables, forbids unrequested endpoint assertions, and documents the 16KiB HTTP transport cap; `preparation.py` auto-detects reviewer rejection or contract-scope conflicts in previous builds and sets `reprepare_needed = True` rather than blindly copying flawed `acceptance.mjs`; `dispatch.py` marks `reprepare_needed` on `correction_unchanged` ($\le 1500$ lines); tests pass.
+- Next: run admission requalification, restart cockpit daemon, cancel stuck build, relaunch clean Feature 003.
 - Blocker: none.
 - Evidence: [validation](validation.md); [execution contract](../knowledge/components/factory-flue.md).
 
