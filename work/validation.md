@@ -2349,3 +2349,17 @@ Official registry resolved Semgrep digest451b3d875c00dac7ed5db5293e584a07de11449
 New bundle93fd1321 GLM actualapproveUSD0.02536887; Qwen pending. No publication yet.
 User browser independently confirmed paused100MD,0active, no real product environment links;
 the existing advanced Staging link is a separate historical canary drill, not product delivery.
+
+## 2026-11-12 — Preparer feedback loop, committed contract constraints and sandbox diffing
+
+Automatic acceptance preparation now incorporates prior attempt feedback and committed security/validation
+constraints:
+- `demo/factory/product_checks.py`: `acceptance_prompt` receives structured prior findings and enforces
+  committed CSRF token requirements (`X-CSRF-Token` on authenticated session mutations) and validation
+  return codes (422 vs 400).
+- `demo/factory/preparation.py`: `previous_feature_feedback` extracts historical author and reviewer findings
+  from SQLite receipts, ensuring preparer models avoid generating contradictory assertions against existing guards.
+- `demo/factory/flue_builder.py`: seeds `BRIEF.md` both adjacent to and inside the workdir, provisions
+  pristine base copies under `workspace/.base/` for candidate diff inspection, and `scoped_changes` safely
+  excludes `BRIEF.md`, `HANDOVER.md`, and `.base/` from exported diffs.
+- Verification: 22/22 unit tests pass (`test_factory_preparation.py`, `test_factory_product_boundary.py`).

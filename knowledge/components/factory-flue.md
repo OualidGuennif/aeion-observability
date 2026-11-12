@@ -146,6 +146,14 @@ Ordinary contracts require actual failing external assertions on the untouched b
 The registered002/014 untouched baseline must lack their operator/browser source; compiler failure
 or a missing checker reason cannot stand in for that absence. Positive candidates still need the
 full migration/import/restore or production browser checks. These adapters do not implement the product.
+Automatic preparation carries committed security and validation rules (mandatory X-CSRF-Token on
+session mutations, 422 validation response codes) and incorporates structured prior attempt findings
+from previous receipts into the acceptance prompt (`previous_feature_feedback`), preventing acceptance
+generators from hallucinating contradictory assertions against committed security guards.
+In the OpenShell sandbox, workspace seeding supplies `BRIEF.md` both adjacent to and inside the workdir,
+and provisions pristine base copies under `workspace/.base/` when an attempt starts from an inherited
+candidate to allow diff inspection. Sandbox collection (`scoped_changes`) safely excludes `BRIEF.md`,
+`HANDOVER.md`, and `.base/` from exported candidate changes.
 
 Generated MDs begin with YAML frontmatter (`---`). The launcher binds the entire message as
 `--message=<value>` so the CLI cannot parse that prefix as another option. This was reproduced
