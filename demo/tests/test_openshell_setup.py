@@ -53,5 +53,38 @@ class GatewayProcessTests(unittest.TestCase):
             self.assertFalse(setup.gateway_running(process.pid, gateway))
 
 
+class TlsPermissionsTests(unittest.TestCase):
+    def test_normalize_tls_permissions(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            tls = root / "local/openshell/tls"
+            tls.mkdir(parents=True)
+            # Create subdirs and files with restrictive 0600 / 0700 permissions
+            (tls / "server").mkdir(mode=0o700)
+            ca_crt = tls / "ca.crt"
+            ca_crt.write_bytes(b"cert")
+            ca_crt.chmod(0o600)
+            server_crt = tls / "server/tls.crt"
+            server_crt.write_bytes(b"cert")
+            server_crt.chmod(0o600)
+            server_key = tls / "server/tls.key"
+            server_key.write_bytes(b"key")
+            server_key.chmod(0o644)
+
+            setup.normalize_tls_permissions(tls)
+
+            # Certificates must be readable (0644)
+            self.assertEqual(oct(ca_crt.stat().st_mode & 0o777), oct(0o644))
+            self.assertEqual(oct(server_crt.stat().st_mode & 0o777), oct(0o644))
+            # Keys must stay strictly private (0600)
+            self.assertEqual(oct(server_key.stat().st_mode & 0o777), oct(0o600))
+            # Directories must allow traversal (0755)
+            self.assertEqual(oct(tls.stat().st_mode & 0o777), oct(0o755))
+            self.assertEqual(oct((tls / "server").stat().st_mode & 0o777), oct(0o755))
+
+    def test_normalize_tls_permissions_handles_missing_dir(self):
+        setup.normalize_tls_permissions(Path("/nonexistent/tls/dir"))
+
+
 if __name__ == "__main__":
     unittest.main()

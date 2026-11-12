@@ -41,6 +41,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_a.py`
 - A JUnit/Quarkus test resource creates a uniquely named disposable PostgreSQL database, applies the real migrations and cleans up only that owned database.
 - Independent tests use transaction rollback where valid; HTTP/async tests with separate transactions use isolated fixtures and explicit cleanup instead of assuming a client rollback covers the server.
 - Inject a frozen Java clock and seeded random source. Refuse unmarked databases and unapproved hosts before any DDL.
+- In Quarkus test resource lifecycle management, `QuarkusTestResourceLifecycleManager` implements Quarkus SPI `@Override public void inject(TestInjector testInjector)` (and may overload `public void inject(Object testInstance)`).
+- Ephemeral test databases track created roles; teardown/close only drops application roles created by that specific instance, never dropping pre-existing roles on setup failure.
 - The protected factory supplies its own immutable harness outside candidate control; builders may add product tests but cannot weaken the acceptance runner.
 
 ## Outputs
@@ -52,7 +54,7 @@ production build. A previous SQLite/Expo receipt does not qualify this architect
 
 ## Invariants
 
-Use dedicated disposable PostgreSQL credentials, a generated allowlisted database name and no production connection settings. Logs contain only fixed failure codes and opaque test identity.
+Use dedicated disposable PostgreSQL credentials, a generated allowlisted database name and no production connection settings. Never drop pre-existing application roles on setup failure; only tear down roles created by this test instance. Logs contain only fixed failure codes and opaque test identity.
 
 This invariant and the acceptance cases belong to planned protected check `agora-003`.
 The supervisor freezes external acceptance before implementation; candidate code cannot change the verifier.

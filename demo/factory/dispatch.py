@@ -45,7 +45,7 @@ RETRYABLE_AUTHOR_STOPS = frozenset({
     'PROVIDER_ERROR', 'PROVIDER_UNAVAILABLE', 'PROVIDER_RATE_LIMITED', 'PROVIDER_TIMEOUT',
     'PROVIDER_REJECTED', 'MODEL_DISABLED', 'TRANSPORT_ERROR', 'BUDGET_STOP', 'STEP_LIMIT',
     'OUTPUT_LIMIT', 'AGENT_TIMEOUT', 'AGENT_DEADLINE', 'HANDOVER_NOT_READY', 'NO_PATCH',
-    'agent_deadline', 'handover_limit', 'no_eligible_model', 'model_ineligible', 'repeated_check_failure', 'RELAY_FAULT'})
+    'agent_deadline', 'handover_limit', 'no_eligible_model', 'model_ineligible', 'repeated_check_failure', 'RELAY_FAULT', 'SANDBOX_UNAVAILABLE'})
 TOKEN = re.compile(r'[A-Za-z][A-Za-z0-9_]{1,63}')
 
 

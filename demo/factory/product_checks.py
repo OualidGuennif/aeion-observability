@@ -140,7 +140,14 @@ class ProductCheckRunner(DockerCheckRunner):
             'Candidate backend tests have separate fixture-only PostgreSQL admin settings '
             'AEION_TEST_POSTGRES_JDBC_URL/USERNAME/PASSWORD for their test resource. ')
         if not postgres:return common+web
-        return common+web+('PostgreSQL uses QUARKUS_DATASOURCE_* and migration-owner credentials exist '
+        harness = (
+            'In Quarkus test harnesses (Feature 003), QuarkusTestResourceLifecycleManager must follow '
+            'the official Quarkus lifecycle contract by implementing @Override inject(TestInjector testInjector) '
+            '(optionally providing inject(Object testInstance)). EphemeralDatabase must track created roles '
+            'and on teardown only drop application roles that were created by that instance, preventing dropping '
+            'any pre-existing database role on setup failure. ' if target.feature_id == '003' else ''
+        )
+        return common+web+harness+('PostgreSQL uses QUARKUS_DATASOURCE_* and migration-owner credentials exist '
             'only in a separate operator JVM. Provide local.aeion.forum.DatabaseOperator with '
             'migrate, validate, and import-sqlite <readonly path> commands. Commands use the same '
             'datasource environment, return nonzero on failure and never print data/credentials. '

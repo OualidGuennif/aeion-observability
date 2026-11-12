@@ -243,7 +243,15 @@ The supervisor loopback bridge (`demo/app/bridge.py`) maintains an in-memory cac
 exists, and readdir operations, drastically reducing subprocess spawn overhead across the OpenShell
 boundary, with immediate deterministic invalidation on mutating filesystem operations (`write`,
 `mkdir`, `rm`) and any command execution. OpenShell qualification (`demo/app/sandbox.py`) supports
-both 0.1.7 and 0.1.8 runtime images with strict sha256 pinning and Landlock isolation. Pinned system
+both 0.1.7 and 0.1.8 runtime images with strict sha256 pinning and Landlock isolation. Sandboxes derive
+unique, non-colliding container names per build attempt (`ae-<roothash>-<runtag>-<agents><role>`) to avoid
+Docker teardown races across rapid attempt switches. Provisioning incorporates bounded retries with
+exponential backoff, pre-cleaning detaching workloads and guarding `sandbox.blocked` sentinel poisoning so
+transient supervisor socket timing never corrupts qualification. OpenShell setup (`demo/openshell/setup.py`)
+normalizes TLS permissions (`0o755` directories, `0o644` certificates, `0o600` private keys, with Darwin
+Gatekeeper xattr stripping) to prevent virtualization EPERM failures. Transient sandbox provisioning errors
+(`SANDBOX_UNAVAILABLE`) are classified in `RETRYABLE_AUTHOR_STOPS` so the orchestrator cleanly transitions
+between attempts rather than terminating multi-round builds prematurely. Pinned system
 prompts for author, reviewer, and preparer agents are managed via `demo/factory/prompts.py` with
 deterministic local fallback templates and optional Langfuse Prompt Management versioning.
 A later correction copies at most a few redacted lines into the next author's prompt as untrusted data, beside the
