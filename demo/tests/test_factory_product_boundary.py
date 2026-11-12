@@ -156,4 +156,23 @@ class ProductBoundaryTests(unittest.TestCase):
             self.assertEqual(list(scoped_changes(reverted, seeded, scopes, repo)),
                              ['demo/forum-app/ForumSettings.java'])
 
+    def test_scoped_changes_ignores_brief_and_base_and_handover(self):
+        from factory.flue_builder import scoped_changes
+        with tempfile.TemporaryDirectory() as folder:
+            repo = Path(folder)
+            subprocess.run(['git', 'init', '-q', str(repo)], check=True, capture_output=True)
+            doc_path = 'demo/forum-docs/test.md'
+            seeded = {doc_path: b'# Documentation\n'}
+            scopes = ['demo/forum-docs/']
+            exported = {
+                'workspace/' + doc_path: base64.b64encode(b'# Documentation updated\n').decode(),
+                'BRIEF.md': base64.b64encode(b'# Brief\n').decode(),
+                'workspace/BRIEF.md': base64.b64encode(b'# Brief\n').decode(),
+                'workspace/HANDOVER.md': base64.b64encode(b'# Handover\n').decode(),
+                'workspace/.base/' + doc_path: base64.b64encode(b'# Documentation\n').decode(),
+            }
+            changes = scoped_changes(exported, seeded, scopes, repo)
+            self.assertEqual(list(changes.keys()), [doc_path])
+            self.assertEqual(changes[doc_path], '# Documentation updated\n')
+
 if __name__ == '__main__': unittest.main()

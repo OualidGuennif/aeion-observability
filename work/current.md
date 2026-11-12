@@ -3,11 +3,19 @@
 Updated 2026-11-12. Current facts only; historical evidence is in HANDOVER.md and validation.md.
 No final operational Go or actual product feature merge is claimed.
 
+## Preparer Feedback Loop & Sandbox Diff Inspection — COMPLETED
+
+- Owner decision: prevent author/verifier ping-pong when frozen acceptances conflict with security guards, feed previous attempt findings into preparation prompt, provide BRIEF.md and pristine base diffs in OpenShell, and ignore supervisor checkpoints during collection.
+- State: `product_checks.py:acceptance_prompt` receives prior attempt findings and enforces committed CSRF/validation rules; `preparation.py:previous_feature_feedback` extracts structured findings from factory receipts; `flue_builder.py` seeds `BRIEF.md` and `.base/` references into OpenShell, while `scoped_changes` excludes `BRIEF.md`, `HANDOVER.md`, and `.base/`; unit tests pass (22/22).
+- Next: push to develop, open PR to main, merge, and launch clean Feature 003 build.
+- Blocker: none.
+- Evidence: [validation](validation.md); [execution contract](../knowledge/components/factory-flue.md).
+
 ## Sandbox Provisioning Resilience & Quarkus Lifecycle Hardening — COMPLETED
 
 - Owner decision: prevent recurrence of sandbox EPERM / container naming races, preserve reasoning effort 'max', specify Quarkus injection SPI, and ensure role teardown safety.
-- State: `demo/openshell/setup.py:normalize_tls_permissions` fixes supervisor EPERM (`ca.crt` 0644, dirs 0755, keys 0600); `demo/app/sandbox.py` introduces non-colliding attempt hashes (`ae-<root>-<run>-<agents><role>`), bounded retries with backoff, and guarded poisoning; `demo/factory/dispatch.py` treats `SANDBOX_UNAVAILABLE` as retryable ($\le 1500$ lines); `product_checks.py` and Feature 003 spec require `@Override inject(TestInjector)` and owned-role cleanup; tests pass (5/5 sandbox, 4/4 setup, 33/33 repo).
-- Next: Feature 003 build ready for relaunch on cockpit (who: agent).
+- State: `setup.py:normalize_tls_permissions` fixes supervisor EPERM; `sandbox.py` introduces non-colliding attempt hashes (`ae-<root>-<run>-<agents><role>`), bounded retries with backoff, and guarded poisoning; `dispatch.py` treats `SANDBOX_UNAVAILABLE` as retryable ($\le 1500$ lines); `product_checks.py` and Feature 003 spec require `@Override inject(TestInjector)` and owned-role cleanup; tests pass (888/888 demo, 33/33 repo).
+- Next: catalog refresh and Feature 003 integration.
 - Blocker: none.
 - Evidence: [validation](validation.md); [execution contract](../knowledge/components/factory-flue.md).
 

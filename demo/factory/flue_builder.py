@@ -293,9 +293,11 @@ def scoped_changes(collected, seeded, scopes, repo, protected=()):
     values = {}
     for name, encoded in collected.items():
         if not name.startswith('workspace/'):
+            if name in ('BRIEF.md', 'HANDOVER.md') or name.startswith('.base/'):
+                continue
             raise BuilderError('artifact_outside_workspace')
         relative = name[len('workspace/'):]
-        if relative == 'HANDOVER.md' or '.git' in relative.split('/'):
+        if relative in ('HANDOVER.md', 'BRIEF.md') or '.git' in relative.split('/') or '.base' in relative.split('/'):
             continue
         data = base64.b64decode(encoded, validate=True)
         if seeded.get(relative) == data:
@@ -553,7 +555,18 @@ class FlueBuilder:
                         # against the immutable base, so its changes remain the reviewed diff.
                         current.update({name: text.encode('utf-8') for name, text in inherited.items()
                                         if any(name.startswith(scope) for scope in frozen.write_scopes)})
-                    box.seed_in({'workspace/' + name: data for name, data in current.items()})
+                    files_to_seed = {'workspace/' + name: data for name, data in current.items()}
+                    brief_file = repo.parent / 'BRIEF.md'
+                    if brief_file.is_file():
+                        brief_bytes = brief_file.read_bytes()
+                        files_to_seed['BRIEF.md'] = brief_bytes
+                        files_to_seed['workspace/BRIEF.md'] = brief_bytes
+                    if number == 1 and isinstance(inherited, dict) and inherited:
+                        for name in inherited:
+                            base_file = repo / name
+                            if base_file.is_file():
+                                files_to_seed['workspace/.base/' + name] = base_file.read_bytes()
+                    box.seed_in(files_to_seed)
                     # Previous exported changes are now the session input, but comparisons
                     # remain against the immutable base so a later restoration is visible.
                     self.last_usage = None  # Native transport can now occur; only its usage can settle this call.

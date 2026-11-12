@@ -247,6 +247,39 @@ class PreparationTests(unittest.TestCase):
         with self.assertRaisesRegex(PreparationError, 'preparation_workspace_refused'):
             plain.resume_prepared(self._contract(feature='008'))
 
+    def test_previous_feature_feedback_extracts_author_and_reviewer_notes(self):
+        import sqlite3
+        from factory.preparation import previous_feature_feedback
+        db_dir = self.root / 'demo/.local/factory'
+        db_dir.mkdir(parents=True, exist_ok=True)
+        db_path = db_dir / 'factory.db'
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("CREATE TABLE builds (build_id TEXT, feature_id TEXT, status TEXT, receipt TEXT, updated_ns INTEGER);")
+        receipt = json.dumps({
+            "feedback": {
+                "author": "Hard point: CSRF token needed",
+                "reviewers": [{"model": "gpt-6-luna", "text": "Tokenless requests bypass guard"}]
+            }
+        })
+        conn.execute("INSERT INTO builds VALUES ('b1', '003', 'failed', ?, 100);", (receipt,))
+        conn.commit()
+        conn.close()
+
+        fb = previous_feature_feedback(self.root, '003')
+        self.assertIsNotNone(fb)
+        self.assertIn("Author finding: Hard point: CSRF token needed", fb)
+        self.assertIn("Reviewer (gpt-6-luna): Tokenless requests bypass guard", fb)
+
+    def test_acceptance_prompt_includes_security_rules_and_feedback(self):
+        from factory.product_checks import acceptance_prompt
+        from factory.preparation import Task
+        task = Task('003', 'cat_digest', 'Spec text', 'Arch text', 'base_sha', ['scope/'])
+        prompt = acceptance_prompt(task, 'INTERFACES', feedback='Prior feedback line')
+        self.assertIn('X-CSRF-Token', prompt)
+        self.assertIn('422', prompt)
+        self.assertIn('PREVIOUS ATTEMPT FINDINGS & VERIFIER CONFLICTS', prompt)
+        self.assertIn('Prior feedback line', prompt)
+
 
 def _sha(text):
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
