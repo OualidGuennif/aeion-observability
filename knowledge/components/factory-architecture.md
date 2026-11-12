@@ -54,7 +54,10 @@ development foundation. Its implemented engine lives in `demo/factory/`; the Flu
 `demo/flue/src/` runs product workers through OpenShell tier3. The authenticated cockpit admits
 ordered catalog MDs, freezes task identity/scopes, reserves the existing daily budget and records
 durable stages. Current native qualification is rechecked before admission and role execution.
-The [execution contract](factory-flue.md) owns these runtime facts; the
+Under Factory 3.0, the runtime integrates OpenShell 0.1.8 with bridge read/stat caching, Flue 2.3.0
+persistent state for author execution and passed-check finish steering, Hindsight 1.2.1 SDK with
+cognitive synthesis fallback, and Langfuse v5.2 enterprise prompt management and multi-dimensional
+evaluation scores. The [execution contract](factory-flue.md) owns these runtime facts; the
 [cockpit contract](operator-cockpit.md) owns selection and presentation.
 
 Workers propose candidate files without host credentials, mounts, a Docker socket or unrestricted

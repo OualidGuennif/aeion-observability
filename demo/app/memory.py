@@ -30,9 +30,8 @@ def analysis(run):
     usages = [e for e in run["events"] if e["name"] == "gen_ai.request"]
     return {
         "schema": "aeion.session-analysis.v1", "run_id": run["id"], "task": run.get("task_id", "pricing-js-v1"),
-        "build_id": (run.get('build_id') if isinstance(run.get('build_id'),str)
-                     and re.fullmatch('[a-f0-9]{32}',run['build_id']) else None),
-        "factory_role": run.get('factory_role') if run.get('factory_role') in ('author','review','prepare') else None,
+        **({'build_id': run['build_id']} if isinstance(run.get('build_id'), str) and re.fullmatch('[a-f0-9]{32}', run['build_id']) else {}),
+        **({'factory_role': run['factory_role']} if run.get('factory_role') in ('author', 'review', 'prepare') else {}),
         "trace_id": run.get("trace_id"), "profile_version": run.get("profile_version", "unversioned"), "usage_complete": run.get("usage_complete", False),
         "synthetic": run["synthetic"], "model": run["model"] if not run["synthetic"] else "synthetic-replay",
         **({'reasoning_effort':run['inference_effort']} if run.get('inference_effort') in ('low','medium','high','max','default') else {}),

@@ -1,15 +1,19 @@
 # Current work
 
-Updated 2026-11-11. Current facts only; historical evidence is in HANDOVER.md and validation.md.
+Updated 2026-11-12. Current facts only; historical evidence is in HANDOVER.md and validation.md.
 No final operational Go or actual product feature merge is claimed.
 
-## Modernization Phase 1 and Max-Thinking Resilience — IN PROGRESS
+## Factory 3.0 Modernization Plan (All 4 Pillars) — COMPLETED
 
-- Owner decision: keep thinkingLevel 'max' everywhere, expand output tokens to 65k, make preparer resilient with model substitution, cache bridge metadata, and adopt native OpenShell and Hindsight SDKs.
-- State: openshell 0.1.8, hindsight-client 1.2.1, and langfuse 5.2.0 installed; max_output_tokens calibrated to 65536 in preparation and execution; TaskPreparer retries across distinct model families; SandboxBridge caches stat/exists/readdir metadata; native Hindsight client wired with clean closure; admission proof activated; Feature 003 correction contract reuse verified in Round 2; Attempt 2 building with Qwen 3.8 Flash.
-- Next: monitor Feature 003 preparation, authoring, and review through publication (who: agent).
+- Owner decision: keep thinkingLevel 'max' everywhere across all roles, make system resilient against failure modes, implement OpenShell 0.1.8 qualification and bridge I/O caching, Flue 2.3.0 persistent state and passed-check finish steering, Hindsight 1.2.1 SDK integration with cognitive synthesis fallback, and Langfuse v5.2 enterprise prompt management and multi-dimensional evaluation scores.
+- State:
+  - Pillar 1: OpenShell 0.1.8 pinned with binary sha256 and OCI image digests (`ghcr.io/nvidia/openshell/sandbox:0.1.8`, `supervisor:0.1.8`); `demo/app/bridge.py` in-memory read cache with mutating invalidation (`write`, `mkdir`, `rm`, `exec`) eliminates subprocess overhead; `demo/app/sandbox.py` supports both 0.1.7 and 0.1.8.
+  - Pillar 2: `hindsight-client==1.2.1` pinned; `demo/factory/live_context.py` implements `reflect_cognitive_synthesis` with graceful fail-closed fallback to recall when the provider is `none`.
+  - Pillar 3: `demo/flue/src/agents/coder.ts` tracks execution phase, checks run, and last check status via `usePersistentState`; upon passing `run_protected_checks`, steers the model to submit feedback and conclude without unrequested refactoring or handover exhaustion.
+  - Pillar 4: `demo/factory/prompts.py` centralizes system prompts for author, reviewer, and preparer with deterministic local templates and Langfuse Prompt Management fallback; `demo/app/scores.py` computes multi-dimensional scores (`factory.check.acceptance`, `factory.review.consensus`, `factory.budget.efficiency`, `factory.cache.hit_ratio`) without polluting synthetic demo verification.
+- Next: catalog refresh for next features on main (who: agent).
 - Blocker: none.
-- Evidence: [validation](validation.md); [execution contract](../knowledge/components/factory-flue.md).
+- Evidence: [validation](validation.md); [execution contract](../knowledge/components/factory-flue.md); [docker demo](../knowledge/components/docker-demo.md).
 
 ## Feature 002 PostgreSQL migration and SQLite cutover — MERGED
 

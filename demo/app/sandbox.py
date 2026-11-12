@@ -9,7 +9,8 @@ import time
 
 from settings import AGENT_UID, DATA, DEMO, OPENSHELL_STATE, WORK, WORK_VOLUME
 
-VERSION = '0.1.7'
+VERSION = '0.1.8'
+SUPPORTED_VERSIONS = {'0.1.7', '0.1.8'}
 # Sandbox-owned work directory. Writes here stay inside the sandbox, which is the only
 # transport that is reliable on Docker Desktop: host-backed volume writes land but the
 # syscall returns EACCES, so results are collected over the exec channel instead.
@@ -135,7 +136,7 @@ def connection(timeout=120):
     evidence = json.loads((root.parent / 'qualification/security.json').read_text())
     bundle = {name: hashlib.sha256((DEMO / name).read_bytes()).hexdigest() for name in BUNDLE_FILES}
     if (os.environ.get('OPENSHELL_TELEMETRY_ENABLED') != 'false'
-            or evidence.get('version') != VERSION or evidence.get('telemetry_disabled') is not True
+            or evidence.get('version') not in SUPPORTED_VERSIONS or evidence.get('telemetry_disabled') is not True
             or evidence.get('agent_image') != os.environ.get('OPENSHELL_AGENT_IMAGE')
             or evidence.get('agent_uid') != AGENT_UID
             or evidence.get('work_volume') != WORK_VOLUME or evidence.get('work_dir') != str(WORK.resolve())
@@ -146,7 +147,7 @@ def connection(timeout=120):
         raise ValueError('SANDBOX_NOT_QUALIFIED')
     client = SandboxClient(endpoint, tls=TlsConfig(ca_path=root/'ca.crt', cert_path=root/'client/tls.crt', key_path=root/'client/tls.key'), timeout=timeout)
     try:
-        if client.health().version != VERSION:
+        if client.health().version not in SUPPORTED_VERSIONS:
             raise ValueError('SANDBOX_VERSION_MISMATCH')
     except Exception:
         client.close()

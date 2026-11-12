@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Upgrades the factory runtime to Factory 3.0: pins OpenShell 0.1.8 with backward
+  compatibility for 0.1.7 gateway leases, adds SandboxBridge in-memory caching
+  with immediate mutating operation invalidation, integrates Hindsight 1.2.1
+  SDK with synchronous cognitive synthesis, enriches Flue 2.3.0 author with
+  persistent work state and post-check completion signals, pins Langfuse 5.2.0
+  and OpenTelemetry SDK 1.45.2, introduces prompt management with local fallbacks,
+  and publishes multi-dimensional factory evaluation scores.
+
 - Expands factory model token headroom for reasoning effort `max` across preparer
   (65536 tokens) and review circuits, integrates deterministic frozen contract reuse
   for automatic correction rounds, and adds multi-factor empirical arbiter reranking

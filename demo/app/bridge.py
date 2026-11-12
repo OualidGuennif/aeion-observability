@@ -100,7 +100,7 @@ class SandboxBridge:
         op, path = request.get("op"), absolute(request.get("path"))
         if op not in OPERATIONS:
             raise ValueError("unsupported operation")
-        if op in ("stat", "exists", "readdir"):
+        if op in ("stat", "exists", "readdir", "read"):
             cached = self._cache.get((op, path))
             if cached is not None:
                 return dict(cached)
@@ -124,7 +124,7 @@ class SandboxBridge:
         value = json.loads(output)
         if not isinstance(value, dict) or not isinstance(value.get("ok"), bool):
             raise RuntimeError("FS_HELPER_PROTOCOL")
-        if op in ("stat", "exists", "readdir") and value.get("ok"):
+        if op in ("stat", "exists", "readdir", "read") and value.get("ok"):
             self._cache[(op, path)] = value
         return value
 

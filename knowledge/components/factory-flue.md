@@ -4,12 +4,12 @@ title: "Flue factory execution"
 description: "Deterministic supervision of untrusted Flue/Pi workers, isolated tools and protected publication."
 status: draft
 verified:
-  - at: 2026-11-08
-    what: "unittest: incomplete usage does not hand over an oversized local follow-up; a builder-error receipt keeps diagnostics; an identical failed draft counts"
   - at: 2026-11-09
     what: "unittest product boundary, correction rounds, work limits, target check, execution, routing and telemetry: out-of-scope Spec doc refused; JUnit XML diagnostics; signature-based repeated-check stop with round continuation and prior candidate seed; routing v6"
   - at: 2026-11-10
     what: "unittest budget and dispatch: open_reservations lists unsettled entries, unconditional settlement clears reservations on incomplete usage, orphan reservations are reconciled at startup"
+  - at: 2026-11-12
+    what: "factory modernization: bridge read/stat caching with mutating invalidation, OpenShell 0.1.8 qualification, persistent author state with passed-check guidance, Langfuse v5.2 enterprise prompt management and multi-dimensional scores, Hindsight 1.2.1 reflection fallback"
 sources:
   - resource: ../../demo/factory/review_context.py
     title: "One-time operator repair of the old review envelope"
@@ -235,8 +235,18 @@ Every factory agent receives the same pipeline context (`demo/flue/src/context.t
 without network, the goal, the five steps, the attempt bounds and the rules) and leaves owner-only
 feedback, "RAS" or at most 800 characters: the author through the bridge `/v1/feedback`
 (`submit_feedback`, one reminder before it may stop), reviewers and the preparer through an
-optional field of their typed result. Notes land in the receipt `feedback`. A later correction
-copies at most a few redacted lines into the next author's prompt as untrusted data, beside the
+optional field of their typed result. Notes land in the receipt `feedback`. In Flue author sessions,
+`usePersistentState` tracks work state (execution phase, checks executed, last check status); when
+`run_protected_checks` has passed, the author is specifically directed to submit feedback and conclude
+without making further unrequested code edits or triggering redundant session handovers.
+The supervisor loopback bridge (`demo/app/bridge.py`) maintains an in-memory cache for read, stat,
+exists, and readdir operations, drastically reducing subprocess spawn overhead across the OpenShell
+boundary, with immediate deterministic invalidation on mutating filesystem operations (`write`,
+`mkdir`, `rm`) and any command execution. OpenShell qualification (`demo/app/sandbox.py`) supports
+both 0.1.7 and 0.1.8 runtime images with strict sha256 pinning and Landlock isolation. Pinned system
+prompts for author, reviewer, and preparer agents are managed via `demo/factory/prompts.py` with
+deterministic local fallback templates and optional Langfuse Prompt Management versioning.
+A later correction copies at most a few redacted lines into the next author's prompt as untrusted data, beside the
 vote reasons. They never enter the vote, telemetry or memory. `factory.retention` removes, at controller start and
 then daily, the workspaces of terminal builds older than seven days that no queued continuation
 needs, and asks the publish role to delete the `aeion/build-*` branch of a failed or cancelled build
