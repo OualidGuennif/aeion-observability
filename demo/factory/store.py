@@ -862,7 +862,7 @@ class Store:
                             or not measured(execution) or execution.get('role')!='author'
                             or execution.get('build_id')!=build_id
                             or execution.get('failure') and not (
-                                execution.get('failure') in ('AGENT_TIMEOUT','AGENT_DEADLINE','STEP_LIMIT','OUTPUT_LIMIT')
+                                execution.get('failure') in ('AGENT_TIMEOUT','AGENT_DEADLINE','STEP_LIMIT','OUTPUT_LIMIT','handover_limit')
                                 and execution.get('candidate_recovered') is True
                                 and execution.get('retained_artifact_digest')==receipt.get('artifact_digest'))
                             or any(not known(v.get('model')) or not retry_failed_review

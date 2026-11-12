@@ -1,3 +1,22 @@
+## Feature 003 Root Cause Debug & Handover Resilience — 2026-11-12
+
+- Root cause of build 557785d03d5f431fb41fa6cd3d770572:
+  - Haiku actually implemented all Feature 003 requirements (ephemeral PG database, refusal before DDL, marker checks, settings writer) and its protected check PASSED at 18:09:37 in session 1 (`"check": {"status": "passed", "artifact_digest": "c95049bc..."}`).
+  - Because `run_protected_checks` returned bare JSON without explicit termination guidance, Haiku continued with unguided markdown edits under `thinkingLevel: 'max'`, hitting the 250k token context limit (`gate.closed`).
+  - Resumed handover sessions (2 and 3) initialized in-memory `lastCheck` as `null` because `runner.py` did not propagate `handover['check']` into Flue. When Haiku attempted to finish, `useAgentFinish` saw `null` and emitted `finishReminder(null)`: `"You have not run run_protected_checks"`, trapping the model in another work cycle until hitting the context ceiling again.
+  - At 3 sessions, `flue_builder.py` raised `handover_limit`. Because `retained` was only updated on exception and `handover_limit` was omitted from recovery, candidate recovery failed to activate.
+- Robustness Fixes Implemented:
+  - `demo/app/runner.py`: binds `AEION_HANDOVER_CHECK` from `handover['check']` into Flue subprocess environment.
+  - `demo/flue/src/tools/factory-checks.ts`: initializes `lastCheck` from `AEION_HANDOVER_CHECK`, and returns explicit completion instructions upon passing (`verdict: 'PASSED'`).
+  - `demo/factory/flue_builder.py`: updates `retained` on every handover snapshot and adds `handover_limit` to candidate recovery.
+  - `demo/factory/store.py`: admits `handover_limit` for review reassessment when candidate is recovered.
+- Verification:
+  - `demo/flue`: 30/30 tests PASS (added `handover check environment initializes check state`).
+  - `demo/tests/test_factory_work_limits.py`: 9/9 tests PASS (added `handover_limit` recovery test).
+  - `tests/`: 33/33 tests PASS.
+  - `tools/knowledge/knowledge-check`: PASS (0 problems).
+  - `tools/repo-health/repo-health`: PASS (0 big files, 0 long comment blocks, `dispatch.py` and `store.py` strictly $\le 1500$ lines).
+
 ## Factory 3.0 Modernization Plan Full Implementation (Pillars 1–4) — 2026-11-12
 
 - Pillar 1: OpenShell 0.1.8 & I/O Cache Optimization

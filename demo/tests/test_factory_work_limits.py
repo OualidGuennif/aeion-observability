@@ -28,7 +28,8 @@ class WorkLimitTests(unittest.TestCase):
         changed=b'package local.aeion.forum; class Partial { int value=1; }\n'
         for valid,complete,forwards,code,recover in ((True,True,0,'STEP_LIMIT',False),
                 (False,True,1,'STEP_LIMIT',False),(True,False,1,'STEP_LIMIT',False),
-                (True,True,1,'ATTEMPT_REVOKED',False),(True,True,1,'STEP_LIMIT',True)):
+                (True,True,1,'ATTEMPT_REVOKED',False),(True,True,1,'STEP_LIMIT',True),
+                (True,True,1,'handover_limit',True)):
             with self.subTest(valid=valid,complete=complete,forwards=forwards,code=code),tempfile.TemporaryDirectory() as directory:
                 root=Path(directory);repo=root/'repo';repo.mkdir()
                 (repo/name).parent.mkdir(parents=True);(repo/name).write_bytes(original)

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { finishReminder, MAX_FINISH_REMINDERS, unavailableCheck } from '../src/tools/factory-checks.ts';
+import { finishReminder, initialCheck, MAX_FINISH_REMINDERS, unavailableCheck } from '../src/tools/factory-checks.ts';
 
 test('a passed check lets the author stop', () => {
   assert.equal(finishReminder({ status: 'passed' }), null);
@@ -31,4 +31,11 @@ test('reminder data stays bounded and typed', () => {
   assert.match(text, /check_failed/);
   assert.ok(text.length < 3000);
   assert.equal(MAX_FINISH_REMINDERS, 3);
+});
+
+test('handover check environment initializes check state', () => {
+  process.env.AEION_HANDOVER_CHECK = JSON.stringify({ status: 'passed', reason: 'passed' });
+  const restored = initialCheck();
+  assert.equal(restored?.status, 'passed');
+  delete process.env.AEION_HANDOVER_CHECK;
 });
