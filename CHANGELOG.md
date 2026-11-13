@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Clarifies Feature `004` (`demo/forum/tools/specs_a.py`): `POST /api/auth/register`
+  keeps creating enabled accounts (first on an empty forum is `owner`) that stay active
+  until `POST /api/auth/accounts/{username}/disable`; the disabled flag defaults to false.
+
 - Patches 14 Agora feature specifications (`demo/forum/tools/specs_{a,b,c,e,f}.py`
   and regenerated `demo/forum/features/*.md`) to disambiguate P0 endpoints
   against `ae0bd57` (`POST /api/auth/accounts/{username}/disable`,

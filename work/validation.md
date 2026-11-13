@@ -1,3 +1,8 @@
+## Feature 004 Registration/Disabled-State Clarification — 2026-11-13
+
+- Removed the `disabled-by-default` ambiguity in `004`: product `main` `8bde82c2` `AuthService.register`, `AuthResourceTest` and `ThreadsResourceTest` require `/api/auth/register` accounts to log in immediately, and the external verifier has no CLI to bootstrap an owner. Spec now pins enabled registration, `disabled` default false, owner-only `/disable`.
+- Verification: `generate_features.py --check` (`PASS 100 features`), `demo/forum/tools` 21/21 OK, `test_factory_registered_foundation.py` 11/11 OK, `test_factory_contract_identity.py` 12/12 OK, `flue_qualification.ready` True (protocol `01f254ff4cee` unchanged).
+
 ## Catalog Spec Alignment & Feature Authoring Guide — 2026-11-13
 
 - Created [knowledge/operations/feature-authoring.md](../knowledge/operations/feature-authoring.md) (indexed in `knowledge/index.md` and `knowledge/operations/index.md`) codifying catalog validation bounds, black-box negative-control requirements, inherited HTTP 16 KiB / CSRF / 422 guards, SPI naming, and hold diagnosis.

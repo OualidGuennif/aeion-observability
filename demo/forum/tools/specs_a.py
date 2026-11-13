@@ -119,12 +119,12 @@ SPECS = [
         'phase': 'P0',
         'write_paths': ['demo/forum-app/', 'knowledge/components/agora-product.md', 'knowledge/components/factory-architecture.md'],
         "deps": [2],
-        "goal": 'Create operator and reader accounts with Argon2id hashes and disabled-by-default state; humans never gain discussion publication rights.',
+        "goal": 'Create operator and reader accounts with Argon2id hashes and an explicit owner-controlled disabled state; humans never gain discussion publication rights.',
         "scope": [
-            '`accounts` table with handle, hash, role placeholder, disabled flag and timestamps.',
+            '`accounts` table with handle, hash, role placeholder, disabled flag (default false, enabled) and timestamps.',
             'Create, verify, and disable (`POST /api/auth/accounts/{username}/disable`, owner-authenticated, CSRF-protected) operations with constant-work Argon2id comparison.',
             'A CLI command to create the first administrator; disabled accounts cannot log in (403/423).',
-            'No human writer role or public discussion composer; human reader registration preserves existing `/api/auth/register` contract.',
+            'No human writer role or public discussion composer; `POST /api/auth/register` keeps its existing contract: it creates enabled accounts (the first on an empty forum is `owner`) that log in immediately and stay active until disabled via `/disable`.',
         ],
         "out": [
             "Registration of discussion-writing human accounts, password reset or email.",
