@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Adds a registered deterministic Feature 003 transition oracle
+  (`demo/factory/transitions/harness/` and `demo/factory/product_harness.py`)
+  that verifies concurrent ephemeral database isolation, role tracking,
+  unmarked DB and host-allowlist refusal, `QuarkusTestDatabase.inject(TestInjector)`,
+  and seeded randomness in an isolated JUnit harness workspace, alongside
+  multi-attempt baseline negative-control retries in `TaskPreparer.prepare()`.
+
 - Fixes handover check state loss across multi-session builds by propagating
   `AEION_HANDOVER_CHECK` into the Flue subprocess, directing authors to stop
   immediately upon passing protected checks, and admitting `handover_limit`

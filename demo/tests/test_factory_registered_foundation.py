@@ -89,7 +89,7 @@ class RegisteredFoundationTests(unittest.TestCase):
         self.assertTrue((self.root/'prepared/proposed-acceptance.json').is_file())
 
     def select_transition(self,feature):
-        kind={'002':'postgres','014':'react'}[feature]
+        kind={'002':'postgres','003':'harness','014':'react'}[feature]
         shutil.copytree(ROOT/'demo/factory/transitions'/kind,self.root/'demo/factory/transitions'/kind)
         spec=next((ROOT/'demo/forum/features').glob(feature+'-*.md'))
         self.spec=self.specs/(feature+'.md');self.spec.write_bytes(spec.read_bytes())
@@ -100,6 +100,24 @@ class RegisteredFoundationTests(unittest.TestCase):
             (self.source/'demo/forum-app/build.gradle').write_bytes(original)
             subprocess.run(['git','-C',str(self.source),'add','.'],check=True,capture_output=True)
             subprocess.run(['git','-C',str(self.source),'commit','-qm','public transition baseline'],check=True,capture_output=True)
+
+    def test_harness_transition_uses_registered_acceptance_without_model_or_cost(self):
+        self.select_transition('003')
+        target,evidence=self.prepare('registered_harness_oracle_failed')
+        self.assertEqual(evidence['negative_control'],'registered_transition_source_missing')
+        self.assertEqual(evidence['preparation_kind'],'registered_static_acceptance')
+        self.assertEqual(self.role.calls,[])
+        self.assertIsNone(evidence['preparer_model'])
+        self.assertEqual(target.feature_id,'003')
+        catalog=Catalog({'schema_version':2,'count':1,'features':[self.feature]})
+        store=Store(self.root/'factory-harness.db');store.admit(['003'],'registered',catalog)
+        build=store.claim_next(catalog)
+        self.assertTrue(store.record_preparation(build['attempt_id'],build['attempt_generation'],evidence))
+
+    def test_harness_transition_refuses_arbitrary_compile_failure(self):
+        self.select_transition('003')
+        with self.assertRaisesRegex(PreparationError,'negative_control_missing'):
+            self.prepare('product_compile_failed')
 
     def test_postgres_transition_freezes_dependencies_without_granting_worker_verifier_control(self):
         self.select_transition('002')

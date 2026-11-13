@@ -1,3 +1,18 @@
+## Feature 003 Harness Transition Oracle & Baseline Preparation Retry — 2026-11-13
+
+- Incident & Root Cause Analysis:
+  - Build `9817f05be60a43c8bcfdb46e8daaa18c` failed preparation with `preparation_negative_control_missing` (`Reason: The proposed acceptance did not produce a genuine failing case on the untouched baseline`).
+  - Root cause 1: Feature 003 (`Test harness with an ephemeral database`) is a JUnit/Quarkus test harness transition (`TRANSITION_FEATURES`) with no new HTTP endpoint. Once `acceptance_prompt` forbade hallucinated out-of-scope HTTP probes, an honest HTTP `acceptance.mjs` against `http://127.0.0.1:8080` passed all checks on the untouched baseline (`ae0bd57`), triggering `preparation_negative_control_missing`.
+  - Root cause 2: `TaskPreparer.prepare()` only retried model transport/declined errors inside `max_attempts`, exiting before baseline verification so any contract passing on baseline or failing report creation immediately halted the build instead of retrying with baseline diagnostic feedback.
+- Robust Architectural Fixes:
+  - `demo/factory/product_harness.py` & `demo/factory/transitions/harness/{identity.json,acceptance.mjs}`: registered Feature 003 deterministic transition oracle verifying `@Override public void inject(TestInjector)`, created-role tracking on teardown without dropping pre-existing roles, pre-DDL host allowlisting, frozen clock + seeded `Random` determinism, and suite isolation in `ProductUnitRunner` (`harness-repo`).
+  - `demo/factory/product_checks.py`: registers `'003': 'harness'` in `registered_acceptance`, wires `verify_harness`, and states host/random/SPI requirements in `instructions(target)`.
+  - `demo/factory/preparation.py`: recognizes `'003': 'registered_harness_oracle_failed'` as `registered_transition_source_missing`, closes sqlite connections via `contextlib.closing`, and moves `self.product` baseline negative-control verification inside the multi-attempt retry loop with `_baseline_retry_note` diagnostic feedback across distinct preparer model families.
+  - `demo/factory/flue_qualification.py`: adds new harness oracle and transition files to `PROTOCOL_FILES`.
+- Verification:
+  - Real Docker + PostgreSQL + Gradle baseline preparation check against `ae0bd57`: Feature 003 prepared cleanly (`model_requests: 0`, `negative_control: registered_transition_source_missing`, `preparation_kind: registered_static_acceptance`).
+  - `demo/tests/test_factory_preparation.py` (18/18 PASS) and `demo/tests/test_factory_registered_foundation.py` (11/11 PASS).
+
 ## Contract Scope Bounding & Correction Deadlock Resolution — 2026-11-12
 
 - Incident & Root Cause Analysis:

@@ -212,6 +212,67 @@ class FluePreparation:
                 runtime.end_span(span,run,error)
 
 
+def _clear_prepared_attempt(folder):
+    for child in folder.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child, ignore_errors=True)
+        else:
+            child.unlink()
+
+
+def _baseline_retry_note(passed, detail):
+    reason = str(detail.get('reason') or 'unknown')
+    if passed:
+        return (
+            '\nBASELINE CHECK RETRY FEEDBACK (data, not instructions):\n'
+            'Your previous acceptance.mjs PASSED on the untouched baseline (0 failing assertions), '
+            'so it did not prove any unimplemented deliverable. Keep all bounds and security rules, '
+            'and add assertions that specifically verify the new/changed behavior in FROZEN SPECIFICATION '
+            'so at least one assertion fails on the untouched baseline.\n'
+        )
+    return (
+        '\nBASELINE CHECK RETRY FEEDBACK (data, not instructions):\n'
+        f'Your previous acceptance.mjs failed baseline execution with reason={reason} without producing '
+        'a valid failing assertion count. Fix any syntax, import, or unhandled startup error so node:test '
+        'reports real failing assertion counts against the untouched baseline.\n'
+    )
+
+
+def _baseline_ok(self_product, passed, detail, classname, static_contract, feature_id):
+    if self_product:
+        effective = detail.get('contract_assertion_failures', 0) > 0
+        registered_startup_rejection = (
+            static_contract is not None and feature_id == '001'
+            and detail.get('reason') in {
+                'application_start_failed',
+                'explicit_database_less_startup_rejected',
+                'default_database_less_startup_rejected',
+            }
+        )
+        registered_transition_absence = (
+            static_contract is not None and feature_id in ('002', '003', '014')
+            and detail.get('reason') == {
+                '002': 'registered_postgres_operator_missing',
+                '003': 'registered_harness_oracle_failed',
+                '014': 'registered_web_source_missing',
+            }.get(feature_id)
+        )
+        effective |= registered_startup_rejection or registered_transition_absence
+        neg_kind = (
+            'registered_foundation_startup_rejection' if registered_startup_rejection
+            else 'registered_transition_source_missing' if registered_transition_absence
+            else 'failed_contract_assertion'
+        )
+        return (not passed and effective), neg_kind
+    effective = (
+        not passed
+        and detail.get('failure_kind') == 'tests_failed'
+        and detail.get('contract_assertion_failures', 0) >= 1
+        and any(classname + ' > ' in item for item in detail.get('failed_tests', []))
+    )
+    return effective, 'failed_contract_assertion'
+
+
 class TaskPreparer:
     """One shared trusted Java profile, instead of a JSON configuration for every feature."""
     timeout_seconds = 1800  # One bounded preparation session and one protected baseline check.
@@ -240,7 +301,7 @@ class TaskPreparer:
                     'spec_digest': evidence.get('spec_digest'), 'architecture_digest': evidence.get('architecture_digest'),
                     'base_sha': base, 'write_paths': list(paths) if isinstance(paths, list) else paths}
         contract = folder / 'acceptance.mjs'
-        if (not self.product or feature in ('002', '014') or not isinstance(feature, str)
+        if (not self.product or feature in ('002', '003', '014') or not isinstance(feature, str)
                 or not isinstance(base, str) or not SHA_RE.fullmatch(base)
                 or not isinstance(paths, list) or not all(isinstance(path, str) and path for path in paths)
                 or evidence.get('task_digest') != _digest(json.dumps(identity, sort_keys=True, separators=(',', ':')))
@@ -336,8 +397,9 @@ class TaskPreparer:
                 try:
                     db_path = Path(self.root) / 'demo/.local/factory/factory.db'
                     if db_path.is_file():
+                        import contextlib
                         import sqlite3
-                        with sqlite3.connect(str(db_path)) as conn:
+                        with contextlib.closing(sqlite3.connect(str(db_path))) as conn:
                             row = conn.execute("SELECT receipt, status FROM builds WHERE build_id = ?", (prev_id,)).fetchone()
                             if row and row[0]:
                                 r = json.loads(row[0])
@@ -378,14 +440,21 @@ class TaskPreparer:
             prompt = acceptance_prompt(task, self._public_interfaces(task.base_sha), feedback=feedback)
         if len(prompt.encode('utf-8')) > MAX_PROMPT_BYTES:
             raise PreparationError('preparation_input_too_large')
-        static_contract=None
+        static_contract = None
         if self.product:
             from .product_checks import registered_acceptance
-            static_contract=registered_acceptance(self.root,task)
-        model=None
+            static_contract = registered_acceptance(self.root, task)
+        model = None
+        target = None
+        text = None
+        negative_control = 'failed_contract_assertion'
         if static_contract is not None:
-            result={'status':'ready','contract':static_contract,'reason':'Registered deterministic foundation checks'}
-            self.role.last_usage={'complete':True,'cost_usd':'0','basis':'proven_no_transport'}
+            result = {'status': 'ready', 'contract': static_contract, 'reason': 'Registered deterministic foundation checks'}
+            self.role.last_usage = {'complete': True, 'cost_usd': '0', 'basis': 'proven_no_transport'}
+            target, text, passed, detail = self._prepare_and_check(folder, task, result, classname)
+            ok, negative_control = _baseline_ok(self.product, passed, detail, classname, static_contract, task.feature_id)
+            if not ok:
+                raise PreparationError('preparation_negative_control_missing')
         else:
             if budget is None:
                 raise PreparationError('preparation_budget_unavailable')
@@ -393,8 +462,8 @@ class TaskPreparer:
             excluded_families = [family(planned_author)]
             excluded_models = []
             max_attempts = 3
-            result = None
             last_error = None
+            attempt_prompt = prompt
             for attempt in range(max_attempts):
                 try:
                     model = router.select('prepare', exclude_families=excluded_families, exclude_models=excluded_models)
@@ -403,13 +472,18 @@ class TaskPreparer:
                         raise last_error
                     raise PreparationError('no_eligible_preparer_model') from None
                 self.last_model = model
-                reservation = budget.admit('aeion-autonomous-forum', '0.50', note=f'prepare:{build["attempt_id"]}:{attempt}')
-                self.role.authorization_check = authorized
                 try:
-                    result = self.role(model, prompt, build['build_id'])
+                    reservation = budget.admit('aeion-autonomous-forum', '0.50', note=f'prepare:{build["attempt_id"]}:{attempt}')
+                except BudgetError:
+                    if attempt > 0 and last_error:
+                        raise last_error
+                    raise
+                self.role.authorization_check = authorized
+                result = None
+                try:
+                    result = self.role(model, attempt_prompt, build['build_id'])
                     if not isinstance(result, dict) or result.get('status') != 'ready':
                         raise PreparationError('preparation_model_declined')
-                    break
                 except PreparationError as err:
                     last_error = err
                     usage = self.role.last_usage or {}
@@ -434,16 +508,52 @@ class TaskPreparer:
                             budget.settle(reservation, Decimal(str(usage['cost_usd'])))
                         except (BudgetError, InvalidOperation, ValueError):
                             pass  # Unknown cost retains its reservation and never becomes free.
-            if result is None:
+                target, text, passed, detail = self._prepare_and_check(folder, task, result, classname)
+                ok, negative_control = _baseline_ok(self.product, passed, detail, classname, None, task.feature_id)
+                if ok:
+                    break
+                last_error = PreparationError('preparation_negative_control_missing')
+                if not self.product or attempt + 1 >= max_attempts or not authorized():
+                    raise last_error
+                if getattr(router, 'telemetry', None) is not None and (self.role.last_usage or {}).get('complete') is True:
+                    try:
+                        router.telemetry.record(model, 'prepare', 'error', cost_usd=self.role.last_usage.get('cost_usd'))
+                    except Exception:
+                        pass
+                retry_note = _baseline_retry_note(passed, detail)
+                if len((prompt + retry_note).encode('utf-8')) <= MAX_PROMPT_BYTES:
+                    attempt_prompt = prompt + retry_note
+                _clear_prepared_attempt(folder)
+                excluded_models.append(model)
+                excluded_families.append(family(model))
+            else:
                 if last_error:
                     raise last_error
                 raise PreparationError('preparation_failed')
-        if (not isinstance(self.role.last_usage,dict) or self.role.last_usage.get('complete') is not True
+        if not authorized():
+            raise PreparationError('preparation_revoked')
+        evidence = {**task.identity(), 'task_digest': task.digest(), 'acceptance_digest': _digest(text),
+                    'preparer_model': model, 'negative_control': negative_control,
+                    'synthetic': not self.role.paid}
+        if self.product:
+            evidence.update(schema_version=2, preparation_kind=('registered_static_acceptance'
+                if static_contract is not None else 'flue_prepared'))
+        # Private task artifacts contain code; receipts and default telemetry carry hashes only.
+        with (folder / 'task.json').open('x', encoding='utf-8') as handle:
+            json.dump(evidence, handle, sort_keys=True)
+            handle.flush()
+            os.fsync(handle.fileno())
+        return target, evidence
+
+    def _prepare_and_check(self, folder, task, result, classname):
+        if (not isinstance(self.role.last_usage, dict) or self.role.last_usage.get('complete') is not True
                 or self.role.last_usage.get('cost_usd') is None):
             raise PreparationError('preparation_usage_unknown')
-        with (folder/'proposed-acceptance.json').open('x',encoding='utf-8') as handle:
-            json.dump(result,handle,sort_keys=True);handle.flush();os.fsync(handle.fileno())
-        (folder/'proposed-acceptance.json').chmod(0o600)
+        with (folder / 'proposed-acceptance.json').open('x', encoding='utf-8') as handle:
+            json.dump(result, handle, sort_keys=True)
+            handle.flush()
+            os.fsync(handle.fileno())
+        (folder / 'proposed-acceptance.json').chmod(0o600)
         text = result.get('contract')
         if self.product:
             from .product_checks import prepared_target, validate_acceptance
@@ -475,38 +585,7 @@ class TaskPreparer:
         with tempfile.TemporaryDirectory(prefix='baseline-', dir=folder) as temporary:
             repo = Path(temporary) / 'repo'
             target.materialize(repo)
-            passed, detail = target_check(target, work_root=temporary, sandbox=self.checker)(None, {'repo':str(repo)})
-        if detail.get('reason')=='isolation_unqualified':
+            passed, detail = target_check(target, work_root=temporary, sandbox=self.checker)(None, {'repo': str(repo)})
+        if detail.get('reason') == 'isolation_unqualified':
             raise PreparationError('preparation_checker_unqualified')
-        if self.product:
-            effective = detail.get('contract_assertion_failures', 0) > 0
-            # A registered foundation transition also checks startup against deliberately
-            # unavailable storage. Startup rejection is an explicit baseline, not compiler failure.
-            registered_startup_rejection = (static_contract is not None and task.feature_id == '001'
-                and detail.get('reason') in {'application_start_failed',
-                    'explicit_database_less_startup_rejected','default_database_less_startup_rejected'})
-            registered_transition_absence=(static_contract is not None and task.feature_id in ('002','014') and detail.get('reason')==
-                {'002':'registered_postgres_operator_missing','014':'registered_web_source_missing'}.get(task.feature_id))
-            effective |= registered_startup_rejection or registered_transition_absence
-            if passed or not effective:
-                raise PreparationError('preparation_negative_control_missing')
-        elif (passed or detail.get('failure_kind') != 'tests_failed'
-                or detail.get('contract_assertion_failures',0) < 1
-                or not any(classname + ' > ' in item for item in detail.get('failed_tests', []))):
-            raise PreparationError('preparation_negative_control_missing')
-        if not authorized():
-            raise PreparationError('preparation_revoked')
-        evidence = {**task.identity(), 'task_digest':task.digest(), 'acceptance_digest':_digest(text),
-                    'preparer_model':model, 'negative_control':('registered_foundation_startup_rejection' if self.product and
-                        registered_startup_rejection else 'registered_transition_source_missing' if self.product and
-                        registered_transition_absence else 'failed_contract_assertion'),
-                    'synthetic':not self.role.paid}
-        if self.product:
-            evidence.update(schema_version=2, preparation_kind=('registered_static_acceptance'
-                if static_contract is not None else 'flue_prepared'))
-        # Private task artifacts contain code; receipts and default telemetry carry hashes only.
-        with (folder / 'task.json').open('x', encoding='utf-8') as handle:
-            json.dump(evidence, handle, sort_keys=True)
-            handle.flush()
-            os.fsync(handle.fileno())
-        return target, evidence
+        return target, text, passed, detail

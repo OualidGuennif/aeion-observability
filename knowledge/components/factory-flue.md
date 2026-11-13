@@ -17,6 +17,8 @@ sources:
     title: "Separate candidate unit-test database"
   - resource: ../../demo/factory/product_postgres.py
     title: "Fixed migration, import and restore oracles"
+  - resource: ../../demo/factory/product_harness.py
+    title: "Protected JUnit/Quarkus test harness oracle"
   - resource: ../../demo/factory/product_web.py
     title: "Frozen offline React runner"
   - resource: ../../demo/factory/product_proxy.py
@@ -139,13 +141,17 @@ to select a repository, expand scopes, change tests, change budget or merge.
 Automatic preparation freezes the complete catalog MD, approved architecture, committed product
 base and narrower literal scopes before implementation. A tier-1 Flue preparer proposes a bounded
 external Node acceptance, never a command or policy; the historical Java profile retains JUnit.
-The exact registered001/002/014 MDs and architecture use fixed supervisor acceptance with no model request or
+The exact registered001/002/003/014 MDs and architecture use fixed supervisor acceptance with no model request or
 cost. A changed MD cannot reuse that oracle. Its untouched-baseline startup rejection is a
 registered negative; arbitrary compiler/toolchain failure never qualifies an acceptance contract.
-Ordinary contracts require actual failing external assertions on the untouched baseline.
-The registered002/014 untouched baseline must lack their operator/browser source; compiler failure
+Ordinary contracts require actual failing external assertions on the untouched baseline; if a live
+product contract passes on the untouched baseline (`preparation_negative_control_missing`) or fails
+baseline report production, `TaskPreparer.prepare` automatically retries with baseline diagnostic
+feedback across eligible preparer families before holding.
+The registered002/003/014 untouched baseline must lack their operator, test-harness SPI/role/host
+guarantees, or browser source; compiler failure
 or a missing checker reason cannot stand in for that absence. Positive candidates still need the
-full migration/import/restore or production browser checks. These adapters do not implement the product.
+full migration/import/restore, protected JUnit harness, or production browser checks. These adapters do not implement the product.
 Automatic preparation carries committed security and validation rules (mandatory X-CSRF-Token on
 session mutations, 422 validation response codes) and incorporates structured prior attempt findings
 from previous receipts into the acceptance prompt (`previous_feature_feedback`), preventing acceptance
