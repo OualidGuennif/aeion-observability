@@ -67,7 +67,7 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 - [ ] A new request after shutdown starts is refused without entering its handler.
 - [ ] A handler exceeding the deadline is terminated within the configured grace bound; incomplete work is not reported successful.
 
-**Test scenario:** Start a slow request, send SIGTERM and assert the response completes and the exit code is 0.
+**Test scenario:** Start a slow request in JUnit/integration lifecycle tests, send SIGTERM and assert the response completes and exit code is 0 (external black-box HTTP tests never signal the server).
 
 ## Out of scope
 

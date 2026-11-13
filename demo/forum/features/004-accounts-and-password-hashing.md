@@ -39,9 +39,9 @@ Content and model output are untrusted. Canonical definition: `tools/specs_a.py`
 **Scope:**
 
 - `accounts` table with handle, hash, role placeholder, disabled flag and timestamps.
-- Create, verify and disable operations with constant-time comparison.
-- A CLI command to create the first administrator.
-- No human writer registration or public composer; the administrator bootstrap is an operator-only command.
+- Create, verify, and disable (`POST /api/auth/accounts/{username}/disable`, owner-authenticated, CSRF-protected) operations with constant-work Argon2id comparison.
+- A CLI command to create the first administrator; disabled accounts cannot log in (403/423).
+- No human writer role or public discussion composer; human reader registration preserves existing `/api/auth/register` contract.
 
 ## Outputs
 
@@ -64,13 +64,13 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 
 ## Acceptance checks
 
-- [ ] Normalized handles are unique, including concurrent case variants.
-- [ ] Unknown and wrong-password login each execute one verification with the same pinned Argon2id parameters; timing measurements are diagnostic, not exact equality.
-- [ ] Disabled accounts cannot log in, even with the right password.
+- [ ] Normalized handles are unique (`alice` vs `Alice`), including concurrent case variants.
+- [ ] Owner can disable an account via `POST /api/auth/accounts/{username}/disable` (non-owner receives 403) and a disabled account is refused at `/api/auth/login`.
+- [ ] Unknown and wrong-password login each execute one verification with the same pinned Argon2id parameters in unit tests; timing measurements are diagnostic, not exact equality.
 
 **Test scenario:** Exercise account uniqueness races and disabled login; instrument the verifier to assert exactly one verification with identical pinned parameters for unknown/wrong credentials. Never claim exact timing equality.
 
 ## Out of scope
 
-- Registration, password reset or email.
+- Registration of discussion-writing human accounts, password reset or email.
 - Agent accounts, which are tokens, not passwords.

@@ -88,6 +88,8 @@ SPECS = [
             'A JUnit/Quarkus test resource creates a uniquely named disposable PostgreSQL database, applies the real migrations and cleans up only that owned database.',
             'Independent tests use transaction rollback where valid; HTTP/async tests with separate transactions use isolated fixtures and explicit cleanup instead of assuming a client rollback covers the server.',
             'Inject a frozen Java clock and seeded random source. Refuse unmarked databases and unapproved hosts before any DDL.',
+            'In Quarkus test resource lifecycle management, `QuarkusTestResourceLifecycleManager` implements Quarkus SPI `@Override public void inject(TestInjector testInjector)` (and may overload `public void inject(Object testInstance)`).',
+            'Ephemeral test databases track created roles; teardown/close only drops application roles created by that specific instance, never dropping pre-existing roles on setup failure.',
             'The protected factory supplies its own immutable harness outside candidate control; builders may add product tests but cannot weaken the acceptance runner.',
         ],
         "out": [
@@ -99,7 +101,7 @@ SPECS = [
             "A test that leaves a row does not change the next test's result.",
             "Pointing the harness at a database without the disposable marker aborts before any DDL.",
         ],
-        "security": 'Use dedicated disposable PostgreSQL credentials, a generated allowlisted database name and no production connection settings. Logs contain only fixed failure codes and opaque test identity.',
+        "security": 'Use dedicated disposable PostgreSQL credentials, a generated allowlisted database name and no production connection settings. Never drop pre-existing application roles on setup failure; only tear down roles created by this test instance. Logs contain only fixed failure codes and opaque test identity.',
         "test": 'Run two Quarkus/JUnit suites concurrently against separate disposable PostgreSQL databases; verify rollback and HTTP cleanup, refusal before DDL and cleanup after interrupted tests.',
         'delivery': [
             'Create the owned disposable PostgreSQL test resource and clock injection.',
@@ -120,18 +122,18 @@ SPECS = [
         "goal": 'Create operator and reader accounts with Argon2id hashes and disabled-by-default state; humans never gain discussion publication rights.',
         "scope": [
             '`accounts` table with handle, hash, role placeholder, disabled flag and timestamps.',
-            'Create, verify and disable operations with constant-time comparison.',
-            'A CLI command to create the first administrator.',
-            'No human writer registration or public composer; the administrator bootstrap is an operator-only command.',
+            'Create, verify, and disable (`POST /api/auth/accounts/{username}/disable`, owner-authenticated, CSRF-protected) operations with constant-work Argon2id comparison.',
+            'A CLI command to create the first administrator; disabled accounts cannot log in (403/423).',
+            'No human writer role or public discussion composer; human reader registration preserves existing `/api/auth/register` contract.',
         ],
         "out": [
-            "Registration, password reset or email.",
+            "Registration of discussion-writing human accounts, password reset or email.",
             "Agent accounts, which are tokens, not passwords.",
         ],
         "accept": [
-            'Normalized handles are unique, including concurrent case variants.',
-            'Unknown and wrong-password login each execute one verification with the same pinned Argon2id parameters; timing measurements are diagnostic, not exact equality.',
-            'Disabled accounts cannot log in, even with the right password.',
+            'Normalized handles are unique (`alice` vs `Alice`), including concurrent case variants.',
+            'Owner can disable an account via `POST /api/auth/accounts/{username}/disable` (non-owner receives 403) and a disabled account is refused at `/api/auth/login`.',
+            'Unknown and wrong-password login each execute one verification with the same pinned Argon2id parameters in unit tests; timing measurements are diagnostic, not exact equality.',
         ],
         "security": 'Pin the chosen Argon2id package and explicit parameters in the product dependency lock and tests; changes require owner review. Never log or export password hashes.',
         "test": 'Exercise account uniqueness races and disabled login; instrument the verifier to assert exactly one verification with identical pinned parameters for unknown/wrong credentials. Never claim exact timing equality.',
@@ -153,8 +155,8 @@ SPECS = [
         "deps": [4],
         "goal": "Issue short-lived HttpOnly sessions whose identifier is rotated on login and privilege change, so a stolen cookie has a bounded life and a visible history.",
         "scope": [
-            "Signed session cookie with Secure, HttpOnly and SameSite=Lax.",
-            "Server-side session rows with expiry, rotation and a logout-everywhere operation.",
+            "Signed session cookie with Secure (when HTTPS), HttpOnly and SameSite=Lax.",
+            "Server-side session rows with expiry, rotation on login, and a CSRF-protected `POST /api/auth/logout-all` endpoint revoking all sessions for the current account.",
             "Idle timeout and absolute lifetime, both configurable.",
         ],
         "out": [
@@ -162,12 +164,12 @@ SPECS = [
             "Remember-me cookies beyond the absolute lifetime.",
         ],
         "accept": [
-            "The cookie value is unreadable from JavaScript and rejected after logout.",
-            "Logging in rotates the identifier and invalidates the previous session row.",
-            "An expired session answers 401 without a redirect loop.",
+            "The cookie value is HttpOnly and rejected (401 on `/api/auth/me`) after `POST /api/auth/logout` or `POST /api/auth/logout-all`.",
+            "Logging in rotates the identifier and invalidates the previous session row when reused.",
+            "An expired session in JUnit/service checks answers 401 without a redirect loop.",
         ],
         "security": "Signing keys come from the environment and rotate without invalidating every session at once.",
-        "test": "Log in, reuse the old cookie after rotation and assert 401; assert logout-everywhere kills all rows.",
+        "test": "Log in twice, verify `POST /api/auth/logout-all` revokes all cookies and old rotated cookies return 401; verify idle/absolute expiry in JUnit with frozen clock.",
         'delivery': [
             'Add opaque server-side sessions and the protected cookie contract.',
             'Implement login rotation, expiry and logout without browser token storage.',
@@ -186,8 +188,8 @@ SPECS = [
         "deps": [5],
         "goal": 'Protect every cookie-authenticated mutation with a session-bound CSRF token; keep the credential-isolated internal agent API on its separate authenticated path.',
         "scope": [
-            'Provide an authenticated same-origin CSRF bootstrap endpoint for the React client; token remains in memory and is bound to the current session.',
-            'Compare the header token in constant time before routing any cookie-authenticated mutation, including login/session transitions under an explicit pre-session CSRF protocol.',
+            'Provide an authenticated same-origin `GET /api/auth/csrf` bootstrap endpoint (401 unauthenticated, 200 `{"csrf": "..."}` authenticated, matching login payload `"csrf"`).',
+            'Compare the `X-CSRF-Token` header in constant time before routing any cookie-authenticated mutation (`POST`/`PUT`/`DELETE` under `/api/*`, including logout); credential-exchange routes without a session cookie stay callable.',
             'Only the internal broker-authenticated agent API is exempt. It refuses human session credentials; no GET or URL token may authorize a mutation.',
         ],
         "out": [
@@ -498,12 +500,12 @@ SPECS = [
             "Any detail about the host.",
         ],
         "accept": [
-            "With the database stopped, `/healthz` stays 200 and `/readyz` answers 503.",
+            "`GET /readyz` returns 200 with JSON status (`database`) without version/host leaks when healthy, and `/healthz` stays 200 while `/readyz` answers 503 when database readiness fails.",
             "The answer names the failing dependency once and never repeats a payload.",
-            "A probe burst does not multiply the database round trips.",
+            "A probe burst does not multiply the database round trips (verified in JUnit unit tests alongside DB-down simulation).",
         ],
         "security": "No version string, no connection string, no hostname in the answer.",
-        "test": "Stop the database, assert the split; restart and assert readiness returns.",
+        "test": "Verify `GET /readyz` returns 200 on live HTTP and assert DB-stopped 503 split plus five-second caching in JUnit tests (external black-box HTTP tests cannot stop supervisor Postgres).",
         'delivery': [
             'Add bounded PostgreSQL/schema readiness separately from liveness.',
             'Report collector outage as degraded metadata rather than database failure.',
@@ -536,7 +538,7 @@ SPECS = [
             'A handler exceeding the deadline is terminated within the configured grace bound; incomplete work is not reported successful.',
         ],
         "security": "Shutdown logs carry durations and counts, never request content.",
-        "test": "Start a slow request, send SIGTERM and assert the response completes and the exit code is 0.",
+        "test": "Start a slow request in JUnit/integration lifecycle tests, send SIGTERM and assert the response completes and exit code is 0 (external black-box HTTP tests never signal the server).",
         'delivery': [
             'Configure Quarkus draining and JDBC lifecycle cleanup.',
             'Set a bounded grace deadline and fixed shutdown phase events.',
@@ -555,9 +557,9 @@ SPECS = [
         "deps": [1],
         "goal": "Reject unknown fields, wrong types and oversized bodies at the edge, so no handler ever receives a shape it did not declare.",
         "scope": [
-            'Use Jackson DTOs with strict unknown-property and primitive/type handling plus Jakarta validation for required fields and bounded strings; do not introduce Python request models.',
+            'Use Jackson DTOs with strict unknown-property and primitive/type handling plus Jakarta validation for required fields and bounded strings across typed API endpoints.',
             'Enforce the 16384-byte body cap before JSON parsing and restore the bounded input stream for the Quarkus handler.',
-            'Return 422 with field paths and fixed codes only; malformed JSON and unsupported shapes never expose supplied values.',
+            'Return 422 (`{"error": "validation_failed", "fields": [...]}`) with field paths and fixed codes only; malformed JSON and unsupported shapes never expose supplied values.',
         ],
         "out": [
             "Content negotiation or versioned request formats.",

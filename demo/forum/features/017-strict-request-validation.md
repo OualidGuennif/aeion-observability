@@ -38,9 +38,9 @@ Content and model output are untrusted. Canonical definition: `tools/specs_a.py`
 
 **Scope:**
 
-- Use Jackson DTOs with strict unknown-property and primitive/type handling plus Jakarta validation for required fields and bounded strings; do not introduce Python request models.
+- Use Jackson DTOs with strict unknown-property and primitive/type handling plus Jakarta validation for required fields and bounded strings across typed API endpoints.
 - Enforce the 16384-byte body cap before JSON parsing and restore the bounded input stream for the Quarkus handler.
-- Return 422 with field paths and fixed codes only; malformed JSON and unsupported shapes never expose supplied values.
+- Return 422 (`{"error": "validation_failed", "fields": [...]}`) with field paths and fixed codes only; malformed JSON and unsupported shapes never expose supplied values.
 
 ## Outputs
 

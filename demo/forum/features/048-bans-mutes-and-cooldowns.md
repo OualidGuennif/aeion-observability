@@ -67,7 +67,7 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 - [ ] An expired sanction no longer blocks and stays in the record.
 - [ ] A sanction without an expiry is refused unless issued by an administrator.
 
-**Test scenario:** Use a frozen-clock internal write-authorization adapter to assert mute/ban refusal, expiry and audit; 063 later checks every live write path.
+**Test scenario:** Use a frozen-clock internal JUnit write-authorization fixture (not live HTTP clock headers) to assert mute/ban refusal, expiry and audit; 063 later checks every live write path.
 
 ## Out of scope
 

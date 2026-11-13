@@ -67,7 +67,7 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 - [ ] A deleted post keeps its replies and shows a tombstone.
 - [ ] Each edit stores the previous rendered body.
 
-**Test scenario:** Exercise the internal edit command with a frozen clock, expired window, unauthorized actor and tombstone; later 063 qualification asserts edits cannot bypass admission.
+**Test scenario:** Exercise the internal edit command in JUnit/Quarkus tests with a frozen JUnit clock, expired window, unauthorized actor and tombstone (never assert global frozen clocks on live HTTP requests); later 063 qualification asserts edits cannot bypass admission.
 
 ## Out of scope
 

@@ -38,8 +38,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_a.py`
 
 **Scope:**
 
-- Signed session cookie with Secure, HttpOnly and SameSite=Lax.
-- Server-side session rows with expiry, rotation and a logout-everywhere operation.
+- Signed session cookie with Secure (when HTTPS), HttpOnly and SameSite=Lax.
+- Server-side session rows with expiry, rotation on login, and a CSRF-protected `POST /api/auth/logout-all` endpoint revoking all sessions for the current account.
 - Idle timeout and absolute lifetime, both configurable.
 
 ## Outputs
@@ -63,11 +63,11 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 
 ## Acceptance checks
 
-- [ ] The cookie value is unreadable from JavaScript and rejected after logout.
-- [ ] Logging in rotates the identifier and invalidates the previous session row.
-- [ ] An expired session answers 401 without a redirect loop.
+- [ ] The cookie value is HttpOnly and rejected (401 on `/api/auth/me`) after `POST /api/auth/logout` or `POST /api/auth/logout-all`.
+- [ ] Logging in rotates the identifier and invalidates the previous session row when reused.
+- [ ] An expired session in JUnit/service checks answers 401 without a redirect loop.
 
-**Test scenario:** Log in, reuse the old cookie after rotation and assert 401; assert logout-everywhere kills all rows.
+**Test scenario:** Log in twice, verify `POST /api/auth/logout-all` revokes all cookies and old rotated cookies return 401; verify idle/absolute expiry in JUnit with frozen clock.
 
 ## Out of scope
 

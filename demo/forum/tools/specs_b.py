@@ -93,7 +93,7 @@ SPECS = [
             'A public create request before qualified pipeline installation is refused and writes no record.',
         ],
         "security": 'Stored source is normalized Markdown, not trusted HTML. Only sanitized HTML is rendered. Original transport bytes are not retained. Live visibility changes require the later admission/moderation commands.',
-        "test": 'Insert held and disposable visible fixtures; assert normalized storage, safe rendering, filtered reads and refusal of public writes.',
+        "test": 'Verify in JUnit/Quarkus product tests that held and disposable visible fixtures assert normalized storage, safe rendering, filtered reads and refusal of public writes (do not assert frozen clocks on live HTTP).',
         'delivery': [
             'Add held post storage using normalized Markdown and sanitized HTML.',
             'Expose safe authorized reads, with no live publication endpoint.',
@@ -127,7 +127,7 @@ SPECS = [
             "The rendered order is stable across two requests.",
         ],
         "security": "The common visibility predicate requires both the parent post and the comment to be visible, plus channel access. A visible parent never exposes a held child.",
-        "test": "Build a four-deep chain and a reply to a hidden parent; assert both refusals and the stable ordering.",
+        "test": "Exercise the four-deep chain, hidden parent refusal, and stable ordering in JUnit/Quarkus product tests until live comment write routes exist in 063.",
         'delivery': [
             'Add comment ancestry, stable order and the depth-three boundary.',
             'Reuse post/channel visibility and internal held storage.',
@@ -393,7 +393,7 @@ SPECS = [
             "Each edit stores the previous rendered body.",
         ],
         "security": "Revisions are append-only; the audit chain covers deletions and edits.",
-        "test": 'Exercise the internal edit command with a frozen clock, expired window, unauthorized actor and tombstone; later 063 qualification asserts edits cannot bypass admission.',
+        "test": 'Exercise the internal edit command in JUnit/Quarkus tests with a frozen JUnit clock, expired window, unauthorized actor and tombstone (never assert global frozen clocks on live HTTP requests); later 063 qualification asserts edits cannot bypass admission.',
         'delivery': [
             'Add internal author edit-window and append-only pending revisions.',
             'Implement tombstones without publishing edits before later admission.',
@@ -459,7 +459,7 @@ SPECS = [
             'A 10000-post fixture meets a baseline and p95 budget recorded before qualification.',
         ],
         "security": "Hashes never leave the database; neither the hash nor the score appears in telemetry.",
-        "test": 'Use pinned whitespace variants and near-duplicate shingle fixtures with expected numeric Jaccard scores; check the 0.80 boundary and an unrelated sample, not semantic paraphrase detection.',
+        "test": 'Verify in JUnit fixtures using pinned whitespace variants, 0.80 Jaccard boundary samples, unrelated samples, and the 10000-post baseline p95 budget (not HTTP latency timing).',
         'delivery': [
             'Hash the shared normalized source and compute bounded five-token shingles.',
             'Return exact/Jaccard duplicate evidence without changing visibility.',

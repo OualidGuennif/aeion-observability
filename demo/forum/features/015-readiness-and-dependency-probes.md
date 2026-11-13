@@ -63,11 +63,11 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 
 ## Acceptance checks
 
-- [ ] With the database stopped, `/healthz` stays 200 and `/readyz` answers 503.
+- [ ] `GET /readyz` returns 200 with JSON status (`database`) without version/host leaks when healthy, and `/healthz` stays 200 while `/readyz` answers 503 when database readiness fails.
 - [ ] The answer names the failing dependency once and never repeats a payload.
-- [ ] A probe burst does not multiply the database round trips.
+- [ ] A probe burst does not multiply the database round trips (verified in JUnit unit tests alongside DB-down simulation).
 
-**Test scenario:** Stop the database, assert the split; restart and assert readiness returns.
+**Test scenario:** Verify `GET /readyz` returns 200 on live HTTP and assert DB-stopped 503 split plus five-second caching in JUnit tests (external black-box HTTP tests cannot stop supervisor Postgres).
 
 ## Out of scope
 
