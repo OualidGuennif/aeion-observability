@@ -3,11 +3,11 @@
 Updated 2026-11-13. Current facts only; historical evidence is in HANDOVER.md and validation.md.
 No final operational Go or actual product feature merge is claimed.
 
-## Feature 003 Harness Transition Oracle & Baseline Preparation Retry — COMPLETED
+## Feature 003 Live Completion, Authoring Playbook & Catalog Alignment — COMPLETED
 
 - Owner decision: prevent `preparation_negative_control_missing` traps across both non-HTTP harness transitions (Feature 003) and general LLM-prepared product contracts (`004`..`100`), and document all accumulated factory feature-authoring rules.
-- State: merged to `main` (`72404ee`), protocol requalified/activated (`ready('.') == True`), held build `9817f05b` cancelled, and new Feature 003 build `9108d9d4` passed `preparing` (`registered_static_acceptance` / `registered_transition_source_missing`) into `flue-openshell`. Added [feature authoring guide](../knowledge/operations/feature-authoring.md).
-- Next: monitor Feature 003 build `9108d9d4` through author/review.
+- State: PR #45 (`72404ee`) merged to `main` and activated; Feature `003` (`1ab4ce760e8a4607a47772b47af6feb3`, `deepseek-4.1-flash`, approved by `glm-5.3-flash` and `qwen-3.8-flash`) completed end-to-end and merged to product `main` (`8bde82c2e2ce7f71daa8455ae73a521523788a2a`). Added [feature authoring guide](../knowledge/operations/feature-authoring.md), synced `demo/forum/tools/specs_a.py` with `003`, and aligned 14 Agora P0–P5 specs (`004`..`100`) with baseline verification rules.
+- Next: release to `main` via PR #46 and select the next P0 feature(s) in Cockpit.
 - Blocker: none.
 - Evidence: [validation](validation.md); [execution contract](../knowledge/components/factory-flue.md); [feature authoring](../knowledge/operations/feature-authoring.md).
 
