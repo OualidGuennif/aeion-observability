@@ -1,13 +1,13 @@
 # Current work
 
-Updated 2026-11-12. Current facts only; historical evidence is in HANDOVER.md and validation.md.
+Updated 2026-11-13. Current facts only; historical evidence is in HANDOVER.md and validation.md.
 No final operational Go or actual product feature merge is claimed.
 
-## Contract Scope Bounding & Correction Deadlock Resolution — IN PROGRESS
+## Feature 003 Harness Transition Oracle & Baseline Preparation Retry — IN PROGRESS
 
-- Owner decision: resolve author/reviewer deadlock on Feature 003 where hallucinated acceptance contracts forced out-of-scope edits (64K transport cap, row-hiding filter, HTTP clock freeze) rejected by reviewers, eliminate blind contract reuse in `factory-correction:`, and mark `reprepare_needed` on `correction_unchanged`.
-- State: `product_checks.py:acceptance_prompt` bounds tests strictly to frozen specification deliverables, forbids unrequested endpoint assertions, and documents the 16KiB HTTP transport cap; `preparation.py` auto-detects reviewer rejection or contract-scope conflicts in previous builds and sets `reprepare_needed = True` rather than blindly copying flawed `acceptance.mjs`; `dispatch.py` marks `reprepare_needed` on `correction_unchanged` ($\le 1500$ lines); tests pass.
-- Next: run admission requalification, restart cockpit daemon, cancel stuck build, relaunch clean Feature 003.
+- Owner decision: prevent `preparation_negative_control_missing` traps across both non-HTTP harness transitions (Feature 003) and general LLM-prepared product contracts (`004`..`100`).
+- State: `demo/factory/product_harness.py` and `demo/factory/transitions/harness/` register deterministic Feature 003 acceptance and run the protected JUnit oracle (`FactoryHarness003OracleTest`) against `ae0bd57` (failing negative control cleanly as `registered_harness_oracle_failed` with 0 model cost); `preparation.py` adds a multi-attempt baseline diagnostic retry loop for `self.product` runs so contracts that unexpectedly pass baseline receive diagnostic feedback and switch preparer families before holding; `product_checks.py` and `flue_qualification.py` updated.
+- Next: finish demo tests, refresh architecture snapshot, merge to `main`, run `factory.admission --activate`, clear held build `9817f05b`, restart cockpit daemon on 8088.
 - Blocker: none.
 - Evidence: [validation](validation.md); [execution contract](../knowledge/components/factory-flue.md).
 

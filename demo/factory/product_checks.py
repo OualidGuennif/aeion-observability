@@ -40,9 +40,9 @@ def validate_acceptance(text):
 
 
 def registered_acceptance(root, task):
-    if task.feature_id not in ('001','002','014'):
+    if task.feature_id not in ('001','002','003','014'):
         return None
-    folder=Path(root)/'demo/factory/transitions'/({'001':'foundation','002':'postgres','014':'react'}[task.feature_id])
+    folder=Path(root)/'demo/factory/transitions'/({'001':'foundation','002':'postgres','003':'harness','014':'react'}[task.feature_id])
     try:
         identity=json.loads((folder/'identity.json').read_text())
         text=(folder/'acceptance.mjs').read_text()
@@ -157,10 +157,14 @@ class ProductCheckRunner(DockerCheckRunner):
         if not postgres:return common+web
         harness = (
             'In Quarkus test harnesses (Feature 003), QuarkusTestResourceLifecycleManager must follow '
-            'the official Quarkus lifecycle contract by implementing @Override inject(TestInjector testInjector) '
+            'the official Quarkus lifecycle contract by implementing @Override public void inject(TestInjector testInjector) '
             '(optionally providing inject(Object testInstance)). EphemeralDatabase must track created roles '
             'and on teardown only drop application roles that were created by that instance, preventing dropping '
-            'any pre-existing database role on setup failure. ' if target.feature_id == '003' else ''
+            'any pre-existing database role on setup failure. EphemeralDatabase must also validate JDBC hosts '
+            '(allowlisting loopback 127.0.0.1/localhost/::1) before opening any connection or DDL, and expose a '
+            'deterministic seeded java.util.Random source (e.g., public Random random()) alongside frozen clock(). '
+            'Do not alter production HTTP limits, CORS or ForumClock HTTP behavior for Feature 003. '
+            if target.feature_id == '003' else ''
         )
         return common+web+harness+('PostgreSQL uses QUARKUS_DATASOURCE_* and migration-owner credentials exist '
             'only in a separate operator JVM. Provide local.aeion.forum.DatabaseOperator with '
@@ -316,6 +320,12 @@ class ProductCheckRunner(DockerCheckRunner):
                     return False, {'reason':'product_unit_tests_failed','returncode':tested.returncode,
                         'compiler_errors':_compiler_errors(output),
                         'failed_tests':_junit_failures(reports,_failed_tests(output))}
+                if target.feature_id=='003':
+                    from .product_harness import verify_harness
+                    harness_rem=target.protected_check.timeout_seconds-(time.monotonic()-started)
+                    if harness_rem<=0:return False, {'reason':'product_check_deadline'}
+                    harness_ok,harness_reason,harness_detail=verify_harness(self,snapshot,harness_rem)
+                    if not harness_ok:return False, {'reason':harness_reason,**harness_detail}
                 if has_web:
                     prepare_web(unit_snapshot/'demo/forum-web')
                     tested=web_runner(['node','/opt/aeion-checker/node_modules/vitest/vitest.mjs','run',

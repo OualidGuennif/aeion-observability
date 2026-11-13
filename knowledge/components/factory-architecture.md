@@ -31,6 +31,8 @@ sources:
     title: "Deterministic feature lifecycle"
   - resource: ../../demo/factory/product_checks.py
     title: "External product verification boundary"
+  - resource: ../../demo/factory/product_harness.py
+    title: "Protected Feature 003 JUnit harness verifier"
   - resource: ../../demo/factory/publication.py
     title: "Credential-separated protected publication"
   - resource: ../../demo/factory/review_context.py
@@ -57,7 +59,7 @@ durable stages. Current native qualification is rechecked before admission and r
 Under Factory 3.0, the runtime integrates OpenShell 0.1.8 with bridge read/stat caching, Flue 2.3.0
 persistent state for author execution and passed-check finish steering, Hindsight 1.2.1 SDK with
 cognitive synthesis fallback, Langfuse v5.2 enterprise prompt management and multi-dimensional
-evaluation scores, an enhanced preparation feedback loop with contract scope bounding, sandbox base diffing, and automatic contract re-preparation on reviewer rejection. The [execution contract](factory-flue.md) owns these runtime facts; the
+evaluation scores, an enhanced preparation feedback loop with contract scope bounding, sandbox base diffing, baseline negative-control retries, registered Feature 003 JUnit harness transition verification, and automatic contract re-preparation on reviewer rejection. The [execution contract](factory-flue.md) owns these runtime facts; the
 [cockpit contract](operator-cockpit.md) owns selection and presentation.
 
 Workers propose candidate files without host credentials, mounts, a Docker socket or unrestricted

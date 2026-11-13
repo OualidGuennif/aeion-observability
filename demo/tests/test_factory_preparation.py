@@ -240,7 +240,7 @@ class PreparationTests(unittest.TestCase):
         brief.write_text(brief.read_text() + '\n', encoding='utf-8')
         with self.assertRaisesRegex(PreparationError, 'preparation_workspace_refused'):
             preparer.resume_prepared(folder)
-        for feature in ('002', '014'):
+        for feature in ('002', '003', '014'):
             with self.assertRaisesRegex(PreparationError, 'preparation_workspace_refused'):
                 preparer.resume_prepared(self._contract(feature=feature))
         plain = TaskPreparer(self.root, self.source, role=self.role, product=False)
@@ -306,6 +306,86 @@ class PreparationTests(unittest.TestCase):
         self.assertIsNotNone(fb)
         self.assertIn("Author finding: Forced changes", fb)
         self.assertIn("Reviewer rejection (deepseek-4.1-flash): Out-of-scope changes", fb)
+
+    def test_product_prepare_retries_when_baseline_passes_unexpectedly_and_succeeds(self):
+        contracts = [
+            "import test from 'node:test';\nimport assert from 'node:assert/strict';\ntest('existing', () => { assert.equal(1, 1); });\n",
+            "import test from 'node:test';\nimport assert from 'node:assert/strict';\ntest('missing delta', () => { assert.equal(1, 2); });\n",
+        ]
+        calls = []
+
+        class RetryingRole:
+            paid = False
+            last_execution = None
+            last_usage = None
+
+            def __call__(_, model, prompt, build_id):
+                calls.append((model, prompt, build_id))
+                _.last_usage = {'complete': True, 'cost_usd': '0'}
+                idx = min(len(calls) - 1, len(contracts) - 1)
+                return {'status': 'ready', 'contract': contracts[idx], 'reason': 'Synthetic retry fixture'}
+
+        class BaselineChecker:
+            def __init__(self):
+                self.runs = 0
+
+            def check_target(self, target, repo, frozen):
+                self.runs += 1
+                if self.runs == 1:
+                    return True, {'reason': 'passed', 'contract_assertion_failures': 0}
+                return False, {'reason': 'acceptance_failed', 'contract_assertion_failures': 1}
+
+        checker = BaselineChecker()
+        preparer = TaskPreparer(self.root, self.source, role=RetryingRole(), checker=checker, base_ref='HEAD', product=True)
+        target, evidence = preparer.prepare(
+            build={'feature_id': '007', 'build_id': 'a' * 32, 'attempt_id': 'b' * 32},
+            catalog=self.catalog,
+            spec_dir=self.specs,
+            destination=self.root / 'prepared-retry',
+            budget=self.budget,
+            router=Router(),
+            authorized=lambda: True,
+        )
+        self.assertEqual(len(calls), 2)
+        self.assertNotEqual(calls[0][0], calls[1][0])
+        self.assertIn('BASELINE CHECK RETRY FEEDBACK', calls[1][1])
+        self.assertIn('PASSED on the untouched baseline', calls[1][1])
+        self.assertEqual(evidence['negative_control'], 'failed_contract_assertion')
+        self.assertEqual(target.feature_id, '007')
+
+    def test_product_prepare_fails_when_all_retries_pass_on_baseline(self):
+        passing_contract = "import test from 'node:test';\nimport assert from 'node:assert/strict';\ntest('always passes', () => { assert.equal(1, 1); });\n"
+
+        class AlwaysPassingRole:
+            paid = False
+            last_execution = None
+            last_usage = None
+
+            def __init__(self):
+                self.calls = 0
+
+            def __call__(self, model, prompt, build_id):
+                self.calls += 1
+                self.last_usage = {'complete': True, 'cost_usd': '0'}
+                return {'status': 'ready', 'contract': passing_contract, 'reason': 'Always passes'}
+
+        class AlwaysPassingChecker:
+            def check_target(self, target, repo, frozen):
+                return True, {'reason': 'passed', 'contract_assertion_failures': 0}
+
+        role = AlwaysPassingRole()
+        preparer = TaskPreparer(self.root, self.source, role=role, checker=AlwaysPassingChecker(), base_ref='HEAD', product=True)
+        with self.assertRaisesRegex(PreparationError, 'preparation_negative_control_missing'):
+            preparer.prepare(
+                build={'feature_id': '007', 'build_id': 'a' * 32, 'attempt_id': 'b' * 32},
+                catalog=self.catalog,
+                spec_dir=self.specs,
+                destination=self.root / 'prepared-exhausted',
+                budget=self.budget,
+                router=Router(),
+                authorized=lambda: True,
+            )
+        self.assertGreaterEqual(role.calls, 2)
 
 
 def _sha(text):
