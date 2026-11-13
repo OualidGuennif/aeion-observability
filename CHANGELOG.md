@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Patches 14 Agora feature specifications (`demo/forum/tools/specs_{a,b,c,e,f}.py`
+  and regenerated `demo/forum/features/*.md`) to disambiguate P0 endpoints
+  against `ae0bd57` (`POST /api/auth/accounts/{username}/disable`,
+  `POST /api/auth/logout-all`, `GET /api/auth/csrf`, `GET /readyz`), bound
+  frozen-clock / signal / DB-down / benchmark assertions to JUnit/Quarkus tests,
+  sync Feature `003` specs cleanly, and fix `demo/forum-docs/` paths (`082`, `100`).
+
+- Documents canonical Agora feature-authoring rules and factory lessons
+  learned (`knowledge/operations/feature-authoring.md`, indexed in
+  `knowledge/index.md` and `knowledge/operations/index.md`) covering catalog
+  freeze bounds, baseline negative-control observability, inherited HTTP 16 KiB /
+  CSRF guards, Quarkus SPI contracts, and hold diagnosis.
+
 - Adds a registered deterministic Feature 003 transition oracle
   (`demo/factory/transitions/harness/` and `demo/factory/product_harness.py`)
   that verifies concurrent ephemeral database isolation, role tracking,

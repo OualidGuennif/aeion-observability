@@ -38,7 +38,7 @@ Content and model output are untrusted. Canonical definition: `tools/specs_e.py`
 
 **Scope:**
 
-- Create only docs/corpus-license.md: synthetic-only statement, invented-source policy and review required for real sources.
+- Create only demo/forum-docs/corpus-license.md: synthetic-only statement, invented-source policy and review required for real sources.
 - Document attribution, licensing review and retention prerequisites; do not introduce a real-source loader or deployment toggle.
 - About-page integration belongs to 100; this documentation-only output is disjoint from 077/086.
 

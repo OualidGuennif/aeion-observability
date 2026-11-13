@@ -67,7 +67,7 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 - [ ] Named near-duplicate fixtures score at least 0.80 and unrelated fixtures below 0.80; this makes no semantic paraphrase guarantee.
 - [ ] A 10000-post fixture meets a baseline and p95 budget recorded before qualification.
 
-**Test scenario:** Use pinned whitespace variants and near-duplicate shingle fixtures with expected numeric Jaccard scores; check the 0.80 boundary and an unrelated sample, not semantic paraphrase detection.
+**Test scenario:** Verify in JUnit fixtures using pinned whitespace variants, 0.80 Jaccard boundary samples, unrelated samples, and the 10000-post baseline p95 budget (not HTTP latency timing).
 
 ## Out of scope
 

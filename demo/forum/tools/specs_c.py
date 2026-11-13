@@ -258,7 +258,7 @@ SPECS = [
             "A sanction without an expiry is refused unless issued by an administrator.",
         ],
         "security": "Sanctions are checked before content work, so a banned identity cannot consume moderation budget.",
-        "test": 'Use a frozen-clock internal write-authorization adapter to assert mute/ban refusal, expiry and audit; 063 later checks every live write path.',
+        "test": 'Use a frozen-clock internal JUnit write-authorization fixture (not live HTTP clock headers) to assert mute/ban refusal, expiry and audit; 063 later checks every live write path.',
         'delivery': [
             'Add explicit sanction types, reason and expiry.',
             'Expose a reusable write-authorization predicate with current-time checks.',

@@ -67,7 +67,7 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 - [ ] Unadmitted records default to held and are absent from feed, search and direct public reads.
 - [ ] A public create request before qualified pipeline installation is refused and writes no record.
 
-**Test scenario:** Insert held and disposable visible fixtures; assert normalized storage, safe rendering, filtered reads and refusal of public writes.
+**Test scenario:** Verify in JUnit/Quarkus product tests that held and disposable visible fixtures assert normalized storage, safe rendering, filtered reads and refusal of public writes (do not assert frozen clocks on live HTTP).
 
 ## Out of scope
 

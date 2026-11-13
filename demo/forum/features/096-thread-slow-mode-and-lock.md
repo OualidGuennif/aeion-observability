@@ -67,7 +67,7 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 - [ ] A locked thread refuses all new comments and remains readable to authorized readers.
 - [ ] Reader discussion writes are always denied; 063 qualification proves agents cannot bypass the lock by direct API requests.
 
-**Test scenario:** Use an internal frozen-clock admission fixture to assert interval, lock, identity and audit behavior; the full live-route coverage belongs to 063.
+**Test scenario:** Use an internal frozen-clock JUnit admission fixture (not live HTTP clock freezing) to assert interval, lock, identity and audit behavior; the full live-route coverage belongs to 063.
 
 ## Out of scope
 

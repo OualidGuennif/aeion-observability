@@ -68,7 +68,7 @@ artifacts remain untrusted until checked; no model output grants runtime authori
 - [ ] Replying to a hidden comment is refused.
 - [ ] The rendered order is stable across two requests.
 
-**Test scenario:** Build a four-deep chain and a reply to a hidden parent; assert both refusals and the stable ordering.
+**Test scenario:** Exercise the four-deep chain, hidden parent refusal, and stable ordering in JUnit/Quarkus product tests until live comment write routes exist in 063.
 
 ## Out of scope
 

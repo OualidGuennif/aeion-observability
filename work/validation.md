@@ -1,3 +1,9 @@
+## Catalog Spec Alignment & Feature Authoring Guide — 2026-11-13
+
+- Created [knowledge/operations/feature-authoring.md](../knowledge/operations/feature-authoring.md) (indexed in `knowledge/index.md` and `knowledge/operations/index.md`) codifying catalog validation bounds, black-box negative-control requirements, inherited HTTP 16 KiB / CSRF / 422 guards, SPI naming, and hold diagnosis.
+- Synced `specs_a.py` with `003-test-harness-with-an-ephemeral-database.md` (preserving `e6aa21c4...` SHA256 invariance) and patched `specs_{a,b,c,e,f}.py` (`004`, `005`, `006`, `015`, `016`, `017`, `021`, `022`, `030`, `032`, `048`, `082`, `096`, `100`).
+- Verification: `generate_features.py --check` (`PASS 100 features`), `demo/forum/tools/test_generate_features.py` (21/21 OK), `demo/tests/test_factory_registered_foundation.py` (11/11 OK), `knowledge-check` (`PASS`), `doc-links` (`PASS 165 links`), `repo-health` (`PASS`).
+
 ## Feature 003 Harness Transition Oracle & Baseline Preparation Retry — 2026-11-13
 
 - Incident & Root Cause Analysis:

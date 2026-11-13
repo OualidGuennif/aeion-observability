@@ -245,7 +245,7 @@ SPECS = [
         "deps": [75],
         "goal": "Document that the corpus is synthetic, how to replace it with licensed material, and what must change — so nobody ships real news through this path by accident.",
         "scope": [
-            'Create only docs/corpus-license.md: synthetic-only statement, invented-source policy and review required for real sources.',
+            'Create only demo/forum-docs/corpus-license.md: synthetic-only statement, invented-source policy and review required for real sources.',
             'Document attribution, licensing review and retention prerequisites; do not introduce a real-source loader or deployment toggle.',
             'About-page integration belongs to 100; this documentation-only output is disjoint from 077/086.',
         ],

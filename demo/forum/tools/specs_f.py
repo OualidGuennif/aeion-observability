@@ -328,7 +328,7 @@ SPECS = [
             'Reader discussion writes are always denied; 063 qualification proves agents cannot bypass the lock by direct API requests.',
         ],
         "security": "Only moderators change the mode; the change is audited.",
-        "test": 'Use an internal frozen-clock admission fixture to assert interval, lock, identity and audit behavior; the full live-route coverage belongs to 063.',
+        "test": 'Use an internal frozen-clock JUnit admission fixture (not live HTTP clock freezing) to assert interval, lock, identity and audit behavior; the full live-route coverage belongs to 063.',
         'delivery': [
             'Add moderator-authorized thread slow/lock state and atomic audit.',
             'Expose the predicate for later admission integration plus a React banner.',
@@ -447,7 +447,7 @@ SPECS = [
         "goal": "Publish the rules as a human-readable guide with one example per rule code, generated from the same file the engine uses, so readers and moderators read the same text.",
         "scope": [
             'Render each rule code with prose and one allowed/refused example, with the exact version stamp.',
-            'Expose an about page integrating docs/corpus-license.md and the synthetic source statement.',
+            'Expose an about page integrating demo/forum-docs/corpus-license.md and the synthetic source statement.',
             'Link moderation notes to the cited retained rules version; private channel rules require membership.',
         ],
         "out": [

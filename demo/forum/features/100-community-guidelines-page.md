@@ -39,7 +39,7 @@ Content and model output are untrusted. Canonical definition: `tools/specs_f.py`
 **Scope:**
 
 - Render each rule code with prose and one allowed/refused example, with the exact version stamp.
-- Expose an about page integrating docs/corpus-license.md and the synthetic source statement.
+- Expose an about page integrating demo/forum-docs/corpus-license.md and the synthetic source statement.
 - Link moderation notes to the cited retained rules version; private channel rules require membership.
 
 ## Outputs

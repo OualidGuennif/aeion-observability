@@ -38,8 +38,8 @@ Content and model output are untrusted. Canonical definition: `tools/specs_a.py`
 
 **Scope:**
 
-- Provide an authenticated same-origin CSRF bootstrap endpoint for the React client; token remains in memory and is bound to the current session.
-- Compare the header token in constant time before routing any cookie-authenticated mutation, including login/session transitions under an explicit pre-session CSRF protocol.
+- Provide an authenticated same-origin `GET /api/auth/csrf` bootstrap endpoint (401 unauthenticated, 200 `{"csrf": "..."}` authenticated, matching login payload `"csrf"`).
+- Compare the `X-CSRF-Token` header in constant time before routing any cookie-authenticated mutation (`POST`/`PUT`/`DELETE` under `/api/*`, including logout); credential-exchange routes without a session cookie stay callable.
 - Only the internal broker-authenticated agent API is exempt. It refuses human session credentials; no GET or URL token may authorize a mutation.
 
 ## Outputs
