@@ -3,13 +3,13 @@
 Updated 2026-11-13. Current facts only; historical evidence is in HANDOVER.md and validation.md.
 No final operational Go or actual product feature merge is claimed.
 
-## Feature 003 Harness Transition Oracle & Baseline Preparation Retry — IN PROGRESS
+## Feature 003 Harness Transition Oracle & Baseline Preparation Retry — COMPLETED
 
-- Owner decision: prevent `preparation_negative_control_missing` traps across both non-HTTP harness transitions (Feature 003) and general LLM-prepared product contracts (`004`..`100`).
-- State: `demo/factory/product_harness.py` and `demo/factory/transitions/harness/` register deterministic Feature 003 acceptance and run the protected JUnit oracle (`FactoryHarness003OracleTest`) against `ae0bd57` (failing negative control cleanly as `registered_harness_oracle_failed` with 0 model cost); `preparation.py` adds a multi-attempt baseline diagnostic retry loop for `self.product` runs so contracts that unexpectedly pass baseline receive diagnostic feedback and switch preparer families before holding; `product_checks.py` and `flue_qualification.py` updated.
-- Next: finish demo tests, refresh architecture snapshot, merge to `main`, run `factory.admission --activate`, clear held build `9817f05b`, restart cockpit daemon on 8088.
+- Owner decision: prevent `preparation_negative_control_missing` traps across both non-HTTP harness transitions (Feature 003) and general LLM-prepared product contracts (`004`..`100`), and document all accumulated factory feature-authoring rules.
+- State: merged to `main` (`72404ee`), protocol requalified/activated (`ready('.') == True`), held build `9817f05b` cancelled, and new Feature 003 build `9108d9d4` passed `preparing` (`registered_static_acceptance` / `registered_transition_source_missing`) into `flue-openshell`. Added [feature authoring guide](../knowledge/operations/feature-authoring.md).
+- Next: monitor Feature 003 build `9108d9d4` through author/review.
 - Blocker: none.
-- Evidence: [validation](validation.md); [execution contract](../knowledge/components/factory-flue.md).
+- Evidence: [validation](validation.md); [execution contract](../knowledge/components/factory-flue.md); [feature authoring](../knowledge/operations/feature-authoring.md).
 
 ## Sandbox Provisioning Resilience & Quarkus Lifecycle Hardening — COMPLETED
 

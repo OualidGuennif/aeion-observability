@@ -4,6 +4,7 @@
 - [Docker demonstration](components/docker-demo.md)
 - [Operator cockpit](components/operator-cockpit.md)
 - [Flue factory execution](components/factory-flue.md)
+- [Authoring factory-compatible features](operations/feature-authoring.md)
 - [State of the art](references/state-of-the-art.md)
 - [Sources](references/sources.md)
 - [Provider capabilities](references/provider-capabilities.md)

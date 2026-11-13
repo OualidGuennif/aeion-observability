@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Documents canonical Agora feature-authoring rules and factory lessons
+  learned (`knowledge/operations/feature-authoring.md`, indexed in
+  `knowledge/index.md` and `knowledge/operations/index.md`) covering catalog
+  freeze bounds, baseline negative-control observability, inherited HTTP 16 KiB /
+  CSRF guards, Quarkus SPI contracts, and hold diagnosis.
+
 - Adds a registered deterministic Feature 003 transition oracle
   (`demo/factory/transitions/harness/` and `demo/factory/product_harness.py`)
   that verifies concurrent ephemeral database isolation, role tracking,
